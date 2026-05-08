@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and balance",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "balance": { "type": "number", "description": "Current available cash balance" }
+      },
+      "required": ["uid", "email", "balance"]
+    },
+    "TeamStock": {
+      "title": "NFL Team Stock",
+      "description": "Market data for a specific NFL team",
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string", "description": "Team abbreviation e.g., MIN" },
+        "name": { "type": "string" },
+        "marketCap": { "type": "number" },
+        "price": { "type": "number" },
+        "prevPrice": { "type": "number" },
+        "change": { "type": "number" },
+        "changePercent": { "type": "number" }
+      },
+      "required": ["symbol", "name", "price"]
+    },
+    "PortfolioItem": {
+      "title": "User Portfolio Item",
+      "description": "Shares of a team stock owned by a user",
+      "type": "object",
+      "properties": {
+        "teamId": { "type": "string" },
+        "shares": { "type": "number" },
+        "avgPrice": { "type": "number" }
+      },
+      "required": ["teamId", "shares", "avgPrice"]
+    },
+    "Transaction": {
+      "title": "Financial Transaction",
+      "description": "Buy, sell, deposit, or withdrawal event",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["buy", "sell", "deposit", "withdraw"] },
+        "assetId": { "type": "string" },
+        "amount": { "type": "number" },
+        "shares": { "type": "number" },
+        "price": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "amount", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "users/{userId}/portfolio/{teamId}": {
+      "schema": "PortfolioItem",
+      "description": "User's current stock positions"
+    },
+    "users/{userId}/transactions/{txId}": {
+      "schema": "Transaction",
+      "description": "User's transaction history"
+    },
+    "teams/{teamId}": {
+      "schema": "TeamStock",
+      "description": "Live market data for NFL teams"
+    }
+  }
+}

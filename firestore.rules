@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // User Profile Rules
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.uid == request.auth.uid 
+          && data.email is string 
+          && data.balance is number 
+          && data.balance >= 0;
+      }
+
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data)
+        && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'balance']));
+    }
+
+    // Portfolio Rules
+    match /users/{userId}/portfolio/{teamId} {
+      function isValidPortfolioItem(data) {
+        return data.teamId is string && data.shares is number && data.shares >= 0 && data.avgPrice is number;
+      }
+
+      allow list, get: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidPortfolioItem(request.resource.data);
+      allow delete: if isOwner(userId);
+    }
+
+    // Transaction Rules (Append only mostly)
+    match /users/{userId}/transactions/{txId} {
+      function isValidTransaction(data) {
+        return data.userId == request.auth.uid 
+          && data.type in ['buy', 'sell', 'deposit', 'withdraw']
+          && data.amount is number
+          && data.timestamp is timestamp;
+      }
+
+      allow list, get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidTransaction(request.resource.data);
+    }
+
+    // Teams Rules (Publicly readable, system writable)
+    match /teams/{teamId} {
+      allow read: if true; // Public can see market data
+      allow write: if false; // Only via backend/admin (simulated for now, would be restricted to admin service account)
+    }
+  }
+}
