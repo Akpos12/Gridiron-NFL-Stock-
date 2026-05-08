@@ -52,6 +52,45 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "type", "amount", "timestamp"]
+    },
+    "FanCardRequest": {
+      "title": "Fan Card Inquiry",
+      "description": "Request for a physical or premium fan card",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "teamId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "responded", "fulfilled"] },
+        "contactMethod": { "type": "string" },
+        "message": { "type": "string" },
+        "replies": { 
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "sender": { "type": "string" },
+              "text": { "type": "string" },
+              "timestamp": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "teamId", "status"]
+    },
+    "StoreOrder": {
+      "title": "Store Purchase",
+      "description": "Order for tickets or jerseys",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "itemType": { "type": "string", "enum": ["ticket", "jersey", "membership"] },
+        "itemName": { "type": "string" },
+        "price": { "type": "number" },
+        "teamId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "itemType", "price", "timestamp"]
     }
   },
   "firestore": {
@@ -70,6 +109,26 @@
     "teams/{teamId}": {
       "schema": "TeamStock",
       "description": "Live market data for NFL teams"
+    },
+    "fan_card_requests/{requestId}": {
+      "schema": "FanCardRequest",
+      "description": "User inquiries for fan cards"
+    },
+    "store_orders/{orderId}": {
+      "schema": "StoreOrder",
+      "description": "Global log of store purchases"
+    },
+    "admins/{userId}": {
+      "schema": {
+        "title": "Admin Record",
+        "type": "object",
+        "properties": {
+          "email": { "type": "string" },
+          "role": { "type": "string" }
+        },
+        "required": ["email"]
+      },
+      "description": "Authorized administrators"
     }
   }
 }

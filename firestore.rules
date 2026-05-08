@@ -12,6 +12,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == 'alexwtchmn@gmail.com')
+      );
+    }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
@@ -20,19 +27,26 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    // Admin Rules
+    match /admins/{userId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Only manageable via Firebase Console or special script
+    }
+
     // User Profile Rules
     match /users/{userId} {
       function isValidUser(data) {
-        return data.uid == request.auth.uid 
-          && data.email is string 
-          && data.balance is number 
-          && data.balance >= 0;
+        return (data.get('uid', '') == userId || data.get('uid', '') == request.auth.uid)
+          && (data.get('email', '') is string)
+          && (data.get('balance', 0) is number);
       }
 
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(userId) && isValidUser(request.resource.data);
-      allow update: if isOwner(userId) && isValidUser(request.resource.data)
-        && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'balance']));
+      allow update: if (isOwner(userId) || isAdmin())
+        && isValidUser(request.resource.data)
+        && (isAdmin() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'balance', 'updatedAt', 'createdAt', 'uid', 'email']));
     }
 
     // Portfolio Rules
@@ -41,28 +55,57 @@ service cloud.firestore {
         return data.teamId is string && data.shares is number && data.shares >= 0 && data.avgPrice is number;
       }
 
-      allow list, get: if isOwner(userId);
-      allow create, update: if isOwner(userId) && isValidPortfolioItem(request.resource.data);
-      allow delete: if isOwner(userId);
+      allow list, get: if isOwner(userId) || isAdmin();
+      allow create, update: if (isOwner(userId) || isAdmin()) && isValidPortfolioItem(request.resource.data);
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     // Transaction Rules (Append only mostly)
     match /users/{userId}/transactions/{txId} {
       function isValidTransaction(data) {
-        return data.userId == request.auth.uid 
+        return (data.userId == request.auth.uid || isAdmin())
           && data.type in ['buy', 'sell', 'deposit', 'withdraw']
           && data.amount is number
           && data.timestamp is timestamp;
       }
 
-      allow list, get: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidTransaction(request.resource.data);
+      allow list, get: if isOwner(userId) || isAdmin();
+      allow create: if (isOwner(userId) || isAdmin()) && isValidTransaction(request.resource.data);
     }
 
     // Teams Rules (Publicly readable, system writable)
     match /teams/{teamId} {
-      allow read: if true; // Public can see market data
-      allow write: if false; // Only via backend/admin (simulated for now, would be restricted to admin service account)
+      allow read: if true; 
+      allow write: if isAdmin(); 
+    }
+
+    // Fan Card Request Rules
+    match /fan_card_requests/{requestId} {
+      function isValidFanCardRequest(data) {
+        return (isSignedIn() ? data.userId == request.auth.uid : data.userId == 'guest')
+          && data.teamId is string
+          && (data.status in ['pending', 'responded', 'fulfilled'])
+          && data.timestamp is timestamp
+          && data.contactMethod is string;
+      }
+      
+      allow create: if isValidFanCardRequest(request.resource.data);
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid) || (resource.data.userId == 'guest');
+      allow update: if isAdmin();
+      allow list: if isAdmin();
+    }
+
+    // Store Order Rules
+    match /store_orders/{orderId} {
+      function isValidStoreOrder(data) {
+        return (data.userId == request.auth.uid || isAdmin())
+          && data.itemType in ['ticket', 'jersey', 'membership']
+          && data.price is number
+          && data.timestamp is timestamp;
+      }
+      
+      allow create: if isSignedIn() && isValidStoreOrder(request.resource.data);
+      allow read, list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
   }
 }
