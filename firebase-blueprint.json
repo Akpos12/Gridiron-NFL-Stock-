@@ -118,6 +118,10 @@
       "schema": "StoreOrder",
       "description": "Global log of store purchases"
     },
+    "global_transactions/{txId}": {
+      "schema": "Transaction",
+      "description": "Global log of all financial events for admin auditing"
+    },
     "admins/{userId}": {
       "schema": {
         "title": "Admin Record",

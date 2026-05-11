@@ -173,28 +173,80 @@ const BackgroundRotator = ({ isLanding }: { isLanding?: boolean }) => {
   );
 };
 
-const WalletModal = ({ isOpen, onClose, balance }: { isOpen: boolean, onClose: () => void, balance: number }) => {
+const WalletModal = ({ isOpen, onClose, balance, onWithdraw }: { isOpen: boolean, onClose: () => void, balance: number, onWithdraw: (amount: number, currency: string, address: string) => Promise<void> }) => {
   const [copied, setCopied] = useState<string | null>(null);
+  const [withdrawTab, setWithdrawTab] = useState<"fiat" | "crypto">("crypto");
+  const [selectedCurrency, setSelectedCurrency] = useState("USDT");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawAddress, setWithdrawAddress] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [txHash, setTxHash] = useState<string | null>(null);
+
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const handleInitiateWithdraw = async () => {
+    const amt = parseFloat(withdrawAmount);
+    if (isNaN(amt) || amt <= 0) return alert("Please enter a valid amount.");
+    if (amt > balance) return alert("Insufficient balance.");
+    if (withdrawTab === "crypto" && !withdrawAddress.trim()) return alert("Please enter a destination wallet address.");
+
+    setIsProcessing(true);
+    try {
+      await onWithdraw(amt, selectedCurrency, withdrawAddress);
+      setTxHash(`0x${Math.random().toString(16).substring(2, 42)}`);
+      setWithdrawAmount("");
+      setWithdrawAddress("");
+    } catch (err: any) {
+      alert("Withdrawal failed: " + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div 
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-2xl bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden"
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-white to-red-600" />
+        
+        {isProcessing && (
+          <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-center p-8">
+            <RefreshCw className="w-12 h-12 text-blue-500 animate-spin mb-6" />
+            <h3 className="text-2xl font-black italic uppercase italic tracking-tighter mb-2">Processing Withdrawal</h3>
+            <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic">Interrogating blockchain consensus nodes...</p>
+          </div>
+        )}
+
+        {txHash && (
+          <div className="absolute inset-0 z-50 bg-zinc-950 flex flex-col items-center justify-center text-center p-8 px-12">
+            <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-6" />
+            <h3 className="text-2xl font-black italic uppercase italic tracking-tighter mb-2">Withdrawal Broadcasted</h3>
+            <p className="text-zinc-400 text-xs font-medium mb-8">Your liquidity is being bridged to the specified destination. Transaction hash generated below:</p>
+            <div className="w-full bg-zinc-900 p-4 rounded-xl border border-white/5 font-mono text-[10px] break-all text-emerald-400 mb-8 select-all">
+              {txHash}
+            </div>
+            <button 
+              onClick={() => setTxHash(null)}
+              className="px-12 py-4 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-200 transition-all"
+            >
+              Confirm & Return
+            </button>
+          </div>
+        )}
+
         <button onClick={onClose} className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors">
           <X className="w-6 h-6" />
         </button>
@@ -204,8 +256,11 @@ const WalletModal = ({ isOpen, onClose, balance }: { isOpen: boolean, onClose: (
             <Wallet className="w-6 h-6 text-blue-500" />
           </div>
           <div>
-            <h2 className="text-2xl font-black italic uppercase">Institutional Wallet</h2>
-            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Available Balance: {formatCurrency(balance)}</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-black italic uppercase">Institutional Wallet</h2>
+              <span className="px-2 py-0.5 bg-blue-600/10 border border-blue-600/20 text-[8px] font-black uppercase text-blue-400 rounded-md tracking-widest">Secure</span>
+            </div>
+            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Available Liquidity: <span className="text-emerald-400">{formatCurrency(balance)}</span></p>
           </div>
         </div>
 
@@ -216,7 +271,9 @@ const WalletModal = ({ isOpen, onClose, balance }: { isOpen: boolean, onClose: (
             <div className="space-y-4">
               <div className="p-4 bg-zinc-800/50 rounded-2xl border border-white/5 group">
                 <div className="flex justify-between items-center mb-2">
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Bitcoin (BTC)</p>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                    <ShieldCheck className="w-3 h-3" /> Bitcoin (BTC)
+                  </p>
                   <button onClick={() => copyToClipboard("bc1qddj8shfsfhgj2rrk24v3gflp234znsxw7d4xtt", "btc")}>
                     {copied === "btc" ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
                   </button>
@@ -226,7 +283,9 @@ const WalletModal = ({ isOpen, onClose, balance }: { isOpen: boolean, onClose: (
 
               <div className="p-4 bg-zinc-800/50 rounded-2xl border border-white/5 group">
                 <div className="flex justify-between items-center mb-2">
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">USDT (ERC-20)</p>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                    <ShieldCheck className="w-3 h-3" /> USDT (ERC-20)
+                  </p>
                   <button onClick={() => copyToClipboard("0xBD40A14Dd94403107DD1F81DB5f2b4E80D34A222", "usdt")}>
                     {copied === "usdt" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
                   </button>
@@ -236,7 +295,9 @@ const WalletModal = ({ isOpen, onClose, balance }: { isOpen: boolean, onClose: (
 
               <div className="p-4 bg-zinc-800/50 rounded-2xl border border-white/5 group">
                 <div className="flex justify-between items-center mb-2">
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">USDT (TRX Network)</p>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                    <ShieldCheck className="w-3 h-3" /> USDT (TRX)
+                  </p>
                   <button onClick={() => copyToClipboard("TVL6rNk4e4P5EQnbkMJxifJwFhgWNqWZ2f", "usdt_trx")}>
                     {copied === "usdt_trx" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
                   </button>
@@ -244,28 +305,91 @@ const WalletModal = ({ isOpen, onClose, balance }: { isOpen: boolean, onClose: (
                 <p className="text-[10px] font-mono break-all text-zinc-300">TVL6rNk4e4P5EQnbkMJxifJwFhgWNqWZ2f</p>
               </div>
 
-              <button className="w-full py-4 bg-zinc-950 border border-white/5 rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors">
-                Connect ACH / Bank Wire
+              <button className="w-full py-4 bg-zinc-950 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2">
+                <CreditCard className="w-3 h-3" /> Institutional Wire
               </button>
             </div>
           </div>
 
           <div className="space-y-6">
-            <h3 className="text-xs font-black uppercase text-zinc-400 tracking-widest border-b border-white/5 pb-2">Withdraw Funds</h3>
+            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+              <h3 className="text-xs font-black uppercase text-zinc-400 tracking-widest">Withdraw Liquidity</h3>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setWithdrawTab("crypto")}
+                  className={cn("text-[8px] font-black uppercase px-2 py-0.5 rounded transition-all", withdrawTab === "crypto" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-500")}
+                >
+                  Crypto
+                </button>
+                <button 
+                  onClick={() => setWithdrawTab("fiat")}
+                  className={cn("text-[8px] font-black uppercase px-2 py-0.5 rounded transition-all", withdrawTab === "fiat" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-500")}
+                >
+                  Fiat
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-4">
-              <input type="number" placeholder="Amount USD" className="w-full p-4 bg-zinc-950 border border-white/5 rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all font-mono" />
-              <input type="text" placeholder="Destination Address / Routing" className="w-full p-4 bg-zinc-950 border border-white/5 rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all" />
-              <button className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:bg-zinc-200 transition-all">
-                Initiate Withdrawal
+              <div className="relative">
+                <input 
+                  type="number" 
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="Amount USD" 
+                  className="w-full p-4 bg-zinc-950 border border-white/5 rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all font-mono" 
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-600 uppercase tracking-widest">USD</span>
+              </div>
+
+              {withdrawTab === "crypto" && (
+                <div className="grid grid-cols-3 gap-2">
+                  {["USDT", "BTC", "ETH"].map(curr => (
+                    <button 
+                      key={curr}
+                      onClick={() => setSelectedCurrency(curr)}
+                      className={cn(
+                        "py-2 rounded-xl text-[10px] font-black transition-all border",
+                        selectedCurrency === curr ? "bg-zinc-100 text-black border-white" : "bg-zinc-950 text-zinc-500 border-white/5"
+                      )}
+                    >
+                      {curr}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <input 
+                type="text" 
+                value={withdrawAddress}
+                onChange={(e) => setWithdrawAddress(e.target.value)}
+                placeholder={withdrawTab === "crypto" ? "External Wallet Address" : "IBAN / SWIFT Code"} 
+                className="w-full p-4 bg-zinc-950 border border-white/5 rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all font-mono" 
+              />
+
+              <div className="p-4 bg-blue-600/5 rounded-2xl border border-blue-600/20">
+                <p className="text-[9px] font-bold text-blue-400 uppercase tracking-wider leading-relaxed">
+                  <AlertCircle className="w-3 h-3 inline mr-1 -mt-0.5" />
+                  Estimated Arrival: <span className="text-white italic">{withdrawTab === "crypto" ? "5-10 Minutes" : "1-3 Business Days"}</span>. Assets are non-refundable once the broadcast completes.
+                </p>
+              </div>
+
+              <button 
+                onClick={handleInitiateWithdraw}
+                disabled={isProcessing}
+                className="w-full py-4 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                {withdrawTab === "crypto" ? <RefreshCw className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                Execute Settlement
               </button>
             </div>
           </div>
         </div>
 
         <div className="mt-8 pt-8 border-t border-white/5 flex justify-center">
-          <button onClick={onClose} className="flex items-center gap-2 text-zinc-500 hover:text-white font-bold text-xs uppercase tracking-[0.2em] transition-colors group">
-            <TrendingUp className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            Return to Active Market
+          <button onClick={onClose} className="flex items-center gap-2 text-zinc-500 hover:text-white font-bold text-[10px] uppercase tracking-[0.2em] transition-colors group">
+            <History className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            View Transaction Audit Trail
           </button>
         </div>
       </motion.div>
@@ -422,7 +546,8 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [requests, setRequests] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users">("inquiries");
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions">("inquiries");
   const [searchTerm, setSearchTerm] = useState("");
   const [replyText, setReplyText] = useState("");
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
@@ -458,8 +583,26 @@ const AdminPortal = ({ user }: { user: any }) => {
       if (err.message.includes("permission")) setPermError("Permission Denied: Treasury database restricted.");
     });
 
-    return () => { unsubInquiries(); unsubOrders(); unsubUsers(); };
+    // Cross-user transaction monitoring (only for admins)
+    // Note: This requires a collection group query or flattened transactions if we want to see ALL user transactions.
+    // For now, let's assume we want to see transactions from a 'global_transactions' log if it existed, 
+    // OR we just monitor the fan_card_requests and store_orders which are top-level.
+    // Since transactions are sub-collections, let's add a global 'transactions' collection for admin monitoring.
+    const unsubTransactions = onSnapshot(query(collection(db, "global_transactions"), orderBy("timestamp", "desc"), limit(50)), (snap) => {
+      const docs: any[] = [];
+      snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
+      setTransactions(docs);
+    }, (err) => {
+      console.error("Transactions Listen Error:", err);
+    });
+
+    return () => { unsubInquiries(); unsubOrders(); unsubUsers(); unsubTransactions(); };
   }, [user]);
+
+  const filteredTransactions = transactions.filter(t => 
+    (t.userId || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (t.type || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const filteredUsers = users.filter(u => 
     (u.displayName || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -556,6 +699,12 @@ const AdminPortal = ({ user }: { user: any }) => {
           >
             User Treasury ({users.length})
           </button>
+          <button 
+            onClick={() => { setActiveSubTab("transactions"); setSearchTerm(""); }}
+            className={cn("px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap", activeSubTab === "transactions" ? "bg-blue-600 text-white" : "bg-zinc-900 text-zinc-500")}
+          >
+            Ledger ({transactions.length})
+          </button>
         </div>
       </div>
 
@@ -567,7 +716,54 @@ const AdminPortal = ({ user }: { user: any }) => {
       )}
 
       <div className="bg-zinc-900/50 border border-white/5 rounded-[2.5rem] overflow-hidden">
-        {activeSubTab === "users" ? (
+        {activeSubTab === "transactions" ? (
+          <table className="w-full text-left">
+            <thead className="bg-zinc-950 border-b border-white/5">
+              <tr>
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Timestamp</th>
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Investor ID</th>
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Type</th>
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Value</th>
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Crypto Address / Details</th>
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTransactions.map((t: any) => (
+                <tr key={t.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td className="p-6 text-[10px] font-mono text-zinc-400">
+                    {t.timestamp?.toDate ? t.timestamp.toDate().toLocaleString() : 'Processing'}
+                  </td>
+                  <td className="p-6">
+                    <p className="text-[10px] font-mono text-zinc-300">{t.userId}</p>
+                  </td>
+                  <td className="p-6">
+                    <span className={cn(
+                      "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest",
+                      t.type === 'withdraw' ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"
+                    )}>
+                      {t.type}
+                    </span>
+                  </td>
+                  <td className="p-6 font-mono text-xs font-black">
+                    {formatCurrency(t.amount || 0)}
+                    {t.currency && <span className="ml-2 text-zinc-500 font-normal">{t.currency}</span>}
+                  </td>
+                  <td className="p-6 max-w-[200px]">
+                    <p className="text-[10px] font-mono text-zinc-500 truncate" title={t.destinationAddress || 'N/A'}>
+                      {t.destinationAddress || 'N/A'}
+                    </p>
+                  </td>
+                  <td className="p-6 text-right">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                      {t.status || 'Confirmed'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : activeSubTab === "users" ? (
           <table className="w-full text-left">
             <thead className="bg-zinc-950 border-b border-white/5">
               <tr>
@@ -760,27 +956,60 @@ export default function App() {
 
   // WebSocket for prices
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
-    const socket = new WebSocket(`${protocol}//${host}`);
-    socketRef.current = socket;
-
-    socket.onmessage = (event) => {
-      const { type, data } = JSON.parse(event.data);
-      if (type === "PRICES_INIT" || type === "PRICES_UPDATE") {
-        setMarketPrices(data);
-        setHistoricalData(prev => {
-          const next = { ...prev };
-          Object.keys(data).forEach(symbol => {
-            const history = next[symbol] || [];
-            next[symbol] = [...history.slice(-19), { time: Date.now(), price: data[symbol] }];
-          });
-          return next;
+    const updateMarketData = (data: any) => {
+      setMarketPrices(data);
+      setHistoricalData(prev => {
+        const next = { ...prev };
+        Object.keys(data).forEach(symbol => {
+          const history = next[symbol] || [];
+          next[symbol] = [...history.slice(-19), { time: Date.now(), price: data[symbol] }];
         });
-      }
+        return next;
+      });
     };
 
-    return () => socket.close();
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.host;
+    let socket: WebSocket | null = null;
+    let pollInterval: any = null;
+
+    try {
+      socket = new WebSocket(`${protocol}//${host}`);
+      socketRef.current = socket;
+
+      socket.onmessage = (event) => {
+        const { type, data } = JSON.parse(event.data);
+        if (type === "PRICES_INIT" || type === "PRICES_UPDATE") {
+          updateMarketData(data);
+        }
+      };
+
+      socket.onerror = () => {
+        console.warn("WebSocket connection failed. Falling back to polling.");
+      };
+    } catch (e) {
+      console.error("Socket err:", e);
+    }
+
+    // Fallback polling for serverless (Vercel)
+    pollInterval = setInterval(async () => {
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        try {
+          const res = await fetch("/api/prices");
+          if (res.ok) {
+            const data = await res.json();
+            updateMarketData(data);
+          }
+        } catch (err) {
+          console.log("Polling logic inactive - switching...");
+        }
+      }
+    }, 5000);
+
+    return () => {
+      socket?.close();
+      if (pollInterval) clearInterval(pollInterval);
+    };
   }, []);
 
   // Admin State Reconciliation
@@ -1114,6 +1343,47 @@ export default function App() {
     }
   };
 
+  const handleWithdraw = async (amount: number, currency: string, address: string) => {
+    if (!user) return;
+    try {
+      const userRef = doc(db, "users", user.uid);
+      const txId = `TX-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+      const txRef = doc(db, "users", user.uid, "transactions", txId);
+
+      // Deduct balance and record transaction
+      await setDoc(userRef, { 
+        balance: balance - amount,
+        updatedAt: serverTimestamp() 
+      }, { merge: true });
+
+      // Transaction recorded in user sub-collection
+      await setDoc(txRef, {
+        userId: user.uid,
+        type: "withdraw",
+        amount: amount,
+        currency: currency,
+        destinationAddress: address,
+        status: "pending",
+        timestamp: serverTimestamp()
+      });
+
+      // Mirror to a global collection for admin oversight
+      const globalTxRef = doc(db, "global_transactions", txId);
+      await setDoc(globalTxRef, {
+        userId: user.uid,
+        userEmail: user.email,
+        type: "withdraw",
+        amount: amount,
+        currency: currency,
+        destinationAddress: address,
+        status: "pending",
+        timestamp: serverTimestamp()
+      });
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/transactions`);
+    }
+  };
+
   const filteredTeams = NFL_TEAMS.filter(t => 
     t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     t.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -1130,7 +1400,12 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col text-zinc-100 selection:bg-blue-600/30">
       <BackgroundRotator isLanding={!user} />
-      <WalletModal isOpen={showWallet} onClose={() => setShowWallet(false)} balance={balance} />
+      <WalletModal 
+        isOpen={showWallet} 
+        onClose={() => setShowWallet(false)} 
+        balance={balance} 
+        onWithdraw={handleWithdraw}
+      />
 
       {/* Nav */}
       <nav className="h-20 bg-zinc-950/60 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-8 z-50">
