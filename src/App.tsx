@@ -8,6 +8,7 @@ import {
   LineChart as ChartIcon, 
   ArrowUpRight, 
   ArrowDownRight,
+  ArrowDownLeft,
   User as UserIcon,
   LogOut,
   Bell,
@@ -173,8 +174,9 @@ const BackgroundRotator = ({ isLanding }: { isLanding?: boolean }) => {
   );
 };
 
-const WalletModal = ({ isOpen, onClose, balance, onWithdraw }: { isOpen: boolean, onClose: () => void, balance: number, onWithdraw: (amount: number, currency: string, address: string) => Promise<void> }) => {
+const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { isOpen: boolean, onClose: () => void, balance: number, onWithdraw: (amount: number, currency: string, address: string) => Promise<void>, transactions: any[] }) => {
   const [copied, setCopied] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"deposit" | "withdraw" | "history">("withdraw");
   const [withdrawTab, setWithdrawTab] = useState<"fiat" | "crypto">("crypto");
   const [selectedCurrency, setSelectedCurrency] = useState("USDT");
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -264,53 +266,92 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw }: { isOpen: boolean
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <h3 className="text-xs font-black uppercase text-zinc-400 tracking-widest border-b border-white/5 pb-2">Deposit Capital</h3>
-            
-            <div className="space-y-4">
-              <div className="p-4 bg-zinc-800/50 rounded-2xl border border-white/5 group">
-                <div className="flex justify-between items-center mb-2">
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                    <ShieldCheck className="w-3 h-3" /> Bitcoin (BTC)
-                  </p>
-                  <button onClick={() => copyToClipboard("bc1qddj8shfsfhgj2rrk24v3gflp234znsxw7d4xtt", "btc")}>
-                    {copied === "btc" ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
-                  </button>
-                </div>
-                <p className="text-[10px] font-mono break-all text-zinc-300">bc1qddj8shfsfhgj2rrk24v3gflp234znsxw7d4xtt</p>
-              </div>
+        <div className="flex gap-4 mb-8 border-b border-white/5">
+          {["withdraw", "deposit", "history"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab as any)}
+              className={cn(
+                "pb-2 text-[10px] font-black uppercase tracking-widest transition-all relative",
+                activeTab === tab ? "text-white" : "text-zinc-500"
+              )}
+            >
+              {tab}
+              {activeTab === tab && (
+                <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600" />
+              )}
+            </button>
+          ))}
+        </div>
 
-              <div className="p-4 bg-zinc-800/50 rounded-2xl border border-white/5 group">
-                <div className="flex justify-between items-center mb-2">
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                    <ShieldCheck className="w-3 h-3" /> USDT (ERC-20)
-                  </p>
-                  <button onClick={() => copyToClipboard("0xBD40A14Dd94403107DD1F81DB5f2b4E80D34A222", "usdt")}>
-                    {copied === "usdt" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
-                  </button>
-                </div>
-                <p className="text-[10px] font-mono break-all text-zinc-300">0xBD40A14Dd94403107DD1F81DB5f2b4E80D34A222</p>
+        {activeTab === "history" ? (
+          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {transactions.length === 0 ? (
+              <div className="text-center py-12">
+                <History className="w-12 h-12 text-zinc-800 mx-auto mb-4" />
+                <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">No transaction history detected</p>
               </div>
-
-              <div className="p-4 bg-zinc-800/50 rounded-2xl border border-white/5 group">
-                <div className="flex justify-between items-center mb-2">
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                    <ShieldCheck className="w-3 h-3" /> USDT (TRX)
-                  </p>
-                  <button onClick={() => copyToClipboard("TVL6rNk4e4P5EQnbkMJxifJwFhgWNqWZ2f", "usdt_trx")}>
-                    {copied === "usdt_trx" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
-                  </button>
+            ) : (
+              transactions.map((t) => (
+                <div key={t.id} className="p-4 bg-zinc-950 border border-white/5 rounded-2xl flex justify-between items-center group">
+                  <div className="flex items-center gap-4">
+                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", t.type === 'withdraw' ? 'bg-rose-500/10' : 'bg-emerald-500/10')}>
+                      {t.type === 'withdraw' ? <ArrowUpRight className="w-4 h-4 text-rose-500" /> : <ArrowDownLeft className="w-4 h-4 text-emerald-500" />}
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-white tracking-widest">{t.type} {t.currency}</p>
+                      <p className="text-[8px] font-mono text-zinc-500">{t.timestamp?.toDate ? t.timestamp.toDate().toLocaleString() : 'Processing'}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={cn("text-xs font-black", t.type === 'withdraw' ? 'text-rose-500' : 'text-emerald-500')}>
+                      {t.type === 'withdraw' ? '-' : '+'}{formatCurrency(t.amount)}
+                    </p>
+                    <span className={cn("text-[8px] font-black uppercase px-1.5 py-0.5 rounded", t.status === 'Confirmed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-zinc-800 text-zinc-500')}>
+                      {t.status || 'Pending'}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-[10px] font-mono break-all text-zinc-300">TVL6rNk4e4P5EQnbkMJxifJwFhgWNqWZ2f</p>
+              ))
+            )}
+          </div>
+        ) : activeTab === "deposit" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <h3 className="text-xs font-black uppercase text-zinc-400 tracking-widest border-b border-white/5 pb-2">Institutional Deposit</h3>
+              <div className="space-y-4">
+                <div className="p-4 bg-zinc-800/50 rounded-2xl border border-white/5 group">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                       Bitcoin (BTC)
+                    </p>
+                    <button onClick={() => copyToClipboard("bc1qddj8shfsfhgj2rrk24v3gflp234znsxw7d4xtt", "btc")}>
+                       {copied === "btc" ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] font-mono break-all text-zinc-300">bc1qddj8shfsfhgj2rrk24v3gflp234znsxw7d4xtt</p>
+                </div>
+                <div className="p-4 bg-zinc-800/50 rounded-2xl border border-white/5 group">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                      USDT (ERC-20)
+                    </p>
+                    <button onClick={() => copyToClipboard("0xBD40A14Dd94403107DD1F81DB5f2b4E80D34A222", "usdt")}>
+                      {copied === "usdt" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] font-mono break-all text-zinc-300">0xBD40A14Dd94403107DD1F81DB5f2b4E80D34A222</p>
+                </div>
               </div>
-
-              <button className="w-full py-4 bg-zinc-950 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2">
-                <CreditCard className="w-3 h-3" /> Institutional Wire
-              </button>
+            </div>
+            <div className="space-y-4 flex flex-col justify-end">
+               <div className="p-6 bg-blue-600/5 border border-blue-600/20 rounded-3xl">
+                 <h4 className="text-[10px] font-black uppercase text-blue-400 mb-2">Liquidity Injection</h4>
+                 <p className="text-[9px] text-zinc-400 leading-relaxed font-medium">Funds sent to these institutional addresses are automatically credited to your balance upon 3 network confirmations. Ensure high-priority fees for faster clearing.</p>
+               </div>
             </div>
           </div>
-
+        ) : (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
               <h3 className="text-xs font-black uppercase text-zinc-400 tracking-widest">Withdraw Liquidity</h3>
@@ -329,62 +370,61 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw }: { isOpen: boolean
                 </button>
               </div>
             </div>
-
-            <div className="space-y-4">
-              <div className="relative">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    placeholder="Amount USD" 
+                    className="w-full p-4 bg-zinc-950 border border-white/5 rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all font-mono" 
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-600 uppercase tracking-widest">USD</span>
+                </div>
+                {withdrawTab === "crypto" && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {["USDT", "BTC", "ETH"].map(curr => (
+                      <button 
+                        key={curr}
+                        onClick={() => setSelectedCurrency(curr)}
+                        className={cn(
+                          "py-2 rounded-xl text-[10px] font-black transition-all border",
+                          selectedCurrency === curr ? "bg-zinc-100 text-black border-white" : "bg-zinc-950 text-zinc-500 border-white/5"
+                        )}
+                      >
+                        {curr}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <input 
-                  type="number" 
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="Amount USD" 
+                  type="text" 
+                  value={withdrawAddress}
+                  onChange={(e) => setWithdrawAddress(e.target.value)}
+                  placeholder={withdrawTab === "crypto" ? "External Wallet Address" : "IBAN / SWIFT Code"} 
                   className="w-full p-4 bg-zinc-950 border border-white/5 rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all font-mono" 
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-600 uppercase tracking-widest">USD</span>
               </div>
-
-              {withdrawTab === "crypto" && (
-                <div className="grid grid-cols-3 gap-2">
-                  {["USDT", "BTC", "ETH"].map(curr => (
-                    <button 
-                      key={curr}
-                      onClick={() => setSelectedCurrency(curr)}
-                      className={cn(
-                        "py-2 rounded-xl text-[10px] font-black transition-all border",
-                        selectedCurrency === curr ? "bg-zinc-100 text-black border-white" : "bg-zinc-950 text-zinc-500 border-white/5"
-                      )}
-                    >
-                      {curr}
-                    </button>
-                  ))}
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-600/5 rounded-2xl border border-blue-600/20">
+                  <p className="text-[9px] font-bold text-blue-400 uppercase tracking-wider leading-relaxed">
+                    <AlertCircle className="w-3 h-3 inline mr-1 -mt-0.5" />
+                    Estimated Arrival: <span className="text-white italic">{withdrawTab === "crypto" ? "5-10 Minutes" : "1-3 Business Days"}</span>. Assets are non-refundable once the broadcast completes.
+                  </p>
                 </div>
-              )}
-
-              <input 
-                type="text" 
-                value={withdrawAddress}
-                onChange={(e) => setWithdrawAddress(e.target.value)}
-                placeholder={withdrawTab === "crypto" ? "External Wallet Address" : "IBAN / SWIFT Code"} 
-                className="w-full p-4 bg-zinc-950 border border-white/5 rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all font-mono" 
-              />
-
-              <div className="p-4 bg-blue-600/5 rounded-2xl border border-blue-600/20">
-                <p className="text-[9px] font-bold text-blue-400 uppercase tracking-wider leading-relaxed">
-                  <AlertCircle className="w-3 h-3 inline mr-1 -mt-0.5" />
-                  Estimated Arrival: <span className="text-white italic">{withdrawTab === "crypto" ? "5-10 Minutes" : "1-3 Business Days"}</span>. Assets are non-refundable once the broadcast completes.
-                </p>
+                <button 
+                  onClick={handleInitiateWithdraw}
+                  disabled={isProcessing}
+                  className="w-full py-4 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+                >
+                  {withdrawTab === "crypto" ? <RefreshCw className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                  Execute Settlement
+                </button>
               </div>
-
-              <button 
-                onClick={handleInitiateWithdraw}
-                disabled={isProcessing}
-                className="w-full py-4 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
-              >
-                {withdrawTab === "crypto" ? <RefreshCw className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-                Execute Settlement
-              </button>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="mt-8 pt-8 border-t border-white/5 flex justify-center">
           <button onClick={onClose} className="flex items-center gap-2 text-zinc-500 hover:text-white font-bold text-[10px] uppercase tracking-[0.2em] transition-colors group">
@@ -620,6 +660,19 @@ const AdminPortal = ({ user }: { user: any }) => {
     (o.userEmail || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const updateTransactionStatus = async (txId: string, userId: string, status: string) => {
+    try {
+      // Update global log
+      await updateDoc(doc(db, "global_transactions", txId), { status });
+      // Update user specific log
+      await updateDoc(doc(db, "users", userId, "transactions", txId), { status });
+      alert(`Transaction ${txId} marked as ${status}`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update transaction status.");
+    }
+  };
+
   const handleReply = async () => {
     if (!selectedInquiry || !replyText.trim()) return;
     try {
@@ -755,9 +808,22 @@ const AdminPortal = ({ user }: { user: any }) => {
                     </p>
                   </td>
                   <td className="p-6 text-right">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                      {t.status || 'Confirmed'}
-                    </span>
+                    <div className="flex justify-end items-center gap-2">
+                      {t.status === 'pending' && (
+                        <button 
+                          onClick={() => updateTransactionStatus(t.id, t.userId, 'Confirmed')}
+                          className="px-3 py-1 bg-emerald-600/20 border border-emerald-600/30 text-emerald-400 text-[8px] font-black uppercase rounded-md hover:bg-emerald-600 hover:text-white transition-all"
+                        >
+                          Approve
+                        </button>
+                      )}
+                      <span className={cn(
+                        "text-[10px] font-black uppercase tracking-widest",
+                        t.status === 'Confirmed' ? "text-emerald-400" : "text-zinc-500"
+                      )}>
+                        {t.status || 'Confirmed'}
+                      </span>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1343,6 +1409,18 @@ export default function App() {
     }
   };
 
+  const [userTransactions, setUserTransactions] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user) { setUserTransactions([]); return; }
+    const unsub = onSnapshot(query(collection(db, "users", user.uid, "transactions"), orderBy("timestamp", "desc"), limit(20)), (snap) => {
+      const docs: any[] = [];
+      snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
+      setUserTransactions(docs);
+    });
+    return () => unsub();
+  }, [user]);
+
   const handleWithdraw = async (amount: number, currency: string, address: string) => {
     if (!user) return;
     try {
@@ -1405,6 +1483,7 @@ export default function App() {
         onClose={() => setShowWallet(false)} 
         balance={balance} 
         onWithdraw={handleWithdraw}
+        transactions={userTransactions}
       />
 
       {/* Nav */}

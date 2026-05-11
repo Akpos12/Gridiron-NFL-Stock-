@@ -71,12 +71,14 @@ service cloud.firestore {
 
       allow list, get: if isOwner(userId) || isAdmin();
       allow create: if (isOwner(userId) || isAdmin()) && isValidTransaction(request.resource.data);
+      allow update: if isAdmin();
     }
 
     // Global Transaction Log for Admins
     match /global_transactions/{txId} {
       allow read, list: if isAdmin();
-      allow create: if isSignedIn(); // Users can append their own log here too via the client mirroring
+      allow create: if isSignedIn(); 
+      allow update: if isAdmin();
     }
 
     // Teams Rules (Publicly readable, system writable)

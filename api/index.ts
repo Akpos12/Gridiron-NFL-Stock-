@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -32,7 +31,6 @@ function updateMarketPrices() {
 }
 
 // In serverless environments, background intervals won't run continuously.
-// We update at least once per request to simulate movement.
 setInterval(updateMarketPrices, 5000);
 
 const app = express();
@@ -57,16 +55,23 @@ app.get("/api/news", (req, res) => {
   res.json(news);
 });
 
-// Vite middleware logic
-if (process.env.NODE_ENV !== "production" && process.env.VERCEL !== "1") {
+// Production: Serve static files. 
+// Note: On Vercel, static files are usually handled by the platform (rewrites), 
+// but we include this for local production tests.
+if (process.env.NODE_ENV === "production" || process.env.VERCEL === "1") {
+  const distPath = path.resolve(process.cwd(), "dist");
+  app.use(express.static(distPath));
+  app.get(/^(?!\/api).+/, (req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+} else {
+  // Vite middleware logic - dynamic import to avoid production crash
+  const { createServer: createViteServer } = await import("vite");
   const vite = await createViteServer({
     server: { middlewareMode: true },
     appType: "spa",
   });
   app.use(vite.middlewares);
-} else {
-  const distPath = path.join(process.cwd(), "dist");
-  app.use(express.static(distPath));
 }
 
 // Export for Vercel

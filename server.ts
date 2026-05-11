@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import http from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import path from "path";
@@ -80,19 +79,28 @@ async function startServer() {
   // Market update loop
   setInterval(updateMarketPrices, 2000);
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  // Serve static files in production
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL === "1") {
+    const distPath = path.resolve(process.cwd(), "dist");
+    console.log(`Serving static files from: ${distPath}`);
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      const indexPath = path.join(distPath, "index.html");
+      res.sendFile(indexPath, (err) => {
+        if (err) {
+          console.error(`Error sending index.html from ${indexPath}:`, err);
+          res.status(404).send("Application not ready or build missing.");
+        }
+      });
+    });
+  } else {
+    // Vite middleware for development
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
   }
 
   server.listen(PORT, "0.0.0.0", () => {
