@@ -1,12 +1,12 @@
 {
-  "name": "react-example",
+  "name": "nfl-gridiron-exchange",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build",
-    "start": "node --import tsx server.ts",
+    "start": "node --experimental-strip-types server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"

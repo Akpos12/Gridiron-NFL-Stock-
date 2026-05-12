@@ -819,9 +819,10 @@ const AdminPortal = ({ user }: { user: any }) => {
                       )}
                       <span className={cn(
                         "text-[10px] font-black uppercase tracking-widest",
-                        t.status === 'Confirmed' ? "text-emerald-400" : "text-zinc-500"
+                        t.status === 'Confirmed' ? "text-emerald-400" : 
+                        t.status === 'pending' ? "text-blue-400" : "text-zinc-500"
                       )}>
-                        {t.status || 'Confirmed'}
+                        {t.status || 'pending'}
                       </span>
                     </div>
                   </td>
@@ -933,9 +934,10 @@ const AdminPortal = ({ user }: { user: any }) => {
                   <td className="p-6 text-right">
                     <span className={cn(
                       "px-3 py-1 text-[10px] font-black uppercase rounded-lg",
-                      item.status === 'responded' ? "bg-emerald-600/10 text-emerald-500" : "bg-blue-600/10 text-blue-500"
+                      item.status === 'responded' ? "bg-emerald-600/10 text-emerald-500" : 
+                      item.status === 'pending' ? "bg-blue-600/10 text-blue-400" : "bg-zinc-800 text-zinc-500"
                     )}>
-                      {item.status || 'Fulfilled'}
+                      {item.status || 'pending'}
                     </span>
                   </td>
                 </tr>
@@ -995,6 +997,10 @@ const AdminPortal = ({ user }: { user: any }) => {
 };
 
 export default function App() {
+  useEffect(() => {
+    document.title = "NFL Exchange Gridiron";
+  }, []);
+
   const [user, setUser] = useState<any>(null);
   const [balance, setBalance] = useState<number>(0);
   const [portfolio, setPortfolio] = useState<any[]>([]);

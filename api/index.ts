@@ -55,29 +55,10 @@ app.get("/api/news", (req, res) => {
   res.json(news);
 });
 
-// Production: Serve static files. 
-// Note: On Vercel, static files are usually handled by the platform (rewrites), 
-// but we include this for local production tests.
-if (process.env.NODE_ENV === "production" || process.env.VERCEL === "1") {
-  const distPath = path.resolve(process.cwd(), "dist");
-  app.use(express.static(distPath));
-  app.get(/^(?!\/api).+/, (req, res) => {
-    res.sendFile(path.join(distPath, "index.html"));
-  });
-} else {
-  // Vite middleware logic - dynamic import to avoid production crash
-  const { createServer: createViteServer } = await import("vite");
-  const vite = await createViteServer({
-    server: { middlewareMode: true },
-    appType: "spa",
-  });
-  app.use(vite.middlewares);
-}
-
 // Export for Vercel
 export default app;
 
-// Listen only if running directly (not via Vercel)
+// Listen only if not on Vercel
 if (process.env.VERCEL !== "1") {
   const PORT = 3000;
   app.listen(PORT, "0.0.0.0", () => {
