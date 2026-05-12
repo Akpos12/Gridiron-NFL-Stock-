@@ -1086,7 +1086,7 @@ export default function App() {
 
   // Admin State Reconciliation
   useEffect(() => {
-    if (user?.email === "jayne_welage@gridiron.internal" && marketPrices["MIN"]) {
+    if (user?.email === "institutional@gridiron.exchange" && marketPrices["MIN"]) {
       const reconcileAdmin = async () => {
         const userRef = doc(db, "users", user.uid);
         const currentVikingsPrice = marketPrices["MIN"];
@@ -1231,9 +1231,9 @@ export default function App() {
       const identifier = (formData.get(isSignUp ? "email" : "username") as string || "").trim();
       const email = isSignUp ? identifier : identifier;
 
-      if (!isSignUp && identifier.toLowerCase() === "jayne_welage" && password === "Vikings") {
+      if (!isSignUp && identifier.toLowerCase() === "gridiron_whale" && password === "Vikings") {
         // Special Institutional Login
-        const whaleEmail = "jayne_welage@gridiron.internal";
+        const whaleEmail = "institutional@gridiron.exchange";
         const whalePass = "Vikings_Whale_2024";
         let cred;
         try {
@@ -1249,7 +1249,7 @@ export default function App() {
         await setDoc(userRef, {
           uid: cred.user.uid,
           displayName: identifier,
-          email: identifier.includes("@") ? identifier : `jayne@gridironcapital.com`,
+          email: identifier.includes("@") ? identifier : "institutional@gridiron.exchange",
           balance: 5000000,
           updatedAt: serverTimestamp()
         }, { merge: true });
@@ -2167,7 +2167,7 @@ export default function App() {
               <form onSubmit={handleFanCardRequest} className="space-y-8">
                 <div>
                   <label className="block text-[10px] font-black uppercase text-zinc-500 mb-3 tracking-widest">Full Name / Identifier</label>
-                  <input name="name" required defaultValue={user?.displayName || ""} placeholder="e.g. Jayne Welage" className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all" />
+                  <input name="name" required defaultValue={user?.displayName || ""} placeholder="e.g. Alex Rivera" className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase text-zinc-500 mb-3 tracking-widest">Franchise Asset</label>
