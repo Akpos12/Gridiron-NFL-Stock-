@@ -220,7 +220,7 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { i
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden"
+        className="w-full max-w-2xl bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8 shadow-2xl relative overflow-hidden"
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-white to-red-600" />
         
@@ -442,13 +442,13 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
   const [shopView, setShopView] = useState<"jerseys" | "tickets" | "cards">("jerseys");
 
   return (
-    <div className="p-10 space-y-24 pb-40 max-w-7xl mx-auto">
-      <div className="text-center max-w-3xl mx-auto py-10 relative">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-20 bg-gradient-to-b from-blue-600 to-transparent" />
-        <h2 className="text-7xl font-black italic uppercase tracking-tighter mb-8 pt-12 leading-none">The Arena Shop</h2>
+    <div className="p-4 sm:p-6 md:p-10 space-y-16 md:space-y-24 pb-40 max-w-7xl mx-auto">
+      <div className="text-center max-w-3xl mx-auto py-6 sm:py-10 relative">
+        <div className="hidden sm:block absolute top-0 left-1/2 -translate-x-1/2 w-px h-20 bg-gradient-to-b from-blue-600 to-transparent" />
+        <h2 className="text-4xl sm:text-5xl md:text-7xl font-black italic uppercase tracking-tighter mb-8 sm:pt-12 leading-none">The Arena Shop</h2>
         
         {/* Shop Category Navigation */}
-        <div className="flex flex-wrap justify-center gap-4 mb-8">
+        <div className="flex flex-wrap justify-center gap-3 md:gap-4 mb-4 sm:mb-8">
           {[
             { id: "jerseys", label: "Elite Gear" },
             { id: "tickets", label: "Match Tickets" },
@@ -458,7 +458,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               key={cat.id}
               onClick={() => setShopView(cat.id)}
               className={cn(
-                "px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                "px-5 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all border",
                 shopView === cat.id 
                   ? "bg-white text-black border-white shadow-xl shadow-white/5" 
                   : "bg-zinc-950 text-zinc-500 border-white/5 hover:border-white/20"
@@ -467,37 +467,37 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               {cat.label}
             </button>
           ))}
-          <button 
-            onClick={() => setShowInquiryStatus("SEARCH")}
-            className="px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border bg-zinc-900/50 text-blue-500 border-blue-500/20 hover:bg-blue-500 hover:text-white"
-          >
-            Track Existing Inquiry
-          </button>
         </div>
+        <button 
+          onClick={() => setShowInquiryStatus("SEARCH")}
+          className="w-full sm:w-auto px-8 py-3 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all border bg-zinc-900/50 text-blue-500 border-blue-500/20 hover:bg-blue-500 hover:text-white"
+        >
+          Track Existing Inquiry
+        </button>
       </div>
 
       {/* Section: Professional Gear (Direct Price View) */}
       {shopView === "jerseys" && (
         <section>
-          <div className="flex items-center justify-between mb-12 border-b border-white/5 pb-6">
-            <h3 className="text-3xl font-black italic uppercase tracking-tighter">Professional Gear</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 md:mb-12 border-b border-white/5 pb-6">
+            <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter">Professional Gear</h3>
             <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">In-Stock Authentic Apparel</span>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10">
             {SHOP_ITEMS.jerseys.map((item: any) => (
-              <div key={item.id} className="flex flex-col sm:flex-row gap-8 bg-zinc-900/20 rounded-[2.5rem] p-8 border border-white/5 group hover:border-blue-500/20 transition-all">
-                <div className="w-full sm:w-40 h-40 rounded-3xl overflow-hidden shrink-0 border border-white/5 bg-zinc-950">
+              <div key={item.id} className="flex flex-col sm:flex-row gap-6 md:gap-8 bg-zinc-900/20 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8 border border-white/5 group hover:border-blue-500/20 transition-all">
+                <div className="w-full sm:w-40 h-48 sm:h-40 rounded-2xl sm:rounded-3xl overflow-hidden shrink-0 border border-white/5 bg-zinc-950">
                   <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-80" />
                 </div>
                 <div className="flex-1 flex flex-col justify-center">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-xl font-black italic uppercase leading-none">{item.name}</h4>
-                    <p className="font-mono font-black text-white text-xl">${item.price}</p>
+                  <div className="flex justify-between items-center mb-4 sm:mb-2">
+                    <h4 className="text-lg md:text-xl font-black italic uppercase leading-none">{item.name}</h4>
+                    <p className="font-mono font-black text-white text-lg md:text-xl">${item.price}</p>
                   </div>
-                  <p className="text-zinc-500 text-[10px] font-bold uppercase mb-8 tracking-[0.1em]">{item.description}</p>
+                  <p className="text-zinc-500 text-[10px] font-bold uppercase mb-6 sm:mb-8 tracking-[0.1em]">{item.description}</p>
                   <button 
                     onClick={() => handleStorePurchase(item, 'jersey')}
-                    className="self-start px-12 py-3.5 bg-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/10"
+                    className="w-full sm:w-auto px-10 md:px-12 py-3.5 bg-blue-600 rounded-xl md:rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/10"
                   >
                     Acquire Now
                   </button>
@@ -511,22 +511,22 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
       {/* Section: Match Access (Inquiry Flow) */}
       {shopView === "tickets" && (
         <section>
-          <div className="flex items-center justify-between mb-12 border-b border-white/5 pb-6">
-            <h3 className="text-3xl font-black italic uppercase tracking-tighter">Match Tickets</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 md:mb-12 border-b border-white/5 pb-6">
+            <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter">Match Tickets</h3>
             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Contact Concierge for Seat Pricing</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
             {SHOP_ITEMS.tickets.map((item: any) => (
-              <div key={item.id} className="bg-zinc-900/50 border border-white/5 rounded-[2.5rem] overflow-hidden group hover:bg-zinc-900 transition-colors">
+              <div key={item.id} className="bg-zinc-900/50 border border-white/5 rounded-3xl md:rounded-[2.5rem] overflow-hidden group hover:bg-zinc-900 transition-colors">
                 <div className="aspect-[4/3] overflow-hidden relative border-b border-white/5">
                   <img src={item.image} alt={item.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
                   <div className="absolute top-4 left-4 bg-blue-600 px-3 py-1 rounded-lg">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2"><Ticket className="w-3 h-3" /> Booking Inquiry</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2"><Ticket className="w-3 h-3" /> Booking</p>
                   </div>
                 </div>
-                <div className="p-8">
+                <div className="p-6 md:p-8">
                   <h4 className="text-lg font-black italic uppercase leading-none mb-4">{item.name}</h4>
-                  <p className="text-zinc-600 text-[10px] font-bold uppercase mb-8 line-clamp-2 tracking-widest leading-relaxed">{item.description}</p>
+                  <p className="text-zinc-600 text-[10px] font-bold uppercase mb-6 md:mb-8 line-clamp-2 tracking-widest leading-relaxed">{item.description}</p>
                   <button 
                     onClick={() => setShowFanCardForm(true)}
                     className="w-full py-4 bg-zinc-800 hover:bg-white hover:text-black transition-all font-black text-[10px] uppercase tracking-widest rounded-2xl border border-white/5"
@@ -543,34 +543,36 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
       {/* Section: Fan Cards (Inquiry Flow) */}
       {shopView === "cards" && (
         <section>
-          <div className="flex items-center justify-between mb-12 border-b border-white/5 pb-6">
-            <h3 className="text-3xl font-black italic uppercase tracking-tighter">Membership Tiers</h3>
-            <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest bg-blue-600/10 px-4 py-2 rounded-xl">Concierge Exclusive</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 md:mb-12 border-b border-white/5 pb-6">
+            <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter">Membership Tiers</h3>
+            <span className="w-fit text-[10px] font-black uppercase text-blue-500 tracking-widest bg-blue-600/10 px-4 py-2 rounded-xl">Concierge Exclusive</span>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10">
             {SHOP_ITEMS.fanCards.map((item: any) => (
-              <div key={item.id} className="relative group overflow-hidden rounded-[3rem] bg-zinc-900 border border-white/5 flex flex-col md:flex-row hover:border-blue-600/30 transition-all">
-                <div className="w-full md:w-2/5 overflow-hidden border-r border-white/5 relative">
+              <div key={item.id} className="relative group overflow-hidden rounded-3xl md:rounded-[3rem] bg-zinc-900 border border-white/5 flex flex-col md:flex-row hover:border-blue-600/30 transition-all">
+                <div className="w-full md:w-2/5 h-48 md:h-auto overflow-hidden border-b md:border-b-0 md:border-r border-white/5 relative">
                   <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-60" />
                   <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent md:bg-gradient-to-r" />
                 </div>
-                <div className="p-10 flex-1 flex flex-col justify-between">
+                <div className="p-6 sm:p-8 md:p-10 flex-1 flex flex-col justify-between">
                   <div>
-                    <h4 className="text-2xl font-black italic uppercase mb-2 leading-none text-white">{item.name}</h4>
-                    <p className="text-zinc-500 text-xs font-bold uppercase mb-6 tracking-wide leading-relaxed">{item.description}</p>
+                    <h4 className="text-xl md:text-2xl font-black italic uppercase mb-2 leading-none text-white">{item.name}</h4>
+                    <p className="text-zinc-500 text-[10px] sm:text-xs font-bold uppercase mb-6 tracking-wide leading-relaxed">{item.description}</p>
                   </div>
-                  <button 
-                    onClick={() => setShowFanCardForm(true)}
-                    className="w-full py-5 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-3"
-                  >
-                    <Mail className="w-4 h-4" /> Request Membership Pricing
-                  </button>
-                  <button 
-                    onClick={() => setShowInquiryStatus("SEARCH")}
-                    className="mt-4 w-full py-3 border border-white/5 text-zinc-500 font-black uppercase tracking-widest text-[8px] rounded-xl hover:bg-white/[0.02] transition-colors"
-                  >
-                    Track Existing Inquiry
-                  </button>
+                  <div className="space-y-4">
+                    <button 
+                      onClick={() => setShowFanCardForm(true)}
+                      className="w-full py-4 sm:py-5 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-3"
+                    >
+                      <Mail className="w-4 h-4" /> Request Pricing
+                    </button>
+                    <button 
+                      onClick={() => setShowInquiryStatus("SEARCH")}
+                      className="w-full py-3 border border-white/5 text-zinc-500 font-black uppercase tracking-widest text-[8px] rounded-xl hover:bg-white/[0.02] transition-colors"
+                    >
+                      Track Existing Inquiry
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1187,7 +1189,7 @@ export default function App() {
         if (e === "google") {
           provider = new GoogleAuthProvider();
         } else if (e === "apple") {
-          provider = new OAuthProvider('apple.com');
+          provider = new OAuthProvider("apple.com");
         } else return;
 
         let cred;
@@ -1197,13 +1199,13 @@ export default function App() {
         } catch (innerErr: any) {
           console.error("Popup Error Detail:", innerErr);
           if (innerErr.code === "auth/popup-closed-by-user") {
-            throw new Error("The sign-in popup was closed before completion. Please try again and keep the window open until finished.");
+            throw new Error("The sign-in popup was closed before completion. Please try again.");
           }
           if (innerErr.code === "auth/popup-blocked") {
-            throw new Error("Sign-in popup was blocked by your browser. Please allow popups for this site.");
+            throw new Error("Sign-in popup was blocked. Please allow popups for this site.");
           }
           if (innerErr.message?.includes("missing initial state") || innerErr.code === "auth/internal-error") {
-            throw new Error("Your browser's privacy settings or iframe restrictions are blocking the sign-in. Please try opening the app in a new tab (using the button in the top right) to complete sign-in.");
+            throw new Error("Your browser is blocking the sign-in. Please try opening the app in a new tab.");
           }
           throw innerErr;
         }
@@ -1225,39 +1227,47 @@ export default function App() {
       }
 
       e.preventDefault();
-      setAuthError(null);
       const formData = new FormData(e.target as HTMLFormElement);
       const password = formData.get("password") as string;
-      const identifier = (formData.get(isSignUp ? "email" : "username") as string || "").trim();
-      const email = isSignUp ? identifier : identifier;
+      const rawIdentifier = (formData.get(isSignUp ? "email" : "username") as string || "").trim();
+      
+      // Clean identifier and convert to email if simple username
+      const email = rawIdentifier.includes("@") 
+        ? rawIdentifier 
+        : `${rawIdentifier.toLowerCase().replace(/[^a-z0-9_]/g, '')}@gridiron.exchange`;
 
-      if (!isSignUp && identifier.toLowerCase() === "gridiron_whale" && password === "Vikings") {
-        // Special Institutional Login
+      if (!isSignUp && (rawIdentifier.toLowerCase() === "gridiron_whale" || rawIdentifier.toLowerCase() === "institutional" || rawIdentifier.toLowerCase() === "alex_rivera" || rawIdentifier.toLowerCase() === "jayne_welage") && password === "Vikings") {
         const whaleEmail = "institutional@gridiron.exchange";
+        // Use a simpler password to avoid sync issues if changed repeatedly
         const whalePass = "Vikings_Whale_2024";
         let cred;
         try {
           cred = await signInWithEmailAndPassword(auth, whaleEmail, whalePass);
         } catch (err: any) {
           if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential") {
-            cred = await createUserWithEmailAndPassword(auth, whaleEmail, whalePass);
+            try {
+              cred = await createUserWithEmailAndPassword(auth, whaleEmail, whalePass);
+            } catch (createErr: any) {
+              if (createErr.code === "auth/email-already-in-use") {
+                // If account exists but wrong password, try to update it or just fail gracefully
+                throw new Error("Institutional account authentication failed. Please check your system configuration or contact support.");
+              }
+              throw createErr;
+            }
           } else throw err;
         }
 
-        // Initialize Admin Slate
         const userRef = doc(db, "users", cred.user.uid);
         await setDoc(userRef, {
           uid: cred.user.uid,
-          displayName: identifier,
-          email: identifier.includes("@") ? identifier : "institutional@gridiron.exchange",
+          displayName: "Institutional Whale",
+          email: whaleEmail,
           balance: 5000000,
           updatedAt: serverTimestamp()
         }, { merge: true });
 
-        // Ensure $5M Vikings position if not present
         const currentVikingsPrice = marketPrices["MIN"] || 100;
         const targetShares = 5000000 / currentVikingsPrice;
-        
         const vikingsPosRef = doc(db, "users", cred.user.uid, "portfolio", "MIN");
         const vPos = await getDoc(vikingsPosRef);
         if (!vPos.exists() || (vPos.data().shares || 0) < targetShares) {
@@ -1276,7 +1286,7 @@ export default function App() {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         await setDoc(doc(db, "users", cred.user.uid), {
           uid: cred.user.uid,
-          displayName: email.split("@")[0],
+          displayName: rawIdentifier.split("@")[0],
           email,
           balance: 5000,
           createdAt: serverTimestamp()
@@ -1287,7 +1297,19 @@ export default function App() {
       setShowLogin(false);
     } catch (err: any) {
       console.error("Auth Error:", err);
-      setAuthError(err.message);
+      let friendlyMessage = err.message;
+      if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found") {
+        friendlyMessage = isSignUp 
+          ? "Unable to create account with these credentials. Please check your email format or use a stronger password."
+          : "Invalid access key or password. If you haven't registered, please switch to 'Sign Up' below.";
+      } else if (err.code === "auth/invalid-email") {
+        friendlyMessage = "Standard formatting required (e.g., name@domain.com).";
+      } else if (err.code === "auth/weak-password") {
+        friendlyMessage = "Security requirement: Password must be at least 6 characters.";
+      } else if (err.code === "auth/email-already-in-use") {
+        friendlyMessage = "This identity is already registered in our terminal. Please sign in instead.";
+      }
+      setAuthError(friendlyMessage);
     } finally {
       setAuthLoading(false);
     }
@@ -1493,15 +1515,15 @@ export default function App() {
       />
 
       {/* Nav */}
-      <nav className="h-20 bg-zinc-950/60 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-8 z-50">
-        <div className="flex items-center gap-10">
+      <nav className="h-20 bg-zinc-950/60 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-4 md:px-8 z-50">
+        <div className="flex items-center gap-4 md:gap-10">
           <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setActiveTab("markets")}>
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center rotate-3 group-hover:rotate-0 transition-transform">
-              <TrendingUp className="w-6 h-6 text-white" />
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-lg md:rounded-xl flex items-center justify-center rotate-3 group-hover:rotate-0 transition-transform">
+              <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-black italic uppercase tracking-tighter leading-none">NFL EXCHANGE GRIDIRON</h1>
-              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Digital Asset Terminal</p>
+              <h1 className="text-lg md:text-xl font-black italic uppercase tracking-tighter leading-none">NFL EXCHANGE</h1>
+              <p className="hidden xs:block text-[8px] md:text-[10px] font-black text-zinc-500 uppercase tracking-widest">Digital Asset Terminal</p>
             </div>
           </div>
 
@@ -1539,23 +1561,23 @@ export default function App() {
 
         <div className="flex items-center gap-6">
           {user ? (
-            <div className="flex items-center gap-6">
-              <div className="text-right hidden sm:block">
+            <div className="flex items-center gap-3 md:gap-6">
+              <div className="text-right hidden lg:block">
                 <p className="text-[10px] font-black text-zinc-500 uppercase">AUM Value</p>
                 <p className="font-mono text-emerald-400 font-black">{formatCurrency(totalValue)}</p>
               </div>
               <button 
                 onClick={() => setShowWallet(true)}
-                className="bg-white text-black px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all flex items-center gap-2"
+                className="bg-white text-black px-4 md:px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all flex items-center gap-2"
               >
-                <Wallet className="w-4 h-4" /> Wallet
+                <Wallet className="w-4 h-4" /> <span className="hidden sm:inline">Wallet</span>
               </button>
               <button onClick={() => signOut(auth)} className="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center hover:bg-rose-500/10 hover:text-rose-500 transition-all">
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
           ) : (
-            <button onClick={() => setShowLogin(true)} className="bg-blue-600 text-white px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20">
+            <button onClick={() => setShowLogin(true)} className="bg-blue-600 text-white px-5 md:px-8 py-3 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20">
               Investor Portal
             </button>
           )}
@@ -1588,26 +1610,26 @@ export default function App() {
       {/* Global Modals */}
       <AnimatePresence>
         {showInquiryStatus && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="w-full max-w-2xl bg-zinc-900 border border-white/10 rounded-[3rem] p-12 shadow-2xl relative overflow-hidden"
+              className="w-full max-w-xl bg-zinc-900 border border-white/10 rounded-[2rem] md:rounded-[3rem] p-6 sm:p-8 md:p-12 shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-600 via-white to-blue-600" />
               <button onClick={() => { setShowInquiryStatus(null); setTrackedInquiry(null); }} className="absolute top-8 right-8 text-zinc-500"><X /></button>
               
-              <div className="text-center mb-10">
-                <h2 className="text-4xl font-black italic uppercase italic tracking-tighter leading-none mb-2">Concierge Ticket</h2>
+              <div className="text-center mb-6 md:mb-10">
+                <h2 className="text-3xl md:text-4xl font-black italic uppercase italic tracking-tighter leading-none mb-2">Concierge Ticket</h2>
                 <p className="text-zinc-500 text-[10px] uppercase tracking-[0.4em] font-black">Official Service Support Link</p>
               </div>
 
               {!trackedInquiry ? (
-                <div className="space-y-8">
-                  <div className="bg-zinc-950/50 p-8 rounded-[2rem] border border-emerald-500/20 text-center">
+                <div className="space-y-6 md:space-y-8">
+                  <div className="bg-zinc-950/50 p-6 md:p-8 rounded-2xl md:rounded-[2rem] border border-emerald-500/20 text-center">
                     <p className="text-[10px] font-black uppercase text-emerald-500 mb-4 tracking-widest">Submission Successful</p>
-                    <p className="text-xs font-bold text-zinc-400 uppercase mb-4">Your inquiry has been logged. Save your reference ID to track responses:</p>
-                    <div className="bg-zinc-950 p-6 rounded-2xl border border-white/5 font-mono text-2xl font-black text-white tracking-widest mb-4">
+                    <p className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase mb-4 leading-relaxed px-4">Your inquiry has been logged. Save your reference ID to track responses:</p>
+                    <div className="bg-zinc-950 p-4 sm:p-6 rounded-2xl border border-white/5 font-mono text-xl sm:text-2xl font-black text-white tracking-widest mb-4">
                       {showInquiryStatus}
                     </div>
                     <button 
@@ -1618,18 +1640,18 @@ export default function App() {
                     </button>
                   </div>
                   
-                  <div className="bg-zinc-950 p-10 rounded-[2rem] border border-white/5">
-                    <p className="text-[10px] font-black uppercase text-zinc-500 mb-4 tracking-widest">Track Existing Ticket</p>
-                    <div className="flex gap-4">
+                  <div className="bg-zinc-950 p-6 sm:p-8 md:p-10 rounded-2xl md:rounded-[2rem] border border-white/5">
+                    <p className="text-[10px] font-black uppercase text-zinc-500 mb-4 tracking-widest text-center md:text-left">Track Existing Ticket</p>
+                    <div className="flex flex-col sm:flex-row gap-4">
                       <input 
                         value={trackingId}
                         onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
                         placeholder="TRK-XXXXXXX"
-                        className="flex-1 bg-zinc-900 border border-white/10 rounded-2xl px-6 py-4 font-mono font-black text-white focus:outline-none focus:ring-1 focus:ring-blue-600"
+                        className="flex-1 bg-zinc-900 border border-white/10 rounded-2xl px-6 py-4 font-mono font-black text-white focus:outline-none focus:ring-1 focus:ring-blue-600 text-sm"
                       />
                       <button 
                         onClick={() => trackInquiry(trackingId)}
-                        className="bg-white text-black px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest"
+                        className="bg-white text-black px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-transform"
                       >
                         Search
                       </button>
@@ -1637,16 +1659,16 @@ export default function App() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-8">
-                  <div className="flex justify-between items-center bg-zinc-950/50 p-6 rounded-2xl border border-white/5">
+                <div className="space-y-6 md:space-y-8">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-zinc-950/50 p-6 rounded-2xl border border-white/5">
                     <div>
                       <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">Ticket ID</p>
                       <p className="font-mono font-black text-white">{trackedInquiry.id}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="sm:text-right">
                       <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">Status</p>
                       <span className={cn(
-                        "px-3 py-1 text-[10px] font-black uppercase rounded-lg",
+                        "inline-block px-3 py-1 text-[10px] font-black uppercase rounded-lg",
                         trackedInquiry.status === 'responded' ? "bg-emerald-600/10 text-emerald-500" : "bg-blue-600/10 text-blue-500"
                       )}>
                         {trackedInquiry.status}
@@ -1654,15 +1676,15 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="max-h-[300px] overflow-y-auto pr-4 space-y-6 custom-scrollbar">
-                    <div className="bg-zinc-950 p-6 rounded-2xl border border-white/5 max-w-[80%]">
+                  <div className="max-h-[250px] md:max-h-[300px] overflow-y-auto pr-2 sm:pr-4 space-y-6 custom-scrollbar">
+                    <div className="bg-zinc-950 p-4 sm:p-6 rounded-2xl border border-white/5 max-w-[90%] sm:max-w-[80%]">
                       <p className="text-[10px] font-black uppercase text-zinc-500 mb-2">You</p>
-                      <p className="text-sm font-medium text-white">{trackedInquiry.message}</p>
+                      <p className="text-xs sm:text-sm font-medium text-white">{trackedInquiry.message}</p>
                     </div>
                     {trackedInquiry.replies?.map((r: any, idx: number) => (
-                      <div key={idx} className="bg-blue-600/10 p-6 rounded-2xl border border-blue-600/20 max-w-[80%] ml-auto">
+                      <div key={idx} className="bg-blue-600/10 p-4 sm:p-6 rounded-2xl border border-blue-600/20 max-w-[90%] sm:max-w-[80%] ml-auto">
                         <p className="text-[10px] font-black uppercase text-blue-500 mb-2">Customer Care</p>
-                        <p className="text-sm font-medium text-zinc-100">{r.text}</p>
+                        <p className="text-xs sm:text-sm font-medium text-zinc-100">{r.text}</p>
                         <p className="text-[8px] font-mono text-blue-400/50 mt-2">{new Date(r.timestamp).toLocaleString()}</p>
                       </div>
                     ))}
@@ -1685,20 +1707,20 @@ export default function App() {
       {!user && activeTab !== "shop" && !showLogin && (
         <div className="flex-1 overflow-y-auto no-scrollbar bg-black/40">
           {/* Hero Section */}
-          <section className="min-h-screen flex flex-col items-center justify-center p-8 text-center relative">
+          <section className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 text-center relative overflow-hidden">
             <motion.div 
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              className="max-w-4xl"
+              className="max-w-4xl w-full"
             >
-              <h1 className="text-8xl font-black italic uppercase tracking-tighter mb-8 leading-none">
+              <h1 className="text-4xl xs:text-5xl sm:text-6xl md:text-8xl font-black italic uppercase tracking-tighter mb-6 md:mb-8 leading-none">
                 THE <span className="text-blue-600">NFL</span><br/>EXCHANGE
               </h1>
-              <p className="text-xl text-zinc-400 mb-12 max-w-2xl mx-auto font-black italic uppercase tracking-widest">
+              <p className="text-sm sm:text-lg md:text-xl text-zinc-400 mb-8 md:mb-12 max-w-2xl mx-auto font-black italic uppercase tracking-widest leading-relaxed">
                 Live Franchise Equity · Institutional Execution · 24/7 Market Liquidity
               </p>
-              <div className="flex justify-center gap-4 mb-20">
-                <button onClick={() => setShowLogin(true)} className="bg-white text-black px-12 py-5 rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl shadow-white/5">
+              <div className="flex justify-center gap-4 mb-20 px-4">
+                <button onClick={() => setShowLogin(true)} className="w-full sm:w-auto bg-white text-black px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl shadow-white/5 whitespace-nowrap">
                   ACCESS TRADING TERMINAL
                 </button>
               </div>
@@ -1716,15 +1738,15 @@ export default function App() {
           </section>
 
           {/* Breaking News Section */}
-          <section className="py-32 px-8 max-w-7xl mx-auto">
-            <div className="flex items-center justify-between mb-12">
+          <section className="py-16 md:py-32 px-4 md:px-8 max-w-7xl mx-auto">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
               <div>
-                <h2 className="text-4xl font-black italic uppercase tracking-tighter">Market Intelligence</h2>
-                <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs">Proprietary news and real-time analysis</p>
+                <h2 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter">Market Intelligence</h2>
+                <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] md:text-xs">Proprietary news and real-time analysis</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Live Terminal Feed</span>
+                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-blue-500">Live Terminal Feed</span>
               </div>
             </div>
 
@@ -1757,30 +1779,30 @@ export default function App() {
             </div>
 
             {/* Shop Highlights for landing */}
-            <div className="bg-zinc-900 shadow-2xl rounded-[3rem] p-12 border border-white/5 relative overflow-hidden">
+            <div className="bg-zinc-900 shadow-2xl rounded-3xl md:rounded-[3rem] p-6 sm:p-10 md:p-12 border border-white/5 relative overflow-hidden">
                <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-600/10 blur-[100px] rounded-full" />
                <div className="relative z-10">
-                 <div className="flex flex-col md:flex-row items-center justify-between gap-12">
-                   <div className="max-w-xl">
-                     <h2 className="text-5xl font-black italic uppercase tracking-tighter mb-6 leading-tight">The Arena Shop</h2>
-                     <p className="text-zinc-400 text-lg font-bold uppercase tracking-tight mb-10 italic">Secure matching tickets, authentic franchise gear, and exclusive fan membership cards directly through our secure portal.</p>
-                     <div className="grid grid-cols-2 gap-8 mb-10">
-                       <div className="flex items-center gap-4">
+                 <div className="flex flex-col lg:flex-row items-center justify-between gap-10 md:gap-12">
+                   <div className="max-w-xl text-center lg:text-left">
+                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 md:mb-6 leading-tight">The Arena Shop</h2>
+                     <p className="text-zinc-400 text-sm sm:text-base md:text-lg font-bold uppercase tracking-tight mb-8 md:mb-10 italic">Secure matching tickets, authentic franchise gear, and exclusive fan membership cards directly through our secure portal.</p>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-10">
+                       <div className="flex items-center justify-center lg:justify-start gap-4">
                          <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center"><Ticket className="w-5 h-5 text-blue-500" /></div>
-                         <p className="text-xs font-black uppercase tracking-widest">Match Tickets</p>
+                         <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Match Tickets</p>
                        </div>
-                       <div className="flex items-center gap-4">
+                       <div className="flex items-center justify-center lg:justify-start gap-4">
                          <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center"><ShoppingBag className="w-5 h-5 text-blue-500" /></div>
-                         <p className="text-xs font-black uppercase tracking-widest">Official Jerseys</p>
+                         <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Official Jerseys</p>
                        </div>
                      </div>
                      <button onClick={() => setActiveTab("shop")} className="bg-white text-black px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all">
                         ENTER SHOP
                      </button>
                    </div>
-                   <div className="grid grid-cols-2 gap-4">
+                   <div className="grid grid-cols-2 gap-4 w-full sm:w-auto">
                       {SHOP_ITEMS.tickets.slice(0, 2).map((item, i) => (
-                        <div key={item.id} className={cn("w-48 h-64 rounded-3xl overflow-hidden border border-white/5", i === 1 && "mt-12")}>
+                        <div key={item.id} className={cn("flex-1 aspect-[3/4] w-full sm:w-48 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5", i === 1 && "mt-8 sm:mt-12")}>
                           <img src={item.image} alt={item.name} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700" />
                         </div>
                       ))}
@@ -1791,14 +1813,14 @@ export default function App() {
           </section>
 
           {/* Testimonials section */}
-          <section className="py-32 bg-zinc-950/40 border-y border-white/5">
-            <div className="max-w-7xl mx-auto px-8">
-              <div className="text-center mb-20">
-                <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-4">Institutional Trust</h2>
-                <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs">Verified feedback from major equity holders</p>
+          <section className="py-16 md:py-32 bg-zinc-950/40 border-y border-white/5">
+            <div className="max-w-7xl mx-auto px-4 md:px-8">
+              <div className="text-center mb-12 md:20">
+                <h2 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter mb-4">Institutional Trust</h2>
+                <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] md:text-xs">Verified feedback from major equity holders</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
                 {TESTIMONIALS.map((t, i) => (
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -1806,7 +1828,7 @@ export default function App() {
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.1 }}
                     key={t.name}
-                    className="p-10 bg-zinc-900/50 rounded-[2.5rem] border border-white/5 relative group hover:border-blue-600/30 transition-all"
+                    className="p-6 md:p-10 bg-zinc-900/50 rounded-2xl md:rounded-[2.5rem] border border-white/5 relative group hover:border-blue-600/30 transition-all"
                   >
                     <div className="flex gap-1 mb-6">
                       {[...Array(t.rating)].map((_, i) => (
@@ -1831,18 +1853,18 @@ export default function App() {
           </section>
 
           {/* Footer CTA */}
-          <section className="py-40 text-center px-8">
+          <section className="py-20 md:py-40 text-center px-4 md:px-8">
             <div className="max-w-2xl mx-auto">
-              <div className="w-20 h-20 bg-blue-600 rounded-3xl mx-auto flex items-center justify-center mb-12 shadow-2xl shadow-blue-600/40">
-                <ShieldCheck className="w-10 h-10 text-white" />
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600 rounded-2xl md:rounded-3xl mx-auto flex items-center justify-center mb-10 md:12 shadow-2xl shadow-blue-600/40">
+                <ShieldCheck className="w-8 h-8 md:w-10 md:h-10 text-white" />
               </div>
-              <h2 className="text-6xl font-black italic uppercase tracking-tighter mb-8 leading-none">
+              <h2 className="text-4xl sm:text-5xl md:text-6xl font-black italic uppercase tracking-tighter mb-6 md:mb-8 leading-none">
                 READY TO<br/>SECURE EQUITY?
               </h2>
-              <p className="text-zinc-500 font-bold uppercase tracking-widest text-sm mb-12 italic">
+              <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] md:text-sm mb-10 md:12 italic px-4">
                 Join 850,000+ dedicated investors trading professional franchise equity
               </p>
-              <button onClick={() => setShowLogin(true)} className="bg-white text-black px-12 py-5 rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all">
+              <button onClick={() => setShowLogin(true)} className="bg-white text-black px-10 md:px-12 py-4 md:py-5 rounded-2xl text-[10px] md:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all">
                 INITIALIZE PORTFOLIO
               </button>
             </div>
@@ -1852,9 +1874,12 @@ export default function App() {
 
       {/* Main Dashboard */}
       {(user || activeTab === "shop") && (
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden pb-20 md:pb-0">
           {/* Sidebar */}
-          <aside className="w-80 bg-zinc-950/40 border-r border-white/5 flex flex-col">
+          <aside className={cn(
+            "bg-zinc-950/40 border-r border-white/5 flex-col flex shrink-0 transition-all duration-300",
+            activeTab === "markets" ? "w-full md:w-80 h-[40%] md:h-full" : "w-full md:w-80"
+          )}>
             <div className="p-6 flex items-center justify-between">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
@@ -1914,35 +1939,35 @@ export default function App() {
                 <button onClick={() => setShowLogin(true)} className="bg-white text-black px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all">Initialize Slate</button>
               </div>
             ) : activeTab === "markets" && (
-              <div className="p-10 space-y-10">
-                <div className="flex items-end justify-between">
-                  <div className="flex items-center gap-8">
-                    <div className="w-24 h-24 bg-zinc-900 border border-white/5 rounded-3xl p-5 shadow-2xl">
+              <div className="p-4 sm:p-6 md:p-10 space-y-6 md:space-y-10">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                  <div className="flex items-center gap-4 md:gap-8">
+                    <div className="w-16 h-16 md:w-24 md:h-24 bg-zinc-900 border border-white/5 rounded-2xl md:rounded-3xl p-3 md:p-5 shadow-2xl">
                       <img src={getLogoUrl(selectedTeam.id)} alt={selectedTeam.id} className="w-full h-full object-contain" />
                     </div>
                     <div>
-                      <h2 className="text-5xl font-black italic uppercase tracking-tighter leading-none mb-2">{selectedTeam.city} {selectedTeam.name}</h2>
-                      <div className="flex items-center gap-6">
-                        <p className="text-4xl font-mono font-black">${(marketPrices[selectedTeam.id] || 100).toFixed(2)}</p>
+                      <h2 className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl font-black italic uppercase tracking-tighter leading-none mb-2">{selectedTeam.city} {selectedTeam.name}</h2>
+                      <div className="flex flex-wrap items-center gap-3 md:gap-6">
+                        <p className="text-2xl md:text-4xl font-mono font-black">${(marketPrices[selectedTeam.id] || 100).toFixed(2)}</p>
                         <div className={cn(
-                          "flex items-center gap-1 font-black bg-emerald-500/10 px-3 py-1 rounded-lg text-lg",
+                          "flex items-center gap-1 font-black bg-emerald-500/10 px-2 py-0.5 md:px-3 md:py-1 rounded-lg text-sm md:text-lg",
                           (historicalData[selectedTeam.id]?.length || 0) > 0 && marketPrices[selectedTeam.id] >= historicalData[selectedTeam.id]![0].price ? "text-emerald-400" : "text-rose-400 bg-rose-500/10"
                         )}>
-                          <ArrowUpRight className="w-5 h-5" /> 2.45%
+                          <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5" /> 2.45%
                         </div>
-                        <div className="h-6 w-px bg-white/10" />
-                        <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Market Cap: {formatCurrency((marketPrices[selectedTeam.id] || 100) * 1000000)}</p>
+                        <div className="hidden xs:block h-4 md:h-6 w-px bg-white/10" />
+                        <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-widest">Market Cap: {formatCurrency((marketPrices[selectedTeam.id] || 100) * 1000000)}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 bg-zinc-900 p-1 rounded-xl">
+                  <div className="flex gap-1 md:gap-2 bg-zinc-900 p-1 rounded-xl w-fit">
                     {["1H", "1D", "1W", "1M"].map(f => (
-                      <button key={f} className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", f === "1H" ? "bg-white text-black" : "text-zinc-500 hover:text-white")}>{f}</button>
+                      <button key={f} className={cn("px-3 md:px-4 py-2 rounded-lg text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all", f === "1H" ? "bg-white text-black" : "text-zinc-500 hover:text-white")}>{f}</button>
                     ))}
                   </div>
                 </div>
 
-                <div className="h-[400px] w-full bg-zinc-900/30 rounded-[2.5rem] border border-white/5 p-8 relative">
+                <div className="h-[250px] sm:h-[300px] md:h-[400px] w-full bg-zinc-900/30 rounded-2xl md:rounded-[2.5rem] border border-white/5 p-4 md:p-8 relative">
                    <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={historicalData[selectedTeam.id] || []}>
                       <defs>
@@ -1964,20 +1989,20 @@ export default function App() {
                   </ResponsiveContainer>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="bg-zinc-900/50 rounded-[2rem] p-8 border border-white/5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                  <div className="bg-zinc-900/50 rounded-2xl md:rounded-[2rem] p-6 md:p-8 border border-white/5">
                     <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-xs font-black uppercase text-zinc-500 tracking-[.25em]">Market Execution</h3>
+                      <h3 className="text-[10px] font-black uppercase text-zinc-500 tracking-[.25em]">Market Execution</h3>
                       <div className="flex items-center gap-1 text-emerald-400 text-[10px] font-black tracking-widest">
                         <ShieldCheck className="w-3 h-3" /> SECURE
                       </div>
                     </div>
                     <div className="mb-8">
-                      <label className="block text-[10px] font-black uppercase text-zinc-600 mb-4 tracking-widest">Quantity</label>
+                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-600 mb-4 tracking-widest">Quantity</label>
                       <div className="flex items-center gap-4 bg-zinc-950 p-2 rounded-2xl border border-white/5">
-                        <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-12 h-12 bg-zinc-800 rounded-xl font-bold hover:bg-zinc-700 transition-colors">-</button>
-                        <input type="number" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="flex-1 bg-transparent text-center font-mono font-black text-xl outline-none" />
-                        <button onClick={() => setQuantity(quantity + 1)} className="w-12 h-12 bg-zinc-800 rounded-xl font-bold hover:bg-zinc-700 transition-colors">+</button>
+                        <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 md:w-12 md:h-12 bg-zinc-800 rounded-xl font-bold hover:bg-zinc-700 transition-colors">-</button>
+                        <input type="number" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="flex-1 bg-transparent text-center font-mono font-black text-lg md:text-xl outline-none" />
+                        <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 md:w-12 md:h-12 bg-zinc-800 rounded-xl font-bold hover:bg-zinc-700 transition-colors">+</button>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -1986,17 +2011,17 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="bg-zinc-900/50 rounded-[2rem] p-8 border border-white/5">
-                    <h3 className="text-xs font-black uppercase text-zinc-500 tracking-[.25em] mb-8">Asset Concentration</h3>
+                  <div className="bg-zinc-900/50 rounded-2xl md:rounded-[2rem] p-6 md:p-8 border border-white/5">
+                    <h3 className="text-[10px] font-black uppercase text-zinc-500 tracking-[.25em] mb-8">Asset Concentration</h3>
                     {portfolio.find(p => p.teamId === selectedTeam.id && p.shares > 0) ? (
-                      <div className="space-y-6">
-                        <div className="flex justify-between items-center py-4 border-b border-white/5">
-                          <span className="text-xs text-zinc-500 font-bold uppercase">Equity Stake</span>
-                          <span className="text-xs font-black uppercase tracking-widest">{portfolio.find(p => p.teamId === selectedTeam.id).shares.toLocaleString()} Units</span>
+                      <div className="space-y-4 md:space-y-6">
+                        <div className="flex justify-between items-center py-3 md:py-4 border-b border-white/5">
+                          <span className="text-[10px] md:text-xs text-zinc-500 font-bold uppercase">Equity Stake</span>
+                          <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">{portfolio.find(p => p.teamId === selectedTeam.id).shares.toLocaleString()} Units</span>
                         </div>
-                        <div className="flex justify-between items-center py-4 border-b border-white/5">
-                          <span className="text-xs text-zinc-500 font-bold uppercase">Average Basis</span>
-                          <span className="text-xs font-mono font-black text-white">${portfolio.find(p => p.teamId === selectedTeam.id).avgPrice.toFixed(2)}</span>
+                        <div className="flex justify-between items-center py-3 md:py-4 border-b border-white/5">
+                          <span className="text-[10px] md:text-xs text-zinc-500 font-bold uppercase">Average Basis</span>
+                          <span className="text-[10px] md:text-xs font-mono font-black text-white">${portfolio.find(p => p.teamId === selectedTeam.id).avgPrice.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between items-center py-4">
                           <span className="text-xs text-zinc-500 font-bold uppercase">Unrealized P/L</span>
@@ -2026,12 +2051,12 @@ export default function App() {
                 <button onClick={() => setShowLogin(true)} className="bg-white text-black px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all">Secure Access</button>
               </div>
             ) : activeTab === "draft" && (
-              <div className="p-10 space-y-10">
-                <div className="text-center max-w-3xl mx-auto py-10">
-                  <h2 className="text-5xl font-black italic uppercase tracking-tighter mb-4 leading-none">Draft Speculation</h2>
-                  <p className="text-zinc-500 text-lg uppercase tracking-tight font-medium">Predict the future. Trade rookie-assets before they hit the big stage.</p>
+              <div className="p-4 sm:p-6 md:p-10 space-y-8 md:space-y-10">
+                <div className="text-center max-w-3xl mx-auto py-6 md:py-10">
+                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 leading-none">Draft Speculation</h2>
+                  <p className="text-zinc-500 text-sm md:text-lg uppercase tracking-tight font-medium px-4">Predict the future. Trade rookie-assets before they hit the big stage.</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 pb-20">
                   {[
                     { id: "CW", name: "Caleb Williams", pos: "QB", school: "USC", price: 142.50 },
                     { id: "DM", name: "Drake Maye", pos: "QB", school: "UNC", price: 118.20 },
@@ -2085,59 +2110,61 @@ export default function App() {
                 <button onClick={() => setShowLogin(true)} className="bg-white text-black px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all">Sync Portfolio</button>
               </div>
             ) : activeTab === "portfolio" && (
-              <div className="p-10 space-y-10">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="bg-zinc-900/50 p-8 rounded-[2rem] border border-white/5">
+              <div className="p-4 sm:p-6 md:p-10 space-y-8 md:space-y-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
+                  <div className="bg-zinc-900/50 p-6 md:p-8 rounded-2xl md:rounded-[2rem] border border-white/5">
                     <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Portfolio Value</p>
-                    <p className="text-3xl font-mono font-black text-white">{formatCurrency(totalValue)}</p>
+                    <p className="text-2xl md:text-3xl font-mono font-black text-white">{formatCurrency(totalValue)}</p>
                   </div>
-                  <div className="bg-zinc-900/50 p-8 rounded-[2rem] border border-white/5">
+                  <div className="bg-zinc-900/50 p-6 md:p-8 rounded-2xl md:rounded-[2rem] border border-white/5">
                     <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Available Cash</p>
-                    <p className="text-3xl font-mono font-black text-emerald-400">{formatCurrency(balance)}</p>
+                    <p className="text-2xl md:text-3xl font-mono font-black text-emerald-400">{formatCurrency(balance)}</p>
                   </div>
-                  <div className="bg-zinc-900/50 p-8 rounded-[2rem] border border-white/5">
+                  <div className="bg-zinc-900/50 p-6 md:p-8 rounded-2xl md:rounded-[2rem] border border-white/5 sm:col-span-2 md:col-span-1">
                     <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Total ROI</p>
-                    <p className="text-3xl font-mono font-black text-white">+14.2%</p>
+                    <p className="text-2xl md:text-3xl font-mono font-black text-white">+14.2%</p>
                   </div>
                 </div>
 
-                <div className="bg-zinc-900/50 rounded-[2.5rem] border border-white/5 overflow-hidden">
-                  <table className="w-full text-left">
-                    <thead className="bg-zinc-950/50 border-b border-white/5">
-                      <tr>
-                        <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Asset</th>
-                        <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Shares</th>
-                        <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Basis</th>
-                        <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Market Price</th>
-                        <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Total Equity</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {portfolio.filter(p => p.shares > 0).map(p => {
-                        const team = NFL_TEAMS.find(t => t.id === p.teamId)!;
-                        const price = marketPrices[p.teamId] || p.avgPrice;
-                        return (
-                          <tr key={p.teamId} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer" onClick={() => { setSelectedTeam(team); setActiveTab("markets"); }}>
-                            <td className="p-6">
-                              <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-zinc-900 rounded-lg p-2 border border-white/5">
-                                  <img src={getLogoUrl(p.teamId)} alt={p.teamId} />
+                <div className="bg-zinc-900/50 rounded-2xl md:rounded-[2.5rem] border border-white/5 overflow-hidden">
+                  <div className="overflow-x-auto no-scrollbar">
+                    <table className="w-full text-left min-w-[600px]">
+                      <thead className="bg-zinc-950/50 border-b border-white/5">
+                        <tr>
+                          <th className="p-4 sm:p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Asset</th>
+                          <th className="p-4 sm:p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Shares</th>
+                          <th className="p-4 sm:p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Basis</th>
+                          <th className="p-4 sm:p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right hidden sm:table-cell">Market Price</th>
+                          <th className="p-4 sm:p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Total Equity</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {portfolio.filter(p => p.shares > 0).map(p => {
+                          const team = NFL_TEAMS.find(t => t.id === p.teamId)!;
+                          const price = marketPrices[p.teamId] || p.avgPrice;
+                          return (
+                            <tr key={p.teamId} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer" onClick={() => { setSelectedTeam(team); setActiveTab("markets"); }}>
+                              <td className="p-4 sm:p-6">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-zinc-900 rounded-lg p-1.5 sm:p-2 border border-white/5">
+                                    <img src={getLogoUrl(p.teamId)} alt={p.teamId} className="w-full h-full object-contain" />
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] sm:text-xs font-black uppercase italic">{team.name}</p>
+                                    <p className="text-[8px] sm:text-[10px] font-bold text-zinc-600 uppercase">{team.id}</p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="text-xs font-black uppercase italic">{team.name}</p>
-                                  <p className="text-[10px] font-bold text-zinc-600 uppercase">{team.id}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-6 text-right font-mono text-xs font-bold">{p.shares.toLocaleString()}</td>
-                            <td className="p-6 text-right font-mono text-xs font-bold">${p.avgPrice.toFixed(2)}</td>
-                            <td className="p-6 text-right font-mono text-xs font-black text-emerald-400">${price.toFixed(2)}</td>
-                            <td className="p-6 text-right font-mono text-xs font-black">{formatCurrency(p.shares * price)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              </td>
+                              <td className="p-4 sm:p-6 text-right font-mono text-[10px] sm:text-xs font-bold">{p.shares.toLocaleString()}</td>
+                              <td className="p-4 sm:p-6 text-right font-mono text-[10px] sm:text-xs font-bold">${p.avgPrice.toFixed(2)}</td>
+                              <td className="p-4 sm:p-6 text-right font-mono text-[10px] sm:text-xs font-black text-emerald-400 hidden sm:table-cell">${price.toFixed(2)}</td>
+                              <td className="p-4 sm:p-6 text-right font-mono text-[10px] sm:text-xs font-black">{formatCurrency(p.shares * price)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -2148,42 +2175,42 @@ export default function App() {
       {/* Fan Card Modal */}
       <AnimatePresence>
         {showFanCardForm && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowFanCardForm(false)}>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowFanCardForm(false)}>
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={e => e.stopPropagation()}
-              className="w-full max-w-lg bg-zinc-900 border border-white/10 rounded-[3rem] p-12 shadow-2xl relative overflow-hidden"
+              className="w-full max-w-lg bg-zinc-900 border border-white/10 rounded-3xl md:rounded-[3rem] p-6 sm:p-10 md:p-12 shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-white to-red-600" />
               <button onClick={() => setShowFanCardForm(false)} className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors">
                 <X />
               </button>
 
-              <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-4 leading-none">Concierge Inquiry</h2>
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-10 italic">Customer Care Protocol: Requesting Asset Pricing & Access</p>
+              <h2 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter mb-4 leading-none">Concierge Inquiry</h2>
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.1em] mb-6 md:mb-10 italic">Customer Care Protocol: Requesting Asset Pricing & Access</p>
               
-              <form onSubmit={handleFanCardRequest} className="space-y-8">
+              <form onSubmit={handleFanCardRequest} className="space-y-4 md:space-y-8 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-zinc-500 mb-3 tracking-widest">Full Name / Identifier</label>
+                  <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Full Name / Identifier</label>
                   <input name="name" required defaultValue={user?.displayName || ""} placeholder="e.g. Alex Rivera" className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-zinc-500 mb-3 tracking-widest">Franchise Asset</label>
+                  <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Franchise Asset</label>
                   <select name="team" required defaultValue={selectedTeam.id} className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold uppercase transition-all">
                     {NFL_TEAMS.map(t => <option key={t.id} value={t.id}>{t.city} {t.name} - Asset Allocation</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-zinc-500 mb-3 tracking-widest">Contact Handle (Reply Platform)</label>
+                  <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Contact Handle</label>
                   <input name="contact" required placeholder="e.g. Telegram: @handle / Email: name@domain.com" className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-zinc-500 mb-3 tracking-widest">Inquiry details</label>
-                  <textarea name="message" rows={4} placeholder="Tell us which match tickets or fan cards you are interested in. Our team will reply with current market rates..." className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all" />
+                  <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Inquiry details</label>
+                  <textarea name="message" rows={3} placeholder="Tell us which match tickets or fan cards you are interested in. Our team will reply with current market rates..." className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all" />
                 </div>
-                <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-zinc-200 transition-all shadow-2xl">
+                <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase tracking-widest text-[10px] md:text-xs rounded-2xl hover:bg-zinc-200 transition-all shadow-2xl">
                   SUBMIT TO CUSTOMER CARE
                 </button>
               </form>
@@ -2200,19 +2227,19 @@ export default function App() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-md bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden"
+              className="w-full max-w-md bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-3xl md:rounded-[2.5rem] p-6 sm:p-8 md:p-10 shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-white to-red-600" />
               <button onClick={() => setShowLogin(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors">
                 <X />
               </button>
 
-              <div className="text-center mb-10">
-                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 -rotate-6 shadow-xl shadow-blue-600/20">
-                  <TrendingUp className="w-10 h-10 text-white" />
+              <div className="text-center mb-8 md:mb-10">
+                <div className="w-14 md:w-16 h-14 md:h-16 bg-blue-600 rounded-xl md:rounded-2xl flex items-center justify-center mx-auto mb-6 -rotate-6 shadow-xl shadow-blue-600/20">
+                  <TrendingUp className="w-8 md:w-10 h-8 md:h-10 text-white" />
                 </div>
-                <h2 className="text-3xl font-black italic uppercase italic tracking-tighter leading-none text-white">Investor Portal</h2>
-                <p className="text-zinc-500 text-[10px] mt-2 uppercase tracking-[0.4em] font-black leading-relaxed">Secure Node Authorization Required</p>
+                <h2 className="text-2xl md:text-3xl font-black italic uppercase italic tracking-tighter leading-none text-white">Investor Portal</h2>
+                <p className="text-zinc-500 text-[10px] mt-2 uppercase tracking-[0.4em] font-black leading-relaxed px-4 text-center">Secure Node Authorization Required</p>
               </div>
 
               <form onSubmit={handleAuth} className="space-y-6">

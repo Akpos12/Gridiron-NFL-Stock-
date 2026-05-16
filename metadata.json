@@ -2,5 +2,7 @@
   "name": "NFL Exchange Gridiron",
   "description": "High-fidelity NFL Sports Stock Market focusing on team valuation trading with integrated crypto-financial tools.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
