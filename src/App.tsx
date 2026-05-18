@@ -1305,10 +1305,11 @@ export default function App() {
       } else if (err.code === "auth/unauthorized-domain") {
         const domain = window.location.hostname;
         const isInIframe = window.self !== window.top;
-        console.error("UNAUTHORIZED DOMAIN:", domain);
-        friendlyMessage = `Unauthorized Domain: '${domain}'. ` + 
-          (isInIframe ? "Pro-tip: Try opening the app in a NEW TAB (top-right button) to bypass iframe restrictions. " : "") +
-          "Ensure this domain is in your Firebase Console > Authentication > Settings > Authorized Domains.";
+        console.error("FIREBASE UNAUTHORIZED DOMAIN ERROR:", domain);
+        friendlyMessage = `DOMAIN ERROR: "${domain}" is not authorized.\n\n` + 
+          `1. Please ensure "${domain}" is exactly as listed in Firebase Console > Authentication > Settings > Authorized Domains.\n` +
+          `2. Wait 5-10 minutes for changes to propagate.\n` +
+          (isInIframe ? `3. CRITICAL: You are inside an iframe. Click the "Open in new tab" icon (top right) to allow Google Sign-in to work correctly.` : "");
       } else if (err.code === "auth/invalid-email") {
         friendlyMessage = "Standard formatting required (e.g., name@domain.com).";
       } else if (err.code === "auth/weak-password") {
