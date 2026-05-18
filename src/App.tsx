@@ -1302,6 +1302,13 @@ export default function App() {
         friendlyMessage = isSignUp 
           ? "Unable to create account with these credentials. Please check your email format or use a stronger password."
           : "Invalid access key or password. If you haven't registered, please switch to 'Sign Up' below.";
+      } else if (err.code === "auth/unauthorized-domain") {
+        const domain = window.location.hostname;
+        const isInIframe = window.self !== window.top;
+        console.error("UNAUTHORIZED DOMAIN:", domain);
+        friendlyMessage = `Unauthorized Domain: '${domain}'. ` + 
+          (isInIframe ? "Pro-tip: Try opening the app in a NEW TAB (top-right button) to bypass iframe restrictions. " : "") +
+          "Ensure this domain is in your Firebase Console > Authentication > Settings > Authorized Domains.";
       } else if (err.code === "auth/invalid-email") {
         friendlyMessage = "Standard formatting required (e.g., name@domain.com).";
       } else if (err.code === "auth/weak-password") {
