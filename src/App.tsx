@@ -51,7 +51,6 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
-  OAuthProvider,
   signInWithPopup,
   browserPopupRedirectResolver,
   setPersistence,
@@ -441,13 +440,108 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { i
 const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCardForm, setShowInquiryStatus, activeTicket }: any) => {
   const [shopView, setShopView] = useState<"jerseys" | "tickets" | "cards">("jerseys");
 
+  // Merchandise Shop Filter States
+  const [selectedShopTeam, setSelectedShopTeam] = useState<string>(selectedTeam?.id || "MIN");
+  const [merchSearch, setMerchSearch] = useState<string>("");
+  const [merchCategory, setMerchCategory] = useState<string>("all");
+  const [products, setProducts] = useState<any[]>([]);
+  const [merchLoading, setMerchLoading] = useState<boolean>(true);
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+
+  // Live Ticketmaster Ticket States
+  const [ticketTeam, setTicketTeam] = useState<string>(selectedTeam?.name || "");
+  const [ticketStadium, setTicketStadium] = useState<string>("");
+  const [ticketMinPrice, setTicketMinPrice] = useState<number>(0);
+  const [ticketMaxPrice, setTicketMaxPrice] = useState<number>(1500);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState<boolean>(true);
+  const [ticketSort, setTicketSort] = useState<"cheapest" | "date">("date");
+  const [ticketError, setTicketError] = useState<string | null>(null);
+
+  // Fetch Merchandise products dynamically from backend
+  useEffect(() => {
+    let active = true;
+    const fetchMerch = async () => {
+      setMerchLoading(true);
+      try {
+        const query = new URLSearchParams({
+          team: selectedShopTeam,
+          search: merchSearch,
+          category: merchCategory
+        });
+        const url = `/api/merchandise?${query.toString()}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Could not retrieve market merchandise stats");
+        const data = await res.json();
+        if (active) {
+          setProducts(data.products || []);
+        }
+      } catch (err) {
+        console.error("Merchandise request error:", err);
+      } finally {
+        if (active) setMerchLoading(false);
+      }
+    };
+
+    fetchMerch();
+    return () => { active = false; };
+  }, [selectedShopTeam, merchSearch, merchCategory]);
+
+  // Fetch tickets dynamic listings from Ticketmaster API
+  useEffect(() => {
+    let active = true;
+    const fetchTickets = async () => {
+      setTicketsLoading(true);
+      setTicketError(null);
+      try {
+        const query = new URLSearchParams({
+          team: ticketTeam,
+          stadium: ticketStadium,
+          priceMin: ticketMinPrice.toString(),
+          priceMax: ticketMaxPrice.toString()
+        });
+        const url = `/api/tickets?${query.toString()}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("API request error");
+        const data = await res.json();
+        if (active) {
+          let sorted = data.events || [];
+          if (ticketSort === "cheapest") {
+            sorted = [...sorted].sort((a, b) => a.cheapestPrice - b.cheapestPrice);
+          } else {
+            sorted = [...sorted].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          }
+          setTickets(sorted);
+        }
+      } catch (err: any) {
+        console.error("Live tickets fetch error:", err);
+        if (active) setTicketError("Failed to update Ticketmaster feed. Please retry.");
+      } finally {
+        if (active) setTicketsLoading(false);
+      }
+    };
+
+    fetchTickets();
+    return () => { active = false; };
+  }, [ticketTeam, ticketStadium, ticketMinPrice, ticketMaxPrice, ticketSort]);
+
+  const merchCategories = [
+    { id: "all", label: "All Gear" },
+    { id: "jerseys", label: "Jerseys" },
+    { id: "hoodies", label: "Hoodies" },
+    { id: "helmets", label: "Helmets" },
+    { id: "hats", label: "Caps & Hats" },
+    { id: "memorabilia", label: "Signed Memorabilia" },
+    { id: "limited", label: "Heritage Collection" }
+  ];
+
   return (
     <div className="p-4 sm:p-6 md:p-10 space-y-16 md:space-y-24 pb-40 max-w-7xl mx-auto">
       <div className="text-center max-w-3xl mx-auto py-6 sm:py-10 relative">
         <div className="hidden sm:block absolute top-0 left-1/2 -translate-x-1/2 w-px h-20 bg-gradient-to-b from-blue-600 to-transparent" />
         <h2 className="text-4xl sm:text-5xl md:text-7xl font-black italic uppercase tracking-tighter mb-8 sm:pt-12 leading-none">The Arena Shop</h2>
         
-        {/* Shop Category Navigation */}
+        {/* Shop Navigation Selector */}
         <div className="flex flex-wrap justify-center gap-3 md:gap-4 mb-4 sm:mb-8">
           {[
             { id: "jerseys", label: "Elite Gear" },
@@ -476,71 +570,356 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
         </button>
       </div>
 
-      {/* Section: Professional Gear (Direct Price View) */}
+      {/* 1. ELITE NFL MERCHANDISE SECTION */}
       {shopView === "jerseys" && (
-        <section>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 md:mb-12 border-b border-white/5 pb-6">
-            <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter">Professional Gear</h3>
-            <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">In-Stock Authentic Apparel</span>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10">
-            {SHOP_ITEMS.jerseys.map((item: any) => (
-              <div key={item.id} className="flex flex-col sm:flex-row gap-6 md:gap-8 bg-zinc-900/20 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8 border border-white/5 group hover:border-blue-500/20 transition-all">
-                <div className="w-full sm:w-40 h-48 sm:h-40 rounded-2xl sm:rounded-3xl overflow-hidden shrink-0 border border-white/5 bg-zinc-950">
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-80" />
-                </div>
-                <div className="flex-1 flex flex-col justify-center">
-                  <div className="flex justify-between items-center mb-4 sm:mb-2">
-                    <h4 className="text-lg md:text-xl font-black italic uppercase leading-none">{item.name}</h4>
-                    <p className="font-mono font-black text-white text-lg md:text-xl">${item.price}</p>
-                  </div>
-                  <p className="text-zinc-500 text-[10px] font-bold uppercase mb-6 sm:mb-8 tracking-[0.1em]">{item.description}</p>
-                  <button 
-                    onClick={() => handleStorePurchase(item, 'jersey')}
-                    className="w-full sm:w-auto px-10 md:px-12 py-3.5 bg-blue-600 rounded-xl md:rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/10"
-                  >
-                    Acquire Now
-                  </button>
+        <section className="space-y-12">
+          {/* Header & Filter Controls bar */}
+          <div className="border-b border-white/5 pb-8 space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-white">Elite NFL Gear Store</h3>
+                <p className="text-xs text-zinc-500 uppercase tracking-widest mt-1 font-bold">Fanatics Live Merchandise Data Connection</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Team selection dropdown */}
+                <select 
+                  value={selectedShopTeam}
+                  onChange={(e) => setSelectedShopTeam(e.target.value)}
+                  className="bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-black uppercase tracking-widest"
+                >
+                  {NFL_TEAMS.map((t: Team) => (
+                    <option key={t.id} value={t.id} className="bg-zinc-950">{t.city} {t.name}</option>
+                  ))}
+                </select>
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    placeholder="Search apparel..." 
+                    value={merchSearch}
+                    onChange={(e) => setMerchSearch(e.target.value)}
+                    className="bg-zinc-950 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-zinc-500 font-bold focus:outline-none focus:border-blue-500 w-44 focus:w-56 transition-all"
+                  />
+                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-3.5" />
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Category selection rail */}
+            <div className="flex flex-wrap gap-2 pt-2 overflow-x-auto pb-1 scrollbar-hide">
+              {merchCategories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setMerchCategory(cat.id)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all shrink-0",
+                    merchCategory === cat.id
+                      ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/10"
+                      : "bg-zinc-900/50 text-zinc-400 border-white/5 hover:border-white/20 select-none"
+                  )}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Trending & Best Sellers Showcase */}
+          {products.filter(p => p.trending).length > 0 && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                <h4 className="text-sm font-black uppercase tracking-widest text-white">Trending on Exchange This Week</h4>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {products.filter(p => p.trending).map((p) => {
+                  const saveAmt = Number((p.originalPrice - p.price).toFixed(2));
+                  return (
+                    <div 
+                      key={`trend-${p.id}`} 
+                      className="bg-gradient-to-br from-zinc-900/40 via-zinc-900/20 to-transparent p-5 rounded-2xl border border-blue-500/10 hover:border-blue-500/35 transition-all group flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="aspect-[4/3] rounded-xl overflow-hidden bg-zinc-950 border border-white/5 mb-4 relative">
+                          <img src={p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90" />
+                          <div className="absolute top-2.5 right-2.5 bg-blue-600/90 text-white text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <Star className="w-2.5 h-2.5 fill-white" /> BEST SELLER
+                          </div>
+                        </div>
+                        <h5 className="text-sm font-bold text-white line-clamp-1 group-hover:text-blue-400 transition-colors uppercase italic">{p.name}</h5>
+                        <p className="text-[10px] text-zinc-500 line-clamp-2 mt-1.5 font-semibold tracking-wide leading-relaxed">{p.description}</p>
+                      </div>
+                      <div className="mt-5 pt-3 border-t border-white/5 flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-mono font-black text-white text-base">${p.price}</p>
+                            {p.discount > 0 && (
+                              <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest bg-rose-500/10 px-1.5 py-0.5 rounded">-{p.discount}%</p>
+                            )}
+                          </div>
+                          {p.discount > 0 && (
+                            <p className="text-[8px] text-zinc-500 font-bold uppercase mt-0.5">Live Discount (Save ${saveAmt})</p>
+                          )}
+                        </div>
+                        <button 
+                          onClick={() => setSelectedProduct(p)}
+                          className="px-4 py-2 bg-blue-600 text-white font-black text-[9px] rounded-lg tracking-wider uppercase hover:bg-blue-500 transition-colors"
+                        >
+                          Checkout Details
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Core Products Grid list */}
+          {merchLoading ? (
+            <div className="py-24 text-center">
+              <RefreshCw className="w-10 h-10 text-blue-500 animate-spin mx-auto mb-4" />
+              <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Accessing live NFL Gear inventory database...</p>
+            </div>
+          ) : products.length === 0 ? (
+            <div className="py-24 text-center border border-dashed border-white/5 rounded-3xl bg-zinc-900/10">
+              <AlertCircle className="w-10 h-10 text-zinc-600 mx-auto mb-4" />
+              <p className="text-xs font-black uppercase text-white tracking-widest">No products matching the selected query</p>
+              <button 
+                onClick={() => { setMerchSearch(""); setMerchCategory("all"); }}
+                className="mt-4 px-6 py-2 border border-white/10 rounded-xl text-[9px] font-black uppercase text-blue-500 tracking-widest hover:bg-white/5 transition-colors"
+              >
+                Clear Filters
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {products.map((item: any) => {
+                const saveAmt = Number((item.originalPrice - item.price).toFixed(2));
+                return (
+                  <div key={item.id} className="bg-zinc-950 border border-white/5 hover:border-white/10 rounded-[2rem] p-5 flex flex-col justify-between group transition-all relative">
+                    {item.discount > 0 && (
+                      <div className="absolute top-4 left-4 z-10 bg-rose-500 text-black text-[8px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full shadow-lg font-mono">
+                        -{item.discount}% SALE
+                      </div>
+                    )}
+                    <div>
+                      <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-zinc-900 border border-white/5 mb-5 relative">
+                        <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[8px] font-black uppercase text-blue-500 tracking-widest bg-blue-500/10 px-2 py-0.5 rounded-md">{item.category}</span>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400 border border-emerald-500/10 bg-emerald-500/5 px-2 py-0.5 rounded-md">IN STOCK</span>
+                        </div>
+                        <h4 className="text-base font-black italic uppercase leading-tight line-clamp-1 text-white">{item.name}</h4>
+                        <p className="text-zinc-500 text-[10px] font-semibold leading-relaxed tracking-wide line-clamp-2">{item.description}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+                      <div>
+                        {item.discount > 0 ? (
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="font-mono font-black text-rose-400 text-lg leading-none">${item.price}</span>
+                            <span className="font-mono font-medium text-xs text-zinc-500 line-through">${item.originalPrice}</span>
+                          </div>
+                        ) : (
+                          <span className="font-mono font-black text-white text-lg leading-none">${item.price}</span>
+                        )}
+                        <p className="text-[8px] font-black uppercase text-zinc-500 tracking-wider mt-1.5 flex items-center gap-1">★ {item.rating} ({item.reviewsCount} verified reviews)</p>
+                      </div>
+
+                      <button 
+                        onClick={() => setSelectedProduct(item)}
+                        className="px-5 py-3 bg-blue-600 rounded-xl text-[9px] text-white font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/10"
+                      >
+                        Acquire Options
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 
-      {/* Section: Match Access (Inquiry Flow) */}
+      {/* 2. MATCH TICKETS SECTION (LIVETICKETMASTER INTEGRATION) */}
       {shopView === "tickets" && (
-        <section>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 md:mb-12 border-b border-white/5 pb-6">
-            <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter">Match Tickets</h3>
-            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Contact Concierge for Seat Pricing</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
-            {SHOP_ITEMS.tickets.map((item: any) => (
-              <div key={item.id} className="bg-zinc-900/50 border border-white/5 rounded-3xl md:rounded-[2.5rem] overflow-hidden group hover:bg-zinc-900 transition-colors">
-                <div className="aspect-[4/3] overflow-hidden relative border-b border-white/5">
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
-                  <div className="absolute top-4 left-4 bg-blue-600 px-3 py-1 rounded-lg">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2"><Ticket className="w-3 h-3" /> Booking</p>
-                  </div>
-                </div>
-                <div className="p-6 md:p-8">
-                  <h4 className="text-lg font-black italic uppercase leading-none mb-4">{item.name}</h4>
-                  <p className="text-zinc-600 text-[10px] font-bold uppercase mb-6 md:mb-8 line-clamp-2 tracking-widest leading-relaxed">{item.description}</p>
-                  <button 
-                    onClick={() => setShowFanCardForm(true)}
-                    className="w-full py-4 bg-zinc-800 hover:bg-white hover:text-black transition-all font-black text-[10px] uppercase tracking-widest rounded-2xl border border-white/5"
-                  >
-                    Check Availability
-                  </button>
+        <section className="space-y-12">
+          {/* Header & Filter Controls Bar */}
+          <div className="border-b border-white/5 pb-8 space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-white">Live Official Box Office</h3>
+                <p className="text-xs text-zinc-500 uppercase tracking-widest mt-1 font-bold">Authenticated Ticketmaster API Gameday Exchange Connection</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <select 
+                  value={ticketSort}
+                  onChange={(e: any) => setTicketSort(e.target.value)}
+                  className="bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-black uppercase tracking-widest"
+                >
+                  <option value="date">Sort By: Gameday Date</option>
+                  <option value="cheapest">Sort By: Cheapest Seats First</option>
+                </select>
+
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    placeholder="Filter by Team name..." 
+                    value={ticketTeam}
+                    onChange={(e) => setTicketTeam(e.target.value)}
+                    className="bg-zinc-950 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-zinc-500 font-bold focus:outline-none focus:border-blue-500 w-44"
+                  />
+                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-3.5" />
                 </div>
               </div>
-            ))}
+            </div>
+
+            <div className="flex flex-wrap gap-4 items-center justify-between bg-zinc-900/15 p-4 rounded-2xl border border-white/5">
+              <div className="flex flex-col sm:flex-row gap-4 items-center flex-1">
+                <div className="w-full sm:w-1/3">
+                  <label className="block text-[8px] font-black uppercase tracking-widest text-zinc-500 mb-1.5">Stadium Search</label>
+                  <input 
+                    type="text"
+                    placeholder="E.g. AT&T Stadium"
+                    value={ticketStadium}
+                    onChange={(e) => setTicketStadium(e.target.value)}
+                    className="w-full bg-zinc-950 border border-white/5 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-600 font-bold focus:outline-none focus:border-blue-500/80"
+                  />
+                </div>
+                <div className="w-full sm:w-2/3">
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Maximum Price Target</label>
+                    <span className="font-mono text-xs font-black text-white">${ticketMaxPrice}</span>
+                  </div>
+                  <input 
+                    type="range"
+                    min="50"
+                    max="2000"
+                    step="25"
+                    value={ticketMaxPrice}
+                    onChange={(e) => setTicketMaxPrice(parseInt(e.target.value))}
+                    className="w-full accent-blue-600 focus:outline-none bg-zinc-950 h-2 rounded-lg cursor-pointer"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={() => { setTicketTeam(""); setTicketStadium(""); setTicketMaxPrice(1500); }}
+                className="text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-white bg-zinc-950 px-4 py-2.5 rounded-xl border border-white/5"
+              >
+                Reset Filters
+              </button>
+            </div>
           </div>
+
+          {/* Ticket Listings Grid */}
+          {ticketsLoading ? (
+            <div className="py-24 text-center">
+              <RefreshCw className="w-10 h-10 text-blue-500 animate-spin mx-auto mb-4" />
+              <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Querying Ticketmaster API database servers...</p>
+            </div>
+          ) : ticketError ? (
+            <div className="py-16 text-center border border-red-500/10 rounded-3xl bg-red-500/[0.02] max-w-lg mx-auto">
+              <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-4" />
+              <p className="text-xs font-black uppercase text-white tracking-widest mb-2">{ticketError}</p>
+              <p className="text-[10px] text-zinc-500 font-bold uppercase mb-4">API connection was timed out. High-fidelity dynamic fallbacks are operational.</p>
+              <button 
+                onClick={() => setTicketTeam("")}
+                className="px-5 py-2.5 bg-zinc-950 border border-white/10 rounded-xl text-[9px] font-black uppercase text-blue-500 tracking-widest hover:bg-white/5"
+              >
+                Fallback Retry Query
+              </button>
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="py-24 text-center border border-dashed border-white/5 rounded-3xl bg-zinc-900/10">
+              <AlertCircle className="w-10 h-10 text-zinc-600 mx-auto mb-4" />
+              <p className="text-xs font-black uppercase text-white tracking-widest">No match tickets matching your criteria are listed</p>
+              <p className="text-[9px] text-zinc-500 font-bold uppercase mt-1">Try resetting price limits or searching for simpler terms</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {tickets.map((game: any) => {
+                const formattedDate = new Date(game.date).toLocaleDateString("en-US", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric"
+                });
+
+                return (
+                  <div key={game.id} className="bg-zinc-900/20 border border-white/5 hover:border-white/10 rounded-[2rem] overflow-hidden group hover:bg-zinc-900/45 transition-all flex flex-col justify-between">
+                    <div>
+                      <div className="aspect-[4/3] overflow-hidden relative border-b border-white/5">
+                        <img src={game.image} alt={game.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95" />
+                        
+                        <div className="absolute top-4 left-4 bg-zinc-950/85 backdrop-blur-md border border-white/10 px-3.5 py-1.5 rounded-xl flex items-center gap-1.5">
+                          <Ticket className="w-3.5 h-3.5 text-blue-500" />
+                          <span className="text-[8px] font-black uppercase tracking-widest text-white leading-none">BOX OFFICE OPEN</span>
+                        </div>
+
+                        {game.isResale && (
+                          <div className="absolute top-4 right-4 bg-amber-600/90 backdrop-blur-md px-3 py-1 rounded-xl">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-white">RESALE TICKETS</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-6 space-y-4">
+                        <div>
+                          <div className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1.5 font-mono">{formattedDate} @ {game.time}</div>
+                          <h4 className="text-lg font-black uppercase leading-tight italic line-clamp-1 text-white">{game.name}</h4>
+                        </div>
+                        
+                        <div className="space-y-2 text-[10px] bg-zinc-950/40 p-4 rounded-2xl border border-white/5">
+                          <div className="flex justify-between items-center">
+                            <span className="text-zinc-500 font-bold uppercase tracking-wider">Stadium</span>
+                            <span className="text-zinc-300 font-black uppercase tracking-wide truncate max-w-[150px]">{game.stadium}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-zinc-500 font-bold uppercase tracking-wider">Location</span>
+                            <span className="text-zinc-300 font-black uppercase tracking-wide">{game.city}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-zinc-500 font-bold uppercase tracking-wider">Tier Options</span>
+                            <span className="text-white font-black uppercase tracking-wider text-[9px] bg-blue-600/10 text-blue-400 px-2 py-0.5 rounded">VIP + General</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-6 pt-0 border-t border-white/5 mt-4 flex items-center justify-between">
+                      <div className="pt-4">
+                        <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest block">Available Seat Rates</span>
+                        <div className="flex items-baseline gap-1 mt-1">
+                          <span className="font-mono text-white text-lg font-black">${game.cheapestPrice}</span>
+                          <span className="text-[9px] text-zinc-500 font-semibold lowercase">to</span>
+                          <span className="font-mono text-zinc-400 text-xs font-bold">${game.vipPrice} (VIP)</span>
+                        </div>
+                      </div>
+
+                      <div className="pt-4">
+                        <a 
+                          href={game.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-5 py-3.5 bg-white hover:bg-zinc-200 text-black font-black text-[9px] rounded-xl tracking-widest uppercase flex items-center gap-1.5 transition-colors shadow-2xl"
+                        >
+                          Buy Ticket <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 
-      {/* Section: Fan Cards (Inquiry Flow) */}
+      {/* 3. ORIGINAL FAN CARDS MEMBERSHIP SECTION (LEAVE ALONE EXACTLY) */}
       {shopView === "cards" && (
         <section>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 md:mb-12 border-b border-white/5 pb-6">
@@ -578,6 +957,87 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
             ))}
           </div>
         </section>
+      )}
+
+      {/* MODAL: LIVE NFL MERCHANDISE ACQUISITION OPTIONS */}
+      {selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setSelectedProduct(null)} />
+          <div className="relative bg-zinc-950 border border-white/10 rounded-[2.5rem] max-w-md w-full overflow-hidden shadow-2xl p-6 sm:p-8 flex flex-col justify-between z-10 space-y-6">
+            <button 
+              onClick={() => setSelectedProduct(null)}
+              className="absolute top-6 right-6 w-8 h-8 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center hover:bg-white hover:text-black transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div>
+              <div className="w-full aspect-video rounded-2xl overflow-hidden bg-zinc-900 border border-white/5 mb-4 relative">
+                <img src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
+                {selectedProduct.discount > 0 && (
+                  <div className="absolute bottom-3 left-3 bg-rose-500 text-black text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-md">
+                    -{selectedProduct.discount}% PROMO
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <span className="text-[8px] font-black tracking-widest uppercase bg-blue-500/10 text-blue-500 px-2.5 py-1 rounded">CATEGORIES: {selectedProduct.category}</span>
+                  <span className="text-[8px] font-black tracking-widest uppercase bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded">AUTHENTIC LICENSED</span>
+                </div>
+                <h4 className="text-xl font-black italic uppercase leading-tight text-white pt-1">{selectedProduct.name}</h4>
+                <p className="text-xs text-zinc-500 font-semibold leading-relaxed tracking-wide">{selectedProduct.description}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t border-white/5">
+              <div className="flex justify-between items-baseline">
+                <span className="text-[10px] font-black uppercase text-zinc-500 tracking-wider">Live Gameday Rate</span>
+                <div className="flex gap-2 items-baseline">
+                  {selectedProduct.discount > 0 && (
+                    <span className="font-mono text-zinc-500 line-through text-stone-500 text-xs">${selectedProduct.originalPrice}</span>
+                  )}
+                  <span className="font-mono font-black text-rose-400 text-2xl">${selectedProduct.price}</span>
+                </div>
+              </div>
+
+              <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-4 text-[10px] font-bold text-zinc-500 space-y-1.5 uppercase tracking-wide">
+                <div className="flex justify-between">
+                  <span>Shipping Lead</span>
+                  <span className="text-white font-black font-mono">2-3 Gamedays Express</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Merchant Location</span>
+                  <span className="text-white font-black font-mono">Official NFL Fanatics Depot</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                {/* 1. Official NFL External Store Redirect */}
+                <a 
+                  href={selectedProduct.purchaseUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-4 bg-white text-black hover:bg-zinc-200 transition-colors font-black text-[9px] uppercase tracking-widest rounded-2xl flex items-center justify-center gap-1.5"
+                >
+                  NFL SHOP <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+
+                {/* 2. Web App Local Simulated Portfolio Balance Checkout */}
+                <button 
+                  onClick={() => {
+                    handleStorePurchase(selectedProduct, selectedProduct.category);
+                    setSelectedProduct(null);
+                  }}
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 transition-colors text-white font-black text-[9px] uppercase tracking-widest rounded-2xl shadow-xl shadow-blue-600/10"
+                >
+                  USE BALANCES ($)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1180,7 +1640,7 @@ export default function App() {
     };
   }, []);
 
-  const handleAuth = async (e: React.FormEvent | "google" | "apple") => {
+  const handleAuth = async (e: React.FormEvent | "google") => {
     setAuthLoading(true);
     setAuthError(null);
     try {
@@ -1188,8 +1648,6 @@ export default function App() {
         let provider;
         if (e === "google") {
           provider = new GoogleAuthProvider();
-        } else if (e === "apple") {
-          provider = new OAuthProvider("apple.com");
         } else return;
 
         let cred;
@@ -1306,10 +1764,11 @@ export default function App() {
         const domain = window.location.hostname;
         const isInIframe = window.self !== window.top;
         console.error("FIREBASE UNAUTHORIZED DOMAIN ERROR:", domain);
-        friendlyMessage = `DOMAIN ERROR: "${domain}" is not authorized.\n\n` + 
-          `1. Please ensure "${domain}" is exactly as listed in Firebase Console > Authentication > Settings > Authorized Domains.\n` +
-          `2. Wait 5-10 minutes for changes to propagate.\n` +
-          (isInIframe ? `3. CRITICAL: You are inside an iframe. Click the "Open in new tab" icon (top right) to allow Google Sign-in to work correctly.` : "");
+        friendlyMessage = `DOMAIN RESTRICTION: "${domain}" is not whitelisted.\n\n` + 
+          `1. Go to Firebase Console > Authentication > Settings > Authorized Domains and add "${domain}".\n` +
+          `2. Go to Google Cloud Console > APIs & Services > OAuth consent screen and add "${domain}" to 'Authorized domains'.\n` +
+          `3. Wait ~5-10 minutes for propagation.\n` +
+          (isInIframe ? `4. IMPORTANT: You are in an iframe. Use the "Open in new tab" button to avoid security blocks.` : "");
       } else if (err.code === "auth/invalid-email") {
         friendlyMessage = "Standard formatting required (e.g., name@domain.com).";
       } else if (err.code === "auth/weak-password") {
@@ -2329,11 +2788,11 @@ export default function App() {
                   <div className="flex-1 h-px bg-white/5" />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div>
                   <button 
                     onClick={() => handleAuth("google")}
                     disabled={authLoading}
-                    className="flex items-center justify-center gap-3 py-4 bg-zinc-950 border border-white/5 rounded-2xl hover:bg-white/5 transition-all group disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-3 py-4 bg-zinc-950 border border-white/5 rounded-2xl hover:bg-white/5 transition-all group disabled:opacity-50"
                   >
                     {authLoading ? (
                       <div className="w-4 h-4 border-2 border-white/10 border-t-white/60 rounded-full animate-spin" />
@@ -2342,18 +2801,9 @@ export default function App() {
                         <svg className="w-4 h-4 fill-white/60 group-hover:fill-white transition-colors" viewBox="0 0 24 24">
                           <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.9 3.33-1.91 4.34-1.2 1.2-3.07 2.48-6.93 2.48-6.12 0-10.88-4.94-10.88-11.06s4.76-11.06 10.88-11.06c3.28 0 5.66 1.3 7.34 2.9l2.31-2.31c-2.5-2.07-5.59-3.33-9.65-3.33-7.41 0-13.48 6.07-13.48 13.48s6.07 13.48 13.48 13.48c4.08 0 7.34-1.35 9.87-3.99 2.53-2.64 3.34-6.39 3.34-9.28 0-.89-.07-1.74-.2-2.54h-12.8z"/>
                         </svg>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white transition-colors">Google</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white transition-colors">Continue with Google</span>
                       </>
                     )}
-                  </button>
-                  <button 
-                    onClick={() => handleAuth("apple")}
-                    className="flex items-center justify-center gap-3 py-4 bg-zinc-950 border border-white/5 rounded-2xl hover:bg-white/5 transition-all group"
-                  >
-                    <svg className="w-4 h-4 fill-white/60 group-hover:fill-white transition-colors" viewBox="0 0 24 24">
-                      <path d="M17.05 20.28c-.98.95-2.05 1.61-3.11 1.61-1.21 0-1.63-.74-3.06-.74-1.44 0-1.92.71-3.05.74-1.12.03-2.15-.74-3.16-1.68-2.11-1.99-3.72-5.58-3.72-8.73 0-3.15 1.59-5.33 3.63-5.33.91 0 1.76.49 2.49.49.73 0 1.75-.54 2.82-.54 1.13 0 2.14.58 2.87 1.53-1.89 1.14-1.57 3.59.39 4.8 1.05.65 2.18.57 2.84.42-.08.64-.32 1.39-.74 1.96zm-2.48-15.1c0 .85-.36 1.69-.97 2.3-.61.61-1.46.99-2.3.99-.07-.93.41-1.85 1.01-2.46.61-.61 1.54-.99 2.26-.83z"/>
-                    </svg>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white transition-colors">Apple</span>
                   </button>
                 </div>
               </div>
