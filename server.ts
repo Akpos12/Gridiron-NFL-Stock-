@@ -259,6 +259,21 @@ async function startServer() {
 
     const fallbackGames = [
       {
+        id: "tm-7",
+        name: "Minnesota Vikings vs Green Bay Packers",
+        homeTeam: "Vikings",
+        awayTeam: "Packers",
+        stadium: "U.S. Bank Stadium",
+        city: "Minneapolis, MN",
+        date: "2026-10-04",
+        time: "13:00",
+        cheapestPrice: 115,
+        vipPrice: 800,
+        url: "https://www.ticketmaster.com/minnesota-vikings-tickets/artist/805967",
+        image: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=800",
+        isResale: false
+      },
+      {
         id: "tm-1",
         name: "Dallas Cowboys vs Philadelphia Eagles",
         homeTeam: "Cowboys",
