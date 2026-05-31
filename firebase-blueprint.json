@@ -91,6 +91,75 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "itemType", "price", "timestamp"]
+    },
+    "Experience": {
+      "title": "NFL Experience Product",
+      "description": "Premium Tours, Player Meet & Greets, and Luxury Packages",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["stadium_tour", "meet_greet", "private_tour"] },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "teamId": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "player": { "type": "string" },
+        "location": { "type": "string" },
+        "dates": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "timeSlots": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "features": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "rating": { "type": "number" },
+        "reviewsCount": { "type": "number" }
+      },
+      "required": ["title", "type", "category", "price", "teamId"]
+    },
+    "ExperienceBooking": {
+      "title": "Experience Booking",
+      "description": "User reservation for an NFL Experience",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "experienceId": { "type": "string" },
+        "experienceTitle": { "type": "string" },
+        "experienceType": { "type": "string" },
+        "date": { "type": "string" },
+        "timeSlot": { "type": "string" },
+        "guestsCount": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "completed", "cancelled"] },
+        "qrCode": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "experienceId", "experienceTitle", "date", "timeSlot", "guestsCount", "totalPrice", "status"]
+    },
+    "PromoBanner": {
+      "title": "Promotional Active Banner",
+      "description": "Rotating advertisement configurations for landing page sliders",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "linkTab": { "type": "string" },
+        "targetId": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "title", "imageUrl", "isActive"]
     }
   },
   "firestore": {
@@ -121,6 +190,18 @@
     "global_transactions/{txId}": {
       "schema": "Transaction",
       "description": "Global log of all financial events for admin auditing"
+    },
+    "experiences/{experienceId}": {
+      "schema": "Experience",
+      "description": "Global experiences and tours"
+    },
+    "bookings/{bookingId}": {
+      "schema": "ExperienceBooking",
+      "description": "User experience bookings and tickets"
+    },
+    "promo_banners/{bannerId}": {
+      "schema": "PromoBanner",
+      "description": "Admin promotional banners"
     },
     "admins/{userId}": {
       "schema": {

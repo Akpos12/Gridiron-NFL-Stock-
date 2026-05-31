@@ -115,5 +115,33 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidStoreOrder(request.resource.data);
       allow read, list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
+
+    // NFL Experiences Rules (Publicly readable, Admin editable)
+    match /experiences/{experienceId} {
+      allow read, list: if true;
+      allow write: if isAdmin();
+    }
+
+    // Event Bookings Rules (Create by owner, Read/List by owner and admin, Edit by admin)
+    match /bookings/{bookingId} {
+      function isValidBooking(data) {
+        return (data.userId == request.auth.uid || isAdmin())
+          && data.experienceId is string
+          && data.guestsCount is number
+          && data.totalPrice is number;
+      }
+
+      allow create: if isSignedIn() && isValidBooking(request.resource.data);
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Promo Banners Rules (Publicly readable, Admin editable)
+    match /promo_banners/{bannerId} {
+      allow read, list: if true;
+      allow write: if isAdmin();
+    }
   }
 }

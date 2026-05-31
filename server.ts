@@ -67,6 +67,17 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Custom CORS middleware for API endpoints inside sandboxed environments and previews
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    if (req.method === "OPTIONS") {
+      return res.status(200).end();
+    }
+    next();
+  });
+
 // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
@@ -130,124 +141,129 @@ async function startServer() {
   };
 
   app.get("/api/merchandise", (req, res) => {
-    const teamId = (req.query.team as string) || "MIN";
-    const search = (req.query.search as string) || "";
-    const category = (req.query.category as string) || "all";
+    try {
+      const teamId = (req.query.team as string) || "MIN";
+      const search = (req.query.search as string) || "";
+      const category = (req.query.category as string) || "all";
 
-    const team = TEAM_NAMES[teamId] 
-      ? { id: teamId, name: TEAM_NAMES[teamId], city: TEAM_CITIES[teamId] } 
-      : { id: "MIN", name: "Vikings", city: "Minnesota" };
-    
-    const star = TEAM_STARS[team.id] || { player: "Justin Jefferson", number: "18", jerseyName: "Justin Jefferson Game Jersey" };
+      const team = TEAM_NAMES[teamId] 
+        ? { id: teamId, name: TEAM_NAMES[teamId], city: TEAM_CITIES[teamId] } 
+        : { id: "MIN", name: "Vikings", city: "Minnesota" };
+      
+      const star = TEAM_STARS[team.id] || { player: "Justin Jefferson", number: "18", jerseyName: "Justin Jefferson Game Jersey" };
 
-    const baseProducts = [
-      {
-        id: `m-${team.id}-jersey`,
-        name: `${team.city} ${team.name} ${star.jerseyName}`,
-        description: `Authentic Nike Vapor Elite jersey featuring premium stitched graphics for franchise star ${star.player} (#${star.number}). On-field specifications.`,
-        basePrice: 175,
-        category: "jerseys",
-        discount: 10,
-        image: "https://images.unsplash.com/photo-1629235483163-9585fd473954?auto=format&fit=crop&q=80&w=800",
-        inStock: true,
-        trending: true,
-        rating: 4.9,
-        reviewsCount: 142
-      },
-      {
-        id: `m-${team.id}-hoodie`,
-        name: `${team.city} ${team.name} Tech Fleece Sideline Hoodie`,
-        description: `Official NFL Sideline technical performance wear. Engineered with Therma-FIT double-brushed premium comfort fabric.`,
-        basePrice: 85,
-        category: "hoodies",
-        discount: 15,
-        image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=800",
-        inStock: true,
-        trending: false,
-        rating: 4.7,
-        reviewsCount: 88
-      },
-      {
-        id: `m-${team.id}-helmet`,
-        name: `${team.city} ${team.name} Authentic Riddell Speed Replica Helmet`,
-        description: `Full-size Riddell replica helmet. Detailed internal padding, 4-point chinstrap, authentic team shell paint and decals. Great for office display.`,
-        basePrice: 350,
-        category: "helmets",
-        discount: 0,
-        image: "https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&fit=crop&q=80&w=800",
-        inStock: true,
-        trending: false,
-        rating: 4.8,
-        reviewsCount: 31
-      },
-      {
-        id: `m-${team.id}-hat`,
-        name: `${team.city} ${team.name} Nike Sideline Club Adjustable Cap`,
-        description: `Relaxed fit adjustable hat with premium raised embroidery of the official ${team.name} logo. High breathability mesh cells.`,
-        basePrice: 35,
-        category: "hats",
-        discount: 5,
-        image: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&q=80&w=800",
-        inStock: true,
-        trending: true,
-        rating: 4.5,
-        reviewsCount: 215
-      },
-      {
-        id: `m-${team.id}-memorabilia`,
-        name: `${star.player} Autographed Duke Official NFL Wilson Football`,
-        description: `Certified authentic autographed official leather Wilson football signed personally by star athlete ${star.player}. Includes certificate.`,
-        basePrice: 599,
-        category: "memorabilia",
-        discount: 0,
-        image: "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=800",
-        inStock: true,
-        trending: true,
-        rating: 5.0,
-        reviewsCount: 12
-      },
-      {
-        id: `m-${team.id}-limited`,
-        name: `${team.city} ${team.name} Varsity Wool & Leather Heritage Jacket`,
-        description: `Extremely limited historical release. Full grain premium leather sleeves, heavy melton wool, direct satin stitching design.`,
-        basePrice: 450,
-        category: "limited",
-        discount: 20,
-        image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800",
-        inStock: true,
-        trending: false,
-        rating: 4.9,
-        reviewsCount: 19
+      const baseProducts = [
+        {
+          id: `m-${team.id}-jersey`,
+          name: `${team.city} ${team.name} ${star.jerseyName}`,
+          description: `Authentic Nike Vapor Elite jersey featuring premium stitched graphics for franchise star ${star.player} (#${star.number}). On-field specifications.`,
+          basePrice: 175,
+          category: "jerseys",
+          discount: 10,
+          image: "https://images.unsplash.com/photo-1594470117722-de4b9a02ebed?auto=format&fit=crop&q=80&w=800",
+          inStock: true,
+          trending: true,
+          rating: 4.9,
+          reviewsCount: 142
+        },
+        {
+          id: `m-${team.id}-hoodie`,
+          name: `${team.city} ${team.name} Tech Fleece Sideline Hoodie`,
+          description: `Official NFL Sideline technical performance wear. Engineered with Therma-FIT double-brushed premium comfort fabric.`,
+          basePrice: 85,
+          category: "hoodies",
+          discount: 15,
+          image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=800",
+          inStock: true,
+          trending: false,
+          rating: 4.7,
+          reviewsCount: 88
+        },
+        {
+          id: `m-${team.id}-helmet`,
+          name: `${team.city} ${team.name} Authentic Riddell Speed Replica Helmet`,
+          description: `Full-size Riddell replica helmet. Detailed internal padding, 4-point chinstrap, authentic team shell paint and decals. Great for office display.`,
+          basePrice: 350,
+          category: "helmets",
+          discount: 0,
+          image: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800",
+          inStock: true,
+          trending: false,
+          rating: 4.8,
+          reviewsCount: 31
+        },
+        {
+          id: `m-${team.id}-hat`,
+          name: `${team.city} ${team.name} Nike Sideline Club Adjustable Cap`,
+          description: `Relaxed fit adjustable hat with premium raised embroidery of the official ${team.name} logo. High breathability mesh cells.`,
+          basePrice: 35,
+          category: "hats",
+          discount: 5,
+          image: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&q=80&w=800",
+          inStock: true,
+          trending: true,
+          rating: 4.5,
+          reviewsCount: 215
+        },
+        {
+          id: `m-${team.id}-memorabilia`,
+          name: `${star.player} Autographed Duke Official NFL Wilson Football`,
+          description: `Certified authentic autographed official leather Wilson football signed personally by star athlete ${star.player}. Includes certificate.`,
+          basePrice: 599,
+          category: "memorabilia",
+          discount: 0,
+          image: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&q=80&w=800",
+          inStock: true,
+          trending: true,
+          rating: 5.0,
+          reviewsCount: 12
+        },
+        {
+          id: `m-${team.id}-limited`,
+          name: `${team.city} ${team.name} Varsity Wool & Leather Heritage Jacket`,
+          description: `Extremely limited historical release. Full grain premium leather sleeves, heavy melton wool, direct satin stitching design.`,
+          basePrice: 450,
+          category: "limited",
+          discount: 20,
+          image: "https://images.unsplash.com/photo-1611312449412-6cefac5dc3e4?auto=format&fit=crop&q=80&w=800",
+          inStock: true,
+          trending: false,
+          rating: 4.9,
+          reviewsCount: 19
+        }
+      ];
+
+      const currentPrice = marketPrices[team.id] || 100;
+      const ratio = currentPrice / 100;
+
+      const resolvedProducts = baseProducts.map(p => {
+        const livePrice = Number((p.basePrice * ratio).toFixed(2));
+        const finalPrice = p.discount > 0 ? Number((livePrice * (1 - p.discount / 100)).toFixed(2)) : livePrice;
+        const searchStr = encodeURIComponent(`${team.city} ${team.name} ${p.category}`);
+        const purchaseUrl = `https://www.nflshop.com/?query=${searchStr}`;
+
+        return {
+          ...p,
+          price: finalPrice,
+          originalPrice: livePrice,
+          purchaseUrl
+        };
+      });
+
+      let filtered = resolvedProducts;
+      if (category && category !== "all") {
+        filtered = filtered.filter(p => p.category.toLowerCase() === category.toLowerCase());
       }
-    ];
+      if (search) {
+        const q = search.toLowerCase();
+        filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q));
+      }
 
-    const currentPrice = marketPrices[team.id] || 100;
-    const ratio = currentPrice / 100;
-
-    const resolvedProducts = baseProducts.map(p => {
-      const livePrice = Number((p.basePrice * ratio).toFixed(2));
-      const finalPrice = p.discount > 0 ? Number((livePrice * (1 - p.discount / 100)).toFixed(2)) : livePrice;
-      const searchStr = encodeURIComponent(`${team.city} ${team.name} ${p.category}`);
-      const purchaseUrl = `https://www.nflshop.com/?query=${searchStr}`;
-
-      return {
-        ...p,
-        price: finalPrice,
-        originalPrice: livePrice,
-        purchaseUrl
-      };
-    });
-
-    let filtered = resolvedProducts;
-    if (category && category !== "all") {
-      filtered = filtered.filter(p => p.category.toLowerCase() === category.toLowerCase());
+      res.json({ products: filtered });
+    } catch (err: any) {
+      console.error("API error in /api/merchandise:", err);
+      res.status(500).json({ error: err.message, products: [] });
     }
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q));
-    }
-
-    res.json({ products: filtered });
   });
 
   app.get("/api/tickets", async (req, res) => {
@@ -270,7 +286,7 @@ async function startServer() {
         cheapestPrice: 115,
         vipPrice: 800,
         url: "https://www.ticketmaster.com/minnesota-vikings-tickets/artist/805967",
-        image: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=800",
+        image: "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800",
         isResale: false
       },
       {
@@ -300,7 +316,7 @@ async function startServer() {
         cheapestPrice: 165,
         vipPrice: 1200,
         url: "https://www.ticketmaster.com/kansas-city-chiefs-tickets/artist/805961",
-        image: "https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&fit=crop&q=80&w=800",
+        image: "https://images.unsplash.com/photo-1569437061241-a848be43cc82?auto=format&fit=crop&q=80&w=800",
         isResale: true
       },
       {
@@ -315,7 +331,7 @@ async function startServer() {
         cheapestPrice: 110,
         vipPrice: 750,
         url: "https://www.ticketmaster.com/san-francisco-49ers-tickets/artist/806018",
-        image: "https://images.unsplash.com/photo-1610444583731-9ef82ba39235?auto=format&fit=crop&q=80&w=800",
+        image: "https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&q=80&w=800",
         isResale: false
       },
       {
@@ -330,7 +346,7 @@ async function startServer() {
         cheapestPrice: 95,
         vipPrice: 650,
         url: "https://www.ticketmaster.com/green-bay-packers-tickets/artist/805947",
-        image: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=800",
+        image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
         isResale: false
       },
       {

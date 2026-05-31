@@ -36,6 +36,17 @@ setInterval(updateMarketPrices, 5000);
 const app = express();
 app.use(express.json());
 
+// Custom CORS middleware for API endpoints inside sandboxed environments and previews
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  next();
+});
+
 // API Routes
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });

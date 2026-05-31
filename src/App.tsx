@@ -71,6 +71,10 @@ import {
 } from "firebase/firestore";
 import { NFL_TEAMS, getLogoUrl, Team } from "./constants";
 import { cn, formatCurrency } from "./lib/utils";
+import { PromoSlider } from "./components/PromoSlider";
+import { ExperiencesSection } from "./components/ExperiencesSection";
+import { ExperienceAdmin } from "./components/ExperienceAdmin";
+import { NFLImage } from "./utils/nflImages";
 
 // --- Constants ---
 const NFL_LOGO_URL = "https://upload.wikimedia.org/wikipedia/en/thumb/a/a2/National_Football_League_logo.svg/1200px-National_Football_League_logo.svg.png";
@@ -119,17 +123,17 @@ const TESTIMONIALS = [
 
 const SHOP_ITEMS = {
   tickets: [
-    { id: 't1', name: 'Executive Suite - Season Access', price: 25000, description: 'Private climate-controlled suite, 12 guests, all-inclusive catering', image: 'https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&fit=crop&q=80&w=800' },
-    { id: 't2', name: 'Lower Level Sideline', price: 850, description: 'Row 1-10 sideline seating with VIP lounge entrance', image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800' },
-    { id: 't3', name: 'Club Level Endzone', price: 425, description: 'Elevated endzone views with exclusive hospitality access', image: 'https://images.unsplash.com/photo-1610444583731-9ef82ba39235?auto=format&fit=crop&q=80&w=800' }
+    { id: 't1', name: 'Executive Suite - Season Access', price: 25000, description: 'Private climate-controlled suite, 12 guests, all-inclusive catering', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800' },
+    { id: 't2', name: 'Lower Level Sideline', price: 850, description: 'Row 1-10 sideline seating with VIP lounge entrance', image: 'https://images.unsplash.com/photo-1569437061241-a848be43cc82?auto=format&fit=crop&q=80&w=800' },
+    { id: 't3', name: 'Club Level Endzone', price: 425, description: 'Elevated endzone views with exclusive hospitality access', image: 'https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800' }
   ],
   jerseys: [
-    { id: 'j1', name: 'Vapor Elite Custom Jersey', price: 349, description: 'On-field authentic specification with stitched name and numbers', image: 'https://images.unsplash.com/photo-1629235483163-9585fd473954?auto=format&fit=crop&q=80&w=800' },
-    { id: 'j2', name: 'Nike Limited Vapor Jersey', price: 174, description: 'Premium performance fabric with sublimated team graphics', image: 'https://images.unsplash.com/photo-1610530730070-5fa371e27a75?auto=format&fit=crop&q=80&w=800' }
+    { id: 'j1', name: 'Vapor Elite Custom Jersey', price: 349, description: 'On-field authentic specification with stitched name and numbers', image: 'https://images.unsplash.com/photo-1594470117722-de4b9a02ebed?auto=format&fit=crop&q=80&w=800' },
+    { id: 'j2', name: 'Nike Limited Vapor Jersey', price: 174, description: 'Premium performance fabric with sublimated team graphics', image: 'https://images.unsplash.com/photo-1556906781-9a412961c28c?auto=format&fit=crop&q=80&w=800' }
   ],
   fanCards: [
-    { id: 'fc1', name: 'Franchise Governance Gold', price: 2500, description: 'Voting rights on minor team decisions + lifetime training access', image: 'https://images.unsplash.com/photo-1466193341027-56e68017ee2d?auto=format&fit=crop&q=80&w=800' },
-    { id: 'fc2', name: 'Gridiron Platinum Exchange Pass', price: 950, description: 'Premium digital collectible tier with priority ticket pre-sales', image: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec1d?auto=format&fit=crop&q=80&w=800' }
+    { id: 'fc1', name: 'Franchise Governance Gold', price: 2500, description: 'Voting rights on minor team decisions + lifetime training access', image: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800' },
+    { id: 'fc2', name: 'Gridiron Platinum Exchange Pass', price: 950, description: 'Premium digital collectible tier with priority ticket pre-sales', image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800' }
   ]
 };
 
@@ -477,7 +481,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
           setProducts(data.products || []);
         }
       } catch (err) {
-        console.error("Merchandise request error, activating local client fallback:", err);
+        console.log("Merchandise request fallback activated:", err);
         if (active) {
           // Absolute fallback logic in case of connection limits
           const clientFallback = [
@@ -492,7 +496,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               reviewsCount: 142,
               inStock: true,
               trending: true,
-              image: "https://images.unsplash.com/photo-1629235483163-9585fd473954?auto=format&fit=crop&q=80&w=800",
+              image: "https://images.unsplash.com/photo-1594470117722-de4b9a02ebed?auto=format&fit=crop&q=80&w=800",
               purchaseUrl: "https://www.nflshop.com/?query=Minnesota%20Vikings%20jerseys"
             },
             {
@@ -506,7 +510,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               reviewsCount: 88,
               inStock: true,
               trending: false,
-              image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=800",
+              image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=800",
               purchaseUrl: "https://www.nflshop.com/?query=Minnesota%20Vikings%20hoodies"
             }
           ];
@@ -559,7 +563,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
           }
         }
       } catch (err: any) {
-        console.error("Live tickets fetch error, activating local client fallback:", err);
+        console.log("Live tickets fetch fallback activated:", err);
         if (active) {
           const clientFallback = [
             {
@@ -574,7 +578,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               cheapestPrice: 115,
               vipPrice: 800,
               url: "https://www.ticketmaster.com/minnesota-vikings-tickets/artist/805967",
-              image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=800",
+              image: "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800",
               isResale: false
             },
             {
@@ -604,7 +608,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               cheapestPrice: 165,
               vipPrice: 1200,
               url: "https://www.ticketmaster.com/kansas-city-chiefs-tickets/artist/805961",
-              image: "https://images.unsplash.com/photo-1510076857177-7470076d4098?auto=format&fit=crop&q=80&w=800",
+              image: "https://images.unsplash.com/photo-1569437061241-a848be43cc82?auto=format&fit=crop&q=80&w=800",
               isResale: true
             }
           ];
@@ -747,7 +751,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                     >
                       <div>
                         <div className="aspect-[4/3] rounded-xl overflow-hidden bg-zinc-950 border border-white/5 mb-4 relative">
-                          <img src={p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90" />
+                          <NFLImage item={p} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90" />
                           <div className="absolute top-2.5 right-2.5 bg-blue-600/90 text-white text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-md flex items-center gap-1">
                             <Star className="w-2.5 h-2.5 fill-white" /> BEST SELLER
                           </div>
@@ -811,7 +815,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                     )}
                     <div>
                       <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-zinc-900 border border-white/5 mb-5 relative">
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <NFLImage item={item} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between gap-2">
@@ -968,7 +972,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                   <div key={game.id} className="bg-zinc-900/20 border border-white/5 hover:border-white/10 rounded-[2rem] overflow-hidden group hover:bg-zinc-900/45 transition-all flex flex-col justify-between">
                     <div>
                       <div className="aspect-[4/3] overflow-hidden relative border-b border-white/5">
-                        <img src={game.image} alt={game.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95" />
+                        <NFLImage item={game} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95" />
                         
                         <div className="absolute top-4 left-4 bg-zinc-950/85 backdrop-blur-md border border-white/10 px-3.5 py-1.5 rounded-xl flex items-center gap-1.5">
                           <Ticket className="w-3.5 h-3.5 text-blue-500" />
@@ -1047,7 +1051,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
             {SHOP_ITEMS.fanCards.map((item: any) => (
               <div key={item.id} className="relative group overflow-hidden rounded-3xl md:rounded-[3rem] bg-zinc-900 border border-white/5 flex flex-col md:flex-row hover:border-blue-600/30 transition-all">
                 <div className="w-full md:w-2/5 h-48 md:h-auto overflow-hidden border-b md:border-b-0 md:border-r border-white/5 relative">
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-60" />
+                  <NFLImage item={item} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-60" />
                   <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent md:bg-gradient-to-r" />
                 </div>
                 <div className="p-6 sm:p-8 md:p-10 flex-1 flex flex-col justify-between">
@@ -1090,7 +1094,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
 
             <div>
               <div className="w-full aspect-video rounded-2xl overflow-hidden bg-zinc-900 border border-white/5 mb-4 relative">
-                <img src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
+                <NFLImage item={selectedProduct} className="w-full h-full object-cover" />
                 {selectedProduct.discount > 0 && (
                   <div className="absolute bottom-3 left-3 bg-rose-500 text-black text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-md">
                     -{selectedProduct.discount}% PROMO
@@ -1166,7 +1170,7 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [orders, setOrders] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions">("inquiries");
+  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences">("inquiries");
   const [searchTerm, setSearchTerm] = useState("");
   const [replyText, setReplyText] = useState("");
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
@@ -1337,6 +1341,12 @@ const AdminPortal = ({ user }: { user: any }) => {
           >
             Ledger ({transactions.length})
           </button>
+          <button 
+            onClick={() => { setActiveSubTab("experiences"); setSearchTerm(""); }}
+            className={cn("px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap", activeSubTab === "experiences" ? "bg-blue-600 text-white" : "bg-zinc-900 text-zinc-500")}
+          >
+            Experiences
+          </button>
         </div>
       </div>
 
@@ -1348,7 +1358,9 @@ const AdminPortal = ({ user }: { user: any }) => {
       )}
 
       <div className="bg-zinc-900/50 border border-white/5 rounded-[2.5rem] overflow-hidden">
-        {activeSubTab === "transactions" ? (
+        {activeSubTab === "experiences" ? (
+          <ExperienceAdmin />
+        ) : activeSubTab === "transactions" ? (
           <table className="w-full text-left">
             <thead className="bg-zinc-950 border-b border-white/5">
               <tr>
@@ -1592,7 +1604,9 @@ export default function App() {
   const [showFanCardForm, setShowFanCardForm] = useState(false);
   const [activeTicket, setActiveTicket] = useState<string | null>(localStorage.getItem("active_ticket_id"));
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin">("markets");
+  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences">("markets");
+  const [deepLinkExp, setDeepLinkExp] = useState<any | null>(null);
+  const [userBookings, setUserBookings] = useState<any[]>([]);
   const [quantity, setQuantity] = useState(1);
   const [authError, setAuthError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1708,13 +1722,16 @@ export default function App() {
   useEffect(() => {
     let unsubUser: (() => void) | null = null;
     let unsubPortfolio: (() => void) | null = null;
+    let unsubBookings: (() => void) | null = null;
 
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
       // Clean up previous listeners
       if (unsubUser) unsubUser();
       if (unsubPortfolio) unsubPortfolio();
+      if (unsubBookings) unsubBookings();
       unsubUser = null;
       unsubPortfolio = null;
+      unsubBookings = null;
 
       if (u) {
         setUser(u);
@@ -1741,19 +1758,33 @@ export default function App() {
             handleFirestoreError(error, OperationType.LIST, portfolioPath);
           }
         });
+
+        // Listen to user bookings
+        unsubBookings = onSnapshot(collection(db, "bookings"), (snap) => {
+          const items: any[] = [];
+          snap.forEach(d => {
+            const data = d.data();
+            if (data.userId === userId) {
+              items.push({ id: d.id, ...data });
+            }
+          });
+          setUserBookings(items);
+        });
       } else {
         setUser(null);
         setBalance(0);
         setPortfolio([]);
+        setUserBookings([]);
         portfolioRef.current = [];
       }
       setLoading(false);
     });
 
     return () => {
+      if (unsubUser) unsubUser();
+      if (unsubPortfolio) unsubPortfolio();
+      if (unsubBookings) unsubBookings();
       unsubAuth();
-      if (unsubUser) (unsubUser as () => void)();
-      if (unsubPortfolio) (unsubPortfolio as () => void)();
     };
   }, []);
 
@@ -2115,6 +2146,7 @@ export default function App() {
             {([
               { id: "markets", label: "Exchange", icon: LayoutDashboard },
               { id: "draft", label: "Speculation", icon: Target },
+              { id: "experiences", label: "Experiences", icon: Star },
               { id: "shop", label: "Arena Shop", icon: ShoppingBag },
               { id: "portfolio", label: "Portfolio", icon: History },
               ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control", icon: ShieldCheck }] : [])
@@ -2173,6 +2205,7 @@ export default function App() {
         {[
           { id: "markets", label: "Exchange", icon: LayoutDashboard },
           { id: "draft", label: "Speculation", icon: Target },
+          { id: "experiences", label: "Experiences", icon: Star },
           { id: "shop", label: "Shop", icon: ShoppingBag },
           { id: "portfolio", label: "Portfolio", icon: History },
           ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control", icon: ShieldCheck }] : [])
@@ -2288,7 +2321,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Hero / Landing (If not logged in) */}
-      {!user && activeTab !== "shop" && !showLogin && (
+      {!user && activeTab !== "shop" && activeTab !== "experiences" && !showLogin && (
         <div className="flex-1 overflow-y-auto no-scrollbar bg-black/40">
           {/* Hero Section */}
           <section className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 text-center relative overflow-hidden">
@@ -2345,7 +2378,7 @@ export default function App() {
                   className="group cursor-pointer"
                 >
                   <div className="relative aspect-[16/10] overflow-hidden rounded-3xl mb-6 border border-white/5">
-                    <img src={news.image} alt={news.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-60 group-hover:opacity-100" />
+                    <NFLImage item={news} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-60 group-hover:opacity-100" />
                     <div className="absolute top-4 left-4 bg-blue-600 px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest">
                       {news.category}
                     </div>
@@ -2387,7 +2420,7 @@ export default function App() {
                    <div className="grid grid-cols-2 gap-4 w-full sm:w-auto">
                       {SHOP_ITEMS.tickets.slice(0, 2).map((item, i) => (
                         <div key={item.id} className={cn("flex-1 aspect-[3/4] w-full sm:w-48 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5", i === 1 && "mt-8 sm:mt-12")}>
-                          <img src={item.image} alt={item.name} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700" />
+                          <NFLImage item={item} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700" />
                         </div>
                       ))}
                    </div>
@@ -2457,7 +2490,7 @@ export default function App() {
       )}
 
       {/* Main Dashboard */}
-      {(user || activeTab === "shop") && (
+      {(user || activeTab === "shop" || activeTab === "experiences") && (
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden pb-20 md:pb-0">
           {/* Sidebar */}
           <aside className={cn(
@@ -2680,6 +2713,26 @@ export default function App() {
               />
             )}
 
+            {activeTab === "experiences" && (
+              <div className="p-4 sm:p-6 md:p-10 space-y-12">
+                {/* Visual advertising rotating banners */}
+                <PromoSlider 
+                  onActionClick={(banner) => {
+                    setDeepLinkExp(banner);
+                  }}
+                />
+
+                {/* Experiences listings and bookings core */}
+                <ExperiencesSection 
+                  initialTargetExperience={deepLinkExp}
+                  onRequestLoginModal={() => setShowLogin(true)}
+                  onNotifyCheckout={() => {
+                    console.log("Invoice finalized.");
+                  }}
+                />
+              </div>
+            )}
+
             {activeTab === "admin" && user?.email === "alexwtchmn@gmail.com" && (
               <AdminPortal user={user} />
             )}
@@ -2750,6 +2803,35 @@ export default function App() {
                     </table>
                   </div>
                 </div>
+
+                {/* Active Experience booked tickets list */}
+                {userBookings && userBookings.length > 0 && (
+                  <div className="space-y-6 pt-6">
+                    <div>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">My Active Passes</h4>
+                      <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mt-1">Authorized tickets & secure access passes for upcoming VIP NFL events.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {userBookings.map((b: any) => (
+                        <div key={b.id} className="p-5 bg-zinc-900/60 border border-white/5 rounded-[2rem] flex items-center gap-5">
+                          <NFLImage item={b} className="w-20 h-20 rounded-2xl object-cover border border-white/5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <span className={cn(
+                              "inline-flex px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-widest mb-1.5",
+                              b.status === "approved" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/10" : "bg-amber-500/10 text-amber-500 border border-amber-500/10"
+                            )}>
+                              {b.status === "approved" ? "AUTHORIZED PASS" : "PENDING AUDIT"}
+                            </span>
+                            <h5 className="text-xs font-black uppercase tracking-tight text-white truncate">{b.experienceTitle}</h5>
+                            <p className="text-[9px] font-black text-zinc-500 font-mono uppercase mt-0.5">{b.tier.toUpperCase()} · {b.date} · {b.timeSlot}</p>
+                            <p className="text-[8px] font-mono font-black text-blue-400 mt-1 uppercase select-all">PASSCODE: {b.qrCode}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </main>
