@@ -243,7 +243,7 @@ export const NFLImage: React.FC<NFLImageProps> = ({ item, className, style, alt 
     if (!hasError) {
       setHasError(true);
       const fallbackUrl = "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800";
-      console.error(`[NFLImage Error] Image failed to load for "${item?.id || item?.title || item?.name}". Fallback URL: ${fallbackUrl}`);
+      console.log(`[NFLImage Fallback] Image failed to load for "${item?.id || item?.title || item?.name}". Fallback URL: ${fallbackUrl}`);
       setCurrentSrc(`${fallbackUrl}?cb=fallback-${Date.now()}`);
     }
   };

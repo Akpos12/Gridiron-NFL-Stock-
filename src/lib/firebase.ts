@@ -1,19 +1,22 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
+import { getFirestore, doc, getDocFromServer, setLogLevel } from "firebase/firestore";
 import firebaseConfig from "../../firebase-applet-config.json";
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
+// Suppress verbose SDK connection warnings
+setLogLevel("error");
+
 // Test Connection
 async function testConnection() {
   try {
     await getDocFromServer(doc(db, "test", "connection"));
   } catch (error) {
-    if (error instanceof Error && error.message.includes("offline")) {
-      console.error("Firebase is offline. Check configuration.");
+    if (error instanceof Error && (error.message.includes("offline") || error.message.includes("unreachable") || error.message.includes("failed"))) {
+      console.warn("Firebase status: operating in localized/offline cache mode. Check configuration if live syncing is needed.");
     }
   }
 }
