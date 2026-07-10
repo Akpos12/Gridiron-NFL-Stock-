@@ -496,7 +496,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               reviewsCount: 142,
               inStock: true,
               trending: true,
-              image: "https://images.unsplash.com/photo-1594470117722-de4b9a02ebed?auto=format&fit=crop&q=80&w=800",
+              image: "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg",
               purchaseUrl: "https://www.nflshop.com/?query=Minnesota%20Vikings%20jerseys"
             },
             {
@@ -510,7 +510,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               reviewsCount: 88,
               inStock: true,
               trending: false,
-              image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=800",
+              image: "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg",
               purchaseUrl: "https://www.nflshop.com/?query=Minnesota%20Vikings%20hoodies"
             }
           ];
@@ -1170,8 +1170,7 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [orders, setOrders] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences" | "dns">("inquiries");
-  const [dnsChecked, setDnsChecked] = useState<Record<string, boolean>>({});
+  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences">("inquiries");
   const [searchTerm, setSearchTerm] = useState("");
   const [replyText, setReplyText] = useState("");
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
@@ -1348,12 +1347,6 @@ const AdminPortal = ({ user }: { user: any }) => {
           >
             Experiences
           </button>
-          <button 
-            onClick={() => { setActiveSubTab("dns"); setSearchTerm(""); }}
-            className={cn("px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap", activeSubTab === "dns" ? "bg-blue-600 text-white" : "bg-zinc-900 text-zinc-500")}
-          >
-            Domain Logo Setup
-          </button>
         </div>
       </div>
 
@@ -1367,186 +1360,6 @@ const AdminPortal = ({ user }: { user: any }) => {
       <div className="bg-zinc-900/50 border border-white/5 rounded-[2.5rem] overflow-hidden">
         {activeSubTab === "experiences" ? (
           <ExperienceAdmin />
-        ) : activeSubTab === "dns" ? (
-          <div className="p-8 space-y-10">
-            <div className="border-b border-white/5 pb-6">
-              <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Zoho Mail & Custom Domain Logo Setup</h3>
-              <p className="text-xs text-zinc-500 uppercase tracking-widest mt-1 font-bold">Comprehensive guide and diagnostic checklist to display your NFL Shield Logo on all external emails</p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left Column: Interactive DNS Checklist */}
-              <div className="lg:col-span-1 space-y-6">
-                <div className="bg-zinc-950 p-6 rounded-3xl border border-white/5">
-                  <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest mb-4">DNS Authentication Checklist</h4>
-                  <p className="text-[10px] text-zinc-500 uppercase font-black tracking-wider mb-6">Tick off completed items to verify your branding pipeline:</p>
-                  
-                  <div className="space-y-4">
-                    {[
-                      { id: "spf", name: "SPF (Sender Policy Framework)", desc: "Validates Zoho as an authorized sender" },
-                      { id: "dkim", name: "DKIM (DomainKeys Identified Mail)", desc: "Cryptographically signs your emails" },
-                      { id: "dmarc", name: "DMARC Record (p=quarantine/reject)", desc: "Enforces authentication policies (Required for BIMI)" },
-                      { id: "gaccount", name: "Google Account Linking (Gmail logo)", desc: "Maps custom email to a Google profile avatar" },
-                      { id: "bimi", name: "BIMI Record & SVG Logo", desc: "Displays logo in supporting enterprise clients" },
-                      { id: "gravatar", name: "Gravatar Integration", desc: "Backs up logo in Outlook/WordPress environments" }
-                    ].map(item => {
-                      return (
-                        <label key={item.id} className="flex gap-3 p-3 bg-zinc-900/30 hover:bg-zinc-900/50 rounded-xl border border-white/5 transition-colors cursor-pointer select-none">
-                          <input 
-                            type="checkbox" 
-                            className="w-4 h-4 mt-0.5 accent-blue-600 rounded border-zinc-700 bg-zinc-800 text-blue-600 focus:ring-blue-600 focus:ring-offset-zinc-900"
-                            checked={!!dnsChecked[item.id]}
-                            onChange={(e) => setDnsChecked(prev => ({ ...prev, [item.id]: e.target.checked }))}
-                          />
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white leading-none mb-1">{item.name}</p>
-                            <p className="text-[9px] text-zinc-500 font-medium">{item.desc}</p>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Logo Assets Showcase */}
-                <div className="bg-zinc-950 p-6 rounded-3xl border border-white/5 space-y-4">
-                  <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest mb-2">Your Verified Brand Logo</h4>
-                  <div className="w-full aspect-square bg-zinc-900 rounded-2xl border border-white/10 p-6 flex flex-col items-center justify-center gap-4 relative overflow-hidden group">
-                    <img src={NFL_LOGO_URL} alt="NFL Brand Logo" className="w-32 h-32 object-contain group-hover:scale-105 transition-transform" />
-                    <span className="absolute bottom-3 left-3 px-2 py-0.5 bg-blue-600/10 border border-blue-600/20 text-[8px] font-black uppercase text-blue-400 rounded-md tracking-widest">Active Logo</span>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase text-white tracking-widest mb-1">SVG URL For BIMI:</p>
-                    <div className="p-3 bg-zinc-900 rounded-xl font-mono text-[9px] text-zinc-400 break-all border border-white/5 select-all">
-                      https://ais-pre-fzmmrb2i7l3evzvs4xbafg-53620454143.europe-west2.run.app/nfl_logo.svg
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Center & Right Column: The Actionable Steps Guide */}
-              <div className="lg:col-span-2 space-y-8">
-                {/* Intro Callout */}
-                <div className="p-6 bg-blue-600/5 rounded-3xl border border-blue-600/20">
-                  <h4 className="text-[10px] font-black uppercase text-blue-400 mb-2 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    Why is my logo not showing up for external email recipients?
-                  </h4>
-                  <p className="text-[10px] text-zinc-400 leading-relaxed font-medium">
-                    When you set a profile picture or logo inside <span className="text-white font-bold">Zoho Mail</span>, Zoho only displays it for <span className="text-white font-bold">internal team communications</span> (recipient emails on the same Zoho domain). External servers like Google (Gmail) or Microsoft (Outlook/Hotmail) have their own strict profile image mechanisms and do not fetch Zoho's internal profile photo. To make your logo appear on their systems, you must configure public domain protocols.
-                  </p>
-                </div>
-
-                {/* Steps Accordion */}
-                <div className="space-y-4">
-                  {[
-                    {
-                      num: "01",
-                      title: "The Ultimate Gmail Fix (Google Account Mapping)",
-                      badge: "Easiest & Most Effective for Gmail",
-                      desc: "Most receivers read mail through Gmail. Gmail pulls profile icons from Google Profile services, not Zoho.",
-                      actions: [
-                        "Navigate to the Google Accounts signup page: https://accounts.google.com/signup",
-                        "Select 'Use my current email address instead' and register with your custom domain email (e.g., yourname@yourdomain.com).",
-                        "Verify the account through the code Google sends to your Zoho Mail inbox.",
-                        "Once logged in, go to Personal Info > Profile Picture and upload your NFL Logo.",
-                        "Wait up to 2-24 hours. Gmail will now automatically pull and render your NFL logo whenever any Gmail user receives an email from you!"
-                      ]
-                    },
-                    {
-                      num: "02",
-                      title: "Ensure SPF, DKIM & DMARC are fully aligned",
-                      badge: "Critical DNS Integrity",
-                      desc: "Receiving mail servers will completely discard or ignore profile logos if your email authentication fails SPF or DKIM checks.",
-                      actions: [
-                        "Log into your Domain Registrar (Cloudflare, GoDaddy, Namecheap, etc.) and open your DNS Zone Editor.",
-                        "Ensure Zoho SPF TXT Record exists: Name: @ | Value: v=spf1 include:zoho.com ~all",
-                        "Ensure Zoho DKIM TXT Record exists: Name: zoho._domainkey | Value: k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQ...",
-                        "Add a DMARC Record: Name: _dmarc | Value: v=DMARC1; p=quarantine; pct=100; rua=mailto:dmarc-reports@yourdomain.com",
-                        "Note: DMARC policy must be set to 'p=quarantine' or 'p=reject' to authorize BIMI logos."
-                      ]
-                    },
-                    {
-                      num: "03",
-                      title: "Configure BIMI (Brand Indicators for Message Identification)",
-                      badge: "Enterprise Industry Standard",
-                      desc: "BIMI is the official industry-standard protocol for showing custom logos directly inside Gmail, Yahoo, and iCloud inbox rows.",
-                      actions: [
-                        "Format your NFL Logo as a secure SVG (must be SVG Tiny 1.2 specifications) and upload it to a public HTTPS url.",
-                        "Add a TXT Record on your domain: Name: default._bimi | Value: v=BIMI1; l=https://yourdomain.com/logo.svg;",
-                        "Note: Gmail requires a VMC (Verified Mark Certificate) for BIMI to show up automatically, but Apple Mail and Yahoo show logos with just a standard BIMI DNS record."
-                      ]
-                    },
-                    {
-                      num: "04",
-                      title: "Configure Gravatar for Outlook & secondary clients",
-                      badge: "Outlook & Secondary Clients",
-                      desc: "Many professional clients and software suites (like Outlook, WordPress, Slack) fetch user avatars from Gravatar.",
-                      actions: [
-                        "Go to Gravatar (https://gravatar.com) and sign up using your custom domain email.",
-                        "Upload your NFL Logo and crop/set it as the primary G-rated avatar.",
-                        "Confirm the registration. Most mail clients that fetch Gravatar icons will display the logo on incoming messages within a few hours."
-                      ]
-                    }
-                  ].map(step => (
-                    <div key={step.num} className="p-6 bg-zinc-950 border border-white/5 rounded-3xl space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-4">
-                        <div className="flex items-center gap-4">
-                          <span className="text-2xl font-black font-mono text-blue-500">{step.num}</span>
-                          <div>
-                            <h5 className="text-sm font-black uppercase text-white tracking-wide">{step.title}</h5>
-                            <p className="text-[10px] text-zinc-500 font-semibold">{step.desc}</p>
-                          </div>
-                        </div>
-                        <span className="px-2.5 py-1 bg-blue-600/10 border border-blue-600/20 text-[8px] font-black uppercase text-blue-400 rounded-md tracking-wider shrink-0 self-start sm:self-center">
-                          {step.badge}
-                        </span>
-                      </div>
-                      <ol className="space-y-2.5 pl-6 list-decimal text-zinc-400 text-[10px] font-semibold leading-relaxed">
-                        {step.actions.map((action, i) => (
-                          <li key={i}>{action}</li>
-                        ))}
-                      </ol>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Email Mockup Preview */}
-                <div className="bg-zinc-950 border border-white/5 rounded-3xl p-6 space-y-6">
-                  <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest">Recipient Inbox Mockup (Gmail Preview)</h4>
-                  <div className="bg-zinc-900 rounded-2xl border border-white/5 overflow-hidden shadow-2xl">
-                    <div className="bg-zinc-950 px-4 py-3 border-b border-white/5 flex items-center justify-between">
-                      <div className="flex gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-                      </div>
-                      <span className="text-[9px] font-mono text-zinc-600">Gmail Inbox Simulator</span>
-                      <div className="w-6" />
-                    </div>
-                    
-                    <div className="p-4 space-y-3">
-                      {/* Simulated email row */}
-                      <div className="flex items-center gap-3.5 p-3.5 bg-zinc-950 rounded-xl border border-white/5">
-                        <div className="w-8 h-8 rounded-full bg-zinc-900 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
-                          <img src={NFL_LOGO_URL} alt="Simulated Logo" className="w-full h-full object-contain p-0.5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-baseline mb-0.5">
-                            <span className="text-xs font-black text-white truncate">NFL Exchange Gridiron</span>
-                            <span className="text-[8px] font-mono text-zinc-500">10:42 AM</span>
-                          </div>
-                          <p className="text-[10px] font-black text-zinc-300 truncate">Transaction Confirmed - Order #X8F4D2</p>
-                          <p className="text-[9px] text-zinc-500 truncate">Dear Investor, your liquidity injection of $25,000.00 has been verified...</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </div>
         ) : activeSubTab === "transactions" ? (
           <table className="w-full text-left">
             <thead className="bg-zinc-950 border-b border-white/5">
