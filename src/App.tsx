@@ -1179,8 +1179,9 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [adminLoading, setAdminLoading] = useState(false);
   const [permError, setPermError] = useState<string | null>(null);
 
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string, type: 'inquiry' | 'ledger' | 'user' } | null>(null);
+
   const handleDeleteInquiry = async (id: string) => {
-    if (!window.confirm("Are you sure you want to permanently delete this inquiry?")) return;
     try {
       setAdminLoading(true);
       await deleteDoc(doc(db, "fan_card_requests", id));
@@ -1196,7 +1197,6 @@ const AdminPortal = ({ user }: { user: any }) => {
   };
 
   const handleDeleteLedger = async (id: string) => {
-    if (!window.confirm("Are you sure you want to permanently delete this transaction ledger record?")) return;
     try {
       setAdminLoading(true);
       await deleteDoc(doc(db, "global_transactions", id));
@@ -1209,7 +1209,6 @@ const AdminPortal = ({ user }: { user: any }) => {
   };
 
   const handleDeleteUser = async (id: string) => {
-    if (!window.confirm("Are you sure you want to permanently delete this user's account data and treasury balance?")) return;
     try {
       setAdminLoading(true);
       await deleteDoc(doc(db, "users", id));
@@ -1459,14 +1458,34 @@ const AdminPortal = ({ user }: { user: any }) => {
                       )}>
                         {t.status || 'pending'}
                       </span>
-                      <button
-                        onClick={() => handleDeleteLedger(t.id)}
-                        disabled={adminLoading}
-                        className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
-                        title="Delete Ledger Record"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {confirmDelete?.id === t.id && confirmDelete.type === 'ledger' ? (
+                        <div className="flex items-center gap-1 bg-rose-500/10 p-1 rounded-lg border border-rose-500/20">
+                          <button
+                            onClick={() => {
+                              handleDeleteLedger(t.id);
+                              setConfirmDelete(null);
+                            }}
+                            className="px-2 py-1 bg-rose-600 text-white text-[8px] font-black uppercase rounded hover:bg-rose-500 transition-all"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(null)}
+                            className="px-2 py-1 bg-zinc-800 text-zinc-400 text-[8px] font-black uppercase rounded hover:bg-zinc-700 transition-all"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDelete({ id: t.id, type: 'ledger' })}
+                          disabled={adminLoading}
+                          className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
+                          title="Delete Ledger Record"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -1531,14 +1550,34 @@ const AdminPortal = ({ user }: { user: any }) => {
                       >
                         <RefreshCw className="w-3 h-3" />
                       </button>
-                      <button 
-                        onClick={() => handleDeleteUser(u.id)}
-                        disabled={adminLoading}
-                        className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
-                        title="Delete User Account / Treasury Data"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                      {confirmDelete?.id === u.id && confirmDelete.type === 'user' ? (
+                        <div className="flex items-center gap-1 bg-rose-500/10 p-1 rounded-lg border border-rose-500/20">
+                          <button
+                            onClick={() => {
+                              handleDeleteUser(u.id);
+                              setConfirmDelete(null);
+                            }}
+                            className="px-2 py-1 bg-rose-600 text-white text-[8px] font-black uppercase rounded hover:bg-rose-500 transition-all"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(null)}
+                            className="px-2 py-1 bg-zinc-800 text-zinc-400 text-[8px] font-black uppercase rounded hover:bg-zinc-700 transition-all"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => setConfirmDelete({ id: u.id, type: 'user' })}
+                          disabled={adminLoading}
+                          className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
+                          title="Delete User Account / Treasury Data"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -1596,14 +1635,41 @@ const AdminPortal = ({ user }: { user: any }) => {
                   </td>
                   {activeSubTab === "inquiries" && (
                     <td className="p-6 text-right" onClick={(e) => e.stopPropagation()}>
-                      <button 
-                        onClick={() => handleDeleteInquiry(item.id)}
-                        disabled={adminLoading}
-                        className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
-                        title="Delete Inquiry"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {confirmDelete?.id === item.id && confirmDelete.type === 'inquiry' ? (
+                        <div className="flex items-center gap-1 justify-end">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteInquiry(item.id);
+                              setConfirmDelete(null);
+                            }}
+                            className="px-2 py-1 bg-rose-600 text-white text-[8px] font-black uppercase rounded hover:bg-rose-500 transition-all"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDelete(null);
+                            }}
+                            className="px-2 py-1 bg-zinc-800 text-zinc-400 text-[8px] font-black uppercase rounded hover:bg-zinc-700 transition-all"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDelete({ id: item.id, type: 'inquiry' });
+                          }}
+                          disabled={adminLoading}
+                          className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
+                          title="Delete Inquiry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </td>
                   )}
                 </tr>
@@ -1624,15 +1690,36 @@ const AdminPortal = ({ user }: { user: any }) => {
             <div>
               <h4 className="text-2xl font-black italic uppercase italic tracking-tighter mb-2 flex items-center gap-4">
                 Active Conversation: {selectedInquiry.id}
-                <button
-                  onClick={() => handleDeleteInquiry(selectedInquiry.id)}
-                  disabled={adminLoading}
-                  className="px-3 py-1 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/20 text-rose-500 hover:text-white text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1"
-                  title="Delete Inquiry Permanently"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  Delete Inquiry
-                </button>
+                {confirmDelete?.id === selectedInquiry.id && confirmDelete.type === 'inquiry' ? (
+                  <div className="flex items-center gap-2 bg-rose-500/10 p-2 rounded-xl border border-rose-500/20">
+                    <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest animate-pulse">Are you sure?</span>
+                    <button
+                      onClick={() => {
+                        handleDeleteInquiry(selectedInquiry.id);
+                        setConfirmDelete(null);
+                      }}
+                      className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white text-[8px] font-black uppercase tracking-widest rounded-lg transition-all"
+                    >
+                      Yes, Delete
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(null)}
+                      className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete({ id: selectedInquiry.id, type: 'inquiry' })}
+                    disabled={adminLoading}
+                    className="px-3 py-1 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/20 text-rose-500 hover:text-white text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1"
+                    title="Delete Inquiry Permanently"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Delete Inquiry
+                  </button>
+                )}
               </h4>
               <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic">Reviewing initial inquiry & drafting response...</p>
             </div>
@@ -2404,6 +2491,16 @@ export default function App() {
                       </button>
                     </div>
                   </div>
+
+                  <button 
+                    onClick={() => {
+                      setShowInquiryStatus(null);
+                      setTrackedInquiry(null);
+                    }}
+                    className="w-full py-4 bg-zinc-850 border border-white/5 text-zinc-400 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-800 transition-all"
+                  >
+                    Return to Main Menu
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-6 md:space-y-8">
@@ -2482,12 +2579,23 @@ export default function App() {
                     </div>
                   </div>
 
-                  <button 
-                    onClick={() => setTrackedInquiry(null)}
-                    className="w-full py-4 bg-zinc-800 text-zinc-400 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-700 transition-all"
-                  >
-                    Back to Tracking
-                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={() => setTrackedInquiry(null)}
+                      className="py-4 bg-zinc-850 text-zinc-400 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-800 transition-all border border-white/5"
+                    >
+                      Back to Search
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setShowInquiryStatus(null);
+                        setTrackedInquiry(null);
+                      }}
+                      className="py-4 bg-blue-600/20 border border-blue-500/20 text-blue-400 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-blue-600 hover:text-white transition-all"
+                    >
+                      Return to Menu
+                    </button>
+                  </div>
                 </div>
               )}
             </motion.div>
