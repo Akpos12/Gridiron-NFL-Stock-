@@ -33,7 +33,8 @@ import {
   Plus,
   Minus,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from "lucide-react";
 import { 
   XAxis, 
@@ -67,7 +68,8 @@ import {
   serverTimestamp,
   query,
   orderBy,
-  limit
+  limit,
+  deleteDoc
 } from "firebase/firestore";
 import { NFL_TEAMS, getLogoUrl, Team } from "./constants";
 import { cn, formatCurrency } from "./lib/utils";
@@ -1177,6 +1179,48 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [adminLoading, setAdminLoading] = useState(false);
   const [permError, setPermError] = useState<string | null>(null);
 
+  const handleDeleteInquiry = async (id: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this inquiry?")) return;
+    try {
+      setAdminLoading(true);
+      await deleteDoc(doc(db, "fan_card_requests", id));
+      if (selectedInquiry?.id === id) {
+        setSelectedInquiry(null);
+      }
+    } catch (err: any) {
+      console.error("Delete Inquiry Error:", err);
+      handleFirestoreError(err, OperationType.WRITE, "fan_card_requests");
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleDeleteLedger = async (id: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this transaction ledger record?")) return;
+    try {
+      setAdminLoading(true);
+      await deleteDoc(doc(db, "global_transactions", id));
+    } catch (err: any) {
+      console.error("Delete Ledger Error:", err);
+      handleFirestoreError(err, OperationType.WRITE, "global_transactions");
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this user's account data and treasury balance?")) return;
+    try {
+      setAdminLoading(true);
+      await deleteDoc(doc(db, "users", id));
+    } catch (err: any) {
+      console.error("Delete User Error:", err);
+      handleFirestoreError(err, OperationType.WRITE, "users");
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
   useEffect(() => {
     setPermError(null);
     const unsubInquiries = onSnapshot(query(collection(db, "fan_card_requests"), orderBy("timestamp", "desc")), (snap) => {
@@ -1399,22 +1443,30 @@ const AdminPortal = ({ user }: { user: any }) => {
                     </p>
                   </td>
                   <td className="p-6 text-right">
-                    <div className="flex justify-end items-center gap-2">
+                    <div className="flex justify-end items-center gap-3">
                       {t.status === 'pending' && (
                         <button 
                           onClick={() => updateTransactionStatus(t.id, t.userId, 'Confirmed')}
-                          className="px-3 py-1 bg-emerald-600/20 border border-emerald-600/30 text-emerald-400 text-[8px] font-black uppercase rounded-md hover:bg-emerald-600 hover:text-white transition-all"
+                          className="px-3 py-1 bg-emerald-600/20 border border-emerald-600/30 text-emerald-400 text-[8px] font-black uppercase rounded-md hover:bg-emerald-600 hover:text-white transition-all mr-1"
                         >
                           Approve
                         </button>
                       )}
                       <span className={cn(
-                        "text-[10px] font-black uppercase tracking-widest",
+                        "text-[10px] font-black uppercase tracking-widest mr-2",
                         t.status === 'Confirmed' ? "text-emerald-400" : 
                         t.status === 'pending' ? "text-blue-400" : "text-zinc-500"
                       )}>
                         {t.status || 'pending'}
                       </span>
+                      <button
+                        onClick={() => handleDeleteLedger(t.id)}
+                        disabled={adminLoading}
+                        className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
+                        title="Delete Ledger Record"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -1479,6 +1531,14 @@ const AdminPortal = ({ user }: { user: any }) => {
                       >
                         <RefreshCw className="w-3 h-3" />
                       </button>
+                      <button 
+                        onClick={() => handleDeleteUser(u.id)}
+                        disabled={adminLoading}
+                        className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
+                        title="Delete User Account / Treasury Data"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -1494,6 +1554,9 @@ const AdminPortal = ({ user }: { user: any }) => {
                 <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Contact Handle</th>
                 <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Message / Detail</th>
                 <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Status</th>
+                {activeSubTab === "inquiries" && (
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -1531,6 +1594,18 @@ const AdminPortal = ({ user }: { user: any }) => {
                       {item.status || 'pending'}
                     </span>
                   </td>
+                  {activeSubTab === "inquiries" && (
+                    <td className="p-6 text-right" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        onClick={() => handleDeleteInquiry(item.id)}
+                        disabled={adminLoading}
+                        className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
+                        title="Delete Inquiry"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -1547,7 +1622,18 @@ const AdminPortal = ({ user }: { user: any }) => {
         >
           <div className="flex justify-between items-start">
             <div>
-              <h4 className="text-2xl font-black italic uppercase italic tracking-tighter mb-2">Active Conversation: {selectedInquiry.id}</h4>
+              <h4 className="text-2xl font-black italic uppercase italic tracking-tighter mb-2 flex items-center gap-4">
+                Active Conversation: {selectedInquiry.id}
+                <button
+                  onClick={() => handleDeleteInquiry(selectedInquiry.id)}
+                  disabled={adminLoading}
+                  className="px-3 py-1 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/20 text-rose-500 hover:text-white text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1"
+                  title="Delete Inquiry Permanently"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Delete Inquiry
+                </button>
+              </h4>
               <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic">Reviewing initial inquiry & drafting response...</p>
             </div>
             <button onClick={() => setSelectedInquiry(null)} className="text-zinc-500 hover:text-white"><X /></button>
@@ -1602,6 +1688,14 @@ export default function App() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showFanCardForm, setShowFanCardForm] = useState(false);
+  const [isSubmittingInquiry, setIsSubmittingInquiry] = useState(false);
+  const [inquirySuccess, setInquirySuccess] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
   const [activeTicket, setActiveTicket] = useState<string | null>(localStorage.getItem("active_ticket_id"));
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences">("markets");
@@ -1614,6 +1708,8 @@ export default function App() {
   const [showInquiryStatus, setShowInquiryStatus] = useState<string | null>(null);
   const [trackingId, setTrackingId] = useState("");
   const [trackedInquiry, setTrackedInquiry] = useState<any>(null);
+  const [userReplyText, setUserReplyText] = useState("");
+  const [isSendingUserReply, setIsSendingUserReply] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const portfolioRef = useRef<any[]>([]);
   
@@ -2015,6 +2111,8 @@ export default function App() {
 
   const handleFanCardRequest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingInquiry) return;
+    setIsSubmittingInquiry(true);
     const formData = new FormData(e.target as HTMLFormElement);
     const requestId = `TRK-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
     
@@ -2031,10 +2129,11 @@ export default function App() {
         timestamp: serverTimestamp()
       });
       
-      setShowFanCardForm(false);
-      setShowInquiryStatus(requestId);
+      setInquirySuccess(requestId);
     } catch (err: any) {
       handleFirestoreError(err, OperationType.WRITE, "fan_card_requests");
+    } finally {
+      setIsSubmittingInquiry(false);
     }
   };
 
@@ -2049,6 +2148,37 @@ export default function App() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleUserReply = async () => {
+    if (!trackedInquiry || !userReplyText.trim()) return;
+    setIsSendingUserReply(true);
+    try {
+      const newReply = {
+        sender: 'User',
+        text: userReplyText,
+        timestamp: new Date().toISOString()
+      };
+      const updatedReplies = [...(trackedInquiry.replies || []), newReply];
+      
+      await updateDoc(doc(db, "fan_card_requests", trackedInquiry.id), {
+        replies: updatedReplies,
+        status: 'pending'
+      });
+      
+      setUserReplyText("");
+      
+      // Refresh tracked inquiry to show the new message
+      const snap = await getDoc(doc(db, "fan_card_requests", trackedInquiry.id));
+      if (snap.exists()) {
+        setTrackedInquiry({ id: snap.id, ...snap.data() });
+      }
+    } catch (err: any) {
+      console.error(err);
+      handleFirestoreError(err, OperationType.WRITE, "fan_card_requests");
+    } finally {
+      setIsSendingUserReply(false);
     }
   };
 
@@ -2298,13 +2428,58 @@ export default function App() {
                       <p className="text-[10px] font-black uppercase text-zinc-500 mb-2">You</p>
                       <p className="text-xs sm:text-sm font-medium text-white">{trackedInquiry.message}</p>
                     </div>
-                    {trackedInquiry.replies?.map((r: any, idx: number) => (
-                      <div key={idx} className="bg-blue-600/10 p-4 sm:p-6 rounded-2xl border border-blue-600/20 max-w-[90%] sm:max-w-[80%] ml-auto">
-                        <p className="text-[10px] font-black uppercase text-blue-500 mb-2">Customer Care</p>
-                        <p className="text-xs sm:text-sm font-medium text-zinc-100">{r.text}</p>
-                        <p className="text-[8px] font-mono text-blue-400/50 mt-2">{new Date(r.timestamp).toLocaleString()}</p>
-                      </div>
-                    ))}
+                    {trackedInquiry.replies?.map((r: any, idx: number) => {
+                      const isCustomerCare = r.sender === 'Customer Care';
+                      return (
+                        <div 
+                          key={idx} 
+                          className={cn(
+                            "p-4 sm:p-6 rounded-2xl max-w-[90%] sm:max-w-[80%] border transition-all",
+                            isCustomerCare 
+                              ? "bg-blue-600/10 border-blue-600/20 ml-auto" 
+                              : "bg-zinc-950 border-white/5 mr-auto"
+                          )}
+                        >
+                          <p className={cn(
+                            "text-[10px] font-black uppercase mb-2 tracking-widest",
+                            isCustomerCare ? "text-blue-500" : "text-zinc-500"
+                          )}>
+                            {isCustomerCare ? "Customer Care" : "You (Reply)"}
+                          </p>
+                          <p className={cn(
+                            "text-xs sm:text-sm font-medium",
+                            isCustomerCare ? "text-zinc-100" : "text-white"
+                          )}>{r.text}</p>
+                          {r.timestamp && (
+                            <p className={cn(
+                              "text-[8px] font-mono mt-2",
+                              isCustomerCare ? "text-blue-400/50" : "text-zinc-600"
+                            )}>{new Date(r.timestamp).toLocaleString()}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Send Reply Box */}
+                  <div className="bg-zinc-950 p-4 rounded-2xl border border-white/5 space-y-3">
+                    <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Send Reply</p>
+                    <div className="flex gap-2">
+                      <textarea
+                        value={userReplyText}
+                        onChange={(e) => setUserReplyText(e.target.value)}
+                        placeholder="Type a reply to keep the conversation going..."
+                        rows={2}
+                        className="flex-1 bg-zinc-900 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600 font-medium text-white resize-none"
+                      />
+                      <button
+                        onClick={handleUserReply}
+                        disabled={isSendingUserReply || !userReplyText.trim()}
+                        className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <button 
@@ -2844,7 +3019,7 @@ export default function App() {
       {/* Fan Card Modal */}
       <AnimatePresence>
         {showFanCardForm && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowFanCardForm(false)}>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm" onClick={() => { setShowFanCardForm(false); setInquirySuccess(null); }}>
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -2853,36 +3028,100 @@ export default function App() {
               className="w-full max-w-lg bg-zinc-900 border border-white/10 rounded-3xl md:rounded-[3rem] p-6 sm:p-10 md:p-12 shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-white to-red-600" />
-              <button onClick={() => setShowFanCardForm(false)} className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors">
+              <button onClick={() => { setShowFanCardForm(false); setInquirySuccess(null); }} className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors">
                 <X />
               </button>
 
-              <h2 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter mb-4 leading-none">Concierge Inquiry</h2>
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.1em] mb-6 md:mb-10 italic">Customer Care Protocol: Requesting Asset Pricing & Access</p>
-              
-              <form onSubmit={handleFanCardRequest} className="space-y-4 md:space-y-8 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-                <div>
-                  <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Full Name / Identifier</label>
-                  <input name="name" required defaultValue={user?.displayName || ""} placeholder="e.g. Alex Rivera" className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all" />
+              {inquirySuccess ? (
+                <div className="text-center py-6 space-y-6">
+                  <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/30">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h2 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter leading-none text-white">Inquiry Delivered</h2>
+                    <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider">Your message has been successfully logged</p>
+                  </div>
+
+                  <p className="text-xs text-zinc-500 font-medium leading-relaxed max-w-sm mx-auto">
+                    To prevent double submissions, please keep track of your ticket. Use your ticket reference ID to see live responses from Customer Care:
+                  </p>
+
+                  <div className="bg-zinc-950 p-4 rounded-2xl border border-white/5 flex items-center justify-between gap-4">
+                    <span className="font-mono text-base sm:text-lg font-black text-white tracking-widest pl-2">
+                      {inquirySuccess}
+                    </span>
+                    <button 
+                      onClick={() => copyToClipboard(inquirySuccess, "inquiry-ticket")}
+                      className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-300 hover:text-white transition-all flex items-center gap-1.5 shrink-0"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      {copied === "inquiry-ticket" ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                    <button
+                      onClick={() => {
+                        setShowInquiryStatus(inquirySuccess);
+                        setInquirySuccess(null);
+                        setShowFanCardForm(false);
+                        trackInquiry(inquirySuccess);
+                      }}
+                      className="flex-grow py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl transition-all"
+                    >
+                      View Live Thread
+                    </button>
+                    <button
+                      onClick={() => {
+                        setInquirySuccess(null);
+                        setShowFanCardForm(false);
+                      }}
+                      className="flex-grow py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black uppercase tracking-widest text-[10px] rounded-xl transition-all"
+                    >
+                      Close Window
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Franchise Asset</label>
-                  <select name="team" required defaultValue={selectedTeam.id} className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold uppercase transition-all">
-                    {NFL_TEAMS.map(t => <option key={t.id} value={t.id}>{t.city} {t.name} - Asset Allocation</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Contact Handle</label>
-                  <input name="contact" required placeholder="e.g. Telegram: @handle / Email: name@domain.com" className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all" />
-                </div>
-                <div>
-                  <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Inquiry details</label>
-                  <textarea name="message" rows={3} placeholder="Tell us which match tickets or fan cards you are interested in. Our team will reply with current market rates..." className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all" />
-                </div>
-                <button type="submit" className="w-full py-5 bg-white text-black font-black uppercase tracking-widest text-[10px] md:text-xs rounded-2xl hover:bg-zinc-200 transition-all shadow-2xl">
-                  SUBMIT TO CUSTOMER CARE
-                </button>
-              </form>
+              ) : (
+                <>
+                  <h2 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter mb-4 leading-none">Concierge Inquiry</h2>
+                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.1em] mb-6 md:mb-10 italic">Customer Care Protocol: Requesting Asset Pricing & Access</p>
+                  
+                  <form onSubmit={handleFanCardRequest} className="space-y-4 md:space-y-8 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <div>
+                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Full Name / Identifier</label>
+                      <input name="name" required disabled={isSubmittingInquiry} defaultValue={user?.displayName || ""} placeholder="e.g. Alex Rivera" className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50" />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Franchise Asset</label>
+                      <select name="team" required disabled={isSubmittingInquiry} defaultValue={selectedTeam.id} className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold uppercase transition-all disabled:opacity-50">
+                        {NFL_TEAMS.map(t => <option key={t.id} value={t.id}>{t.city} {t.name} - Asset Allocation</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Contact Handle</label>
+                      <input name="contact" required disabled={isSubmittingInquiry} placeholder="e.g. Telegram: @handle / Email: name@domain.com" className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50" />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Inquiry details</label>
+                      <textarea name="message" required disabled={isSubmittingInquiry} rows={3} placeholder="Tell us which match tickets or fan cards you are interested in. Our team will reply with current market rates..." className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50" />
+                    </div>
+                    <button 
+                      type="submit" 
+                      disabled={isSubmittingInquiry}
+                      className="w-full py-5 bg-white text-black font-black uppercase tracking-widest text-[10px] md:text-xs rounded-2xl hover:bg-zinc-200 transition-all shadow-2xl disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isSubmittingInquiry ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          DELIVERING INQUIRY...
+                        </>
+                      ) : "SUBMIT TO CUSTOMER CARE"}
+                    </button>
+                  </form>
+                </>
+              )}
             </motion.div>
           </div>
         )}

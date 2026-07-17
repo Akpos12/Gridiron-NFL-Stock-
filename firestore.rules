@@ -47,6 +47,7 @@ service cloud.firestore {
       allow update: if (isOwner(userId) || isAdmin())
         && isValidUser(request.resource.data)
         && (isAdmin() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'balance', 'updatedAt', 'createdAt', 'uid', 'email']));
+      allow delete: if isAdmin();
     }
 
     // Portfolio Rules
@@ -79,6 +80,7 @@ service cloud.firestore {
       allow read, list: if isAdmin();
       allow create: if isSignedIn(); 
       allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // Teams Rules (Publicly readable, system writable)
@@ -101,6 +103,7 @@ service cloud.firestore {
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid) || (resource.data.userId == 'guest');
       allow update: if isAdmin();
       allow list: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // Store Order Rules
