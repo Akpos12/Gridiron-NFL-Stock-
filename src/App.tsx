@@ -1265,6 +1265,16 @@ const AdminPortal = ({ user }: { user: any }) => {
     return () => { unsubInquiries(); unsubOrders(); unsubUsers(); unsubTransactions(); };
   }, [user]);
 
+  // Keep selectedInquiry in real-time sync with database requests list
+  useEffect(() => {
+    if (selectedInquiry) {
+      const updated = requests.find(r => r.id === selectedInquiry.id);
+      if (updated) {
+        setSelectedInquiry(updated);
+      }
+    }
+  }, [requests, selectedInquiry?.id]);
+
   const filteredTransactions = transactions.filter(t => 
     (t.userId || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
     (t.type || "").toLowerCase().includes(searchTerm.toLowerCase())
@@ -2255,12 +2265,6 @@ export default function App() {
       });
       
       setUserReplyText("");
-      
-      // Refresh tracked inquiry to show the new message
-      const snap = await getDoc(doc(db, "fan_card_requests", trackedInquiry.id));
-      if (snap.exists()) {
-        setTrackedInquiry({ id: snap.id, ...snap.data() });
-      }
     } catch (err: any) {
       console.error(err);
       handleFirestoreError(err, OperationType.WRITE, "fan_card_requests");
@@ -2268,6 +2272,19 @@ export default function App() {
       setIsSendingUserReply(false);
     }
   };
+
+  // Keep trackedInquiry in real-time sync with database for instant cross-device updates
+  useEffect(() => {
+    if (!trackedInquiry?.id) return;
+    const unsub = onSnapshot(doc(db, "fan_card_requests", trackedInquiry.id), (snap) => {
+      if (snap.exists()) {
+        setTrackedInquiry({ id: snap.id, ...snap.data() });
+      }
+    }, (err) => {
+      console.error("Error listening to inquiry real-time:", err);
+    });
+    return () => unsub();
+  }, [trackedInquiry?.id]);
 
   const [userTransactions, setUserTransactions] = useState<any[]>([]);
 
@@ -2780,8 +2797,8 @@ export default function App() {
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden pb-20 md:pb-0">
           {/* Sidebar */}
           <aside className={cn(
-            "bg-zinc-950/40 border-r border-white/5 flex-col flex shrink-0 transition-all duration-300",
-            activeTab === "markets" ? "w-full md:w-80 h-[40%] md:h-full" : "w-full md:w-80"
+            "bg-zinc-950/40 border-r border-white/5 flex-col shrink-0 transition-all duration-300",
+            activeTab === "markets" ? "flex w-full md:w-80 h-[40%] md:h-full" : "hidden md:flex md:w-80"
           )}>
             <div className="p-6 flex items-center justify-between">
               <div className="relative flex-1">
