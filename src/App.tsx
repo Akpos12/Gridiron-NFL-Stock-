@@ -34,7 +34,8 @@ import {
   Minus,
   RefreshCw,
   ExternalLink,
-  Trash2
+  Trash2,
+  Lock
 } from "lucide-react";
 import { 
   XAxis, 
@@ -1796,6 +1797,7 @@ export default function App() {
   const [activeTicket, setActiveTicket] = useState<string | null>(localStorage.getItem("active_ticket_id"));
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences">("markets");
+  const [dismissedHero, setDismissedHero] = useState(false);
   const [deepLinkExp, setDeepLinkExp] = useState<any | null>(null);
   const [userBookings, setUserBookings] = useState<any[]>([]);
   const [quantity, setQuantity] = useState(1);
@@ -2387,7 +2389,10 @@ export default function App() {
             ] as any[]).map(tab => (
               <button 
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  setDismissedHero(true);
+                }}
                 className={cn(
                   "text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-colors",
                   activeTab === tab.id ? "text-blue-500" : "text-zinc-500 hover:text-white"
@@ -2446,7 +2451,10 @@ export default function App() {
         ].map(tab => (
           <button 
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => {
+              setActiveTab(tab.id as any);
+              setDismissedHero(true);
+            }}
             className={cn(
               "flex flex-col items-center gap-1 transition-colors",
               activeTab === tab.id ? "text-blue-500" : "text-zinc-500"
@@ -2621,7 +2629,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Hero / Landing (If not logged in) */}
-      {!user && activeTab !== "shop" && activeTab !== "experiences" && !showLogin && (
+      {!user && !dismissedHero && !showLogin && (
         <div className="flex-1 overflow-y-auto no-scrollbar bg-black/40">
           {/* Hero Section */}
           <section className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 text-center relative overflow-hidden">
@@ -2639,9 +2647,12 @@ export default function App() {
               <p className="text-sm sm:text-lg md:text-xl text-zinc-400 mb-8 md:mb-12 max-w-2xl mx-auto font-black italic uppercase tracking-widest leading-relaxed">
                 Live Franchise Equity · Institutional Execution · 24/7 Market Liquidity
               </p>
-              <div className="flex justify-center gap-4 mb-20 px-4">
-                <button onClick={() => setShowLogin(true)} className="w-full sm:w-auto bg-white text-black px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl shadow-white/5 whitespace-nowrap">
+              <div className="flex flex-col sm:flex-row justify-center gap-4 mb-20 px-4 w-full sm:w-auto">
+                <button onClick={() => setShowLogin(true)} className="bg-white text-black px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl shadow-white/5 whitespace-nowrap">
                   ACCESS TRADING TERMINAL
+                </button>
+                <button onClick={() => setDismissedHero(true)} className="bg-zinc-900 border border-white/10 text-white px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-2xl whitespace-nowrap">
+                  EXPLORE LIVE EXCHANGE
                 </button>
               </div>
             </motion.div>
@@ -2793,7 +2804,7 @@ export default function App() {
       )}
 
       {/* Main Dashboard */}
-      {(user || activeTab === "shop" || activeTab === "experiences") && (
+      {(user || dismissedHero) && (
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden pb-20 md:pb-0">
           {/* Sidebar */}
           <aside className={cn(
@@ -2849,16 +2860,7 @@ export default function App() {
 
           {/* Activity Area */}
           <main className="flex-1 flex flex-col bg-zinc-950 overflow-y-auto custom-scrollbar">
-            {(activeTab === "markets" && !user) ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-20 text-center">
-                <div className="w-20 h-20 bg-blue-600/10 rounded-3xl flex items-center justify-center mb-8">
-                  <LayoutDashboard className="w-10 h-10 text-blue-600" />
-                </div>
-                <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-4">Market Access Restricted</h2>
-                <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs mb-10 max-w-md">The trading terminal requires a verified investor profile. Please initialize your slate to execute trades.</p>
-                <button onClick={() => setShowLogin(true)} className="bg-white text-black px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all">Initialize Slate</button>
-              </div>
-            ) : activeTab === "markets" && (
+            {activeTab === "markets" && (
               <div className="p-4 sm:p-6 md:p-10 space-y-6 md:space-y-10">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                   <div className="flex items-center gap-4 md:gap-8">
@@ -2910,25 +2912,47 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                  <div className="bg-zinc-900/50 rounded-2xl md:rounded-[2rem] p-6 md:p-8 border border-white/5">
+                  <div className="bg-zinc-900/50 rounded-2xl md:rounded-[2rem] p-6 md:p-8 border border-white/5 relative overflow-hidden">
                     <div className="flex items-center justify-between mb-8">
                       <h3 className="text-[10px] font-black uppercase text-zinc-500 tracking-[.25em]">Market Execution</h3>
                       <div className="flex items-center gap-1 text-emerald-400 text-[10px] font-black tracking-widest">
                         <ShieldCheck className="w-3 h-3" /> SECURE
                       </div>
                     </div>
-                    <div className="mb-8">
-                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-600 mb-4 tracking-widest">Quantity</label>
-                      <div className="flex items-center gap-4 bg-zinc-950 p-2 rounded-2xl border border-white/5">
-                        <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 md:w-12 md:h-12 bg-zinc-800 rounded-xl font-bold hover:bg-zinc-700 transition-colors">-</button>
-                        <input type="number" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="flex-1 bg-transparent text-center font-mono font-black text-lg md:text-xl outline-none" />
-                        <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 md:w-12 md:h-12 bg-zinc-800 rounded-xl font-bold hover:bg-zinc-700 transition-colors">+</button>
+                    {user ? (
+                      <>
+                        <div className="mb-8">
+                          <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-600 mb-4 tracking-widest">Quantity</label>
+                          <div className="flex items-center gap-4 bg-zinc-950 p-2 rounded-2xl border border-white/5">
+                            <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 md:w-12 md:h-12 bg-zinc-800 rounded-xl font-bold hover:bg-zinc-700 transition-colors">-</button>
+                            <input type="number" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="flex-1 bg-transparent text-center font-mono font-black text-lg md:text-xl outline-none" />
+                            <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 md:w-12 md:h-12 bg-zinc-800 rounded-xl font-bold hover:bg-zinc-700 transition-colors">+</button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <button onClick={() => handleTrade("buy")} className="bg-emerald-500 hover:bg-emerald-400 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-emerald-500/20 uppercase tracking-widest text-xs">Buy</button>
+                          <button onClick={() => handleTrade("sell")} className="bg-rose-500 hover:bg-rose-400 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-rose-500/20 uppercase tracking-widest text-xs">Sell</button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="py-4 text-center space-y-4">
+                        <div className="w-12 h-12 bg-blue-600/10 rounded-full flex items-center justify-center mx-auto text-blue-500">
+                          <Lock className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black uppercase tracking-wider text-white mb-1.5">Trading Portfolio Locked</h4>
+                          <p className="text-[10px] text-zinc-400 font-bold uppercase leading-relaxed max-w-xs mx-auto">
+                            You must create an account or sign in with Google to buy and sell {selectedTeam.name} franchise equity.
+                          </p>
+                        </div>
+                        <button 
+                          onClick={() => setShowLogin(true)} 
+                          className="w-full bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest py-3.5 rounded-xl transition-all shadow-lg shadow-blue-600/20"
+                        >
+                          Initialize Portfolio
+                        </button>
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <button onClick={() => handleTrade("buy")} className="bg-emerald-500 hover:bg-emerald-400 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-emerald-500/20 uppercase tracking-widest text-xs">Buy</button>
-                      <button onClick={() => handleTrade("sell")} className="bg-rose-500 hover:bg-rose-400 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-rose-500/20 uppercase tracking-widest text-xs">Sell</button>
-                    </div>
+                    )}
                   </div>
 
                   <div className="bg-zinc-900/50 rounded-2xl md:rounded-[2rem] p-6 md:p-8 border border-white/5">
