@@ -4,8 +4,207 @@ import { WebSocketServer, WebSocket } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import { initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
+import fs from "fs";
+import nodemailer from "nodemailer";
 
 dotenv.config();
+
+// Load firebase-applet-config.json safely and initialize Firebase Admin SDK
+let db: any = null;
+let adminApp: any = null;
+try {
+  const firebaseConfig = JSON.parse(fs.readFileSync("./firebase-applet-config.json", "utf-8"));
+  adminApp = initializeApp({
+    projectId: firebaseConfig.projectId,
+  });
+  db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId || "(default)");
+  console.log("Firebase Admin SDK initialized successfully on server.ts");
+} catch (err) {
+  console.error("Failed to initialize Firebase Admin SDK on server.ts:", err);
+}
+
+// Send Webhook/Notification function
+async function sendNotification(inquiry: any) {
+  try {
+    let settings: any = null;
+    
+    // Check local server configuration disk first
+    if (fs.existsSync("./notifications-config.json")) {
+      try {
+        settings = JSON.parse(fs.readFileSync("./notifications-config.json", "utf-8"));
+      } catch (err) {
+        console.error("Failed to parse notifications-config.json:", err);
+      }
+    }
+
+    // Secondary backup query to Firestore, wrapped in a safe catch
+    if (!settings && db) {
+      try {
+        const docRef = db.collection("admin_settings").doc("notifications");
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+          settings = docSnap.data();
+        }
+      } catch (dbErr) {
+        console.warn("Could not load notifications from Firestore (expected in GCP Run container environment):", dbErr);
+      }
+    }
+
+    if (!settings) {
+      console.warn("No notifications configuration available to process this request.");
+      return;
+    }
+    
+    const { discord, telegram, slack, email } = settings;
+    const title = inquiry.isTest ? "🚨 TEST: Concierge Inquiry Notification" : "🚨 New Concierge Inquiry Received!";
+    const details = `
+Ticket ID: **${inquiry.requestId}**
+Name: **${inquiry.name}**
+Email: **${inquiry.email || 'N/A'}**
+Contact: **${inquiry.contact || 'N/A'}**
+Message: "${inquiry.message}"
+`;
+
+    // 1. Send Discord Webhook
+    if (discord?.enabled && discord.url) {
+      try {
+        await fetch(discord.url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: `**${title}**\n${details}`
+          })
+        });
+        console.log("Discord notification sent successfully");
+      } catch (err) {
+        console.error("Error sending Discord notification:", err);
+      }
+    }
+
+    // 2. Send Slack Webhook
+    if (slack?.enabled && slack.url) {
+      try {
+        await fetch(slack.url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: `*${title}*\n${details}`
+          })
+        });
+        console.log("Slack notification sent successfully");
+      } catch (err) {
+        console.error("Error sending Slack notification:", err);
+      }
+    }
+
+    // 3. Send Telegram Message
+    if (telegram?.enabled && telegram.botToken && telegram.chatId) {
+      try {
+        await fetch(`https://api.telegram.org/bot${telegram.botToken}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: telegram.chatId,
+            text: `*${title}*\n${details}`,
+            parse_mode: "Markdown"
+          })
+        });
+        console.log("Telegram notification sent successfully");
+      } catch (err) {
+        console.error("Error sending Telegram notification:", err);
+      }
+    }
+
+    // 4. Send Email via SMTP (Zoho, Gmail, etc.)
+    if (email?.enabled && email.smtpHost && email.smtpUser && email.smtpPass && email.toEmail) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: email.smtpHost,
+          port: parseInt(email.smtpPort) || 587,
+          secure: email.smtpSecure || false, // true for port 465, false for 587
+          auth: {
+            user: email.smtpUser,
+            pass: email.smtpPass,
+          },
+        });
+
+        const subject = inquiry.isTest ? "[TEST] Gridiron Exchange Notification Alert" : `New Concierge Ticket Received: ${inquiry.name}`;
+        
+        const textContent = `
+${title}
+
+Ticket ID: ${inquiry.requestId}
+Name: ${inquiry.name}
+Email Address: ${inquiry.email || 'N/A'}
+Preferred Contact: ${inquiry.contact || 'N/A'}
+
+Inquiry Details:
+"${inquiry.message}"
+
+Please review this in the control desk:
+https://ais-pre-fzmmrb2i7l3evzvs4xbafg-53620454143.europe-west2.run.app
+        `;
+
+        const htmlContent = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; background-color: #0c0a09; color: #f4f4f5; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+            <div style="text-align: center; margin-bottom: 24px;">
+              <span style="font-size: 10px; font-weight: 900; letter-spacing: 0.15em; color: #2563eb; text-transform: uppercase;">Gridiron Exchange Concierge</span>
+              <h2 style="font-size: 20px; font-weight: 800; color: #ffffff; margin: 8px 0 0 0; text-transform: uppercase; font-style: italic; letter-spacing: -0.025em;">${title}</h2>
+            </div>
+            
+            <div style="background-color: #1c1917; border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin-bottom: 24px;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 6px 0; font-size: 11px; font-weight: 800; color: #a1a1aa; text-transform: uppercase; width: 35%;">Ticket ID</td>
+                  <td style="padding: 6px 0; font-size: 13px; font-family: monospace; color: #3b82f6;">${inquiry.requestId}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; font-size: 11px; font-weight: 800; color: #a1a1aa; text-transform: uppercase;">Client Name</td>
+                  <td style="padding: 6px 0; font-size: 13px; font-weight: 700; color: #ffffff;">${inquiry.name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; font-size: 11px; font-weight: 800; color: #a1a1aa; text-transform: uppercase;">Email</td>
+                  <td style="padding: 6px 0; font-size: 13px; color: #f4f4f5;">${inquiry.email || 'N/A'}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; font-size: 11px; font-weight: 800; color: #a1a1aa; text-transform: uppercase;">Contact Method</td>
+                  <td style="padding: 6px 0; font-size: 13px; color: #60a5fa; text-decoration: underline;">${inquiry.contact || 'N/A'}</td>
+                </tr>
+              </table>
+            </div>
+
+            <div style="background-color: #09090b; border: 1px solid rgba(255,255,255,0.03); border-radius: 16px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #2563eb;">
+              <span style="font-size: 10px; font-weight: 900; color: #71717a; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 8px;">Original Message</span>
+              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #d4d4d8; white-space: pre-wrap;">${inquiry.message}</p>
+            </div>
+
+            <div style="text-align: center; margin-top: 32px; border-t: 1px solid rgba(255,255,255,0.05); padding-top: 24px;">
+              <a href="https://ais-pre-fzmmrb2i7l3evzvs4xbafg-53620454143.europe-west2.run.app" style="display: inline-block; background-color: #ffffff; color: #000000; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; padding: 12px 32px; border-radius: 12px; text-decoration: none; transition: background 0.2s;">Open Control Desk</a>
+              <p style="font-size: 10px; color: #52525b; margin: 16px 0 0 0; text-transform: uppercase; letter-spacing: 0.05em;">NFL Gridiron Exchange Automations</p>
+            </div>
+          </div>
+        `;
+
+        await transporter.sendMail({
+          from: email.fromEmail || `"Gridiron Exchange Admin" <${email.smtpUser}>`,
+          to: email.toEmail,
+          subject: subject,
+          text: textContent,
+          html: htmlContent,
+        });
+
+        console.log("SMTP Email notification dispatched successfully!");
+      } catch (err) {
+        console.error("Error sending SMTP Email notification:", err);
+      }
+    }
+  } catch (error) {
+    console.error("Error processing sendNotification:", error);
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -81,6 +280,47 @@ async function startServer() {
 // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  app.post("/api/notify-inquiry", async (req, res) => {
+    try {
+      const { requestId, name, email, contact, message, isTest } = req.body;
+      await sendNotification({ requestId, name, email, contact, message, isTest });
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("Error sending notification from route:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/save-settings", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Missing or invalid authorization header." });
+      }
+      
+      const idToken = authHeader.split("Bearer ")[1];
+      if (!adminApp) {
+        return res.status(500).json({ error: "Firebase Admin SDK is not initialized." });
+      }
+
+      // Verify the ID token securely using Firebase Admin SDK
+      const decodedToken = await getAuth(adminApp).verifyIdToken(idToken);
+      if (decodedToken.email !== "alexwtchmn@gmail.com") {
+        return res.status(403).json({ error: "Access denied. Only the administrator can modify settings." });
+      }
+
+      // Securely write settings payload to the server's disk
+      const settings = req.body;
+      fs.writeFileSync("./notifications-config.json", JSON.stringify(settings, null, 2), "utf-8");
+      
+      console.log("Admin notification settings updated successfully on server disk.");
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("Error saving notification settings:", err);
+      res.status(500).json({ error: err.message });
+    }
   });
 
   const TEAM_NAMES: Record<string, string> = {
