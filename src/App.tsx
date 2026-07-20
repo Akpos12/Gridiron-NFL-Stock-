@@ -505,7 +505,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               reviewsCount: 142,
               inStock: true,
               trending: true,
-              image: "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg",
+              image: "https://images.unsplash.com/photo-1594470117722-de4b9a02ebed?auto=format&fit=crop&q=80&w=800",
               purchaseUrl: "https://www.nflshop.com/?query=Minnesota%20Vikings%20jerseys"
             },
             {
@@ -519,7 +519,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               reviewsCount: 88,
               inStock: true,
               trending: false,
-              image: "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg",
+              image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=800",
               purchaseUrl: "https://www.nflshop.com/?query=Minnesota%20Vikings%20hoodies"
             }
           ];

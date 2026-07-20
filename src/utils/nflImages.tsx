@@ -159,19 +159,19 @@ export function getNFLImage(item: {
 
     // 3. MAP TEAM-SPECIFIC HIGH VALUE TARGETS
     if (isJersey) {
-      baseSrc = "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg";
+      baseSrc = "https://images.unsplash.com/photo-1594470117722-de4b9a02ebed?auto=format&fit=crop&q=80&w=800";
     } else if (isHoodieOrJacket) {
       if (normCategory.includes("limited") || normId.includes("limited") || normTitle.includes("heritage") || normTitle.includes("jacket") || normTitle.includes("varsity")) {
-        baseSrc = "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg";
+        baseSrc = "https://images.unsplash.com/photo-1611312449412-6cefac5dc3e4?auto=format&fit=crop&q=80&w=800";
       } else {
-        baseSrc = "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg";
+        baseSrc = "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=800";
       }
     } else if (isHelmet) {
-      baseSrc = "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg";
+      baseSrc = "https://images.unsplash.com/photo-1608245449230-4ac19066d2d0?auto=format&fit=crop&q=80&w=800";
     } else if (isCap) {
-      baseSrc = "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg";
+      baseSrc = "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&q=80&w=800";
     } else if (isMemorabilia) {
-      baseSrc = "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg";
+      baseSrc = "https://images.unsplash.com/photo-1611512578047-dfb367046420?auto=format&fit=crop&q=80&w=800";
     } else if (isStadiumTour) {
       if (teamId === "DAL") baseSrc = NFL_IMAGES.stadiums.DAL;
       else if (teamId === "MIN") baseSrc = NFL_IMAGES.stadiums.MIN;
