@@ -490,12 +490,13 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
       } catch (err) {
         console.log("Merchandise request fallback activated:", err);
         if (active) {
-          // Absolute fallback logic in case of connection limits
+          // Absolute fallback logic in case of connection limits - includes all categories
+          const team = NFL_TEAMS.find((t: Team) => t.id === selectedShopTeam) || { id: "MIN", name: "Vikings", city: "Minnesota" };
           const clientFallback = [
             {
-              id: `m-MIN-jersey`,
-              name: `Minnesota Vikings Justin Jefferson Game Jersey`,
-              description: `Authentic Nike Vapor Elite jersey featuring premium stitched graphics for franchise star Justin Jefferson (#18). On-field specifications.`,
+              id: `m-${team.id}-jersey`,
+              name: `${team.city} ${team.name} Elite Game Jersey`,
+              description: `Authentic Nike Vapor Elite jersey featuring premium stitched graphics. On-field specifications.`,
               price: 157.50,
               originalPrice: 175.00,
               category: "jerseys",
@@ -504,11 +505,11 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: true,
               image: "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg",
-              purchaseUrl: "https://www.nflshop.com/?query=Minnesota%20Vikings%20jerseys"
+              purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' jerseys')}`
             },
             {
-              id: `m-MIN-hoodie`,
-              name: `Minnesota Vikings Tech Fleece Sideline Hoodie`,
+              id: `m-${team.id}-hoodie`,
+              name: `${team.city} ${team.name} Tech Fleece Sideline Hoodie`,
               description: `Official NFL Sideline technical performance wear. Engineered with Therma-FIT double-brushed premium comfort fabric.`,
               price: 72.25,
               originalPrice: 85.00,
@@ -518,7 +519,63 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: false,
               image: "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg",
-              purchaseUrl: "https://www.nflshop.com/?query=Minnesota%20Vikings%20hoodies"
+              purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' hoodies')}`
+            },
+            {
+              id: `m-${team.id}-helmet`,
+              name: `${team.city} ${team.name} Authentic Riddell Speed Replica Helmet`,
+              description: `Full-size Riddell replica helmet. Detailed internal padding, 4-point chinstrap, authentic team shell paint and decals. Great for office display.`,
+              price: 350.00,
+              originalPrice: 350.00,
+              category: "helmets",
+              rating: 4.8,
+              reviewsCount: 31,
+              inStock: true,
+              trending: false,
+              image: "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg",
+              purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' helmets')}`
+            },
+            {
+              id: `m-${team.id}-hat`,
+              name: `${team.city} ${team.name} Nike Sideline Club Adjustable Cap`,
+              description: `Relaxed fit adjustable hat with premium raised embroidery of the official ${team.name} logo. High breathability mesh cells.`,
+              price: 33.25,
+              originalPrice: 35.00,
+              category: "hats",
+              rating: 4.5,
+              reviewsCount: 215,
+              inStock: true,
+              trending: true,
+              image: "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
+              purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' hats')}`
+            },
+            {
+              id: `m-${team.id}-memorabilia`,
+              name: `${team.name} Autographed Duke Official NFL Wilson Football`,
+              description: `Certified authentic autographed official leather Wilson football signed personally by star athlete. Includes certificate.`,
+              price: 599.00,
+              originalPrice: 599.00,
+              category: "memorabilia",
+              rating: 5.0,
+              reviewsCount: 12,
+              inStock: true,
+              trending: true,
+              image: "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
+              purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' memorabilia')}`
+            },
+            {
+              id: `m-${team.id}-limited`,
+              name: `${team.city} ${team.name} Varsity Wool & Leather Heritage Jacket`,
+              description: `Extremely limited historical release. Full grain premium leather sleeves, heavy melton wool, direct satin stitching design.`,
+              price: 360.00,
+              originalPrice: 450.00,
+              category: "limited",
+              rating: 4.9,
+              reviewsCount: 19,
+              inStock: true,
+              trending: false,
+              image: "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg",
+              purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' jackets')}`
             }
           ];
           let filtered = clientFallback;
