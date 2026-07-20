@@ -35,7 +35,9 @@ import {
   RefreshCw,
   ExternalLink,
   Trash2,
-  Lock
+  Lock,
+  Edit2,
+  Check
 } from "lucide-react";
 import { 
   XAxis, 
@@ -66,6 +68,8 @@ import {
   setDoc, 
   updateDoc,
   getDoc, 
+  getDocs,
+  where,
   serverTimestamp,
   query,
   orderBy,
@@ -1177,6 +1181,8 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [replyText, setReplyText] = useState("");
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
+  const [editingReplyIdx, setEditingReplyIdx] = useState<number | null>(null);
+  const [editReplyText, setEditReplyText] = useState("");
   const [adminLoading, setAdminLoading] = useState(false);
   const [permError, setPermError] = useState<string | null>(null);
 
@@ -1331,6 +1337,44 @@ const AdminPortal = ({ user }: { user: any }) => {
       alert("Reply sent to user's ticket.");
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleSaveEditedReply = async (idx: number) => {
+    if (!selectedInquiry || !editReplyText.trim()) return;
+    try {
+      const updatedReplies = [...(selectedInquiry.replies || [])];
+      if (updatedReplies[idx]) {
+        updatedReplies[idx] = {
+          ...updatedReplies[idx],
+          text: editReplyText,
+          editedAt: new Date().toISOString(),
+          isEdited: true
+        };
+        await updateDoc(doc(db, "fan_card_requests", selectedInquiry.id), {
+          replies: updatedReplies
+        });
+        setEditingReplyIdx(null);
+        setEditReplyText("");
+      }
+    } catch (err) {
+      console.error("Error editing reply:", err);
+      alert("Failed to edit reply.");
+    }
+  };
+
+  const handleDeleteReply = async (idx: number) => {
+    if (!selectedInquiry) return;
+    try {
+      const updatedReplies = [...(selectedInquiry.replies || [])];
+      updatedReplies.splice(idx, 1);
+      
+      await updateDoc(doc(db, "fan_card_requests", selectedInquiry.id), {
+        replies: updatedReplies
+      });
+    } catch (err) {
+      console.error("Error deleting reply:", err);
+      alert("Failed to delete reply.");
     }
   };
 
@@ -1742,12 +1786,73 @@ const AdminPortal = ({ user }: { user: any }) => {
               <p className="text-[10px] font-black uppercase text-zinc-600 mb-2 tracking-widest">Original Inquiry</p>
               <p className="text-sm font-medium text-white">{selectedInquiry.message}</p>
             </div>
-            {selectedInquiry.replies?.map((r: any, idx: number) => (
-              <div key={idx} className="bg-blue-600/5 p-6 rounded-2xl border border-blue-600/10 ml-8">
-                <p className="text-[10px] font-black uppercase text-blue-500 mb-2 tracking-widest">{r.sender}</p>
-                <p className="text-sm font-medium text-zinc-300">{r.text}</p>
-              </div>
-            ))}
+            {selectedInquiry.replies?.map((r: any, idx: number) => {
+              const isCc = r.sender === 'Customer Care';
+              const isEditing = editingReplyIdx === idx;
+              return (
+                <div key={idx} className={cn(
+                  "p-6 rounded-2xl border ml-8 relative group transition-all",
+                  isCc ? "bg-blue-600/5 border-blue-600/10" : "bg-zinc-900/40 border-white/5"
+                )}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className={cn(
+                      "text-[10px] font-black uppercase tracking-widest flex items-center gap-2",
+                      isCc ? "text-blue-500" : "text-zinc-500"
+                    )}>
+                      {r.sender} {r.isEdited && <span className="text-[8px] text-zinc-500 italic font-medium lowercase tracking-normal">(edited)</span>}
+                    </p>
+                    {isCc && !isEditing && (
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => {
+                            setEditingReplyIdx(idx);
+                            setEditReplyText(r.text);
+                          }}
+                          className="text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-white flex items-center gap-1 bg-zinc-950 border border-white/5 px-2.5 py-1 rounded-lg"
+                        >
+                          <Edit2 className="w-2.5 h-2.5" /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteReply(idx)}
+                          className="text-[9px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-400 flex items-center gap-1 bg-zinc-950 border border-white/5 px-2.5 py-1 rounded-lg"
+                        >
+                          <Trash2 className="w-2.5 h-2.5" /> Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <div className="space-y-3 mt-2">
+                      <textarea
+                        value={editReplyText}
+                        onChange={(e) => setEditReplyText(e.target.value)}
+                        rows={3}
+                        className="w-full bg-zinc-950 border border-white/10 rounded-xl p-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-medium"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => {
+                            setEditingReplyIdx(null);
+                            setEditReplyText("");
+                          }}
+                          className="px-3 py-1.5 bg-zinc-900 text-zinc-400 text-[9px] font-black uppercase tracking-wider rounded-xl hover:bg-zinc-800 transition-colors border border-white/5"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => handleSaveEditedReply(idx)}
+                          className="px-4 py-1.5 bg-white text-black text-[9px] font-black uppercase tracking-wider rounded-xl hover:bg-zinc-200 transition-colors flex items-center gap-1"
+                        >
+                          <Check className="w-3 h-3" /> Save
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-medium text-zinc-300 whitespace-pre-line">{r.text}</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="space-y-4">
@@ -1807,6 +1912,10 @@ export default function App() {
   const [showInquiryStatus, setShowInquiryStatus] = useState<string | null>(null);
   const [trackingId, setTrackingId] = useState("");
   const [trackedInquiry, setTrackedInquiry] = useState<any>(null);
+  const [trackingTab, setTrackingTab] = useState<"ticket" | "email">("ticket");
+  const [trackingEmail, setTrackingEmail] = useState("");
+  const [emailInquiries, setEmailInquiries] = useState<any[] | null>(null);
+  const [isSearchingEmail, setIsSearchingEmail] = useState(false);
   const [userReplyText, setUserReplyText] = useState("");
   const [isSendingUserReply, setIsSendingUserReply] = useState(false);
   const [resetSent, setResetSent] = useState(false);
@@ -2214,11 +2323,12 @@ export default function App() {
     setIsSubmittingInquiry(true);
     const formData = new FormData(e.target as HTMLFormElement);
     const requestId = `TRK-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+    const submittedEmail = (user?.email || formData.get("email") as string || "").trim().toLowerCase();
     
     try {
       await setDoc(doc(db, "fan_card_requests", requestId), {
         userId: user ? user.uid : 'guest',
-        userEmail: user ? user.email : null,
+        userEmail: submittedEmail || null,
         userName: formData.get("name") as string,
         teamId: formData.get("team") as string,
         contactMethod: formData.get("contact") as string,
@@ -2247,6 +2357,39 @@ export default function App() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const trackInquiryByEmail = async (email: string) => {
+    if (!email || !email.trim()) return;
+    setIsSearchingEmail(true);
+    setEmailInquiries([]);
+    try {
+      const q = query(
+        collection(db, "fan_card_requests"),
+        where("userEmail", "==", email.trim().toLowerCase())
+      );
+      const querySnapshot = await getDocs(q);
+      const results: any[] = [];
+      querySnapshot.forEach((doc) => {
+        results.push({ id: doc.id, ...doc.data() });
+      });
+      
+      results.sort((a, b) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
+      });
+
+      setEmailInquiries(results);
+      if (results.length === 0) {
+        alert("No inquiries found for this email address.");
+      }
+    } catch (err: any) {
+      console.error("Error searching inquiries by email:", err);
+      alert("Error searching inquiries by email.");
+    } finally {
+      setIsSearchingEmail(false);
     }
   };
 
@@ -2476,7 +2619,7 @@ export default function App() {
               className="w-full max-w-xl bg-zinc-900 border border-white/10 rounded-[2rem] md:rounded-[3rem] p-6 sm:p-8 md:p-12 shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-600 via-white to-blue-600" />
-              <button onClick={() => { setShowInquiryStatus(null); setTrackedInquiry(null); }} className="absolute top-8 right-8 text-zinc-500"><X /></button>
+              <button onClick={() => { setShowInquiryStatus(null); setTrackedInquiry(null); setEmailInquiries(null); setTrackingEmail(""); setTrackingId(""); }} className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors"><X /></button>
               
               <div className="text-center mb-6 md:mb-10">
                 <h2 className="text-3xl md:text-4xl font-black italic uppercase italic tracking-tighter leading-none mb-2">Concierge Ticket</h2>
@@ -2485,42 +2628,140 @@ export default function App() {
 
               {!trackedInquiry ? (
                 <div className="space-y-6 md:space-y-8">
-                  <div className="bg-zinc-950/50 p-6 md:p-8 rounded-2xl md:rounded-[2rem] border border-emerald-500/20 text-center">
-                    <p className="text-[10px] font-black uppercase text-emerald-500 mb-4 tracking-widest">Submission Successful</p>
-                    <p className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase mb-4 leading-relaxed px-4">Your inquiry has been logged. Save your reference ID to track responses:</p>
-                    <div className="bg-zinc-950 p-4 sm:p-6 rounded-2xl border border-white/5 font-mono text-xl sm:text-2xl font-black text-white tracking-widest mb-4">
-                      {showInquiryStatus}
-                    </div>
-                    <button 
-                      onClick={() => trackInquiry(showInquiryStatus)}
-                      className="text-[10px] font-black uppercase text-blue-500 underline decoration-blue-500/30"
-                    >
-                      View Live Ticket Thread
-                    </button>
-                  </div>
-                  
-                  <div className="bg-zinc-950 p-6 sm:p-8 md:p-10 rounded-2xl md:rounded-[2rem] border border-white/5">
-                    <p className="text-[10px] font-black uppercase text-zinc-500 mb-4 tracking-widest text-center md:text-left">Track Existing Ticket</p>
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      <input 
-                        value={trackingId}
-                        onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
-                        placeholder="TRK-XXXXXXX"
-                        className="flex-1 bg-zinc-900 border border-white/10 rounded-2xl px-6 py-4 font-mono font-black text-white focus:outline-none focus:ring-1 focus:ring-blue-600 text-sm"
-                      />
+                  {showInquiryStatus !== "SEARCH" && (
+                    <div className="bg-zinc-950/50 p-6 md:p-8 rounded-2xl md:rounded-[2rem] border border-emerald-500/20 text-center">
+                      <p className="text-[10px] font-black uppercase text-emerald-500 mb-4 tracking-widest">Submission Successful</p>
+                      <p className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase mb-4 leading-relaxed px-4">Your inquiry has been logged. Save your reference ID to track responses:</p>
+                      <div className="bg-zinc-950 p-4 sm:p-6 rounded-2xl border border-white/5 font-mono text-xl sm:text-2xl font-black text-white tracking-widest mb-4">
+                        {showInquiryStatus}
+                      </div>
                       <button 
-                        onClick={() => trackInquiry(trackingId)}
-                        className="bg-white text-black px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-transform"
+                        onClick={() => trackInquiry(showInquiryStatus)}
+                        className="text-[10px] font-black uppercase text-blue-500 underline decoration-blue-500/30"
                       >
-                        Search
+                        View Live Ticket Thread
                       </button>
                     </div>
+                  )}
+                  
+                  <div className="bg-zinc-950 p-6 sm:p-8 md:p-10 rounded-2xl md:rounded-[2rem] border border-white/5">
+                    <div className="flex border-b border-white/5 mb-6">
+                      <button 
+                        onClick={() => setTrackingTab("ticket")}
+                        className={cn(
+                          "flex-1 pb-3 text-[10px] font-black uppercase tracking-widest text-center transition-colors border-b-2",
+                          trackingTab === "ticket" ? "border-blue-600 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
+                        )}
+                      >
+                        Ticket ID
+                      </button>
+                      <button 
+                        onClick={() => setTrackingTab("email")}
+                        className={cn(
+                          "flex-1 pb-3 text-[10px] font-black uppercase tracking-widest text-center transition-colors border-b-2",
+                          trackingTab === "email" ? "border-blue-600 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
+                        )}
+                      >
+                        Email Address
+                      </button>
+                    </div>
+
+                    {trackingTab === "ticket" ? (
+                      <div className="space-y-4">
+                        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest text-center md:text-left">Track Existing Ticket</p>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          <input 
+                            value={trackingId}
+                            onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
+                            placeholder="TRK-XXXXXXX"
+                            className="flex-1 bg-zinc-900 border border-white/10 rounded-2xl px-6 py-4 font-mono font-black text-white focus:outline-none focus:ring-1 focus:ring-blue-600 text-sm"
+                          />
+                          <button 
+                            onClick={() => trackInquiry(trackingId)}
+                            className="bg-white text-black px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-transform"
+                          >
+                            Search
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest text-center md:text-left">Search by User Email</p>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          <input 
+                            type="email"
+                            value={trackingEmail}
+                            onChange={(e) => setTrackingEmail(e.target.value)}
+                            placeholder="Enter your email address"
+                            className="flex-1 bg-zinc-900 border border-white/10 rounded-2xl px-6 py-4 font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-600 text-sm"
+                          />
+                          <button 
+                            onClick={() => trackInquiryByEmail(trackingEmail)}
+                            disabled={isSearchingEmail}
+                            className="bg-white text-black px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
+                          >
+                            {isSearchingEmail ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : "Search"}
+                          </button>
+                        </div>
+
+                        {emailInquiries !== null && (
+                          <div className="mt-6 border-t border-white/5 pt-6 space-y-4">
+                            <p className="text-[9px] font-black uppercase text-zinc-400 tracking-wider">
+                              Inquiries Found ({emailInquiries.length})
+                            </p>
+                            {emailInquiries.length > 0 ? (
+                              <div className="space-y-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                                {emailInquiries.map((inq) => {
+                                  const team = NFL_TEAMS.find(t => t.id === inq.teamId);
+                                  return (
+                                    <button
+                                      key={inq.id}
+                                      onClick={() => setTrackedInquiry(inq)}
+                                      className="w-full text-left bg-zinc-900 hover:bg-zinc-800 border border-white/5 rounded-xl p-4 transition-all flex items-center justify-between group"
+                                    >
+                                      <div className="min-w-0 flex-1 pr-3">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className="font-mono text-xs font-black text-white group-hover:text-blue-400 transition-colors">
+                                            {inq.id}
+                                          </span>
+                                          {team && (
+                                            <span className="text-[8px] font-black uppercase bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">
+                                              {team.name}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-[10px] text-zinc-400 font-medium truncate">
+                                          {inq.message}
+                                        </p>
+                                      </div>
+                                      <span className={cn(
+                                        "text-[8px] font-black uppercase px-2 py-0.5 rounded shrink-0",
+                                        inq.status === 'responded' ? "bg-emerald-600/10 text-emerald-500" : "bg-blue-600/10 text-blue-500"
+                                      )}>
+                                        {inq.status}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wide text-center py-2">
+                                No records exist under this email.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <button 
                     onClick={() => {
                       setShowInquiryStatus(null);
                       setTrackedInquiry(null);
+                      setEmailInquiries(null);
+                      setTrackingEmail("");
+                      setTrackingId("");
                     }}
                     className="w-full py-4 bg-zinc-850 border border-white/5 text-zinc-400 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-800 transition-all"
                   >
@@ -3247,6 +3488,18 @@ export default function App() {
                       <select name="team" required disabled={isSubmittingInquiry} defaultValue={selectedTeam.id} className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold uppercase transition-all disabled:opacity-50">
                         {NFL_TEAMS.map(t => <option key={t.id} value={t.id}>{t.city} {t.name} - Asset Allocation</option>)}
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Email Address</label>
+                      <input 
+                        type="email" 
+                        name="email" 
+                        required 
+                        disabled={isSubmittingInquiry || !!user} 
+                        defaultValue={user?.email || ""} 
+                        placeholder="e.g. alex@example.com" 
+                        className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50" 
+                      />
                     </div>
                     <div>
                       <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Contact Handle</label>

@@ -101,8 +101,13 @@ service cloud.firestore {
       
       allow create: if isValidFanCardRequest(request.resource.data);
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid) || (resource.data.userId == 'guest');
-      allow update: if isAdmin();
-      allow list: if isAdmin();
+      allow update: if isAdmin() || (
+        (resource.data.userId == 'guest' || (isSignedIn() && resource.data.userId == request.auth.uid))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replies', 'status'])
+      );
+      allow list: if isAdmin()
+        || (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userEmail == request.auth.token.email))
+        || (resource.data.userEmail != null && resource.data.userEmail is string);
       allow delete: if isAdmin();
     }
 

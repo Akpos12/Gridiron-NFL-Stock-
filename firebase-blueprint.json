@@ -59,6 +59,7 @@
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
         "teamId": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "responded", "fulfilled"] },
         "contactMethod": { "type": "string" },
