@@ -121,13 +121,20 @@ Message: "${inquiry.message}"
     // 4. Send Email via SMTP (Zoho, Gmail, etc.)
     if (email?.enabled && email.smtpHost && email.smtpUser && email.smtpPass && email.toEmail) {
       try {
+        const cleanedHost = String(email.smtpHost).trim();
+        const cleanedPortStr = String(email.smtpPort).trim();
+        const cleanedUser = String(email.smtpUser).trim();
+        const cleanedPass = String(email.smtpPass).trim();
+        const cleanedTo = String(email.toEmail).trim();
+        const cleanedFrom = email.fromEmail ? String(email.fromEmail).trim() : `\"Gridiron Exchange Admin\" <${cleanedUser}>`;
+
         const transporter = nodemailer.createTransport({
-          host: email.smtpHost,
-          port: parseInt(email.smtpPort) || 587,
+          host: cleanedHost,
+          port: parseInt(cleanedPortStr) || 587,
           secure: email.smtpSecure || false, // true for port 465, false for 587
           auth: {
-            user: email.smtpUser,
-            pass: email.smtpPass,
+            user: cleanedUser,
+            pass: cleanedPass,
           },
         });
 
@@ -189,8 +196,8 @@ https://ais-pre-fzmmrb2i7l3evzvs4xbafg-53620454143.europe-west2.run.app
         `;
 
         await transporter.sendMail({
-          from: email.fromEmail || `"Gridiron Exchange Admin" <${email.smtpUser}>`,
-          to: email.toEmail,
+          from: cleanedFrom,
+          to: cleanedTo,
           subject: subject,
           text: textContent,
           html: htmlContent,
