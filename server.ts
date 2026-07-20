@@ -7,8 +7,8 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const _filename = typeof import.meta !== "undefined" && import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== "undefined" ? __filename : "");
+const _dirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(_filename || process.cwd());
 
 // --- Market Engine ---
 const INITIAL_PRICES: Record<string, number> = {
