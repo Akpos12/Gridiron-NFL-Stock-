@@ -23,12 +23,12 @@ export const NFL_IMAGES = {
   },
 
   merchandise: {
-    jerseyGreen: "https://images.unsplash.com/photo-1594470117722-de4b9a02ebed?auto=format&fit=crop&q=80&w=800", // Replica Nike style jerseys
-    apparelFlatlay: "https://images.unsplash.com/photo-1611312449412-6cefac5dc3e4?auto=format&fit=crop&q=80&w=800", // Training gear, sneakers, and sports wear
-    hoodie: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=800", // Official fan hoodie product
-    helmet: "https://images.unsplash.com/photo-1608245449230-4ac19066d2d0?auto=format&fit=crop&q=80&w=800", // Authentic helmets and equipment
-    football: "https://images.unsplash.com/photo-1611512578047-dfb367046420?auto=format&fit=crop&q=80&w=800", // Real leather game ball "The Duke"
-    jacket: "https://images.unsplash.com/photo-1611312449412-6cefac5dc3e4?auto=format&fit=crop&q=80&w=800", // Sideline coaches varsity jacket
+    jerseyGreen: "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg", // Replica Nike style jerseys
+    apparelFlatlay: "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg", // Training gear, sneakers, and sports wear
+    hoodie: "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg", // Official fan hoodie product
+    helmet: "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg", // Authentic helmets and equipment
+    football: "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg", // Real leather game ball "The Duke"
+    jacket: "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg", // Sideline coaches varsity jacket
   },
 
   matchDay: {
@@ -90,35 +90,6 @@ export function getNFLImage(item: {
     }
   }
 
-  // MAP DEPRECATED/BLOCKED POSTIMG AND UNSPLASH PLACES TO HIGH-FIDELITY, ROBUST UNSPLASH URLS
-  if (baseSrc && (baseSrc.includes("postimg.cc") || baseSrc.includes("postimg.org"))) {
-    if (baseSrc.includes("jersey") || baseSrc.includes("339feabb3b77fc4f")) {
-      baseSrc = "https://images.unsplash.com/photo-1594470117722-de4b9a02ebed?auto=format&fit=crop&q=80&w=800";
-    } else if (baseSrc.includes("hoodie") || baseSrc.includes("5252ceda2d79871")) {
-      baseSrc = "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=800";
-    } else if (baseSrc.includes("helmet") || baseSrc.includes("535f637d8a82784")) {
-      baseSrc = "https://images.unsplash.com/photo-1608245449230-4ac19066d2d0?auto=format&fit=crop&q=80&w=800";
-    } else if (baseSrc.includes("cap") || baseSrc.includes("1528e7dd107557d")) {
-      baseSrc = "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&q=80&w=800";
-    } else if (baseSrc.includes("memo") || baseSrc.includes("d970707799e1f95")) {
-      baseSrc = "https://images.unsplash.com/photo-1611512578047-dfb367046420?auto=format&fit=crop&q=80&w=800";
-    } else if (baseSrc.includes("4bbf77eabd24068") || baseSrc.includes("apparelFlatlay")) {
-      baseSrc = "https://images.unsplash.com/photo-1611312449412-6cefac5dc3e4?auto=format&fit=crop&q=80&w=800";
-    } else if (baseSrc.includes("a8367675b2fbcfe") || baseSrc.includes("exp-dal-tour")) {
-      baseSrc = "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800";
-    } else if (baseSrc.includes("4545d9b7b90ee7c") || baseSrc.includes("exp-min-tour")) {
-      baseSrc = "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800";
-    } else if (baseSrc.includes("1ef0abb32f5e7cb") || baseSrc.includes("exp-jefferson-meet")) {
-      baseSrc = "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=800";
-    } else if (baseSrc.includes("f2318507a5fadb5") || baseSrc.includes("exp-mahomes-meet")) {
-      baseSrc = "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=800";
-    } else if (baseSrc.includes("1c6b339a1ec6b4d") || baseSrc.includes("exp-sb-premium")) {
-      baseSrc = "https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?auto=format&fit=crop&q=80&w=800";
-    } else if (baseSrc.includes("33923b662167a0") || baseSrc.includes("exp-gb-facility")) {
-      baseSrc = "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&q=80&w=800";
-    }
-  }
-
   // IF NO EXPLICIT URL, MAP TO THE PREMIUM DYNAMIC ASSETS ACCORDING TO METADATA
   if (!baseSrc) {
     const normId = (item.id || "").toUpperCase();
@@ -159,19 +130,19 @@ export function getNFLImage(item: {
 
     // 3. MAP TEAM-SPECIFIC HIGH VALUE TARGETS
     if (isJersey) {
-      baseSrc = "https://images.unsplash.com/photo-1594470117722-de4b9a02ebed?auto=format&fit=crop&q=80&w=800";
+      baseSrc = "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg";
     } else if (isHoodieOrJacket) {
       if (normCategory.includes("limited") || normId.includes("limited") || normTitle.includes("heritage") || normTitle.includes("jacket") || normTitle.includes("varsity")) {
-        baseSrc = "https://images.unsplash.com/photo-1611312449412-6cefac5dc3e4?auto=format&fit=crop&q=80&w=800";
+        baseSrc = "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg";
       } else {
-        baseSrc = "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=800";
+        baseSrc = "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg";
       }
     } else if (isHelmet) {
-      baseSrc = "https://images.unsplash.com/photo-1608245449230-4ac19066d2d0?auto=format&fit=crop&q=80&w=800";
+      baseSrc = "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg";
     } else if (isCap) {
-      baseSrc = "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&q=80&w=800";
+      baseSrc = "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg";
     } else if (isMemorabilia) {
-      baseSrc = "https://images.unsplash.com/photo-1611512578047-dfb367046420?auto=format&fit=crop&q=80&w=800";
+      baseSrc = "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg";
     } else if (isStadiumTour) {
       if (teamId === "DAL") baseSrc = NFL_IMAGES.stadiums.DAL;
       else if (teamId === "MIN") baseSrc = NFL_IMAGES.stadiums.MIN;
@@ -201,10 +172,10 @@ export function getNFLImage(item: {
     }
   }
 
-  // 4. ADD CACHE-BUSTING TIMESTAMP OR VERSION TO FORCE IMAGE REFRESH ONLY IF EXPLICITLY PROVIDED
-  const version = item.v || item.updatedAt;
+  // 4. ADD CACHE-BUSTING TIMESTAMP OR VERSION TO FORCE IMAGE REFRESH
+  const version = item.v || item.updatedAt || Date.now();
   let finalUrl = baseSrc;
-  if (version && finalUrl && !finalUrl.startsWith("data:")) {
+  if (finalUrl && !finalUrl.startsWith("data:")) {
     const separator = finalUrl.includes("?") ? "&" : "?";
     finalUrl = `${finalUrl}${separator}cb=${version}`;
   }

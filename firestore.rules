@@ -151,10 +151,5 @@ service cloud.firestore {
       allow read, list: if true;
       allow write: if isAdmin();
     }
-
-    // Admin Settings Rules (Admin only)
-    match /admin_settings/{settingId} {
-      allow read, write: if isAdmin();
-    }
   }
 }

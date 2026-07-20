@@ -79,7 +79,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 120,
     premiumPrice: 250,
     teamId: "DAL",
-    imageUrl: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "https://i.postimg.cc/90c8t280/a8367675b2fbcfe31970b081bfce176f.jpg",
     location: "Arlington, TX",
     dates: ["2026-06-15", "2026-06-16", "2026-06-20", "2026-06-25"],
     timeSlots: ["10:00 AM", "12:30 PM", "3:00 PM", "5:30 PM"],
@@ -102,7 +102,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 90,
     premiumPrice: 180,
     teamId: "MIN",
-    imageUrl: "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "https://i.postimg.cc/sDYSCSgk/4545d9b7b90ee7c1f34fbb83344efb2cbank.jpg",
     location: "Minneapolis, MN",
     dates: ["2026-06-10", "2026-06-12", "2026-06-18", "2026-06-22"],
     timeSlots: ["09:30 AM", "11:00 AM", "1:30 PM", "4:00 PM"],
@@ -125,7 +125,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 750,
     premiumPrice: 1499,
     teamId: "MIN",
-    imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "https://i.postimg.cc/jdm6RKH4/1ef0abb32f5e7cb84b338bbb020c200cjetas.jpg",
     player: "Justin Jefferson",
     location: "U.S. Bank Stadium Club Room",
     dates: ["2026-07-04", "2026-07-05"],
@@ -149,7 +149,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 1199,
     premiumPrice: 2499,
     teamId: "KC",
-    imageUrl: "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "https://i.postimg.cc/HLfFMf1n/f2318507a5fadb58268812cf8e9a3510.jpg",
     player: "Patrick Mahomes",
     location: "Arrowhead Elite Pavilion",
     dates: ["2026-07-14", "2026-07-15"],
@@ -173,7 +173,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 4999,
     premiumPrice: 9999,
     teamId: "SF",
-    imageUrl: "https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "https://i.postimg.cc/tC3PGPgT/1c6b339a1ec6b4da401e9584074a5073lxi.jpg",
     location: "Host Stadium VIP Suite",
     dates: ["2026-08-10", "2026-08-12"],
     timeSlots: ["12:00 PM", "4:00 PM"],
@@ -196,7 +196,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 350,
     premiumPrice: 750,
     teamId: "GB",
-    imageUrl: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "https://i.postimg.cc/mg9YDqVW/33923b662167a088aa30d29b4d062f9ate.jpg",
     location: "Lambeau Field complexes",
     dates: ["2026-06-28", "2026-06-29"],
     timeSlots: ["11:00 AM", "2:30 PM"],
@@ -266,17 +266,17 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           const item = { id: d.id, ...d.data() } as Experience;
           // Standardize image URLs to high-quality corresponding NFL graphics if they are old placeholders
           if (item.id === "exp-dal-tour" && (!item.imageUrl || item.imageUrl.includes("photo-1540747913346") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
-            item.imageUrl = "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800";
+            item.imageUrl = "https://i.postimg.cc/90c8t280/a8367675b2fbcfe31970b081bfce176f.jpg";
           } else if (item.id === "exp-min-tour" && (!item.imageUrl || item.imageUrl.includes("photo-1508098682722") || item.imageUrl.includes("photo-1551244072") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
-            item.imageUrl = "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800";
+            item.imageUrl = "https://i.postimg.cc/sDYSCSgk/4545d9b7b90ee7c1f34fbb83344efb2cbank.jpg";
           } else if (item.id === "exp-jefferson-meet" && (!item.imageUrl || item.imageUrl.includes("photo-1510076857177") || item.imageUrl.includes("photo-1511512578047") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
-            item.imageUrl = "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=800";
+            item.imageUrl = "https://i.postimg.cc/jdm6RKH4/1ef0abb32f5e7cb84b338bbb020c200cjetas.jpg";
           } else if (item.id === "exp-mahomes-meet" && (!item.imageUrl || item.imageUrl.includes("photo-1519766304817") || item.imageUrl.includes("photo-1517649763962") || item.imageUrl.includes("postimg.cc"))) {
-            item.imageUrl = "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=800";
+            item.imageUrl = "https://i.postimg.cc/HLfFMf1n/f2318507a5fadb58268812cf8e9a3510.jpg";
           } else if (item.id === "exp-sb-premium" && (!item.imageUrl || item.imageUrl.includes("photo-1522158673370") || item.imageUrl.includes("photo-1629235483163") || item.imageUrl.includes("photo-1574629810360") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
-            item.imageUrl = "https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?auto=format&fit=crop&q=80&w=800";
+            item.imageUrl = "https://i.postimg.cc/tC3PGPgT/1c6b339a1ec6b4da401e9584074a5073lxi.jpg";
           } else if (item.id === "exp-gb-facility" && (!item.imageUrl || item.imageUrl.includes("photo-1588850561407") || item.imageUrl.includes("photo-1581009146145") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
-            item.imageUrl = "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&q=80&w=800";
+            item.imageUrl = "https://i.postimg.cc/mg9YDqVW/33923b662167a088aa30d29b4d062f9ate.jpg";
           }
           loaded.push(item);
         });

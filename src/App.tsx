@@ -37,9 +37,7 @@ import {
   Trash2,
   Lock,
   Edit2,
-  Check,
-  Save,
-  BellRing
+  Check
 } from "lucide-react";
 import { 
   XAxis, 
@@ -505,7 +503,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               reviewsCount: 142,
               inStock: true,
               trending: true,
-              image: "https://images.unsplash.com/photo-1594470117722-de4b9a02ebed?auto=format&fit=crop&q=80&w=800",
+              image: "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg",
               purchaseUrl: "https://www.nflshop.com/?query=Minnesota%20Vikings%20jerseys"
             },
             {
@@ -519,7 +517,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               reviewsCount: 88,
               inStock: true,
               trending: false,
-              image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=800",
+              image: "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg",
               purchaseUrl: "https://www.nflshop.com/?query=Minnesota%20Vikings%20hoodies"
             }
           ];
@@ -1188,16 +1186,6 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [adminLoading, setAdminLoading] = useState(false);
   const [permError, setPermError] = useState<string | null>(null);
 
-  const [notificationSettings, setNotificationSettings] = useState<any>({
-    discord: { enabled: false, url: "" },
-    telegram: { enabled: false, botToken: "", chatId: "" },
-    slack: { enabled: false, url: "" },
-    email: { enabled: false, smtpHost: "", smtpPort: "587", smtpSecure: false, smtpUser: "", smtpPass: "", fromEmail: "", toEmail: "" }
-  });
-  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
-  const [isSavingNotificationSettings, setIsSavingNotificationSettings] = useState(false);
-  const [isTestingNotification, setIsTestingNotification] = useState(false);
-
   const [confirmDelete, setConfirmDelete] = useState<{ id: string, type: 'inquiry' | 'ledger' | 'user' } | null>(null);
 
   const handleDeleteInquiry = async (id: string) => {
@@ -1293,35 +1281,6 @@ const AdminPortal = ({ user }: { user: any }) => {
       }
     }
   }, [requests, selectedInquiry?.id]);
-
-  // Load notification settings for admin
-  useEffect(() => {
-    if (user?.email === "alexwtchmn@gmail.com") {
-      const loadNotificationSettings = async () => {
-        try {
-          const snap = await getDoc(doc(db, "admin_settings", "notifications"));
-          if (snap.exists()) {
-            const data = snap.data();
-            setNotificationSettings(data);
-            
-            // Automatically keep server config in sync when admin loads control desk
-            const token = await user.getIdToken();
-            await fetch("/api/save-settings", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-              },
-              body: JSON.stringify(data)
-            });
-          }
-        } catch (err) {
-          console.error("Error loading notification settings:", err);
-        }
-      };
-      loadNotificationSettings();
-    }
-  }, [user]);
 
   const filteredTransactions = transactions.filter(t => 
     (t.userId || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -1419,68 +1378,6 @@ const AdminPortal = ({ user }: { user: any }) => {
     }
   };
 
-  const saveNotificationSettings = async () => {
-    setIsSavingNotificationSettings(true);
-    try {
-      // 1. Save to Firestore (client-side backup)
-      await setDoc(doc(db, "admin_settings", "notifications"), notificationSettings);
-      
-      // 2. Save securely to server-side filesystem
-      if (user) {
-        const token = await user.getIdToken();
-        const response = await fetch("/api/save-settings", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify(notificationSettings)
-        });
-        
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || "Failed to persist config on server side");
-        }
-      }
-      
-      alert("Notification settings saved successfully.");
-    } catch (err) {
-      console.error("Error saving notification settings:", err);
-      alert("Failed to save notification settings: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsSavingNotificationSettings(false);
-    }
-  };
-
-  const testNotification = async () => {
-    setIsTestingNotification(true);
-    try {
-      const response = await fetch("/api/notify-inquiry", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          requestId: "TEST-12345",
-          name: "Terminal Administrator",
-          email: "alexwtchmn@gmail.com",
-          contact: "System Console",
-          message: "This is a secure connection verification test for your inquiry notification system.",
-          isTest: true
-        })
-      });
-      const data = await response.json();
-      if (data.success) {
-        alert("Test alert successfully dispatched to enabled channels!");
-      } else {
-        alert("Alert dispatch failed: " + (data.error || "Unknown error"));
-      }
-    } catch (err) {
-      console.error("Error testing notifications:", err);
-      alert("Test request failed: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsTestingNotification(false);
-    }
-  };
-
   const adjustBalance = async (userId: string, amount: number) => {
     const userToUpdate = users.find(u => u.uid === userId);
     if (!userToUpdate) return;
@@ -1550,306 +1447,6 @@ const AdminPortal = ({ user }: { user: any }) => {
           </button>
         </div>
       </div>
-
-      {activeSubTab === "inquiries" && (
-        <div className="bg-zinc-950/40 border border-white/5 rounded-[2.5rem] p-8 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-600/10 rounded-2xl border border-blue-600/20 text-blue-400 shrink-0">
-                <BellRing className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
-                  Real-Time Inquiry Alerts
-                  <span className="bg-blue-500/10 text-blue-400 text-[8px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border border-blue-400/15">Active</span>
-                </h3>
-                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest leading-relaxed">Connect Discord, Slack, Telegram, or custom SMTP Email (Zoho, Gmail, etc.) to get instant push notifications when clients make an inquiry</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowNotificationSettings(!showNotificationSettings)}
-              className="px-6 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-white/5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all self-start sm:self-center"
-            >
-              {showNotificationSettings ? "Hide Settings" : "Configure Channels"}
-            </button>
-          </div>
-
-          {showNotificationSettings && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t border-white/5">
-              {/* Discord Configuration */}
-              <div className="bg-zinc-900/60 p-6 rounded-3xl border border-white/5 space-y-4 flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[#5865F2]" />
-                      <h4 className="text-xs font-black uppercase tracking-wider text-zinc-200">Discord Webhook</h4>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={notificationSettings.discord?.enabled || false}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          discord: { ...notificationSettings.discord, enabled: e.target.checked }
-                        })}
-                        className="sr-only peer" 
-                      />
-                      <div className="w-9 h-5 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:bg-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#5865F2]" />
-                    </label>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Webhook URL</label>
-                    <input 
-                      type="password" 
-                      placeholder="https://discord.com/api/webhooks/..." 
-                      value={notificationSettings.discord?.url || ""}
-                      onChange={(e) => setNotificationSettings({
-                        ...notificationSettings,
-                        discord: { ...notificationSettings.discord, url: e.target.value }
-                      })}
-                      className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600 font-mono transition-all text-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Slack Configuration */}
-              <div className="bg-zinc-900/60 p-6 rounded-3xl border border-white/5 space-y-4 flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[#4A154B]" />
-                      <h4 className="text-xs font-black uppercase tracking-wider text-zinc-200">Slack Webhook</h4>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={notificationSettings.slack?.enabled || false}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          slack: { ...notificationSettings.slack, enabled: e.target.checked }
-                        })}
-                        className="sr-only peer" 
-                      />
-                      <div className="w-9 h-5 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:bg-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#4A154B]" />
-                    </label>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Webhook URL</label>
-                    <input 
-                      type="password" 
-                      placeholder="https://hooks.slack.com/services/..." 
-                      value={notificationSettings.slack?.url || ""}
-                      onChange={(e) => setNotificationSettings({
-                        ...notificationSettings,
-                        slack: { ...notificationSettings.slack, url: e.target.value }
-                      })}
-                      className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600 font-mono transition-all text-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Telegram Configuration */}
-              <div className="bg-zinc-900/60 p-6 rounded-3xl border border-white/5 space-y-4 flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[#0088cc]" />
-                      <h4 className="text-xs font-black uppercase tracking-wider text-zinc-200">Telegram Bot</h4>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={notificationSettings.telegram?.enabled || false}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          telegram: { ...notificationSettings.telegram, enabled: e.target.checked }
-                        })}
-                        className="sr-only peer" 
-                      />
-                      <div className="w-9 h-5 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:bg-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0088cc]" />
-                    </label>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Bot Token</label>
-                      <input 
-                        type="password" 
-                        placeholder="123456:ABC..." 
-                        value={notificationSettings.telegram?.botToken || ""}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          telegram: { ...notificationSettings.telegram, botToken: e.target.value }
-                        })}
-                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600 font-mono transition-all text-white"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Chat ID</label>
-                      <input 
-                        type="text" 
-                        placeholder="-100123..." 
-                        value={notificationSettings.telegram?.chatId || ""}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          telegram: { ...notificationSettings.telegram, chatId: e.target.value }
-                        })}
-                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600 font-mono transition-all text-white"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Email/SMTP (Zoho/Gmail) Configuration */}
-              <div className="bg-zinc-900/60 p-6 rounded-3xl border border-white/5 space-y-4 flex flex-col justify-between">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-blue-500" />
-                      <h4 className="text-xs font-black uppercase tracking-wider text-zinc-200">Email SMTP</h4>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={notificationSettings.email?.enabled || false}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          email: { ...notificationSettings.email, enabled: e.target.checked }
-                        })}
-                        className="sr-only peer" 
-                      />
-                      <div className="w-9 h-5 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:bg-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600" />
-                    </label>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <label className="text-[8px] font-black uppercase tracking-widest text-zinc-500">SMTP Host</label>
-                      <input 
-                        type="text" 
-                        placeholder="smtp.zoho.com" 
-                        value={notificationSettings.email?.smtpHost || ""}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          email: { ...notificationSettings.email, smtpHost: e.target.value }
-                        })}
-                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all text-white"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Port</label>
-                      <input 
-                        type="text" 
-                        placeholder="465" 
-                        value={notificationSettings.email?.smtpPort || ""}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          email: { ...notificationSettings.email, smtpPort: e.target.value }
-                        })}
-                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-600 font-mono transition-all text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <label className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Username / SMTP User</label>
-                      <input 
-                        type="text" 
-                        placeholder="admin@yourdomain.com" 
-                        value={notificationSettings.email?.smtpUser || ""}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          email: { ...notificationSettings.email, smtpUser: e.target.value }
-                        })}
-                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all text-white"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Password</label>
-                      <input 
-                        type="password" 
-                        placeholder="••••••••••••" 
-                        value={notificationSettings.email?.smtpPass || ""}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          email: { ...notificationSettings.email, smtpPass: e.target.value }
-                        })}
-                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <label className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Sender Name</label>
-                      <input 
-                        type="text" 
-                        placeholder='"Gridiron Admin" <user@domain.com>' 
-                        value={notificationSettings.email?.fromEmail || ""}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          email: { ...notificationSettings.email, fromEmail: e.target.value }
-                        })}
-                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all text-white"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Alert Receiver Email</label>
-                      <input 
-                        type="email" 
-                        placeholder="alexwtchmn@gmail.com" 
-                        value={notificationSettings.email?.toEmail || ""}
-                        onChange={(e) => setNotificationSettings({
-                          ...notificationSettings,
-                          email: { ...notificationSettings.email, toEmail: e.target.value }
-                        })}
-                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-1">
-                    <input 
-                      type="checkbox"
-                      id="smtpSecure"
-                      checked={notificationSettings.email?.smtpSecure || false}
-                      onChange={(e) => setNotificationSettings({
-                        ...notificationSettings,
-                        email: { ...notificationSettings.email, smtpSecure: e.target.checked }
-                      })}
-                      className="rounded border-white/10 bg-zinc-950 text-blue-600 focus:ring-blue-600"
-                    />
-                    <label htmlFor="smtpSecure" className="text-[9px] font-black uppercase tracking-wider text-zinc-400 cursor-pointer selection:bg-transparent">
-                      SSL/TLS Connection (Secure)
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Save & Test Buttons Row */}
-              <div className="lg:col-span-4 flex justify-end gap-3 pt-4 border-t border-white/5">
-                <button
-                  onClick={testNotification}
-                  disabled={isTestingNotification}
-                  className="px-6 py-2 bg-zinc-950 hover:bg-zinc-900 border border-white/10 text-zinc-300 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  <Send className="w-3.5 h-3.5" /> {isTestingNotification ? "Dispatching..." : "Send Test Notification"}
-                </button>
-                <button
-                  onClick={saveNotificationSettings}
-                  disabled={isSavingNotificationSettings}
-                  className="px-8 py-2 bg-blue-600 hover:bg-blue-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  <Save className="w-3.5 h-3.5" /> {isSavingNotificationSettings ? "Saving..." : "Save Configuration"}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {permError && (
         <div className="p-6 bg-rose-500/10 border border-rose-500/20 rounded-3xl flex items-center gap-4">
@@ -2742,24 +2339,6 @@ export default function App() {
       });
       
       setInquirySuccess(requestId);
-
-      // Securely dispatch notification alerts via our backend API
-      try {
-        await fetch("/api/notify-inquiry", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            requestId,
-            name: formData.get("name") as string,
-            email: submittedEmail || null,
-            contact: formData.get("contact") as string,
-            message: formData.get("message") as string,
-            isTest: false
-          })
-        });
-      } catch (notifyErr) {
-        console.warn("Handled warning sending notification alert:", notifyErr);
-      }
     } catch (err: any) {
       handleFirestoreError(err, OperationType.WRITE, "fan_card_requests");
     } finally {
