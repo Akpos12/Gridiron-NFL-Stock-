@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
 
 /**
@@ -242,10 +242,43 @@ export const NFLImage: React.FC<NFLImageProps> = ({ item, className, style, alt 
     if (!hasError) {
       setHasError(true);
       const fallbackUrl = "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800";
-      console.log(`[NFLImage Fallback] Image failed to load for "${item?.id || item?.title || item?.name}". Fallback URL: ${fallbackUrl}`);
+      console.log(`[NFLImage Fallback] Asset failed to load for "${item?.id || item?.title || item?.name}". Fallback URL: ${fallbackUrl}`);
       setCurrentSrc(`${fallbackUrl}?cb=fallback-${Date.now()}`);
     }
   };
+
+  // Determine if source is a video or Cloudinary video frame
+  const isVideo = useMemo(() => {
+    if (!currentSrc || hasError) return false;
+    const lower = currentSrc.toLowerCase();
+    return (
+      lower.includes(".mp4") ||
+      lower.includes(".webm") ||
+      lower.includes(".mov") ||
+      lower.includes("video/upload") ||
+      lower.includes("videoframe_")
+    );
+  }, [currentSrc, hasError]);
+
+  // Compute video URL and poster URL for Cloudinary or direct video sources
+  const { videoSrc, posterSrc } = useMemo(() => {
+    if (!currentSrc) return { videoSrc: "", posterSrc: "" };
+    
+    let vSrc = currentSrc;
+    let pSrc = currentSrc;
+
+    if (currentSrc.includes("cloudinary.com")) {
+      // Convert Cloudinary image/upload thumbnail URL to video/upload mp4
+      vSrc = currentSrc
+        .replace("/image/upload/", "/video/upload/")
+        .replace(/\.(png|jpg|jpeg|webp)($|\?)/i, ".mp4$2");
+      pSrc = currentSrc
+        .replace("/video/upload/", "/image/upload/")
+        .replace(/\.(mp4|webm|mov)($|\?)/i, ".png$2");
+    }
+
+    return { videoSrc: vSrc, posterSrc: pSrc };
+  }, [currentSrc]);
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-zinc-950/40">
@@ -254,7 +287,24 @@ export const NFLImage: React.FC<NFLImageProps> = ({ item, className, style, alt 
         <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900" />
       )}
       
-      {currentSrc && (
+      {currentSrc && isVideo && !hasError ? (
+        <motion.video
+          src={videoSrc}
+          poster={posterSrc}
+          autoPlay
+          loop
+          muted
+          playsInline
+          onLoadedData={() => setLoaded(true)}
+          onCanPlay={() => setLoaded(true)}
+          onError={handleError}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: loaded ? 1 : 0 }}
+          transition={{ duration: 0.4 }}
+          className={className}
+          style={style}
+        />
+      ) : currentSrc ? (
         <motion.img
           src={currentSrc}
           alt={alt || item?.title || item?.name || item?.experienceTitle || "NFL Experience"}
@@ -268,7 +318,7 @@ export const NFLImage: React.FC<NFLImageProps> = ({ item, className, style, alt 
           className={className}
           style={style}
         />
-      )}
+      ) : null}
     </div>
   );
 };

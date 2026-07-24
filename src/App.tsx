@@ -134,6 +134,11 @@ const SHOP_ITEMS = {
     { id: 't2', name: 'Lower Level Sideline', price: 850, description: 'Row 1-10 sideline seating with VIP lounge entrance', image: 'https://images.unsplash.com/photo-1569437061241-a848be43cc82?auto=format&fit=crop&q=80&w=800' },
     { id: 't3', name: 'Club Level Endzone', price: 425, description: 'Elevated endzone views with exclusive hospitality access', image: 'https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800' }
   ],
+  seasonPasses: [
+    { id: 'sp1', name: 'Franchise All-Access Season Pass', price: 1850, description: 'Guaranteed lower bowl seats for all home games + 15% merch discount + pre-season access', image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800' },
+    { id: 'sp2', name: 'VIP Sideline & Owners Lounge Season Pass', price: 4800, description: 'Pre-game sideline field pass + tunnel access + private dining & parking for the entire season', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800' },
+    { id: 'sp3', name: 'Club Level Executive Season Pass', price: 2950, description: 'Mid-field elevated seating with complimentary gourmet food & beverage and playoff ticket reservation', image: 'https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800' }
+  ],
   jerseys: [
     { id: 'j1', name: 'Vapor Elite Custom Jersey', price: 349, description: 'On-field authentic specification with stitched name and numbers', image: 'https://images.unsplash.com/photo-1594470117722-de4b9a02ebed?auto=format&fit=crop&q=80&w=800' },
     { id: 'j2', name: 'Nike Limited Vapor Jersey', price: 174, description: 'Premium performance fabric with sublimated team graphics', image: 'https://images.unsplash.com/photo-1556906781-9a412961c28c?auto=format&fit=crop&q=80&w=800' }
@@ -449,7 +454,7 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { i
 
 // --- Arena Shop View ---
 const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCardForm, setShowInquiryStatus, activeTicket }: any) => {
-  const [shopView, setShopView] = useState<"jerseys" | "tickets" | "cards">("jerseys");
+  const [shopView, setShopView] = useState<"jerseys" | "passes" | "tickets" | "cards">("jerseys");
 
   // Merchandise Shop Filter States
   const [selectedShopTeam, setSelectedShopTeam] = useState<string>(selectedTeam?.id || "MIN");
@@ -536,6 +541,20 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' helmets')}`
             },
             {
+              id: `m-${team.id}-helmet-mini`,
+              name: `${team.city} ${team.name} On-Field Speed Mini Helmet Collector Edition`,
+              description: `Official 1/2 scale replica mini helmet featuring high-gloss team shell and face mask.`,
+              price: 39.90,
+              originalPrice: 42.00,
+              category: "helmets",
+              rating: 4.6,
+              reviewsCount: 64,
+              inStock: true,
+              trending: false,
+              image: "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg",
+              purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' mini helmets')}`
+            },
+            {
               id: `m-${team.id}-hat`,
               name: `${team.city} ${team.name} Nike Sideline Club Adjustable Cap`,
               description: `Relaxed fit adjustable hat with premium raised embroidery of the official ${team.name} logo. High breathability mesh cells.`,
@@ -548,6 +567,20 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               trending: true,
               image: "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' hats')}`
+            },
+            {
+              id: `m-${team.id}-beanie`,
+              name: `${team.city} ${team.name} Official Sideline Cold Weather Knit Beanie`,
+              description: `Official Sideline fleece-lined knit cap with pom and embroidered team logo for maximum winter comfort.`,
+              price: 32.00,
+              originalPrice: 32.00,
+              category: "hats",
+              rating: 4.8,
+              reviewsCount: 94,
+              inStock: true,
+              trending: false,
+              image: "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
+              purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' beanies')}`
             },
             {
               id: `m-${team.id}-memorabilia`,
@@ -564,6 +597,20 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' memorabilia')}`
             },
             {
+              id: `m-${team.id}-signed-photo`,
+              name: `${team.name} Framed 16x20 Autographed Photo & Coin Collection`,
+              description: `Custom framed 16x20 photo signed personally by team star, with dual minted 39mm silver-plated team coins and COA.`,
+              price: 252.00,
+              originalPrice: 280.00,
+              category: "memorabilia",
+              rating: 4.9,
+              reviewsCount: 28,
+              inStock: true,
+              trending: false,
+              image: "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
+              purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' autographed photo')}`
+            },
+            {
               id: `m-${team.id}-limited`,
               name: `${team.city} ${team.name} Varsity Wool & Leather Heritage Jacket`,
               description: `Extremely limited historical release. Full grain premium leather sleeves, heavy melton wool, direct satin stitching design.`,
@@ -576,6 +623,70 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               trending: false,
               image: "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' jackets')}`
+            },
+            {
+              id: `m-${team.id}-pass-regular`,
+              name: `${team.city} ${team.name} Full Season Pass (Lower Bowl Reserved)`,
+              description: `Guaranteed lower bowl seat allocation for all home games + pre-season access + 15% in-stadium merchandise discount.`,
+              price: 1665.00,
+              originalPrice: 1850.00,
+              category: "season_pass",
+              rating: 5.0,
+              reviewsCount: 56,
+              inStock: true,
+              trending: true,
+              image: team.id === "SEA" 
+                ? "https://i.postimg.cc/rFLDDDhw/1417fbb0e328f1a5932e49913ac23af2sea.jpg" 
+                : "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+              purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' season tickets')}`
+            },
+            {
+              id: `m-${team.id}-pass-vip`,
+              name: `${team.city} ${team.name} VIP Sideline & Tunnel Season Pass`,
+              description: `All-access VIP pass: Sideline pre-game access, VIP parking, tunnel walk, complimentary dining in the Owners' Lounge for all home games.`,
+              price: 4560.00,
+              originalPrice: 4800.00,
+              category: "season_pass",
+              rating: 5.0,
+              reviewsCount: 32,
+              inStock: true,
+              trending: true,
+              image: team.id === "SEA" 
+                ? "https://i.postimg.cc/RVzWWWPh/146bf6266e6b98ad33cc56df4d0abeb3ssss.jpg" 
+                : "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
+              purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' vip season tickets')}`
+            },
+            {
+              id: `m-${team.id}-pass-club`,
+              name: `${team.city} ${team.name} Club Level Pass (Executive Hospitality)`,
+              description: `Climate-controlled Club Level access with leather recliners, gourmet buffet, craft beverages & autographed keepsake.`,
+              price: 2655.00,
+              originalPrice: 2950.00,
+              category: "season_pass",
+              rating: 4.9,
+              reviewsCount: 24,
+              inStock: true,
+              trending: true,
+              image: team.id === "SEA" 
+                ? "https://i.postimg.cc/vHd444PM/c94bbc7aac5de3ed9a567156e4dbffd8seahawks.jpg" 
+                : "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800",
+              purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' club season tickets')}`
+            },
+            {
+              id: `m-${team.id}-pass-allaccess`,
+              name: `${team.city} ${team.name} All-Franchise Passport`,
+              description: `All Home Games + 5 Away Game Lower Bowl Tickets, Dedicated Concierge travel & hotel booking support, Private Suite Access.`,
+              price: 8500.00,
+              originalPrice: 8500.00,
+              category: "season_pass",
+              rating: 5.0,
+              reviewsCount: 18,
+              inStock: true,
+              trending: true,
+              image: team.id === "SEA" 
+                ? "https://res.cloudinary.com/dxq7dktn4/image/upload/v1784922234/videoframe_000_ylyaeo.png" 
+                : "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800",
+              purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' all franchise passport')}`
             }
           ];
           let filtered = clientFallback;
@@ -701,7 +812,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
   }, [ticketTeam, ticketStadium, ticketMinPrice, ticketMaxPrice, ticketSort]);
 
   const merchCategories = [
-    { id: "all", label: "All Gear" },
+    { id: "all", label: "All Gear & Passes" },
+    { id: "season_pass", label: "Season Passes" },
     { id: "jerseys", label: "Jerseys" },
     { id: "hoodies", label: "Hoodies" },
     { id: "helmets", label: "Helmets" },
@@ -720,6 +832,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
         <div className="flex flex-wrap justify-center gap-3 md:gap-4 mb-4 sm:mb-8">
           {[
             { id: "jerseys", label: "Elite Gear" },
+            { id: "passes", label: "Season Passes" },
             { id: "tickets", label: "Match Tickets" },
             { id: "cards", label: "Fan Cards" }
           ].map((cat: any) => (
@@ -916,6 +1029,183 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               })}
             </div>
           )}
+        </section>
+      )}
+
+      {/* SEASON PASSES SECTION */}
+      {shopView === "passes" && (
+        <section className="space-y-12">
+          {/* Header & Team Filter */}
+          <div className="border-b border-white/5 pb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Ticket className="w-5 h-5 text-blue-500" />
+                <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest bg-blue-600/10 px-3 py-1 rounded-md">Franchise Annual Membership</span>
+              </div>
+              <h3 className="text-2xl md:text-4xl font-black italic uppercase tracking-tighter text-white">Official Franchise Season Passes</h3>
+              <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">
+                Guaranteed Home Stadium Seating, VIP Tailgate Lounges & Playoff Rights
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Select Team Franchise:</label>
+              <select 
+                value={selectedShopTeam}
+                onChange={(e) => setSelectedShopTeam(e.target.value)}
+                className="bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-xs text-white font-black uppercase tracking-widest focus:outline-none focus:border-blue-500"
+              >
+                {NFL_TEAMS.map((t: Team) => (
+                  <option key={t.id} value={t.id} className="bg-zinc-950">{t.city} {t.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Season Pass Tier Showcase Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Tier 1: Lower Bowl Pass */}
+            {(() => {
+              const currentTeam = NFL_TEAMS.find((t: Team) => t.id === selectedShopTeam) || NFL_TEAMS[0];
+              const isSeahawks = currentTeam.id === "SEA" || currentTeam.name.toLowerCase().includes("seahawks");
+              const passData = [
+                {
+                  id: `pass-lower-${currentTeam.id}`,
+                  name: `${currentTeam.city} ${currentTeam.name} Lower Bowl Season Pass`,
+                  tier: "Lower Bowl Reserved",
+                  price: 1850,
+                  badge: "BEST VALUE",
+                  badgeColor: "bg-blue-600",
+                  image: isSeahawks
+                    ? "https://i.postimg.cc/rFLDDDhw/1417fbb0e328f1a5932e49913ac23af2sea.jpg"
+                    : "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+                  features: [
+                    "Guaranteed Lower Bowl seating (Rows 1-20) for all 8 home games",
+                    "All pre-season home game admissions included",
+                    "15% in-stadium merchandise & concessions discount",
+                    "Dedicated express stadium gate entry"
+                  ]
+                },
+                {
+                  id: `pass-vip-${currentTeam.id}`,
+                  name: `${currentTeam.city} ${currentTeam.name} VIP Sideline & Tunnel Pass`,
+                  tier: "VIP Sideline Executive",
+                  price: 4800,
+                  badge: "MOST POPULAR",
+                  badgeColor: "bg-amber-500 text-black",
+                  image: isSeahawks
+                    ? "https://i.postimg.cc/RVzWWWPh/146bf6266e6b98ad33cc56df4d0abeb3ssss.jpg"
+                    : "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
+                  features: [
+                    "Midfield Sideline Seating (Rows 1-10)",
+                    "Pre-game on-field tunnel & sideline access",
+                    "All-inclusive dining & drinks in Owners' Lounge",
+                    "Complimentary VIP stadium valet parking & Playoff priority"
+                  ]
+                },
+                {
+                  id: `pass-club-${currentTeam.id}`,
+                  name: `${currentTeam.city} ${currentTeam.name} Club Level Pass`,
+                  tier: "Club Level Hospitality",
+                  price: 2950,
+                  badge: "EXECUTIVE CLASS",
+                  badgeColor: "bg-purple-600",
+                  image: isSeahawks
+                    ? "https://i.postimg.cc/vHd444PM/c94bbc7aac5de3ed9a567156e4dbffd8seahawks.jpg"
+                    : "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800",
+                  features: [
+                    "Climate-controlled Club Level access with leather recliners",
+                    "Complimentary gourmet buffet & craft beverages",
+                    "2 guest passes for selected regular season games",
+                    "Exclusive autographed team keepsake"
+                  ]
+                },
+                {
+                  id: `pass-allaccess-${currentTeam.id}`,
+                  name: `${currentTeam.city} ${currentTeam.name} All-Franchise Passport`,
+                  tier: "All-Access Franchise",
+                  price: 8500,
+                  badge: "ULTIMATE PASS",
+                  badgeColor: "bg-emerald-600",
+                  image: isSeahawks
+                    ? "https://res.cloudinary.com/dxq7dktn4/image/upload/v1784922234/videoframe_000_ylyaeo.png"
+                    : "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800",
+                  features: [
+                    "All Home Games + 5 Away Game Lower Bowl Tickets",
+                    "Dedicated Concierge travel & hotel booking support",
+                    "Private Suite Access for 2 selected games",
+                    "Annual Franchise Shareholder Briefing Invitation"
+                  ]
+                }
+              ];
+
+              return passData.map((pass) => (
+                <div 
+                  key={pass.id} 
+                  className="bg-zinc-950 border border-white/10 hover:border-blue-500/40 rounded-[2.5rem] overflow-hidden flex flex-col justify-between group transition-all duration-300 shadow-2xl relative"
+                >
+                  <div>
+                    <div className="aspect-[16/9] overflow-hidden relative border-b border-white/5">
+                      <NFLImage item={pass} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
+                      <div className={`absolute top-4 right-4 ${pass.badgeColor} text-white font-black text-[9px] uppercase tracking-widest px-3 py-1 rounded-full shadow-lg`}>
+                        {pass.badge}
+                      </div>
+                      <div className="absolute bottom-4 left-6 right-6">
+                        <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest bg-blue-950/80 border border-blue-500/20 px-3 py-1 rounded-lg backdrop-blur-md">
+                          {pass.tier}
+                        </span>
+                        <h4 className="text-xl md:text-2xl font-black italic uppercase leading-tight text-white mt-2">{pass.name}</h4>
+                      </div>
+                    </div>
+
+                    <div className="p-6 md:p-8 space-y-6">
+                      <div className="space-y-3">
+                        <span className="text-[9px] font-black uppercase text-zinc-500 tracking-widest block">Season Membership Privileges:</span>
+                        <ul className="space-y-2">
+                          {pass.features.map((feat, idx) => (
+                            <li key={idx} className="flex items-start gap-2.5 text-xs text-zinc-300 font-semibold leading-relaxed">
+                              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                              <span>{feat}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 md:p-8 pt-0 border-t border-white/5 mt-4 flex items-center justify-between">
+                    <div>
+                      <span className="text-[9px] font-black uppercase text-zinc-500 tracking-widest block">Annual Pass Rate</span>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="font-mono text-white text-2xl font-black">${pass.price.toLocaleString()}</span>
+                        <span className="text-[9px] text-zinc-500 font-bold uppercase">/ Season</span>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => setSelectedProduct({
+                        id: pass.id,
+                        name: pass.name,
+                        description: pass.features.join(" • "),
+                        price: pass.price,
+                        originalPrice: pass.price,
+                        category: "season_pass",
+                        rating: 5.0,
+                        reviewsCount: 42,
+                        inStock: true,
+                        image: pass.image,
+                        purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(pass.name)}`
+                      })}
+                      className="px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] rounded-xl tracking-widest uppercase transition-all shadow-xl shadow-blue-600/20 active:scale-[0.98]"
+                    >
+                      Acquire Pass
+                    </button>
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
         </section>
       )}
 

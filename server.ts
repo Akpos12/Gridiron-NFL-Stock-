@@ -193,6 +193,19 @@ async function startServer() {
           reviewsCount: 31
         },
         {
+          id: `m-${team.id}-helmet-mini`,
+          name: `${team.city} ${team.name} On-Field Speed Mini Helmet Collector Edition`,
+          description: `Official 1/2 scale replica mini helmet featuring high-gloss team shell and face mask. Ideal for autographs and office showcases.`,
+          basePrice: 42,
+          category: "helmets",
+          discount: 5,
+          image: "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg",
+          inStock: true,
+          trending: false,
+          rating: 4.6,
+          reviewsCount: 64
+        },
+        {
           id: `m-${team.id}-hat`,
           name: `${team.city} ${team.name} Nike Sideline Club Adjustable Cap`,
           description: `Relaxed fit adjustable hat with premium raised embroidery of the official ${team.name} logo. High breathability mesh cells.`,
@@ -204,6 +217,19 @@ async function startServer() {
           trending: true,
           rating: 4.5,
           reviewsCount: 215
+        },
+        {
+          id: `m-${team.id}-beanie`,
+          name: `${team.city} ${team.name} Official Sideline Cold Weather Knit Beanie`,
+          description: `Official Sideline fleece-lined knit cap with pom and embroidered team logo for maximum winter comfort.`,
+          basePrice: 32,
+          category: "hats",
+          discount: 0,
+          image: "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
+          inStock: true,
+          trending: false,
+          rating: 4.8,
+          reviewsCount: 94
         },
         {
           id: `m-${team.id}-memorabilia`,
@@ -219,6 +245,19 @@ async function startServer() {
           reviewsCount: 12
         },
         {
+          id: `m-${team.id}-signed-photo`,
+          name: `${star.player} Framed 16x20 Autographed Action Photo & Coin Collection`,
+          description: `Custom framed 16x20 photo personally signed by ${star.player}, featuring dual minted 39mm silver-plated team coins and COA.`,
+          basePrice: 280,
+          category: "memorabilia",
+          discount: 10,
+          image: "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
+          inStock: true,
+          trending: false,
+          rating: 4.9,
+          reviewsCount: 28
+        },
+        {
           id: `m-${team.id}-limited`,
           name: `${team.city} ${team.name} Varsity Wool & Leather Heritage Jacket`,
           description: `Extremely limited historical release. Full grain premium leather sleeves, heavy melton wool, direct satin stitching design.`,
@@ -230,6 +269,66 @@ async function startServer() {
           trending: false,
           rating: 4.9,
           reviewsCount: 19
+        },
+        {
+          id: `m-${team.id}-pass-regular`,
+          name: `${team.city} ${team.name} Full Season Pass (Lower Bowl Reserved)`,
+          description: `Guaranteed lower bowl seat allocation for all home games + pre-season access + 15% in-stadium merchandise discount.`,
+          basePrice: 1850,
+          category: "season_pass",
+          discount: 10,
+          image: team.id === "SEA" 
+            ? "https://i.postimg.cc/rFLDDDhw/1417fbb0e328f1a5932e49913ac23af2sea.jpg" 
+            : "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+          inStock: true,
+          trending: true,
+          rating: 5.0,
+          reviewsCount: 56
+        },
+        {
+          id: `m-${team.id}-pass-vip`,
+          name: `${team.city} ${team.name} VIP Sideline & Tunnel Season Pass`,
+          description: `All-access VIP pass: Sideline pre-game access, VIP parking, tunnel walk, complimentary dining in the Owners' Lounge for all home games.`,
+          basePrice: 4800,
+          category: "season_pass",
+          discount: 5,
+          image: team.id === "SEA" 
+            ? "https://i.postimg.cc/RVzWWWPh/146bf6266e6b98ad33cc56df4d0abeb3ssss.jpg" 
+            : "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
+          inStock: true,
+          trending: true,
+          rating: 5.0,
+          reviewsCount: 32
+        },
+        {
+          id: `m-${team.id}-pass-club`,
+          name: `${team.city} ${team.name} Club Level Pass (Executive Hospitality)`,
+          description: `Climate-controlled Club Level access with leather recliners, gourmet buffet, craft beverages & autographed keepsake.`,
+          basePrice: 2950,
+          category: "season_pass",
+          discount: 10,
+          image: team.id === "SEA" 
+            ? "https://i.postimg.cc/vHd444PM/c94bbc7aac5de3ed9a567156e4dbffd8seahawks.jpg" 
+            : "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800",
+          inStock: true,
+          trending: true,
+          rating: 4.9,
+          reviewsCount: 24
+        },
+        {
+          id: `m-${team.id}-pass-allaccess`,
+          name: `${team.city} ${team.name} All-Franchise Passport`,
+          description: `All Home Games + 5 Away Game Lower Bowl Tickets, Dedicated Concierge travel & hotel booking support, Private Suite Access.`,
+          basePrice: 8500,
+          category: "season_pass",
+          discount: 0,
+          image: team.id === "SEA" 
+            ? "https://res.cloudinary.com/dxq7dktn4/image/upload/v1784922234/videoframe_000_ylyaeo.png" 
+            : "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800",
+          inStock: true,
+          trending: true,
+          rating: 5.0,
+          reviewsCount: 18
         }
       ];
 
