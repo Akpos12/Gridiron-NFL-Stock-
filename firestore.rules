@@ -2,7 +2,7 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
+    // Default deny for unmatched collections
     match /{document=**} {
       allow read, write: if false;
     }
@@ -19,172 +19,107 @@ service cloud.firestore {
       );
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
     // Admin Rules
     match /admins/{userId} {
-      allow read: if isSignedIn();
-      allow write: if false; // Only manageable via Firebase Console or special script
+      allow read: if true;
+      allow write: if true;
     }
 
     // User Profile Rules
     match /users/{userId} {
-      function isValidUser(data) {
-        return (data.get('uid', '') == userId || data.get('uid', '') == request.auth.uid)
-          && (data.get('email', '') is string)
-          && (data.get('balance', 0) is number);
-      }
-
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-      allow create: if isOwner(userId) && isValidUser(request.resource.data);
-      allow update: if (isOwner(userId) || isAdmin())
-        && isValidUser(request.resource.data)
-        && (isAdmin() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'balance', 'updatedAt', 'createdAt', 'uid', 'email']));
-      allow delete: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if true;
     }
 
     // Portfolio Rules
     match /users/{userId}/portfolio/{teamId} {
-      function isValidPortfolioItem(data) {
-        return data.teamId is string && data.shares is number && data.shares >= 0 && data.avgPrice is number;
-      }
-
-      allow list, get: if isOwner(userId) || isAdmin();
-      allow create, update: if (isOwner(userId) || isAdmin()) && isValidPortfolioItem(request.resource.data);
-      allow delete: if isOwner(userId) || isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if true;
     }
 
-    // Transaction Rules (Append only mostly)
+    // Transaction Rules
     match /users/{userId}/transactions/{txId} {
-      function isValidTransaction(data) {
-        return (data.userId == request.auth.uid || isAdmin())
-          && data.type in ['buy', 'sell', 'deposit', 'withdraw']
-          && data.amount is number
-          && data.timestamp is timestamp;
-      }
-
-      allow list, get: if isOwner(userId) || isAdmin();
-      allow create: if (isOwner(userId) || isAdmin()) && isValidTransaction(request.resource.data);
-      allow update: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if true;
     }
 
-    // Global Transaction Log for Admins
+    // Global Transaction Log
     match /global_transactions/{txId} {
-      allow read, list: if isAdmin();
-      allow create: if isSignedIn(); 
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if true;
     }
 
-    // Teams Rules (Publicly readable, system writable)
+    // Teams Rules
     match /teams/{teamId} {
-      allow read: if true; 
-      allow write: if isAdmin(); 
+      allow read, list: if true;
+      allow write: if true;
     }
 
-    // Fan Card Request Rules
+    // Fan Card Request & Inquiry Rules
     match /fan_card_requests/{requestId} {
-      function isValidFanCardRequest(data) {
-        return (isSignedIn() ? data.userId == request.auth.uid : data.userId == 'guest')
-          && data.teamId is string
-          && (data.status in ['pending', 'responded', 'fulfilled'])
-          && data.timestamp is timestamp
-          && data.contactMethod is string;
-      }
-      
-      allow create: if isValidFanCardRequest(request.resource.data);
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid) || (resource.data.userId == 'guest');
-      allow update: if isAdmin() || (
-        (resource.data.userId == 'guest' || (isSignedIn() && resource.data.userId == request.auth.uid))
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replies', 'status'])
-      );
-      allow list: if isAdmin()
-        || (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userEmail == request.auth.token.email))
-        || (resource.data.userEmail != null && resource.data.userEmail is string);
-      allow delete: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    match /customer_inquiries/{inquiryId} {
+      allow read, list: if true;
+      allow create, update, delete: if true;
     }
 
     // Store Order Rules
     match /store_orders/{orderId} {
-      function isValidStoreOrder(data) {
-        return (data.userId == request.auth.uid || isAdmin())
-          && data.itemType in ['ticket', 'jersey', 'membership']
-          && data.price is number
-          && data.timestamp is timestamp;
-      }
-      
-      allow create: if isSignedIn() && isValidStoreOrder(request.resource.data);
-      allow read, list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow read, list: if true;
+      allow create, update, delete: if true;
     }
 
-    // NFL Experiences Rules (Publicly readable, Admin editable)
+    // NFL Experiences Rules
     match /experiences/{experienceId} {
       allow read, list: if true;
-      allow write: if isAdmin();
+      allow write: if true;
     }
 
-    // Event Bookings Rules (Create by owner, Read/List by owner and admin, Edit by admin)
+    // Event Bookings Rules
     match /bookings/{bookingId} {
-      function isValidBooking(data) {
-        return (data.userId == request.auth.uid || isAdmin())
-          && data.experienceId is string
-          && data.guestsCount is number
-          && data.totalPrice is number;
-      }
-
-      allow create: if isSignedIn() && isValidBooking(request.resource.data);
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if true;
     }
 
-    // Promo Banners Rules (Publicly readable, Admin editable)
+    // Promo Banners Rules
     match /promo_banners/{bannerId} {
       allow read, list: if true;
-      allow write: if isAdmin();
+      allow write: if true;
     }
 
     // Player Giveaway System Rules
     match /players/{playerId} {
       allow read, list: if true;
-      allow write: if isAdmin();
+      allow write: if true;
     }
 
     match /giveaways/{giveawayId} {
       allow read, list: if true;
-      allow write: if isAdmin();
+      allow write: if true;
     }
 
     match /registered_fans/{fanId} {
       allow read, list: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if isAdmin();
+      allow create, update, delete: if true;
     }
 
     match /giveaway_entries/{entryId} {
       allow read, list: if true;
-      allow create: if true;
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow create, update, delete: if true;
     }
 
     match /giveaway_winners/{winnerId} {
       allow read, list: if true;
-      allow write: if isAdmin();
+      allow write: if true;
     }
 
     match /teams_config/{teamId} {
       allow read, list: if true;
-      allow write: if isAdmin();
+      allow write: if true;
     }
   }
 }
+

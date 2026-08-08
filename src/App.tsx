@@ -2681,7 +2681,7 @@ export default function App() {
     setIsSubmittingInquiry(true);
     const formData = new FormData(e.target as HTMLFormElement);
     const requestId = `TRK-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-    const submittedEmail = (user?.email || formData.get("email") as string || "").trim().toLowerCase();
+    const submittedEmail = ((formData.get("email") as string) || user?.email || "").trim().toLowerCase();
     
     try {
       await setDoc(doc(db, "fan_card_requests", requestId), {
@@ -3848,7 +3848,7 @@ export default function App() {
                   <form onSubmit={handleFanCardRequest} className="space-y-4 md:space-y-8 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                     <div>
                       <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Full Name / Identifier</label>
-                      <input name="name" required disabled={isSubmittingInquiry} defaultValue={user?.displayName || ""} placeholder="e.g. Alex Rivera" className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50" />
+                      <input name="name" required disabled={isSubmittingInquiry} defaultValue="" placeholder="Jon Doe" className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50" />
                     </div>
                     <div>
                       <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Franchise Asset</label>
@@ -3862,9 +3862,9 @@ export default function App() {
                         type="email" 
                         name="email" 
                         required 
-                        disabled={isSubmittingInquiry || !!user} 
-                        defaultValue={user?.email || ""} 
-                        placeholder="e.g. alex@example.com" 
+                        disabled={isSubmittingInquiry} 
+                        defaultValue="" 
+                        placeholder="example@gmail.com" 
                         className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50" 
                       />
                     </div>

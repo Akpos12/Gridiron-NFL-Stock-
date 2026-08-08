@@ -74,6 +74,142 @@ export const GiveawayControlRoom: React.FC = () => {
   // Search filter
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Customer Care Representative Notification State
+  const [careModalOpen, setCareModalOpen] = useState(false);
+  const [selectedFanForCare, setSelectedFanForCare] = useState<{
+    id: string;
+    fullName: string;
+    email: string;
+    fanCode: string;
+    city: string;
+    favoriteTeam?: string;
+    giveawayId?: string;
+    giveawayTitle?: string;
+    userId?: string;
+    entryId?: string;
+    isWinner?: boolean;
+    winningPrize?: string;
+    winningMessage?: string;
+    claimCode?: string;
+  } | null>(null);
+
+  const [carePrizeName, setCarePrizeName] = useState("Official Autographed NFL Player Jersey");
+  const [careMessage, setCareMessage] = useState("");
+  const [careClaimCode, setCareClaimCode] = useState("");
+  const [careRepName, setCareRepName] = useState("Representative #402 (Customer Care)");
+  const [careGiveawayId, setCareGiveawayId] = useState("");
+  const [isDispatchingCare, setIsDispatchingCare] = useState(false);
+
+  const handleOpenCareModal = (fan: {
+    id: string;
+    fullName: string;
+    email: string;
+    fanCode: string;
+    city: string;
+    favoriteTeam?: string;
+    giveawayId?: string;
+    giveawayTitle?: string;
+    userId?: string;
+    entryId?: string;
+    isWinner?: boolean;
+    winningPrize?: string;
+    winningMessage?: string;
+    claimCode?: string;
+  }) => {
+    setSelectedFanForCare(fan);
+    setCarePrizeName(fan.winningPrize || "Official Autographed NFL Player Jersey + 1,000 Gridiron Credits");
+    setCareClaimCode(fan.claimCode || `CARE-${Math.floor(100000 + Math.random() * 900000)}`);
+    setCareGiveawayId(fan.giveawayId || "");
+    setCareMessage(fan.winningMessage || `Congratulations ${fan.fullName}! On behalf of NFL Gridiron Exchange Customer Care, you've been selected as an official winner for your fan registration! Present this claim code to redeem your prize.`);
+    setCareModalOpen(true);
+  };
+
+  const handleDispatchCareNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFanForCare) return;
+
+    setIsDispatchingCare(true);
+    try {
+      const targetGw = giveaways.find(g => g.id === careGiveawayId);
+      const gwTitle = targetGw ? targetGw.title : (selectedFanForCare.giveawayTitle || "Fan Registration Winner Special Award");
+      const playerId = targetGw ? targetGw.playerId : "care-special";
+      const playerName = targetGw ? targetGw.playerName : "NFL Customer Care";
+
+      // 1. Update registered_fans document if it exists (or add by fanCode/id)
+      const fanDocId = selectedFanForCare.id;
+      if (fanDocId) {
+        await setDoc(doc(db, "registered_fans", fanDocId), {
+          id: fanDocId,
+          fullName: selectedFanForCare.fullName,
+          email: selectedFanForCare.email,
+          fanCode: selectedFanForCare.fanCode,
+          city: selectedFanForCare.city,
+          favoriteTeam: selectedFanForCare.favoriteTeam || "MIN",
+          userId: selectedFanForCare.userId || "guest",
+          isWinner: true,
+          winningPrize: carePrizeName.trim(),
+          winningMessage: careMessage.trim(),
+          claimCode: careClaimCode.trim(),
+          claimStatus: "PENDING_CLAIM",
+          updatedAt: Date.now()
+        }, { merge: true });
+      }
+
+      // 2. If associated with a giveaway entry, update entry status to WINNER
+      if (selectedFanForCare.entryId) {
+        await updateDoc(doc(db, "giveaway_entries", selectedFanForCare.entryId), {
+          status: "WINNER",
+          claimCode: careClaimCode.trim(),
+          careRepresentativeNote: `Notified by ${careRepName}`
+        });
+      }
+
+      // 3. Record in official giveaway_winners collection
+      const winnerId = `winner-care-${Date.now()}`;
+      await setDoc(doc(db, "giveaway_winners", winnerId), {
+        id: winnerId,
+        giveawayId: careGiveawayId || "fan-card-special",
+        giveawayTitle: gwTitle,
+        playerId: playerId,
+        playerName: playerName,
+        prizeName: carePrizeName.trim(),
+        winnerUserId: selectedFanForCare.userId || "guest",
+        winnerFanCode: selectedFanForCare.fanCode,
+        winnerName: selectedFanForCare.fullName,
+        winnerEmail: selectedFanForCare.email,
+        selectionDate: Date.now(),
+        status: "CONFIRMED",
+        careMessage: careMessage.trim(),
+        claimCode: careClaimCode.trim()
+      });
+
+      // 4. Log in customer_inquiries dispatch audit
+      const inquiryId = `notice-${Date.now()}`;
+      await setDoc(doc(db, "customer_inquiries", inquiryId), {
+        id: inquiryId,
+        type: "CUSTOMER_CARE_WINNER_NOTICE",
+        userName: selectedFanForCare.fullName,
+        userEmail: selectedFanForCare.email,
+        fanCode: selectedFanForCare.fanCode,
+        prize: carePrizeName.trim(),
+        message: careMessage.trim(),
+        claimCode: careClaimCode.trim(),
+        repName: careRepName.trim(),
+        timestamp: Date.now(),
+        status: "DISPATCHED"
+      });
+
+      alert(`🎉 Customer Care Winner Notification successfully dispatched to ${selectedFanForCare.fullName} (${selectedFanForCare.fanCode})!\nClaim Code: ${careClaimCode}`);
+      setCareModalOpen(false);
+      setSelectedFanForCare(null);
+    } catch (err: any) {
+      console.error(err);
+      alert("Error dispatching care notification: " + err.message);
+    } finally {
+      setIsDispatchingCare(false);
+    }
+  };
+
   // Load Firestore subscriptions
   useEffect(() => {
     const unsubGw = onSnapshot(collection(db, "giveaways"), (snap) => {
@@ -766,14 +902,37 @@ export const GiveawayControlRoom: React.FC = () => {
       {/* 4. ENTRIES & REGISTERED FANS TAB */}
       {subTab === "entries" && (
         <div className="space-y-8">
+          {/* Search Filter Bar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-900/80 p-4 rounded-2xl border border-white/10">
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
+              <input
+                type="text"
+                placeholder="Search registered fans by name, email, fan code, or city..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-zinc-950 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs text-white font-medium focus:outline-none"
+              />
+            </div>
+            <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider bg-amber-500/10 px-3 py-2 rounded-xl border border-amber-500/20 whitespace-nowrap">
+              🎧 Customer Care Portal Mode
+            </span>
+          </div>
+
           {/* Registered Fans List */}
           <div className="bg-zinc-900/60 border border-white/10 rounded-[2rem] p-6 space-y-4">
-            <h4 className="text-xs font-black uppercase tracking-widest text-white border-b border-white/5 pb-3">
-              REGISTERED FANS DIRECTORY ({registeredFans.length})
-            </h4>
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <h4 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-400" />
+                REGISTERED FANS DIRECTORY ({registeredFans.length})
+              </h4>
+              <span className="text-[9px] text-zinc-400 font-bold uppercase">
+                Click "Tell Them They Won" to issue winner notification
+              </span>
+            </div>
 
             <div className="overflow-x-auto no-scrollbar">
-              <table className="w-full text-left min-w-[650px]">
+              <table className="w-full text-left min-w-[750px]">
                 <thead className="bg-zinc-950 text-[9px] font-black uppercase font-mono text-zinc-500">
                   <tr>
                     <th className="p-3">Fan Code</th>
@@ -781,21 +940,66 @@ export const GiveawayControlRoom: React.FC = () => {
                     <th className="p-3">Email</th>
                     <th className="p-3">City</th>
                     <th className="p-3">Team</th>
+                    <th className="p-3">Winner Status</th>
+                    <th className="p-3 text-right">Customer Care Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-xs">
-                  {registeredFans.map(f => (
-                    <tr key={f.id} className="hover:bg-white/[0.02]">
-                      <td className="p-3 font-mono font-black text-cyan-400">{f.fanCode}</td>
-                      <td className="p-3 font-black text-white flex items-center gap-2">
-                        <img src={f.profilePhotoUrl} alt={f.fullName} className="w-7 h-7 rounded-full object-cover border border-white/10" />
-                        <span>{f.fullName}</span>
-                      </td>
-                      <td className="p-3 text-zinc-400 font-mono">{f.email}</td>
-                      <td className="p-3 text-zinc-300 font-bold">{f.city}</td>
-                      <td className="p-3 text-blue-400 font-black">{f.favoriteTeam}</td>
-                    </tr>
-                  ))}
+                  {registeredFans
+                    .filter(f => {
+                      if (!searchTerm.trim()) return true;
+                      const term = searchTerm.toLowerCase();
+                      return (
+                        f.fullName.toLowerCase().includes(term) ||
+                        f.email.toLowerCase().includes(term) ||
+                        f.fanCode.toLowerCase().includes(term) ||
+                        f.city.toLowerCase().includes(term)
+                      );
+                    })
+                    .map(f => (
+                      <tr key={f.id} className="hover:bg-white/[0.02]">
+                        <td className="p-3 font-mono font-black text-cyan-400">{f.fanCode}</td>
+                        <td className="p-3 font-black text-white flex items-center gap-2">
+                          <img src={f.profilePhotoUrl} alt={f.fullName} className="w-7 h-7 rounded-full object-cover border border-white/10" />
+                          <span>{f.fullName}</span>
+                        </td>
+                        <td className="p-3 text-zinc-400 font-mono">{f.email}</td>
+                        <td className="p-3 text-zinc-300 font-bold">{f.city}</td>
+                        <td className="p-3 text-blue-400 font-black">{f.favoriteTeam}</td>
+                        <td className="p-3">
+                          {f.isWinner ? (
+                            <span className="px-2.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[8px] font-black uppercase">
+                              🏆 WINNER ({f.claimStatus || 'PENDING'})
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[8px] font-black uppercase">
+                              REGISTERED
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => handleOpenCareModal({
+                              id: f.id,
+                              fullName: f.fullName,
+                              email: f.email,
+                              fanCode: f.fanCode,
+                              city: f.city,
+                              favoriteTeam: f.favoriteTeam,
+                              userId: f.userId,
+                              isWinner: f.isWinner,
+                              winningPrize: f.winningPrize,
+                              winningMessage: f.winningMessage,
+                              claimCode: f.claimCode
+                            })}
+                            className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-md inline-flex items-center gap-1"
+                          >
+                            <Award className="w-3 h-3" />
+                            {f.isWinner ? "Update Winner Notice" : "🏆 Tell Them They Won"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -803,12 +1007,15 @@ export const GiveawayControlRoom: React.FC = () => {
 
           {/* Giveaway Entries Log */}
           <div className="bg-zinc-900/60 border border-white/10 rounded-[2rem] p-6 space-y-4">
-            <h4 className="text-xs font-black uppercase tracking-widest text-white border-b border-white/5 pb-3">
-              CAMPAIGN ENTRY RECORDS ({entries.length})
-            </h4>
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <h4 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
+                <Gift className="w-4 h-4 text-red-500" />
+                CAMPAIGN ENTRY RECORDS ({entries.length})
+              </h4>
+            </div>
 
             <div className="overflow-x-auto no-scrollbar">
-              <table className="w-full text-left min-w-[650px]">
+              <table className="w-full text-left min-w-[750px]">
                 <thead className="bg-zinc-950 text-[9px] font-black uppercase font-mono text-zinc-500">
                   <tr>
                     <th className="p-3">Fan Code</th>
@@ -816,25 +1023,59 @@ export const GiveawayControlRoom: React.FC = () => {
                     <th className="p-3">Giveaway Title</th>
                     <th className="p-3">Player</th>
                     <th className="p-3">Entry Status</th>
+                    <th className="p-3 text-right">Customer Care Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-xs">
-                  {entries.map(e => (
-                    <tr key={e.id} className="hover:bg-white/[0.02]">
-                      <td className="p-3 font-mono font-black text-cyan-400">{e.fanCode}</td>
-                      <td className="p-3 font-black text-white">{e.userName} ({e.userEmail})</td>
-                      <td className="p-3 text-zinc-300 font-bold">{e.giveawayTitle}</td>
-                      <td className="p-3 text-blue-400 font-black">{e.playerName} ({e.teamId})</td>
-                      <td className="p-3">
-                        <span className={cn(
-                          "px-2.5 py-1 rounded text-[8px] font-black uppercase",
-                          e.status === "WINNER" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-emerald-500/20 text-emerald-400"
-                        )}>
-                          {e.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {entries
+                    .filter(e => {
+                      if (!searchTerm.trim()) return true;
+                      const term = searchTerm.toLowerCase();
+                      return (
+                        e.userName.toLowerCase().includes(term) ||
+                        e.userEmail.toLowerCase().includes(term) ||
+                        e.fanCode.toLowerCase().includes(term) ||
+                        e.giveawayTitle.toLowerCase().includes(term)
+                      );
+                    })
+                    .map(e => (
+                      <tr key={e.id} className="hover:bg-white/[0.02]">
+                        <td className="p-3 font-mono font-black text-cyan-400">{e.fanCode}</td>
+                        <td className="p-3 font-black text-white">{e.userName} ({e.userEmail})</td>
+                        <td className="p-3 text-zinc-300 font-bold">{e.giveawayTitle}</td>
+                        <td className="p-3 text-blue-400 font-black">{e.playerName} ({e.teamId})</td>
+                        <td className="p-3">
+                          <span className={cn(
+                            "px-2.5 py-1 rounded text-[8px] font-black uppercase",
+                            e.status === "WINNER" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-emerald-500/20 text-emerald-400"
+                          )}>
+                            {e.status}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => handleOpenCareModal({
+                              id: registeredFans.find(f => f.fanCode === e.fanCode)?.id || `fan-${e.fanCode}`,
+                              fullName: e.userName,
+                              email: e.userEmail,
+                              fanCode: e.fanCode,
+                              city: e.city || "Minneapolis, MN",
+                              favoriteTeam: e.teamId,
+                              giveawayId: e.giveawayId,
+                              giveawayTitle: e.giveawayTitle,
+                              userId: e.userId,
+                              entryId: e.id,
+                              isWinner: e.status === "WINNER",
+                              claimCode: e.claimCode
+                            })}
+                            className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-md inline-flex items-center gap-1"
+                          >
+                            <Award className="w-3 h-3" />
+                            {e.status === "WINNER" ? "Manage Winner Notice" : "🏆 Tell Them They Won"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -920,6 +1161,9 @@ export const GiveawayControlRoom: React.FC = () => {
                     </span>
                     <h5 className="text-xs font-black text-white">{w.winnerName} ({w.winnerEmail})</h5>
                     <p className="text-[10px] text-zinc-400">{w.giveawayTitle} — Prize: <strong className="text-white">{w.prizeName}</strong></p>
+                    {w.careMessage && (
+                      <p className="text-[9px] text-zinc-400 italic">"{w.careMessage}"</p>
+                    )}
                   </div>
 
                   <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-[8px] font-black uppercase">
@@ -928,6 +1172,128 @@ export const GiveawayControlRoom: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOMER CARE WINNER NOTIFICATION MODAL */}
+      {careModalOpen && selectedFanForCare && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-zinc-900 border-2 border-amber-500/40 rounded-[2.5rem] max-w-xl w-full p-6 md:p-8 space-y-6 shadow-2xl relative text-left overflow-y-auto max-h-[90vh]">
+            <button
+              onClick={() => setCareModalOpen(false)}
+              className="absolute top-6 right-6 p-2 rounded-full bg-zinc-800 text-zinc-400 hover:text-white cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-2 border-b border-white/10 pb-4">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-[10px] font-black uppercase tracking-widest">
+                <Award className="w-3.5 h-3.5" />
+                CUSTOMER CARE REPRESENTATIVE PORTAL
+              </span>
+              <h3 className="text-2xl font-black italic uppercase text-white">
+                NOTIFY WINNER & DISPATCH PRIZE
+              </h3>
+              <p className="text-xs text-zinc-400 font-medium">
+                Dispatch an official Customer Care winner announcement to this fan's Virtual Fan Card & Giveaway record.
+              </p>
+            </div>
+
+            {/* Target Fan Summary Box */}
+            <div className="p-4 bg-zinc-950 rounded-2xl border border-white/10 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-900 border border-white/10 shrink-0">
+                <img
+                  src={registeredFans.find(f => f.fanCode === selectedFanForCare.fanCode)?.profilePhotoUrl || "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=400"}
+                  alt={selectedFanForCare.fullName}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-[9px] font-mono font-black text-cyan-400">
+                  FAN CODE: {selectedFanForCare.fanCode}
+                </span>
+                <h4 className="text-sm font-black text-white">{selectedFanForCare.fullName}</h4>
+                <p className="text-xs text-zinc-400">{selectedFanForCare.email} • {selectedFanForCare.city}</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleDispatchCareNotification} className="space-y-4">
+              {/* Campaign / Event selection */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase text-zinc-400">Giveaway / Event Campaign</label>
+                <select
+                  value={careGiveawayId}
+                  onChange={(e) => setCareGiveawayId(e.target.value)}
+                  className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-bold uppercase focus:outline-none"
+                >
+                  <option value="">General Fan Card Registration Award</option>
+                  {giveaways.map(g => (
+                    <option key={g.id} value={g.id}>{g.title}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Prize Name */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase text-zinc-400">Prize Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Official Autographed Player Jersey + 2,000 Gridiron Credits"
+                  value={carePrizeName}
+                  onChange={(e) => setCarePrizeName(e.target.value)}
+                  className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-bold focus:outline-none"
+                />
+              </div>
+
+              {/* Claim Code */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-zinc-400">Official Claim Code *</label>
+                  <input
+                    type="text"
+                    required
+                    value={careClaimCode}
+                    onChange={(e) => setCareClaimCode(e.target.value)}
+                    className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-cyan-300 font-mono font-black uppercase focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-zinc-400">Customer Care Rep Name/ID</label>
+                  <input
+                    type="text"
+                    required
+                    value={careRepName}
+                    onChange={(e) => setCareRepName(e.target.value)}
+                    className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-zinc-300 font-bold focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Winner Message */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase text-zinc-400">Personal Care Winner Announcement Message</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={careMessage}
+                  onChange={(e) => setCareMessage(e.target.value)}
+                  className="w-full bg-zinc-950 border border-white/10 rounded-xl p-3 text-xs text-zinc-200 font-medium leading-relaxed focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={isDispatchingCare}
+                  className="w-full py-4 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black uppercase text-xs tracking-widest rounded-2xl transition-all cursor-pointer shadow-xl shadow-amber-500/20 disabled:opacity-50"
+                >
+                  {isDispatchingCare ? "DISPATCHING NOTIFICATION..." : "🎉 SEND WINNER NOTIFICATION TO FAN"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

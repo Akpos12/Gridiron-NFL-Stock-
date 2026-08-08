@@ -30,12 +30,9 @@ export const FanRegistrationModal: React.FC<FanRegistrationModalProps> = ({
   const [registeredFan, setRegisteredFan] = useState<FanProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Pre-fill user data if logged in
+  // Do not auto-prefill personal emails or names to avoid unwanted exposure
   useEffect(() => {
-    if (currentUser) {
-      if (currentUser.displayName) setFullName(currentUser.displayName);
-      if (currentUser.email) setEmail(currentUser.email);
-    }
+    // Keep form fields clean for manual entry or custom privacy
   }, [currentUser]);
 
   if (!isOpen) return null;
@@ -158,7 +155,7 @@ export const FanRegistrationModal: React.FC<FanRegistrationModalProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Alex Watchman"
+                    placeholder="e.g. Jon Doe"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -174,7 +171,7 @@ export const FanRegistrationModal: React.FC<FanRegistrationModalProps> = ({
                   <input
                     type="email"
                     required
-                    placeholder="e.g. alex@example.com"
+                    placeholder="e.g. example@gmail.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-600"
