@@ -37,7 +37,8 @@ import {
   Trash2,
   Lock,
   Edit2,
-  Check
+  Check,
+  Gift
 } from "lucide-react";
 import { 
   XAxis, 
@@ -81,6 +82,8 @@ import { cn, formatCurrency } from "./lib/utils";
 import { PromoSlider } from "./components/PromoSlider";
 import { ExperiencesSection } from "./components/ExperiencesSection";
 import { ExperienceAdmin } from "./components/ExperienceAdmin";
+import { PlayerGiveawaySection } from "./components/giveaway/PlayerGiveawaySection";
+import { GiveawayControlRoom } from "./components/giveaway/GiveawayControlRoom";
 import { NFLImage } from "./utils/nflImages";
 
 // --- Constants ---
@@ -1524,7 +1527,7 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [orders, setOrders] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences">("inquiries");
+  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences" | "giveaways">("inquiries");
   const [searchTerm, setSearchTerm] = useState("");
   const [replyText, setReplyText] = useState("");
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
@@ -1792,6 +1795,12 @@ const AdminPortal = ({ user }: { user: any }) => {
           >
             Experiences
           </button>
+          <button 
+            onClick={() => { setActiveSubTab("giveaways"); setSearchTerm(""); }}
+            className={cn("px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap", activeSubTab === "giveaways" ? "bg-blue-600 text-white" : "bg-zinc-900 text-zinc-500")}
+          >
+            Player Giveaways
+          </button>
         </div>
       </div>
 
@@ -1803,7 +1812,9 @@ const AdminPortal = ({ user }: { user: any }) => {
       )}
 
       <div className="bg-zinc-900/50 border border-white/5 rounded-[2.5rem] overflow-hidden">
-        {activeSubTab === "experiences" ? (
+        {activeSubTab === "giveaways" ? (
+          <GiveawayControlRoom />
+        ) : activeSubTab === "experiences" ? (
           <ExperienceAdmin />
         ) : activeSubTab === "transactions" ? (
           <table className="w-full text-left">
@@ -2248,7 +2259,7 @@ export default function App() {
   };
   const [activeTicket, setActiveTicket] = useState<string | null>(localStorage.getItem("active_ticket_id"));
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences">("markets");
+  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "giveaways">("markets");
   const [dismissedHero, setDismissedHero] = useState(false);
   const [deepLinkExp, setDeepLinkExp] = useState<any | null>(null);
   const [userBookings, setUserBookings] = useState<any[]>([]);
@@ -2873,6 +2884,7 @@ export default function App() {
               { id: "markets", label: "Exchange", icon: LayoutDashboard },
               { id: "draft", label: "Speculation", icon: Target },
               { id: "experiences", label: "Experiences", icon: Star },
+              { id: "giveaways", label: "Player Giveaways", icon: Gift },
               { id: "shop", label: "Arena Shop", icon: ShoppingBag },
               { id: "portfolio", label: "Portfolio", icon: History },
               ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control", icon: ShieldCheck }] : [])
@@ -2935,6 +2947,7 @@ export default function App() {
           { id: "markets", label: "Exchange", icon: LayoutDashboard },
           { id: "draft", label: "Speculation", icon: Target },
           { id: "experiences", label: "Experiences", icon: Star },
+          { id: "giveaways", label: "Giveaways", icon: Gift },
           { id: "shop", label: "Shop", icon: ShoppingBag },
           { id: "portfolio", label: "Portfolio", icon: History },
           ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control", icon: ShieldCheck }] : [])
@@ -3646,6 +3659,13 @@ export default function App() {
                   }}
                 />
               </div>
+            )}
+
+            {activeTab === "giveaways" && (
+              <PlayerGiveawaySection 
+                user={user} 
+                onSignInClick={() => setShowLogin(true)} 
+              />
             )}
 
             {activeTab === "admin" && user?.email === "alexwtchmn@gmail.com" && (

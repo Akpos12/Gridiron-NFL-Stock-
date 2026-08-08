@@ -204,6 +204,144 @@
       "schema": "PromoBanner",
       "description": "Admin promotional banners"
     },
+    "players/{playerId}": {
+      "schema": {
+        "title": "NFL Player",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "teamId": { "type": "string" },
+          "position": { "type": "string" },
+          "jerseyNumber": { "type": "string" },
+          "description": { "type": "string" },
+          "photoUrl": { "type": "string" },
+          "createdAt": { "type": "number" },
+          "updatedAt": { "type": "number" }
+        },
+        "required": ["name", "teamId"]
+      },
+      "description": "Featured NFL players for giveaways"
+    },
+    "giveaways/{giveawayId}": {
+      "schema": {
+        "title": "Player Giveaway Campaign",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "playerId": { "type": "string" },
+          "playerName": { "type": "string" },
+          "teamId": { "type": "string" },
+          "heroImageUrl": { "type": "string" },
+          "startDate": { "type": "string" },
+          "endDate": { "type": "string" },
+          "eligibility": { "type": "string" },
+          "entryRequirements": { "type": "string" },
+          "numWinners": { "type": "number" },
+          "rules": { "type": "string" },
+          "status": { "type": "string", "enum": ["DRAFT", "SCHEDULED", "ACTIVE", "ENDED", "ARCHIVED"] },
+          "entriesCount": { "type": "number" },
+          "prizes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" },
+                "description": { "type": "string" },
+                "quantity": { "type": "number" },
+                "imageUrl": { "type": "string" }
+              }
+            }
+          }
+        },
+        "required": ["title", "playerId", "teamId", "status"]
+      },
+      "description": "Player giveaway campaigns"
+    },
+    "registered_fans/{fanId}": {
+      "schema": {
+        "title": "Registered Fan Profile",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "userId": { "type": "string" },
+          "fullName": { "type": "string" },
+          "email": { "type": "string" },
+          "city": { "type": "string" },
+          "favoriteTeam": { "type": "string" },
+          "profilePhotoUrl": { "type": "string" },
+          "fanCode": { "type": "string" },
+          "createdAt": { "type": "number" }
+        },
+        "required": ["fullName", "email", "favoriteTeam", "fanCode"]
+      },
+      "description": "Registered fans and virtual fan cards"
+    },
+    "giveaway_entries/{entryId}": {
+      "schema": {
+        "title": "Giveaway Entry Record",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "giveawayId": { "type": "string" },
+          "giveawayTitle": { "type": "string" },
+          "playerId": { "type": "string" },
+          "playerName": { "type": "string" },
+          "teamId": { "type": "string" },
+          "userId": { "type": "string" },
+          "userEmail": { "type": "string" },
+          "userName": { "type": "string" },
+          "fanCode": { "type": "string" },
+          "city": { "type": "string" },
+          "profilePhotoUrl": { "type": "string" },
+          "status": { "type": "string", "enum": ["ENTERED", "ELIGIBLE", "WINNER", "RUNNER_UP"] },
+          "entryDate": { "type": "number" }
+        },
+        "required": ["giveawayId", "fanCode", "entryDate"]
+      },
+      "description": "User giveaway entries"
+    },
+    "giveaway_winners/{winnerId}": {
+      "schema": {
+        "title": "Giveaway Winner Record",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "giveawayId": { "type": "string" },
+          "giveawayTitle": { "type": "string" },
+          "playerId": { "type": "string" },
+          "playerName": { "type": "string" },
+          "prizeName": { "type": "string" },
+          "winnerUserId": { "type": "string" },
+          "winnerFanCode": { "type": "string" },
+          "winnerName": { "type": "string" },
+          "winnerEmail": { "type": "string" },
+          "selectionDate": { "type": "number" },
+          "status": { "type": "string" }
+        },
+        "required": ["giveawayId", "winnerFanCode", "winnerName"]
+      },
+      "description": "Selected giveaway winners"
+    },
+    "teams_config/{teamId}": {
+      "schema": {
+        "title": "Team Branding Configuration",
+        "type": "object",
+        "properties": {
+          "teamId": { "type": "string" },
+          "teamName": { "type": "string" },
+          "teamLogoUrl": { "type": "string" },
+          "primaryColor": { "type": "string" },
+          "secondaryColor": { "type": "string" },
+          "fanCardTemplateStyle": { "type": "string" }
+        },
+        "required": ["teamId"]
+      },
+      "description": "Team template & branding configurations"
+    },
     "admins/{userId}": {
       "schema": {
         "title": "Admin Record",

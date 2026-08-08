@@ -151,5 +151,40 @@ service cloud.firestore {
       allow read, list: if true;
       allow write: if isAdmin();
     }
+
+    // Player Giveaway System Rules
+    match /players/{playerId} {
+      allow read, list: if true;
+      allow write: if isAdmin();
+    }
+
+    match /giveaways/{giveawayId} {
+      allow read, list: if true;
+      allow write: if isAdmin();
+    }
+
+    match /registered_fans/{fanId} {
+      allow read, list: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin();
+    }
+
+    match /giveaway_entries/{entryId} {
+      allow read, list: if true;
+      allow create: if true;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /giveaway_winners/{winnerId} {
+      allow read, list: if true;
+      allow write: if isAdmin();
+    }
+
+    match /teams_config/{teamId} {
+      allow read, list: if true;
+      allow write: if isAdmin();
+    }
   }
 }
