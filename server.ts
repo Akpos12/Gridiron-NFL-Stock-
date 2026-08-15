@@ -374,6 +374,31 @@ async function startServer() {
 
     const fallbackGames = [
       {
+        id: "tm-sea-dal-pre",
+        name: "Seattle Seahawks vs Dallas Cowboys",
+        homeTeam: "Seahawks",
+        awayTeam: "Cowboys",
+        stadium: "Lumen Field",
+        city: "Seattle, WA",
+        date: "2026-08-16",
+        time: "1:00 AM",
+        competition: "Pre Season · NFL",
+        status: "Tomorrow · 1:00 AM",
+        location: "Lumen Field, Seattle",
+        winProbability: {
+          home: "56.5%",
+          away: "43.5%",
+          homeTeam: "Seahawks",
+          awayTeam: "Cowboys"
+        },
+        cheapestPrice: 1200,
+        vipPrice: 5000,
+        seasonPassPrice: 8000,
+        url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
+        image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+        isResale: false
+      },
+      {
         id: "tm-7",
         name: "Minnesota Vikings vs Green Bay Packers",
         homeTeam: "Vikings",

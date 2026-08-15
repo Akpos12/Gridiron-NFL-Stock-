@@ -93,6 +93,31 @@
       },
       "required": ["userId", "itemType", "price", "timestamp"]
     },
+    "TicketOrder": {
+      "title": "Box Office Match Ticket Order",
+      "description": "User ticket purchase order for NFL matches",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string" },
+        "gameId": { "type": "string" },
+        "gameName": { "type": "string" },
+        "homeTeam": { "type": "string" },
+        "awayTeam": { "type": "string" },
+        "stadium": { "type": "string" },
+        "city": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "tier": { "type": "string" },
+        "quantity": { "type": "number" },
+        "pricePerTicket": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "buyerEmail": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["orderId", "gameId", "buyerEmail", "totalAmount"]
+    },
     "Experience": {
       "title": "NFL Experience Product",
       "description": "Premium Tours, Player Meet & Greets, and Luxury Packages",
@@ -187,6 +212,10 @@
     "store_orders/{orderId}": {
       "schema": "StoreOrder",
       "description": "Global log of store purchases"
+    },
+    "ticket_orders/{orderId}": {
+      "schema": "TicketOrder",
+      "description": "User match ticket purchases"
     },
     "global_transactions/{txId}": {
       "schema": "Transaction",

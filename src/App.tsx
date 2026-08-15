@@ -38,7 +38,13 @@ import {
   Lock,
   Edit2,
   Check,
-  Gift
+  Gift,
+  Building2,
+  Smartphone,
+  QrCode,
+  MapPin,
+  Calendar,
+  Clock
 } from "lucide-react";
 import { 
   XAxis, 
@@ -84,6 +90,7 @@ import { ExperiencesSection } from "./components/ExperiencesSection";
 import { ExperienceAdmin } from "./components/ExperienceAdmin";
 import { PlayerGiveawaySection } from "./components/giveaway/PlayerGiveawaySection";
 import { GiveawayControlRoom } from "./components/giveaway/GiveawayControlRoom";
+import { TicketCheckoutModal, GameTicket } from "./components/TicketCheckoutModal";
 import { NFLImage } from "./utils/nflImages";
 
 // --- Constants ---
@@ -196,7 +203,9 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { i
   const [copied, setCopied] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"deposit" | "withdraw" | "history">("withdraw");
   const [withdrawTab, setWithdrawTab] = useState<"fiat" | "crypto">("crypto");
+  const [depositMethod, setDepositMethod] = useState<"bank" | "cashapp" | "venmo" | "zelle" | "crypto">("bank");
   const [selectedCurrency, setSelectedCurrency] = useState("USDT");
+  const [selectedDepositCrypto, setSelectedDepositCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawAddress, setWithdrawAddress] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -238,7 +247,7 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { i
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8 shadow-2xl relative overflow-hidden"
+        className="w-full max-w-2xl bg-zinc-900/95 backdrop-blur-2xl border border-white/10 rounded-3xl md:rounded-[2.5rem] p-6 md:p-8 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto custom-scrollbar"
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-white to-red-600" />
         
@@ -284,7 +293,7 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { i
           </div>
         </div>
 
-        <div className="flex gap-4 mb-8 border-b border-white/5">
+        <div className="flex gap-4 mb-6 border-b border-white/5">
           {["withdraw", "deposit", "history"].map((tab) => (
             <button
               key={tab}
@@ -334,39 +343,223 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { i
             )}
           </div>
         ) : activeTab === "deposit" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <h3 className="text-xs font-black uppercase text-zinc-400 tracking-widest border-b border-white/5 pb-2">Institutional Deposit</h3>
-              <div className="space-y-4">
-                <div className="p-4 bg-zinc-800/50 rounded-2xl border border-white/5 group">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                       Bitcoin (BTC)
-                    </p>
-                    <button onClick={() => copyToClipboard("bc1qddj8shfsfhgj2rrk24v3gflp234znsxw7d4xtt", "btc")}>
-                       {copied === "btc" ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
-                    </button>
-                  </div>
-                  <p className="text-[10px] font-mono break-all text-zinc-300">bc1qddj8shfsfhgj2rrk24v3gflp234znsxw7d4xtt</p>
+          <div className="space-y-6">
+            <div className="flex flex-wrap gap-2 border-b border-white/5 pb-3">
+              {[
+                { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2 },
+                { id: "cashapp", label: "Cash App", icon: Smartphone },
+                { id: "venmo", label: "Venmo", icon: Smartphone },
+                { id: "zelle", label: "Zelle", icon: Smartphone },
+                { id: "crypto", label: "Crypto", icon: QrCode }
+              ].map(method => (
+                <button
+                  key={method.id}
+                  type="button"
+                  onClick={() => setDepositMethod(method.id as any)}
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border",
+                    depositMethod === method.id 
+                      ? "bg-white text-black border-white shadow-md" 
+                      : "bg-zinc-950 text-zinc-400 border-white/5 hover:border-white/20"
+                  )}
+                >
+                  <method.icon className="w-3 h-3" />
+                  {method.label}
+                </button>
+              ))}
+            </div>
+
+            {depositMethod === "bank" && (
+              <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 space-y-3">
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span className="text-xs font-black uppercase text-white flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-blue-400" /> BMO Bank Wire & Direct ACH
+                  </span>
+                  <span className="text-[9px] font-mono bg-blue-600/10 text-blue-400 px-2 py-0.5 rounded font-black uppercase">
+                    Domestic ACH / Wire
+                  </span>
                 </div>
-                <div className="p-4 bg-zinc-800/50 rounded-2xl border border-white/5 group">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                      USDT (ERC-20)
-                    </p>
-                    <button onClick={() => copyToClipboard("0xBD40A14Dd94403107DD1F81DB5f2b4E80D34A222", "usdt")}>
-                      {copied === "usdt" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex justify-between items-center">
+                    <div>
+                      <span className="text-[8px] font-black uppercase text-zinc-500 block">Bank Name</span>
+                      <span className="font-bold text-white">BMO bank</span>
+                    </div>
+                    <button onClick={() => copyToClipboard("BMO bank", "depBank")}>
+                      {copied === "depBank" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
                     </button>
                   </div>
-                  <p className="text-[10px] font-mono break-all text-zinc-300">0xBD40A14Dd94403107DD1F81DB5f2b4E80D34A222</p>
+                  <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex justify-between items-center">
+                    <div>
+                      <span className="text-[8px] font-black uppercase text-zinc-500 block">Account Name</span>
+                      <span className="font-bold text-white">Matthew Golom</span>
+                    </div>
+                    <button onClick={() => copyToClipboard("Matthew Golom", "depName")}>
+                      {copied === "depName" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
+                    </button>
+                  </div>
+                  <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex justify-between items-center">
+                    <div>
+                      <span className="text-[8px] font-black uppercase text-zinc-500 block">Account Number</span>
+                      <span className="font-mono font-black text-cyan-300">4859176529</span>
+                    </div>
+                    <button onClick={() => copyToClipboard("4859176529", "depAcc")}>
+                      {copied === "depAcc" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
+                    </button>
+                  </div>
+                  <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex justify-between items-center">
+                    <div>
+                      <span className="text-[8px] font-black uppercase text-zinc-500 block">Routing / Routine Number</span>
+                      <span className="font-mono font-black text-amber-300">071025661</span>
+                    </div>
+                    <button onClick={() => copyToClipboard("071025661", "depRout")}>
+                      {copied === "depRout" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="space-y-4 flex flex-col justify-end">
-               <div className="p-6 bg-blue-600/5 border border-blue-600/20 rounded-3xl">
-                 <h4 className="text-[10px] font-black uppercase text-blue-400 mb-2">Liquidity Injection</h4>
-                 <p className="text-[9px] text-zinc-400 leading-relaxed font-medium">Funds sent to these institutional addresses are automatically credited to your balance upon 3 network confirmations. Ensure high-priority fees for faster clearing.</p>
-               </div>
+            )}
+
+            {depositMethod === "cashapp" && (
+              <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 space-y-3">
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span className="text-xs font-black uppercase text-white flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-emerald-400" /> Cash App Instant Deposit
+                  </span>
+                  <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-black uppercase">
+                    Zero Fees
+                  </span>
+                </div>
+                <div className="p-4 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
+                  <div>
+                    <span className="text-[8px] font-black uppercase text-zinc-500 block">Official Cashtag</span>
+                    <span className="text-lg font-mono font-black text-emerald-400">$Mickobabe32</span>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard("$Mickobabe32", "depCashapp")}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all"
+                  >
+                    {copied === "depCashapp" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copied === "depCashapp" ? "Copied" : "Copy Cashtag"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {depositMethod === "venmo" && (
+              <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 space-y-3">
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span className="text-xs font-black uppercase text-white flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-blue-400" /> Venmo Instant Deposit
+                  </span>
+                </div>
+                <div className="p-4 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
+                  <div>
+                    <span className="text-[8px] font-black uppercase text-zinc-500 block">Official Venmo Handle</span>
+                    <span className="text-lg font-mono font-black text-blue-400">@DomickoChopin</span>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard("@DomickoChopin", "depVenmo")}
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all"
+                  >
+                    {copied === "depVenmo" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copied === "depVenmo" ? "Copied" : "Copy Venmo"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {depositMethod === "zelle" && (
+              <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 space-y-3">
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span className="text-xs font-black uppercase text-white flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-purple-400" /> Zelle Bank Transfer
+                  </span>
+                </div>
+                <div className="p-4 bg-zinc-900 rounded-xl border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[8px] font-black uppercase text-zinc-500 block">Zelle Recipient Email & Name</span>
+                    <span className="text-sm font-mono font-black text-purple-300 block">matthewgolom21@gmail.com</span>
+                    <span className="text-[10px] text-zinc-400 font-bold uppercase">Name: Matthew Golom</span>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard("matthewgolom21@gmail.com", "depZelle")}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto"
+                  >
+                    {copied === "depZelle" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copied === "depZelle" ? "Copied" : "Copy Zelle"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {depositMethod === "crypto" && (
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  {[
+                    { id: "usdt", label: "USDT (ERC-20)" },
+                    { id: "btc", label: "BTC (Bitcoin)" },
+                    { id: "eth", label: "ETH (Ethereum)" }
+                  ].map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedDepositCrypto(c.id as any)}
+                      className={cn(
+                        "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                        selectedDepositCrypto === c.id 
+                          ? "bg-blue-600 text-white" 
+                          : "bg-zinc-950 text-zinc-400 hover:text-white border border-white/5"
+                      )}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 space-y-3">
+                  {selectedDepositCrypto === "btc" && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Bitcoin (BTC Mainnet) Address</span>
+                        <button onClick={() => copyToClipboard("16246wmdY6kGfFkWevPKCQrTKH8CRJ62yJ", "btcDep")}>
+                          {copied === "btcDep" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] font-mono break-all text-emerald-400 bg-zinc-900 p-2.5 rounded-xl select-all font-bold">16246wmdY6kGfFkWevPKCQrTKH8CRJ62yJ</p>
+                    </div>
+                  )}
+
+                  {selectedDepositCrypto === "eth" && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ethereum (ETH ERC-20) Address</span>
+                        <button onClick={() => copyToClipboard("0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf", "ethDep")}>
+                          {copied === "ethDep" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] font-mono break-all text-emerald-400 bg-zinc-900 p-2.5 rounded-xl select-all font-bold">0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf</p>
+                    </div>
+                  )}
+
+                  {selectedDepositCrypto === "usdt" && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">USDT (Ethereum ERC-20) Address</span>
+                        <button onClick={() => copyToClipboard("0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf", "usdtDep")}>
+                          {copied === "usdtDep" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] font-mono break-all text-emerald-400 bg-zinc-900 p-2.5 rounded-xl select-all font-bold">0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="p-4 bg-blue-600/5 border border-blue-600/20 rounded-2xl">
+              <h4 className="text-[10px] font-black uppercase text-blue-400 mb-1">Instant Institutional Liquidity Clearance</h4>
+              <p className="text-[9px] text-zinc-400 leading-relaxed font-medium">Funds sent through verified bank wire or blockchain channels are confirmed and credited with institutional speed. Keep reference numbers for instant reconciliation.</p>
             </div>
           </div>
         ) : (
@@ -476,6 +669,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
   const [ticketsLoading, setTicketsLoading] = useState<boolean>(true);
   const [ticketSort, setTicketSort] = useState<"cheapest" | "date">("date");
   const [ticketError, setTicketError] = useState<string | null>(null);
+  const [selectedTicketGame, setSelectedTicketGame] = useState<GameTicket | null>(null);
 
   // Fetch Merchandise products dynamically from backend
   useEffect(() => {
@@ -744,6 +938,31 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
         console.log("Live tickets fetch fallback activated:", err);
         if (active) {
           const clientFallback = [
+            {
+              id: "tm-sea-dal-pre",
+              name: "Seattle Seahawks vs Dallas Cowboys",
+              homeTeam: "Seahawks",
+              awayTeam: "Cowboys",
+              stadium: "Lumen Field",
+              city: "Seattle, WA",
+              date: "2026-08-16",
+              time: "1:00 AM",
+              competition: "Pre Season · NFL",
+              status: "Tomorrow · 1:00 AM",
+              location: "Lumen Field, Seattle",
+              winProbability: {
+                home: "56.5%",
+                away: "43.5%",
+                homeTeam: "Seahawks",
+                awayTeam: "Cowboys"
+              },
+              cheapestPrice: 1200,
+              vipPrice: 5000,
+              seasonPassPrice: 8000,
+              url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
+              image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+              isResale: false
+            },
             {
               id: "tm-7",
               name: "Minnesota Vikings vs Green Bay Packers",
@@ -1326,17 +1545,25 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                 });
 
                 return (
-                  <div key={game.id} className="bg-zinc-900/20 border border-white/5 hover:border-white/10 rounded-[2rem] overflow-hidden group hover:bg-zinc-900/45 transition-all flex flex-col justify-between">
+                  <div key={game.id} className="bg-zinc-900/40 border border-white/5 hover:border-white/20 rounded-[2rem] overflow-hidden group hover:bg-zinc-900/60 transition-all flex flex-col justify-between shadow-xl">
                     <div>
                       <div className="aspect-[4/3] overflow-hidden relative border-b border-white/5">
                         <NFLImage item={game} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95" />
                         
-                        <div className="absolute top-4 left-4 bg-zinc-950/85 backdrop-blur-md border border-white/10 px-3.5 py-1.5 rounded-xl flex items-center gap-1.5">
+                        <div className="absolute top-4 left-4 bg-zinc-950/90 backdrop-blur-md border border-white/10 px-3.5 py-1.5 rounded-xl flex items-center gap-1.5">
                           <Ticket className="w-3.5 h-3.5 text-blue-500" />
-                          <span className="text-[8px] font-black uppercase tracking-widest text-white leading-none">BOX OFFICE OPEN</span>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-white leading-none">
+                            {game.competition || "BOX OFFICE OPEN"}
+                          </span>
                         </div>
 
-                        {game.isResale && (
+                        {game.status && (
+                          <div className="absolute top-4 right-4 bg-emerald-600/90 backdrop-blur-md px-3 py-1 rounded-xl">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-white">{game.status}</span>
+                          </div>
+                        )}
+
+                        {game.isResale && !game.status && (
                           <div className="absolute top-4 right-4 bg-amber-600/90 backdrop-blur-md px-3 py-1 rounded-xl">
                             <span className="text-[8px] font-black uppercase tracking-widest text-white">RESALE TICKETS</span>
                           </div>
@@ -1345,9 +1572,35 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
 
                       <div className="p-6 space-y-4">
                         <div>
-                          <div className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1.5 font-mono">{formattedDate} @ {game.time}</div>
+                          <div className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1.5 font-mono flex items-center gap-1.5">
+                            <Calendar className="w-3 h-3 text-blue-400" />
+                            {formattedDate} @ {game.time}
+                          </div>
                           <h4 className="text-lg font-black uppercase leading-tight italic line-clamp-1 text-white">{game.name}</h4>
                         </div>
+
+                        {/* Win Probability Bar if available */}
+                        {game.winProbability && (
+                          <div className="bg-zinc-950/70 p-3.5 rounded-2xl border border-white/5 space-y-2">
+                            <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-wider">
+                              <span className="text-zinc-400">{game.winProbability.awayTeam || "Away"}: <span className="text-white">{game.winProbability.away}</span></span>
+                              <span className="text-[8px] text-zinc-500 font-bold">WIN PROBABILITY</span>
+                              <span className="text-blue-400">{game.winProbability.homeTeam || "Home"}: <span className="text-white">{game.winProbability.home}</span></span>
+                            </div>
+                            <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden flex">
+                              <div 
+                                style={{ width: game.winProbability.away }} 
+                                className="h-full bg-zinc-400"
+                                title={`Away: ${game.winProbability.away}`}
+                              />
+                              <div 
+                                style={{ width: game.winProbability.home }} 
+                                className="h-full bg-blue-500"
+                                title={`Home: ${game.winProbability.home}`}
+                              />
+                            </div>
+                          </div>
+                        )}
                         
                         <div className="space-y-2 text-[10px] bg-zinc-950/40 p-4 rounded-2xl border border-white/5">
                           <div className="flex justify-between items-center">
@@ -1355,36 +1608,45 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                             <span className="text-zinc-300 font-black uppercase tracking-wide truncate max-w-[150px]">{game.stadium}</span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-zinc-500 font-bold uppercase tracking-wider">Location</span>
-                            <span className="text-zinc-300 font-black uppercase tracking-wide">{game.city}</span>
+                            <span className="text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-red-400" /> Location
+                            </span>
+                            <span className="text-zinc-300 font-black uppercase tracking-wide">{game.location || `${game.stadium}, ${game.city}`}</span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span className="text-zinc-500 font-bold uppercase tracking-wider">Tier Options</span>
-                            <span className="text-white font-black uppercase tracking-wider text-[9px] bg-blue-600/10 text-blue-400 px-2 py-0.5 rounded">VIP + General</span>
+                            <span className="text-zinc-500 font-bold uppercase tracking-wider">Payment Rails</span>
+                            <span className="text-emerald-400 font-black uppercase tracking-wider text-[9px] bg-emerald-600/10 px-2 py-0.5 rounded">
+                              BMO Bank · Apps · Crypto
+                            </span>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="p-6 pt-0 border-t border-white/5 mt-4 flex items-center justify-between">
-                      <div className="pt-4">
-                        <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest block">Available Seat Rates</span>
-                        <div className="flex items-baseline gap-1 mt-1">
-                          <span className="font-mono text-white text-lg font-black">${game.cheapestPrice}</span>
+                    <div className="p-6 pt-0 border-t border-white/5 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="pt-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest block">Available Rates</span>
+                          {game.seasonPassPrice && (
+                            <span className="text-[8px] font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
+                              Season Pass: ${Number(game.seasonPassPrice).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-baseline gap-1 mt-0.5">
+                          <span className="font-mono text-white text-lg font-black">${Number(game.cheapestPrice).toLocaleString()}</span>
                           <span className="text-[9px] text-zinc-500 font-semibold lowercase">to</span>
-                          <span className="font-mono text-zinc-400 text-xs font-bold">${game.vipPrice} (VIP)</span>
+                          <span className="font-mono text-zinc-400 text-xs font-bold">${Number(game.vipPrice).toLocaleString()} (VIP)</span>
                         </div>
                       </div>
 
-                      <div className="pt-4">
-                        <a 
-                          href={game.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-5 py-3.5 bg-white hover:bg-zinc-200 text-black font-black text-[9px] rounded-xl tracking-widest uppercase flex items-center gap-1.5 transition-colors shadow-2xl"
+                      <div className="pt-2 flex items-center gap-2">
+                        <button 
+                          onClick={() => setSelectedTicketGame(game)}
+                          className="flex-1 sm:flex-none px-5 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-[9px] rounded-xl tracking-widest uppercase flex items-center justify-center gap-1.5 transition-colors shadow-lg shadow-blue-600/20"
                         >
-                          Buy Ticket <ExternalLink className="w-3 h-3" />
-                        </a>
+                          <Ticket className="w-3.5 h-3.5" /> Buy Ticket
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1517,6 +1779,13 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
           </div>
         </div>
       )}
+
+      {/* Box Office Ticket Purchase Modal with Official Payment Channels */}
+      <TicketCheckoutModal
+        game={selectedTicketGame}
+        isOpen={!!selectedTicketGame}
+        onClose={() => setSelectedTicketGame(null)}
+      />
     </div>
   );
 };

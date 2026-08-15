@@ -72,6 +72,18 @@ service cloud.firestore {
       allow create, update, delete: if true;
     }
 
+    // Ticket Orders Rules
+    match /ticket_orders/{orderId} {
+      allow read, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Connection Health Test
+    match /test/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // NFL Experiences Rules
     match /experiences/{experienceId} {
       allow read, list: if true;
