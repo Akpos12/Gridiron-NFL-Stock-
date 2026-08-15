@@ -113,6 +113,8 @@ export function getNFLImage(item: {
         teamId = "GB";
       } else if (fullText.includes("SF") || fullText.includes("49ERS") || fullText.includes("SAN FRANCISCO")) {
         teamId = "SF";
+      } else if (fullText.includes("SEA") || fullText.includes("SEAHAWKS") || fullText.includes("SEATTLE")) {
+        teamId = "SEA";
       }
     }
 
@@ -120,8 +122,8 @@ export function getNFLImage(item: {
     const isJersey = normCategory.includes("jersey") || normTitle.includes("jersey") || normId.includes("jersey") || normId.startsWith("J");
     const isHoodieOrJacket = normCategory.includes("hoodie") || normTitle.includes("hoodie") || normTitle.includes("jacket") || normCategory.includes("limited") || normId.includes("hoodie") || normId.includes("limited") || normTitle.includes("fleece");
     const isHelmet = normCategory.includes("helmet") || normTitle.includes("helmet") || normId.includes("helmet");
-    const isCap = normCategory.includes("hat") || normCategory.includes("cap") || normTitle.includes("hat") || normTitle.includes("cap") || normId.includes("hat");
-    const isMemorabilia = normCategory.includes("memorabilia") || normTitle.includes("autograph") || normTitle.includes("signed") || normTitle.includes("ball") || normTitle.includes("football") || normId.includes("memorabilia");
+    const isCap = normCategory.includes("hat") || normCategory.includes("cap") || normTitle.includes("hat") || normTitle.includes("cap") || normId.includes("hat") || normTitle.includes("39thirty");
+    const isMemorabilia = normCategory.includes("memorabilia") || normTitle.includes("autograph") || normTitle.includes("signed") || normTitle.includes("ball") || normTitle.includes("football") || normId.includes("memorabilia") || normTitle.includes("canvas");
     
     const isStadiumTour = normType === "stadium_tour" || normType === "private_tour" || normCategory.includes("tour") || normCategory.includes("facility") || normTitle.includes("stadium tour") || normTitle.includes("facility tour") || normTitle.includes("access tour");
     const isMeetGreet = normType === "meet_greet" || normCategory.includes("meet") || normTitle.includes("meet & greet") || normTitle.includes("session") || normTitle.includes("masterclass") || normCategory.includes("greet");
@@ -130,19 +132,41 @@ export function getNFLImage(item: {
 
     // 3. MAP TEAM-SPECIFIC HIGH VALUE TARGETS
     if (isJersey) {
-      baseSrc = "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg";
+      if (teamId === "SEA") {
+        baseSrc = "https://i.postimg.cc/D02xmKMV/Seattle-Seahawks-Dk-Metcalf-14-Nfl-Jersey-Grosse-L-Neu-Mit-Etikett.jpg";
+      } else {
+        baseSrc = "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg";
+      }
     } else if (isHoodieOrJacket) {
-      if (normCategory.includes("limited") || normId.includes("limited") || normTitle.includes("heritage") || normTitle.includes("jacket") || normTitle.includes("varsity")) {
+      if (teamId === "SEA" && (normCategory.includes("limited") || normId.includes("limited") || normTitle.includes("jacket") || normTitle.includes("varsity"))) {
+        baseSrc = "https://i.postimg.cc/cC8c54jB/Pro-Standard-NFL-SEATTLE-SEAHAWKS-OLD-ENGLISH-MEN-S-RIB-WOOL-VARSITY-JACKET-(MIDNIGHT-NAVY-WHITE)-M.jpg";
+      } else if (teamId === "SEA") {
+        baseSrc = "https://i.postimg.cc/GtcX91SV/Seattle-Seahawks-Initial-Home-Sideline-Men-s-Nike-Dri-FIT-NFL-Pullover-Hoodie.jpg";
+      } else if (normCategory.includes("limited") || normId.includes("limited") || normTitle.includes("heritage") || normTitle.includes("jacket") || normTitle.includes("varsity")) {
         baseSrc = "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg";
       } else {
         baseSrc = "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg";
       }
     } else if (isHelmet) {
-      baseSrc = "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg";
+      if (teamId === "SEA") {
+        baseSrc = "https://i.postimg.cc/T1WcHYSq/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg";
+      } else {
+        baseSrc = "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg";
+      }
     } else if (isCap) {
-      baseSrc = "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg";
+      if (teamId === "SEA") {
+        baseSrc = "https://i.postimg.cc/6qGh15SM/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg";
+      } else {
+        baseSrc = "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg";
+      }
     } else if (isMemorabilia) {
-      baseSrc = "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg";
+      if (teamId === "SEA" && (normTitle.includes("canvas") || normTitle.includes("photo") || normTitle.includes("signed-photo"))) {
+        baseSrc = "https://i.postimg.cc/QCWqnxPm/DK-Metcalf-Signed-Seattle-Seahawks-Framed-16x20-Stretched-Canvas-Beckett-W-Holo.jpg";
+      } else if (teamId === "SEA") {
+        baseSrc = "https://i.postimg.cc/2yBxX8J2/DK-Metcalf-Autographed-Seahawks-Football.jpg";
+      } else {
+        baseSrc = "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg";
+      }
     } else if (isStadiumTour) {
       if (teamId === "DAL") baseSrc = NFL_IMAGES.stadiums.DAL;
       else if (teamId === "MIN") baseSrc = NFL_IMAGES.stadiums.MIN;

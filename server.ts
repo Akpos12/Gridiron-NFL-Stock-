@@ -160,7 +160,9 @@ async function startServer() {
           basePrice: 175,
           category: "jerseys",
           discount: 10,
-          image: "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg",
+          image: team.id === "SEA"
+            ? "https://i.postimg.cc/D02xmKMV/Seattle-Seahawks-Dk-Metcalf-14-Nfl-Jersey-Grosse-L-Neu-Mit-Etikett.jpg"
+            : "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg",
           inStock: true,
           trending: true,
           rating: 4.9,
@@ -173,7 +175,9 @@ async function startServer() {
           basePrice: 85,
           category: "hoodies",
           discount: 15,
-          image: "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg",
+          image: team.id === "SEA"
+            ? "https://i.postimg.cc/GtcX91SV/Seattle-Seahawks-Initial-Home-Sideline-Men-s-Nike-Dri-FIT-NFL-Pullover-Hoodie.jpg"
+            : "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg",
           inStock: true,
           trending: false,
           rating: 4.7,
@@ -186,7 +190,9 @@ async function startServer() {
           basePrice: 350,
           category: "helmets",
           discount: 0,
-          image: "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg",
+          image: team.id === "SEA"
+            ? "https://i.postimg.cc/T1WcHYSq/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg"
+            : "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg",
           inStock: true,
           trending: false,
           rating: 4.8,
@@ -194,28 +200,40 @@ async function startServer() {
         },
         {
           id: `m-${team.id}-helmet-mini`,
-          name: `${team.city} ${team.name} On-Field Speed Mini Helmet Collector Edition`,
-          description: `Official 1/2 scale replica mini helmet featuring high-gloss team shell and face mask. Ideal for autographs and office showcases.`,
-          basePrice: 42,
+          name: team.id === "SEA"
+            ? `Seahawks Steve Largent HOF Signed Lunar Speed Mini Helmet (BAS Witnessed)`
+            : `${team.city} ${team.name} On-Field Speed Mini Helmet Collector Edition`,
+          description: team.id === "SEA"
+            ? `Certified authentic autographed Seattle Seahawks Lunar Eclipse Speed mini helmet signed by Pro Football Hall of Famer Steve Largent (HOF 1995). BAS Witnessed with certificate.`
+            : `Official 1/2 scale replica mini helmet featuring high-gloss team shell and face mask. Ideal for autographs and office showcases.`,
+          basePrice: team.id === "SEA" ? 185 : 42,
           category: "helmets",
           discount: 5,
-          image: "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg",
+          image: team.id === "SEA"
+            ? "https://i.postimg.cc/T1WcHYSq/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg"
+            : "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg",
           inStock: true,
           trending: false,
-          rating: 4.6,
+          rating: 4.9,
           reviewsCount: 64
         },
         {
           id: `m-${team.id}-hat`,
-          name: `${team.city} ${team.name} Nike Sideline Club Adjustable Cap`,
-          description: `Relaxed fit adjustable hat with premium raised embroidery of the official ${team.name} logo. High breathability mesh cells.`,
+          name: team.id === "SEA"
+            ? `Seattle Seahawks NFL Essentials 39THIRTY Stretch Fit Cap`
+            : `${team.city} ${team.name} Nike Sideline Club Adjustable Cap`,
+          description: team.id === "SEA"
+            ? `Official New Era Seattle Seahawks 39THIRTY stretch fit cap in dark navy with raised embroidered team logo and structured contoured crown.`
+            : `Relaxed fit adjustable hat with premium raised embroidery of the official ${team.name} logo. High breathability mesh cells.`,
           basePrice: 35,
           category: "hats",
           discount: 5,
-          image: "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
+          image: team.id === "SEA"
+            ? "https://i.postimg.cc/6qGh15SM/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg"
+            : "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
           inStock: true,
           trending: true,
-          rating: 4.5,
+          rating: 4.8,
           reviewsCount: 215
         },
         {
@@ -225,7 +243,9 @@ async function startServer() {
           basePrice: 32,
           category: "hats",
           discount: 0,
-          image: "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
+          image: team.id === "SEA"
+            ? "https://i.postimg.cc/6qGh15SM/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg"
+            : "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
           inStock: true,
           trending: false,
           rating: 4.8,
@@ -233,12 +253,18 @@ async function startServer() {
         },
         {
           id: `m-${team.id}-memorabilia`,
-          name: `${star.player} Autographed Duke Official NFL Wilson Football`,
-          description: `Certified authentic autographed official leather Wilson football signed personally by star athlete ${star.player}. Includes certificate.`,
+          name: team.id === "SEA"
+            ? `DK Metcalf Autographed Seahawks Official Football`
+            : `${star.player} Autographed Duke Official NFL Wilson Football`,
+          description: team.id === "SEA"
+            ? `Certified authentic autographed official Wilson NFL leather football signed personally by star athlete DK Metcalf. Includes tamper-evident hologram.`
+            : `Certified authentic autographed official leather Wilson football signed personally by star athlete ${star.player}. Includes certificate.`,
           basePrice: 599,
           category: "memorabilia",
           discount: 0,
-          image: "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
+          image: team.id === "SEA"
+            ? "https://i.postimg.cc/2yBxX8J2/DK-Metcalf-Autographed-Seahawks-Football.jpg"
+            : "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
           inStock: true,
           trending: true,
           rating: 5.0,
@@ -246,12 +272,18 @@ async function startServer() {
         },
         {
           id: `m-${team.id}-signed-photo`,
-          name: `${star.player} Framed 16x20 Autographed Action Photo & Coin Collection`,
-          description: `Custom framed 16x20 photo personally signed by ${star.player}, featuring dual minted 39mm silver-plated team coins and COA.`,
+          name: team.id === "SEA"
+            ? `DK Metcalf Signed Seahawks Framed 16x20 Stretched Canvas (Beckett W/Holo)`
+            : `${star.player} Framed 16x20 Autographed Action Photo & Coin Collection`,
+          description: team.id === "SEA"
+            ? `Custom framed 16x20 stretched canvas signed personally by DK Metcalf with Beckett Witnessed Authentication and serialized holographic verification.`
+            : `Custom framed 16x20 photo personally signed by ${star.player}, featuring dual minted 39mm silver-plated team coins and COA.`,
           basePrice: 280,
           category: "memorabilia",
           discount: 10,
-          image: "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
+          image: team.id === "SEA"
+            ? "https://i.postimg.cc/QCWqnxPm/DK-Metcalf-Signed-Seattle-Seahawks-Framed-16x20-Stretched-Canvas-Beckett-W-Holo.jpg"
+            : "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
           inStock: true,
           trending: false,
           rating: 4.9,
@@ -259,12 +291,18 @@ async function startServer() {
         },
         {
           id: `m-${team.id}-limited`,
-          name: `${team.city} ${team.name} Varsity Wool & Leather Heritage Jacket`,
-          description: `Extremely limited historical release. Full grain premium leather sleeves, heavy melton wool, direct satin stitching design.`,
+          name: team.id === "SEA"
+            ? `Pro Standard Seahawks Old English Rib Wool Varsity Jacket`
+            : `${team.city} ${team.name} Varsity Wool & Leather Heritage Jacket`,
+          description: team.id === "SEA"
+            ? `Official Pro Standard NFL varsity jacket in Midnight Navy & White. Premium rib wool body, genuine leather sleeves, custom Old English chenille chest patch.`
+            : `Extremely limited historical release. Full grain premium leather sleeves, heavy melton wool, direct satin stitching design.`,
           basePrice: 450,
           category: "limited",
           discount: 20,
-          image: "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg",
+          image: team.id === "SEA"
+            ? "https://i.postimg.cc/cC8c54jB/Pro-Standard-NFL-SEATTLE-SEAHAWKS-OLD-ENGLISH-MEN-S-RIB-WOOL-VARSITY-JACKET-(MIDNIGHT-NAVY-WHITE)-M.jpg"
+            : "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg",
           inStock: true,
           trending: false,
           rating: 4.9,
