@@ -677,6 +677,40 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
   const [ticketSort, setTicketSort] = useState<"cheapest" | "date">("date");
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [selectedTicketGame, setSelectedTicketGame] = useState<GameTicket | null>(null);
+  const [ticketInitialTier, setTicketInitialTier] = useState<"general" | "lower_bowl" | "club" | "vip" | "season_pass">("general");
+  const [ticketPassName, setTicketPassName] = useState<string | undefined>(undefined);
+
+  const handleOpenSeasonPassCheckout = (pass: any) => {
+    const currentTeam = NFL_TEAMS.find((t: Team) => t.id === selectedShopTeam) || NFL_TEAMS.find((t: Team) => t.id === "SEA") || NFL_TEAMS[0];
+    const isSeahawks = currentTeam.id === "SEA" || currentTeam.name.toLowerCase().includes("seahawk");
+    
+    setSelectedTicketGame({
+      id: pass.id || `pass-${currentTeam.id}`,
+      name: pass.name || `${currentTeam.city} ${currentTeam.name} Official Season Pass`,
+      homeTeam: `${currentTeam.city} ${currentTeam.name}`,
+      awayTeam: "All 2026 Home Opponents",
+      stadium: isSeahawks ? "Lumen Field" : "Franchise Home Stadium",
+      city: currentTeam.city,
+      date: "2026-2027 Season",
+      time: "All Regular Season Home Games + Playoff Rights",
+      competition: "Official NFL Franchise Season Membership",
+      status: "Guaranteed Reserved Seating & VIP Lounge Entry",
+      location: isSeahawks ? "Lumen Field, Seattle, WA" : `${currentTeam.city}`,
+      cheapestPrice: 1200,
+      vipPrice: 5000,
+      seasonPassPrice: pass.price || (isSeahawks ? 8000 : 8000),
+      image: pass.image,
+      url: `https://www.ticketmaster.com/?query=${encodeURIComponent(pass.name || "Seahawks Season Pass")}`
+    });
+    setTicketInitialTier("season_pass");
+    setTicketPassName(pass.name);
+  };
+
+  const handleOpenGameTicketCheckout = (game: GameTicket) => {
+    setSelectedTicketGame(game);
+    setTicketInitialTier("general");
+    setTicketPassName(undefined);
+  };
 
   // Fetch Merchandise products dynamically from backend
   useEffect(() => {
@@ -1455,22 +1489,10 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                     </div>
 
                     <button 
-                      onClick={() => setSelectedProduct({
-                        id: pass.id,
-                        name: pass.name,
-                        description: pass.features.join(" • "),
-                        price: pass.price,
-                        originalPrice: pass.price,
-                        category: "season_pass",
-                        rating: 5.0,
-                        reviewsCount: 42,
-                        inStock: true,
-                        image: pass.image,
-                        purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(pass.name)}`
-                      })}
-                      className="px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] rounded-xl tracking-widest uppercase transition-all shadow-xl shadow-blue-600/20 active:scale-[0.98]"
+                      onClick={() => handleOpenSeasonPassCheckout(pass)}
+                      className="px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] rounded-xl tracking-widest uppercase transition-all shadow-xl shadow-blue-600/20 active:scale-[0.98] flex items-center gap-1.5"
                     >
-                      Acquire Pass
+                      <Ticket className="w-3.5 h-3.5" /> Acquire Pass
                     </button>
                   </div>
                 </div>
@@ -1691,7 +1713,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
 
                       <div className="pt-2 flex items-center gap-2">
                         <button 
-                          onClick={() => setSelectedTicketGame(game)}
+                          onClick={() => handleOpenGameTicketCheckout(game)}
                           className="flex-1 sm:flex-none px-5 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-[9px] rounded-xl tracking-widest uppercase flex items-center justify-center gap-1.5 transition-colors shadow-lg shadow-blue-600/20"
                         >
                           <Ticket className="w-3.5 h-3.5" /> Buy Ticket
@@ -1829,11 +1851,18 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
         </div>
       )}
 
-      {/* Box Office Ticket Purchase Modal with Official Payment Channels */}
+      {/* Box Office Ticket Purchase Modal with Official Payment Channels & Split Options */}
       <TicketCheckoutModal
         game={selectedTicketGame}
         isOpen={!!selectedTicketGame}
-        onClose={() => setSelectedTicketGame(null)}
+        onClose={() => {
+          setSelectedTicketGame(null);
+          setTicketPassName(undefined);
+          setTicketInitialTier("general");
+        }}
+        initialTier={ticketInitialTier}
+        passName={ticketPassName}
+        initialPromoCode="258025"
       />
     </div>
   );

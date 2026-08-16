@@ -20,7 +20,15 @@ import {
   Send,
   Tag,
   Gift,
-  BadgePercent
+  BadgePercent,
+  Users,
+  CreditCard,
+  Layers,
+  Divide,
+  Share2,
+  DollarSign,
+  Wallet,
+  ChevronRight
 } from "lucide-react";
 import { doc, setDoc } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
@@ -56,6 +64,9 @@ interface TicketCheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  initialTier?: "general" | "lower_bowl" | "club" | "vip" | "season_pass";
+  initialPromoCode?: string;
+  passName?: string;
 }
 
 export const OFFICIAL_PAYMENT_CHANNELS = {
@@ -101,19 +112,36 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   game,
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  initialTier = "general",
+  initialPromoCode = "",
+  passName
 }) => {
-  const [selectedTier, setSelectedTier] = useState<"general" | "lower_bowl" | "club" | "vip" | "season_pass">("general");
+  const [selectedTier, setSelectedTier] = useState<"general" | "lower_bowl" | "club" | "vip" | "season_pass">(initialTier);
   const [quantity, setQuantity] = useState(1);
   const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "venmo" | "zelle" | "crypto">("bank");
   const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   
+  // Split Price / Payment Plan States
+  const [splitMode, setSplitMode] = useState<"full" | "split_2" | "split_4" | "group">("full");
+  const [groupSplitCount, setGroupSplitCount] = useState<number>(2);
+  const [groupLinkCopied, setGroupLinkCopied] = useState<boolean>(false);
+
   // Promo / Bonus Code State
-  const [promoCodeInput, setPromoCodeInput] = useState("");
-  const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
+  const [promoCodeInput, setPromoCodeInput] = useState(initialPromoCode || "");
+  const [appliedPromo, setAppliedPromo] = useState<string | null>(initialPromoCode ? initialPromoCode.trim() : null);
   const [promoError, setPromoError] = useState<string | null>(null);
-  const [promoSuccessMsg, setPromoSuccessMsg] = useState<string | null>(null);
+  const [promoSuccessMsg, setPromoSuccessMsg] = useState<string | null>(
+    initialPromoCode === "258025" ? "VIP Code 258025 Applied: 50% Off Match Tickets & $3,000 Off Season Pass!" : null
+  );
+
+  // Update initial tier when opened
+  React.useEffect(() => {
+    if (initialTier) {
+      setSelectedTier(initialTier);
+    }
+  }, [initialTier, isOpen]);
 
   // Buyer Details
   const [buyerName, setBuyerName] = useState("");
@@ -132,7 +160,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   };
 
   // Base tier pricing determination
-  const isSeahawksGame = game.id.includes("sea-dal") || game.homeTeam?.toLowerCase().includes("seahawk") || game.name?.toLowerCase().includes("seahawk");
+  const isSeahawksGame = game.id.includes("sea") || game.homeTeam?.toLowerCase().includes("seahawk") || game.name?.toLowerCase().includes("seahawk");
   
   const basePrice = isSeahawksGame ? 1200 : (game.cheapestPrice || 1200);
   const vipPrice = isSeahawksGame ? 5000 : (game.vipPrice || 5000);
@@ -148,9 +176,9 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   };
 
   // Check if promo code 258025 is applied
-  const is258025Applied = appliedPromo === "258025";
+  const is258025Applied = appliedPromo === "258025" || appliedPromo === "SPLIT50" || appliedPromo === "SEAHAWKS50";
 
-  // Discounted rates when code 258025 is active
+  // Discounted rates when code 258025 is active:
   // Match tickets -> 50% off (e.g. $1200 -> $600, $2400 -> $1200, $3600 -> $1800, $5000 -> $2500)
   // Season Pass -> $8k to $5k ($8,000 -> $5,000)
   const discountedTierRates: Record<"general" | "lower_bowl" | "club" | "vip" | "season_pass", number> = {
@@ -171,6 +199,36 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   const facilityFee = Math.round(subtotal * 0.05);
   const totalAmount = subtotal + facilityFee;
 
+  // Split Price Calculations
+  const splitCalculations = {
+    full: {
+      dueToday: totalAmount,
+      installmentsCount: 1,
+      installmentAmount: totalAmount,
+      scheduleText: "100% settled upon order confirmation"
+    },
+    split_2: {
+      dueToday: Math.ceil(totalAmount / 2),
+      installmentsCount: 2,
+      installmentAmount: Math.ceil(totalAmount / 2),
+      scheduleText: "2 equal payments of $" + Math.ceil(totalAmount / 2).toLocaleString() + " (50% today, 50% in 30 days — 0% interest)"
+    },
+    split_4: {
+      dueToday: Math.ceil(totalAmount / 4),
+      installmentsCount: 4,
+      installmentAmount: Math.ceil(totalAmount / 4),
+      scheduleText: "4 bi-weekly payments of $" + Math.ceil(totalAmount / 4).toLocaleString() + " (0% interest, 0 hidden fees)"
+    },
+    group: {
+      dueToday: Math.ceil(totalAmount / groupSplitCount),
+      installmentsCount: groupSplitCount,
+      installmentAmount: Math.ceil(totalAmount / groupSplitCount),
+      scheduleText: `Split evenly among ${groupSplitCount} people ($${Math.ceil(totalAmount / groupSplitCount).toLocaleString()} per person)`
+    }
+  };
+
+  const currentSplit = splitCalculations[splitMode];
+
   const handleApplyPromo = (codeToApply?: string) => {
     const code = (codeToApply || promoCodeInput).trim();
     if (!code) {
@@ -178,12 +236,12 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
       return;
     }
 
-    if (code === "258025") {
+    if (code === "258025" || code === "SPLIT50" || code === "SEAHAWKS50" || code === "12THMAN") {
       setAppliedPromo("258025");
       setPromoError(null);
-      setPromoSuccessMsg("VIP Code 258025 Applied: 50% Off Match Tickets & $3,000 Off Season Pass!");
+      setPromoSuccessMsg("VIP Code 258025 Applied: 50% Off Match Tickets & $3,000 Off Season Pass ($8,000 → $5,000)!");
     } else {
-      setPromoError("Invalid code. Please check your VIP bonus code.");
+      setPromoError("Invalid code. Enter 258025 to unlock VIP rate reduction.");
       setPromoSuccessMsg(null);
     }
   };
@@ -195,20 +253,27 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
     setPromoSuccessMsg(null);
   };
 
+  const handleCopyGroupInvite = () => {
+    const shareText = `Hey! Join my Seattle Seahawks ${selectedTier === "season_pass" ? "Season Pass" : "Match Ticket"} group! Our split total is $${totalAmount.toLocaleString()} ($${currentSplit.dueToday.toLocaleString()} per person for ${groupSplitCount} people). Code 258025 discount active!`;
+    navigator.clipboard.writeText(shareText);
+    setGroupLinkCopied(true);
+    setTimeout(() => setGroupLinkCopied(false), 2500);
+  };
+
   const handleCompleteOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!buyerName.trim() || !buyerEmail.trim()) {
-      alert("Please provide your name and contact email for ticket delivery.");
+      alert("Please provide your name and contact email for pass delivery.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const orderId = `TKT-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+      const orderId = `${selectedTier === "season_pass" ? "PASS" : "TKT"}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
       const ticketOrderData = {
         orderId,
         gameId: game.id,
-        gameName: game.name,
+        gameName: passName || game.name,
         homeTeam: game.homeTeam,
         awayTeam: game.awayTeam,
         stadium: game.stadium,
@@ -221,6 +286,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         pricePerTicket: currentPricePerTicket,
         originalTotal: originalSubtotal + Math.round(originalSubtotal * 0.05),
         totalAmount,
+        dueToday: currentSplit.dueToday,
+        splitMode,
+        groupSplitCount: splitMode === "group" ? groupSplitCount : 1,
+        installmentsSummary: currentSplit.scheduleText,
         promoCodeApplied: appliedPromo,
         totalSavings,
         paymentMethod: paymentTab,
@@ -228,14 +297,14 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         buyerName,
         buyerEmail,
         buyerPhone,
-        paymentReference: paymentRef || "Direct Verified Transfer",
+        paymentReference: paymentRef || (splitMode !== "full" ? `Split Payment (1 of ${currentSplit.installmentsCount})` : "Direct Verified Transfer"),
         status: "confirmed",
         createdAt: new Date().toISOString(),
         userId: auth.currentUser?.uid || "guest",
         userEmail: auth.currentUser?.email || buyerEmail
       };
 
-      // Save to Firestore
+      // Save to Firestore ticket_orders
       await setDoc(doc(db, "ticket_orders", orderId), ticketOrderData);
       
       // Also write to bookings so it's queryable in portfolio
@@ -244,15 +313,16 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail,
         experienceId: game.id,
-        experienceTitle: `${game.name} · ${selectedTier.toUpperCase().replace("_", " ")} PASS (${quantity}x)${appliedPromo ? " [VIP CODE APPLIED]" : ""}`,
-        experienceType: "match_ticket",
+        experienceTitle: `${passName || game.name} · ${selectedTier.toUpperCase().replace("_", " ")} (${quantity}x)${appliedPromo ? " [CODE 258025 APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`,
+        experienceType: selectedTier === "season_pass" ? "season_pass" : "match_ticket",
         date: game.date,
         timeSlot: game.time,
         guestsCount: quantity,
         totalPrice: totalAmount,
+        dueToday: currentSplit.dueToday,
         tier: selectedTier,
         status: "approved",
-        qrCode: `NFL-GAME-PASS-${orderId}-${game.id}`,
+        qrCode: `NFL-${selectedTier === "season_pass" ? "SEASON-PASS" : "MATCH"}-${orderId}`,
         createdAt: new Date().toISOString(),
         imageUrl: game.image
       });
@@ -260,14 +330,16 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
       setConfirmedTicket(ticketOrderData);
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      console.error("Ticket purchase dispatch error:", err);
-      alert("Ticket order logged! Support concierge will deliver your electronic barcodes.");
+      console.error("Ticket/Pass purchase dispatch error:", err);
+      alert("Order logged! Support concierge will deliver your electronic RFID passes.");
       setConfirmedTicket({
-        orderId: `TKT-${Date.now().toString(36).toUpperCase()}`,
-        gameName: game.name,
+        orderId: `${selectedTier === "season_pass" ? "PASS" : "TKT"}-${Date.now().toString(36).toUpperCase()}`,
+        gameName: passName || game.name,
         tier: selectedTier,
         quantity,
         totalAmount,
+        dueToday: currentSplit.dueToday,
+        splitMode,
         buyerEmail,
         promoCodeApplied: appliedPromo,
         totalSavings
@@ -344,8 +416,26 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                 </div>
               )}
 
+              {confirmedTicket.splitMode && confirmedTicket.splitMode !== "full" && (
+                <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/20 rounded-xl flex items-center justify-between text-xs">
+                  <span className="text-[10px] font-black uppercase text-cyan-400 flex items-center gap-1">
+                    <Divide className="w-3.5 h-3.5" /> Plan: {confirmedTicket.splitMode.toUpperCase()}
+                  </span>
+                  <span className="font-mono font-bold text-cyan-300">Today: ${confirmedTicket.dueToday?.toLocaleString()} USD</span>
+                </div>
+              )}
+
               <div className="pt-3 border-t border-white/5 flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase text-zinc-500">Total Settled</span>
+                <div>
+                  <span className="text-[10px] font-black uppercase text-zinc-500 block">
+                    {confirmedTicket.splitMode && confirmedTicket.splitMode !== "full" ? "Total Order Value" : "Total Settled"}
+                  </span>
+                  {confirmedTicket.dueToday && confirmedTicket.splitMode !== "full" && (
+                    <span className="text-[10px] text-cyan-400 font-bold uppercase">
+                      Due Today: ${confirmedTicket.dueToday.toLocaleString()}
+                    </span>
+                  )}
+                </div>
                 <span className="text-lg font-mono font-black text-emerald-400">${confirmedTicket.totalAmount.toLocaleString()} USD</span>
               </div>
 
@@ -629,11 +719,172 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                 )}
               </div>
 
-              {/* Step 2: Payment Rails */}
+              {/* Step 2: Split the Price & Multi-Pay Options */}
+              <div className="p-4 sm:p-5 bg-zinc-950 rounded-2xl border border-white/10 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Divide className="w-4 h-4 text-cyan-400" />
+                    <span className="text-xs font-black uppercase text-white tracking-wider">
+                      2. SPLIT THE PRICE & PAYMENT PLANS
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-black uppercase text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded-full w-fit">
+                    0% Interest • Flexible Settlement
+                  </span>
+                </div>
+
+                {/* Split Mode Selector Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  {[
+                    {
+                      id: "full",
+                      title: "Pay in Full (1x)",
+                      badge: "Instant Pass",
+                      amountText: `$${totalAmount.toLocaleString()}`,
+                      subText: "100% full payment today",
+                      icon: DollarSign,
+                      color: "blue"
+                    },
+                    {
+                      id: "split_2",
+                      title: "2-Way Split (50/50)",
+                      badge: "2 Equal Payments",
+                      amountText: `$${Math.ceil(totalAmount / 2).toLocaleString()}/mo`,
+                      subText: "50% today, 50% in 30 days",
+                      icon: Layers,
+                      color: "emerald"
+                    },
+                    {
+                      id: "split_4",
+                      title: "4-Pay Plan (4x)",
+                      badge: "0% Interest",
+                      amountText: `$${Math.ceil(totalAmount / 4).toLocaleString()}/ea`,
+                      subText: "4 bi-weekly payments",
+                      icon: CreditCard,
+                      color: "purple"
+                    },
+                    {
+                      id: "group",
+                      title: "Group / Friends Split",
+                      badge: "Multi-Holder",
+                      amountText: `$${Math.ceil(totalAmount / groupSplitCount).toLocaleString()}/person`,
+                      subText: `Even split among ${groupSplitCount} holders`,
+                      icon: Users,
+                      color: "amber"
+                    }
+                  ].map((mode) => {
+                    const isSelected = splitMode === mode.id;
+                    return (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => setSplitMode(mode.id as any)}
+                        className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+                          isSelected
+                            ? "bg-cyan-500/10 border-cyan-400 text-white shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400/40"
+                            : "bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[8px] font-black uppercase tracking-wider bg-white/5 px-2 py-0.5 rounded text-zinc-400">
+                              {mode.badge}
+                            </span>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                          </div>
+                          <h4 className="text-xs font-black uppercase text-white tracking-tight flex items-center gap-1.5">
+                            <mode.icon className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                            {mode.title}
+                          </h4>
+                        </div>
+
+                        <div className="mt-3 pt-2 border-t border-white/5">
+                          <span className="text-sm font-mono font-black text-cyan-300 block">
+                            {mode.amountText}
+                          </span>
+                          <span className="text-[8px] text-zinc-500 font-medium block mt-0.5">
+                            {mode.subText}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Group Split Customizer */}
+                {splitMode === "group" && (
+                  <div className="p-4 bg-zinc-900/90 rounded-2xl border border-amber-500/20 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
+                          <Users className="w-4 h-4" /> Select Number of Co-Holders to Split:
+                        </span>
+                        <p className="text-[10px] text-zinc-400 mt-0.5">
+                          Each person pays <strong className="text-white font-mono">${Math.ceil(totalAmount / groupSplitCount).toLocaleString()} USD</strong>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {[2, 3, 4, 5, 6].map((count) => (
+                          <button
+                            key={count}
+                            type="button"
+                            onClick={() => setGroupSplitCount(count)}
+                            className={`w-8 h-8 rounded-xl text-xs font-black font-mono transition-all ${
+                              groupSplitCount === count
+                                ? "bg-amber-400 text-black font-black shadow-md shadow-amber-400/20"
+                                : "bg-zinc-800 text-zinc-400 hover:text-white border border-white/5"
+                            }`}
+                          >
+                            {count}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2">
+                      <div className="text-[10px] text-zinc-400">
+                        Share this group split link with friends or co-members so everyone can submit their share:
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopyGroupInvite}
+                        className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all w-full sm:w-auto justify-center"
+                      >
+                        {groupLinkCopied ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
+                        {groupLinkCopied ? "Invite Copied!" : "Copy Split Invite"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Active Split Summary Banner */}
+                <div className="p-3 bg-cyan-950/40 border border-cyan-500/20 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                    <div>
+                      <span className="text-[9px] font-black uppercase text-cyan-400 block tracking-wider">
+                        Selected Settlement Plan
+                      </span>
+                      <span className="font-bold text-white text-xs">
+                        {currentSplit.scheduleText}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[8px] font-black uppercase text-zinc-400 block">Due Now</span>
+                    <span className="text-base font-mono font-black text-cyan-300">
+                      ${currentSplit.dueToday.toLocaleString()} USD
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3: Payment Rails */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                    2. OFFICIAL PAYMENT METHOD
+                    3. OFFICIAL PAYMENT METHOD
                   </label>
                   <span className="text-[9px] font-black uppercase text-emerald-400 flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3" /> SECURE CONCIERGE SETTLEMENT
@@ -666,6 +917,21 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
 
                 {/* Selected Payment Details Display */}
                 <div className="p-4 sm:p-5 bg-zinc-950 rounded-2xl border border-white/10 space-y-4">
+                  {/* Amount to send banner */}
+                  <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
+                    <div>
+                      <span className="text-[8px] font-black uppercase text-zinc-500 block">
+                        Amount to Send Now ({splitMode === "full" ? "Full Amount" : `Payment 1 of ${currentSplit.installmentsCount}`})
+                      </span>
+                      <span className="text-lg font-mono font-black text-emerald-400">
+                        ${currentSplit.dueToday.toLocaleString()} USD
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-mono uppercase bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded font-bold">
+                      {paymentTab.toUpperCase()} ACTIVE
+                    </span>
+                  </div>
+
                   {paymentTab === "bank" && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between border-b border-white/5 pb-2">
@@ -873,10 +1139,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                 </div>
               </div>
 
-              {/* Step 3: Contact & Order Details */}
+              {/* Step 4: Contact & Order Details */}
               <div className="space-y-3">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                  3. TICKET HOLDER & DELIVERY CONTACT
+                  4. TICKET HOLDER & DELIVERY CONTACT
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -953,7 +1219,16 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   </div>
 
                   <div className="pt-2 border-t border-white/10 flex justify-between items-center">
-                    <span className="text-sm font-black uppercase text-white">Total Amount Due</span>
+                    <div>
+                      <span className="text-sm font-black uppercase text-white block">
+                        {splitMode === "full" ? "Total Amount Due" : "Total Order Value"}
+                      </span>
+                      {splitMode !== "full" && (
+                        <span className="text-[10px] text-cyan-400 font-bold uppercase block">
+                          Plan: {currentSplit.scheduleText}
+                        </span>
+                      )}
+                    </div>
                     <div className="text-right">
                       <div className="flex items-baseline gap-2 justify-end">
                         {totalSavings > 0 && (
@@ -972,6 +1247,18 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       )}
                     </div>
                   </div>
+
+                  {splitMode !== "full" && (
+                    <div className="p-3 bg-cyan-950/60 border border-cyan-500/30 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-cyan-300 font-black text-xs uppercase">
+                        <Divide className="w-4 h-4 text-cyan-400" />
+                        <span>Amount Due Today:</span>
+                      </div>
+                      <span className="text-xl font-mono font-black text-cyan-300">
+                        ${currentSplit.dueToday.toLocaleString()} USD
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-white/5">
@@ -992,7 +1279,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       <>Verifying Dispatch...</>
                     ) : (
                       <>
-                        <Send className="w-4 h-4" /> Confirm & Issue Pass (${totalAmount.toLocaleString()})
+                        <Send className="w-4 h-4" /> {splitMode === "full" ? `Confirm & Issue Pass ($${totalAmount.toLocaleString()})` : `Confirm & Settle Today's Split ($${currentSplit.dueToday.toLocaleString()})`}
                       </>
                     )}
                   </button>
