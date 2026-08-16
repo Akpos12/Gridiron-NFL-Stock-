@@ -988,6 +988,49 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
     return () => { active = false; };
   }, [selectedShopTeam, merchSearch, merchCategory]);
 
+  // Helper to check if a game has already been played / passed
+  const isGamePlayed = (dateStr?: string, timeStr?: string): boolean => {
+    if (!dateStr || dateStr === "TBA" || dateStr.toLowerCase().includes("season")) return false;
+    try {
+      const now = new Date();
+      const parts = dateStr.split("-").map(p => parseInt(p, 10));
+      if (parts.length === 3) {
+        const year = parts[0];
+        const month = parts[1] - 1;
+        const day = parts[2];
+
+        let hours = 23;
+        let minutes = 59;
+
+        if (timeStr && timeStr !== "TBA") {
+          const timeClean = timeStr.trim().toLowerCase();
+          if (timeClean.includes("am") || timeClean.includes("pm")) {
+            const isPM = timeClean.includes("pm");
+            const timeDigits = timeClean.replace(/[^0-9:]/g, "");
+            const [hStr, mStr] = timeDigits.split(":");
+            let parsedH = parseInt(hStr || "0", 10);
+            const parsedM = parseInt(mStr || "0", 10);
+            if (isPM && parsedH < 12) parsedH += 12;
+            if (!isPM && parsedH === 12) parsedH = 0;
+            hours = parsedH;
+            minutes = parsedM;
+          } else if (timeClean.includes(":")) {
+            const [hStr, mStr] = timeClean.split(":");
+            hours = parseInt(hStr || "0", 10);
+            minutes = parseInt(mStr || "0", 10);
+          }
+        }
+
+        const gameDateTime = new Date(year, month, day, hours, minutes, 0);
+        return gameDateTime.getTime() <= now.getTime();
+      }
+      const d = new Date(dateStr);
+      return !isNaN(d.getTime()) && d.getTime() <= now.getTime();
+    } catch (e) {
+      return false;
+    }
+  };
+
   // Fetch tickets dynamic listings from Ticketmaster API
   useEffect(() => {
     let active = true;
@@ -1006,7 +1049,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
         if (!res.ok) throw new Error("API request error");
         const data = await res.json();
         if (active) {
-          let sorted = data.events || [];
+          let sorted = (data.events || []).filter((g: any) => !isGamePlayed(g.date, g.time));
           if (ticketSort === "cheapest") {
             sorted = [...sorted].sort((a, b) => a.cheapestPrice - b.cheapestPrice);
           } else {
@@ -1022,28 +1065,78 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
         if (active) {
           const clientFallback = [
             {
-              id: "tm-sea-dal-pre",
-              name: "Seattle Seahawks vs Dallas Cowboys",
+              id: "tm-sea-lv-pre",
+              name: "Seattle Seahawks vs Las Vegas Raiders",
               homeTeam: "Seahawks",
-              awayTeam: "Cowboys",
+              awayTeam: "Raiders",
               stadium: "Lumen Field",
               city: "Seattle, WA",
-              date: "2026-08-16",
-              time: "1:00 AM",
-              competition: "Pre Season · NFL",
-              status: "Tomorrow · 1:00 AM",
+              date: "2026-08-22",
+              time: "5:00 PM",
+              competition: "Pre Season Week 3 · NFL",
+              status: "Upcoming · Sat 5:00 PM",
               location: "Lumen Field, Seattle",
               winProbability: {
-                home: "56.5%",
-                away: "43.5%",
+                home: "58.2%",
+                away: "41.8%",
                 homeTeam: "Seahawks",
-                awayTeam: "Cowboys"
+                awayTeam: "Raiders"
               },
               cheapestPrice: 1200,
               vipPrice: 5000,
               seasonPassPrice: 8000,
               url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
               image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+              isResale: false
+            },
+            {
+              id: "tm-sea-sf-wk1",
+              name: "Seattle Seahawks vs San Francisco 49ers",
+              homeTeam: "Seahawks",
+              awayTeam: "49ers",
+              stadium: "Lumen Field",
+              city: "Seattle, WA",
+              date: "2026-09-13",
+              time: "1:05 PM",
+              competition: "NFL Week 1 · Regular Season Opener",
+              status: "Season Opener · 1:05 PM",
+              location: "Lumen Field, Seattle",
+              winProbability: {
+                home: "52.0%",
+                away: "48.0%",
+                homeTeam: "Seahawks",
+                awayTeam: "49ers"
+              },
+              cheapestPrice: 1200,
+              vipPrice: 5000,
+              seasonPassPrice: 8000,
+              url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
+              image: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800",
+              isResale: false
+            },
+            {
+              id: "tm-sea-lar-wk2",
+              name: "Seattle Seahawks vs Los Angeles Rams",
+              homeTeam: "Seahawks",
+              awayTeam: "Rams",
+              stadium: "Lumen Field",
+              city: "Seattle, WA",
+              date: "2026-09-20",
+              time: "1:25 PM",
+              competition: "NFL Week 2 · NFC West Showdown",
+              status: "Upcoming · 1:25 PM",
+              location: "Lumen Field, Seattle",
+              winProbability: {
+                home: "55.4%",
+                away: "44.6%",
+                homeTeam: "Seahawks",
+                awayTeam: "Rams"
+              },
+              cheapestPrice: 1200,
+              vipPrice: 5000,
+              seasonPassPrice: 8000,
+              url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
+              image: "https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&q=80&w=800",
               isResale: false
             },
             {
@@ -1055,6 +1148,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               city: "Minneapolis, MN",
               date: "2026-10-04",
               time: "13:00",
+              competition: "NFL Week 4 · NFC North",
+              status: "Upcoming · 1:00 PM",
               cheapestPrice: 115,
               vipPrice: 800,
               url: "https://www.ticketmaster.com/minnesota-vikings-tickets/artist/805967",
@@ -1070,6 +1165,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               city: "Arlington, TX",
               date: "2026-09-13",
               time: "16:25",
+              competition: "NFL Week 1 · NFC East",
+              status: "Upcoming · 4:25 PM",
               cheapestPrice: 125,
               vipPrice: 850,
               url: "https://www.ticketmaster.com/dallas-cowboys-tickets/artist/805934",
@@ -1085,6 +1182,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               city: "Kansas City, MO",
               date: "2026-09-10",
               time: "20:20",
+              competition: "NFL Kickoff Game",
+              status: "Upcoming · 8:20 PM",
               cheapestPrice: 165,
               vipPrice: 1200,
               url: "https://www.ticketmaster.com/kansas-city-chiefs-tickets/artist/805961",
@@ -1092,7 +1191,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               isResale: true
             }
           ];
-          let filtered = clientFallback;
+          let filtered = clientFallback.filter(g => !isGamePlayed(g.date, g.time));
           if (ticketTeam) {
             filtered = filtered.filter(g => 
               g.name.toLowerCase().includes(ticketTeam.toLowerCase()) || 
