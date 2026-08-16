@@ -1862,7 +1862,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
         }}
         initialTier={ticketInitialTier}
         passName={ticketPassName}
-        initialPromoCode="258025"
+        initialPromoCode=""
       />
     </div>
   );

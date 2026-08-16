@@ -133,7 +133,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   const [appliedPromo, setAppliedPromo] = useState<string | null>(initialPromoCode ? initialPromoCode.trim() : null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoSuccessMsg, setPromoSuccessMsg] = useState<string | null>(
-    initialPromoCode === "258025" ? "VIP Code 258025 Applied: 50% Off Match Tickets & $3,000 Off Season Pass!" : null
+    initialPromoCode ? "VIP Promo Applied: 50% Off Match Tickets & $3,000 Off Season Pass!" : null
   );
 
   // Update initial tier when opened
@@ -175,8 +175,8 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
     season_pass: seasonPassPrice
   };
 
-  // Check if promo code 258025 is applied
-  const is258025Applied = appliedPromo === "258025" || appliedPromo === "SPLIT50" || appliedPromo === "SEAHAWKS50";
+  // Check if promo code is applied
+  const is258025Applied = !!appliedPromo;
 
   // Discounted rates when code 258025 is active:
   // Match tickets -> 50% off (e.g. $1200 -> $600, $2400 -> $1200, $3600 -> $1800, $5000 -> $2500)
@@ -237,11 +237,11 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
     }
 
     if (code === "258025" || code === "SPLIT50" || code === "SEAHAWKS50" || code === "12THMAN") {
-      setAppliedPromo("258025");
+      setAppliedPromo("VIP_258025");
       setPromoError(null);
-      setPromoSuccessMsg("VIP Code 258025 Applied: 50% Off Match Tickets & $3,000 Off Season Pass ($8,000 → $5,000)!");
+      setPromoSuccessMsg("VIP Promo Applied: 50% Off Match Tickets & $3,000 Off Season Pass ($8,000 → $5,000)!");
     } else {
-      setPromoError("Invalid code. Enter 258025 to unlock VIP rate reduction.");
+      setPromoError("Invalid promo code. Please check your VIP code and try again.");
       setPromoSuccessMsg(null);
     }
   };
@@ -254,7 +254,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   };
 
   const handleCopyGroupInvite = () => {
-    const shareText = `Hey! Join my Seattle Seahawks ${selectedTier === "season_pass" ? "Season Pass" : "Match Ticket"} group! Our split total is $${totalAmount.toLocaleString()} ($${currentSplit.dueToday.toLocaleString()} per person for ${groupSplitCount} people). Code 258025 discount active!`;
+    const shareText = `Hey! Join my Seattle Seahawks ${selectedTier === "season_pass" ? "Season Pass" : "Match Ticket"} group! Our split total is $${totalAmount.toLocaleString()} ($${currentSplit.dueToday.toLocaleString()} per person for ${groupSplitCount} people). VIP discount active!`;
     navigator.clipboard.writeText(shareText);
     setGroupLinkCopied(true);
     setTimeout(() => setGroupLinkCopied(false), 2500);
@@ -313,7 +313,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail,
         experienceId: game.id,
-        experienceTitle: `${passName || game.name} · ${selectedTier.toUpperCase().replace("_", " ")} (${quantity}x)${appliedPromo ? " [CODE 258025 APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`,
+        experienceTitle: `${passName || game.name} · ${selectedTier.toUpperCase().replace("_", " ")} (${quantity}x)${appliedPromo ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`,
         experienceType: selectedTier === "season_pass" ? "season_pass" : "match_ticket",
         date: game.date,
         timeSlot: game.time,
@@ -655,7 +655,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   </div>
                   {is258025Applied ? (
                     <span className="text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full flex items-center gap-1">
-                      <Check className="w-3 h-3" /> Code 258025 Active
+                      <Check className="w-3 h-3" /> VIP Code Active
                     </span>
                   ) : (
                     <span className="text-[9px] font-black uppercase text-zinc-500">
