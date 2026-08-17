@@ -44,7 +44,10 @@ import {
   QrCode,
   MapPin,
   Calendar,
-  Clock
+  Clock,
+  Headphones,
+  MessageSquareText,
+  HelpCircle
 } from "lucide-react";
 import { 
   XAxis, 
@@ -90,7 +93,9 @@ import { ExperiencesSection } from "./components/ExperiencesSection";
 import { ExperienceAdmin } from "./components/ExperienceAdmin";
 import { PlayerGiveawaySection } from "./components/giveaway/PlayerGiveawaySection";
 import { GiveawayControlRoom } from "./components/giveaway/GiveawayControlRoom";
+import { WinnerTicker } from "./components/giveaway/WinnerTicker";
 import { TicketCheckoutModal, GameTicket } from "./components/TicketCheckoutModal";
+import { CustomerCareWidget } from "./components/CustomerCareWidget";
 import { NFLImage } from "./utils/nflImages";
 
 // --- Constants ---
@@ -3350,6 +3355,14 @@ export default function App() {
                 {tab.label}
               </button>
             ))}
+
+            <button 
+              onClick={() => setShowFanCardForm(true)}
+              className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
+            >
+              <Headphones className="w-4 h-4 text-blue-400" />
+              Customer Care
+            </button>
             
             <button 
               onClick={() => window.open(window.location.href, '_blank')}
@@ -3362,7 +3375,22 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 md:gap-4">
+          {/* Quick Track Ticket Navbar Button */}
+          <button
+            onClick={() => {
+              setTrackedInquiry(null);
+              setEmailInquiries(null);
+              setTrackingEmail("");
+              setTrackingId("");
+              setShowInquiryStatus("SEARCH");
+            }}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-zinc-900/90 hover:bg-zinc-800 border border-blue-500/30 hover:border-blue-400/50 rounded-xl text-[10px] font-black uppercase tracking-wider text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm"
+          >
+            <Search className="w-3 h-3 text-blue-400" />
+            <span className="hidden md:inline">Track</span> Inquiry
+          </button>
+
           {user ? (
             <div className="flex items-center gap-3 md:gap-6">
               <div className="text-right hidden lg:block">
@@ -3386,6 +3414,36 @@ export default function App() {
           )}
         </div>
       </nav>
+
+      {/* Global Live Giveaway Winners Ticker */}
+      <WinnerTicker 
+        onCheckWinnerClick={() => {
+          setActiveTab("giveaways");
+          setDismissedHero(true);
+        }}
+        onTrackInquiryClick={() => {
+          setTrackedInquiry(null);
+          setEmailInquiries(null);
+          setTrackingEmail("");
+          setTrackingId("");
+          setShowInquiryStatus("SEARCH");
+        }}
+        onCustomerCareClick={() => setShowFanCardForm(true)}
+      />
+
+      {/* Persistent Floating 24/7 Customer Care Hub */}
+      <CustomerCareWidget 
+        onOpenCustomerCare={() => setShowFanCardForm(true)}
+        onOpenTrackInquiry={(tab) => {
+          setTrackedInquiry(null);
+          setEmailInquiries(null);
+          setTrackingEmail("");
+          setTrackingId("");
+          if (tab) setTrackingTab(tab);
+          setShowInquiryStatus("SEARCH");
+        }}
+        user={user}
+      />
 
       {/* Mobile Bottom Nav */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-zinc-950/80 backdrop-blur-2xl border-t border-white/5 z-50 flex items-center justify-around p-4">
@@ -3561,18 +3619,34 @@ export default function App() {
                     )}
                   </div>
 
-                  <button 
-                    onClick={() => {
-                      setShowInquiryStatus(null);
-                      setTrackedInquiry(null);
-                      setEmailInquiries(null);
-                      setTrackingEmail("");
-                      setTrackingId("");
-                    }}
-                    className="w-full py-4 bg-zinc-850 border border-white/5 text-zinc-400 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-800 transition-all"
-                  >
-                    Return to Main Menu
-                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        setShowInquiryStatus(null);
+                        setTrackedInquiry(null);
+                        setEmailInquiries(null);
+                        setTrackingEmail("");
+                        setTrackingId("");
+                        setShowFanCardForm(true);
+                      }}
+                      className="w-full py-4 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 font-black uppercase tracking-widest text-[10px] rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Headphones className="w-3.5 h-3.5 text-blue-400" />
+                      New Support Ticket
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setShowInquiryStatus(null);
+                        setTrackedInquiry(null);
+                        setEmailInquiries(null);
+                        setTrackingEmail("");
+                        setTrackingId("");
+                      }}
+                      className="w-full py-4 bg-zinc-850 border border-white/5 text-zinc-400 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-800 transition-all cursor-pointer"
+                    >
+                      Close Tracker
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-6 md:space-y-8">
@@ -3903,6 +3977,32 @@ export default function App() {
                 );
               })}
             </div>
+
+            {/* Sidebar Concierge & Track Footer */}
+            <div className="p-4 border-t border-white/5 bg-zinc-950/80 space-y-2">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowFanCardForm(true)}
+                  className="flex-1 py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-blue-500/40 rounded-xl text-[10px] font-black uppercase tracking-wider text-zinc-300 hover:text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Headphones className="w-3.5 h-3.5 text-blue-400" />
+                  Support
+                </button>
+                <button
+                  onClick={() => {
+                    setTrackedInquiry(null);
+                    setEmailInquiries(null);
+                    setTrackingEmail("");
+                    setTrackingId("");
+                    setShowInquiryStatus("SEARCH");
+                  }}
+                  className="flex-1 py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-emerald-500/40 rounded-xl text-[10px] font-black uppercase tracking-wider text-zinc-300 hover:text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Search className="w-3.5 h-3.5 text-emerald-400" />
+                  Track Ticket
+                </button>
+              </div>
+            </div>
           </aside>
 
           {/* Activity Area */}
@@ -4111,6 +4211,14 @@ export default function App() {
               <PlayerGiveawaySection 
                 user={user} 
                 onSignInClick={() => setShowLogin(true)} 
+                onOpenCustomerCare={() => setShowFanCardForm(true)}
+                onOpenTrackInquiry={() => {
+                  setTrackedInquiry(null);
+                  setEmailInquiries(null);
+                  setTrackingEmail("");
+                  setTrackingId("");
+                  setShowInquiryStatus("SEARCH");
+                }}
               />
             )}
 
@@ -4288,51 +4396,137 @@ export default function App() {
                 </div>
               ) : (
                 <>
-                  <h2 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter mb-4 leading-none">Concierge Inquiry</h2>
-                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.1em] mb-6 md:mb-10 italic">Customer Care Protocol: Requesting Asset Pricing & Access</p>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-2xl sm:text-3xl md:text-4xl font-black italic uppercase tracking-tighter leading-none text-white">Customer Care</h2>
+                      <p className="text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] mt-1 italic">NFL Exchange Concierge & Support Terminal</p>
+                    </div>
+                  </div>
+
+                  {/* Mode switcher inside the modal */}
+                  <div className="flex bg-zinc-950 p-1 rounded-2xl border border-white/10 mb-6">
+                    <button
+                      type="button"
+                      className="flex-1 py-2.5 bg-blue-600 text-white font-black uppercase text-[10px] tracking-wider rounded-xl shadow-md flex items-center justify-center gap-1.5"
+                    >
+                      <MessageSquareText className="w-3.5 h-3.5" />
+                      New Inquiry
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowFanCardForm(false);
+                        setTrackedInquiry(null);
+                        setEmailInquiries(null);
+                        setTrackingEmail("");
+                        setTrackingId("");
+                        setShowInquiryStatus("SEARCH");
+                      }}
+                      className="flex-1 py-2.5 text-zinc-400 hover:text-white font-black uppercase text-[10px] tracking-wider rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Search className="w-3.5 h-3.5 text-blue-400" />
+                      Track Existing
+                    </button>
+                  </div>
                   
-                  <form onSubmit={handleFanCardRequest} className="space-y-4 md:space-y-8 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-                    <div>
-                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Full Name / Identifier</label>
-                      <input name="name" required disabled={isSubmittingInquiry} defaultValue="" placeholder="Jon Doe" className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50" />
+                  <form onSubmit={handleFanCardRequest} className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 tracking-widest">Full Name / Identifier</label>
+                        <input 
+                          name="name" 
+                          required 
+                          disabled={isSubmittingInquiry} 
+                          defaultValue="" 
+                          autoComplete="off"
+                          placeholder="Your full name or identifier" 
+                          className="w-full bg-zinc-950 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50 text-white" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 tracking-widest">Email Address</label>
+                        <input 
+                          type="email" 
+                          name="email" 
+                          required 
+                          disabled={isSubmittingInquiry} 
+                          defaultValue="" 
+                          autoComplete="off"
+                          placeholder="name@example.com" 
+                          className="w-full bg-zinc-950 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50 text-white" 
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Franchise Asset</label>
-                      <select name="team" required disabled={isSubmittingInquiry} defaultValue={selectedTeam.id} className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold uppercase transition-all disabled:opacity-50">
-                        {NFL_TEAMS.map(t => <option key={t.id} value={t.id}>{t.city} {t.name} - Asset Allocation</option>)}
-                      </select>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 tracking-widest">Inquiry Category</label>
+                        <select 
+                          name="category" 
+                          disabled={isSubmittingInquiry} 
+                          defaultValue="general" 
+                          className="w-full bg-zinc-950 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold uppercase transition-all disabled:opacity-50 text-white"
+                        >
+                          <option value="general">General Support & Customer Care</option>
+                          <option value="giveaway">Player Giveaway Claim & Prize Dispatch</option>
+                          <option value="passes">VIP Experiences & Match Passes</option>
+                          <option value="merchandise">Arena Shop & Merchandise Orders</option>
+                          <option value="wallet">Wallet & Transaction Assistance</option>
+                          <option value="pricing">Franchise Asset & Equity Pricing</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 tracking-widest">Franchise Asset (Optional)</label>
+                        <select 
+                          name="team" 
+                          disabled={isSubmittingInquiry} 
+                          defaultValue={selectedTeam.id} 
+                          className="w-full bg-zinc-950 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold uppercase transition-all disabled:opacity-50 text-white"
+                        >
+                          {NFL_TEAMS.map(t => <option key={t.id} value={t.id}>{t.city} {t.name} - Asset Allocation</option>)}
+                        </select>
+                      </div>
                     </div>
+
                     <div>
-                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Email Address</label>
+                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 tracking-widest">Contact Handle / Phone</label>
                       <input 
-                        type="email" 
-                        name="email" 
+                        name="contact" 
                         required 
                         disabled={isSubmittingInquiry} 
-                        defaultValue="" 
-                        placeholder="example@gmail.com" 
-                        className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50" 
+                        defaultValue=""
+                        autoComplete="off"
+                        placeholder="e.g. Email: name@domain.com / Phone: +1 555-0199 / Telegram: @handle" 
+                        className="w-full bg-zinc-950 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50 text-white" 
                       />
                     </div>
                     <div>
-                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Contact Handle</label>
-                      <input name="contact" required disabled={isSubmittingInquiry} placeholder="e.g. Telegram: @handle / Email: name@domain.com" className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50" />
-                    </div>
-                    <div>
-                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 md:mb-3 tracking-widest">Inquiry details</label>
-                      <textarea name="message" required disabled={isSubmittingInquiry} rows={3} placeholder="Tell us which match tickets or fan cards you are interested in. Our team will reply with current market rates..." className="w-full bg-zinc-950 border border-white/5 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50" />
+                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 tracking-widest">Inquiry Details</label>
+                      <textarea 
+                        name="message" 
+                        required 
+                        disabled={isSubmittingInquiry} 
+                        rows={3} 
+                        placeholder="Describe your inquiry, order, giveaway claim details, or concierge support request. Our customer care team responds in real-time..." 
+                        className="w-full bg-zinc-950 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50 text-white resize-none" 
+                      />
                     </div>
                     <button 
                       type="submit" 
                       disabled={isSubmittingInquiry}
-                      className="w-full py-5 bg-white text-black font-black uppercase tracking-widest text-[10px] md:text-xs rounded-2xl hover:bg-zinc-200 transition-all shadow-2xl disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="w-full py-4.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {isSubmittingInquiry ? (
                         <>
                           <RefreshCw className="w-4 h-4 animate-spin" />
                           DELIVERING INQUIRY...
                         </>
-                      ) : "SUBMIT TO CUSTOMER CARE"}
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          SUBMIT TO CUSTOMER CARE
+                        </>
+                      )}
                     </button>
                   </form>
                 </>
