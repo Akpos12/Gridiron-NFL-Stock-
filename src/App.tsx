@@ -3595,10 +3595,12 @@ export default function App() {
 
           <div className="hidden lg:flex items-center gap-8">
             {([
-              ...(user ? [
+              ...(!user ? [
+                { id: "stocks_locked", label: "Buy Team Stocks", icon: Lock, isPromo: true },
+              ] : [
                 { id: "markets", label: "Exchange", icon: LayoutDashboard },
                 { id: "draft", label: "Speculation", icon: Target },
-              ] : []),
+              ]),
               { id: "experiences", label: "Experiences", icon: Star },
               { id: "giveaways", label: "Player Giveaways", icon: Gift },
               { id: "shop", label: "Arena Shop", icon: ShoppingBag },
@@ -3608,15 +3610,24 @@ export default function App() {
               <button 
                 key={tab.id}
                 onClick={() => {
+                  if (tab.id === "stocks_locked") {
+                    setIsSignUp(true);
+                    setShowLogin(true);
+                    return;
+                  }
                   setActiveTab(tab.id as any);
                   setDismissedHero(true);
                 }}
                 className={cn(
-                  "text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-colors",
-                  activeTab === tab.id ? "text-blue-500" : "text-zinc-500 hover:text-white"
+                  "text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all",
+                  tab.isPromo 
+                    ? "px-3 py-1.5 rounded-xl bg-blue-600/10 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white shadow-sm"
+                    : activeTab === tab.id 
+                      ? "text-blue-500" 
+                      : "text-zinc-500 hover:text-white"
                 )}
               >
-                <tab.icon className="w-4 h-4" />
+                <tab.icon className={cn("w-4 h-4", tab.isPromo && "text-blue-400 group-hover:text-white")} />
                 {tab.label}
               </button>
             ))}
@@ -3713,10 +3724,12 @@ export default function App() {
       {/* Mobile Bottom Nav */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-zinc-950/80 backdrop-blur-2xl border-t border-white/5 z-50 flex items-center justify-around p-4">
         {[
-          ...(user ? [
+          ...(!user ? [
+            { id: "stocks_locked", label: "Buy Stocks", icon: Lock, isPromo: true },
+          ] : [
             { id: "markets", label: "Exchange", icon: LayoutDashboard },
             { id: "draft", label: "Speculation", icon: Target },
-          ] : []),
+          ]),
           { id: "experiences", label: "Experiences", icon: Star },
           { id: "giveaways", label: "Giveaways", icon: Gift },
           { id: "shop", label: "Shop", icon: ShoppingBag },
@@ -3726,15 +3739,24 @@ export default function App() {
           <button 
             key={tab.id}
             onClick={() => {
+              if (tab.id === "stocks_locked") {
+                setIsSignUp(true);
+                setShowLogin(true);
+                return;
+              }
               setActiveTab(tab.id as any);
               setDismissedHero(true);
             }}
             className={cn(
               "flex flex-col items-center gap-1 transition-colors",
-              activeTab === tab.id ? "text-blue-500" : "text-zinc-500"
+              tab.isPromo 
+                ? "text-blue-400 font-black" 
+                : activeTab === tab.id 
+                  ? "text-blue-500" 
+                  : "text-zinc-500"
             )}
           >
-            <tab.icon className="w-5 h-5" />
+            <tab.icon className={cn("w-5 h-5", tab.isPromo && "text-blue-400")} />
             <span className="text-[8px] font-black uppercase tracking-tighter">{tab.label}</span>
           </button>
         ))}
@@ -4033,11 +4055,11 @@ export default function App() {
                 THE <span className="text-blue-600">NFL</span><br/>EXCHANGE
               </h1>
               <p className="text-sm sm:text-lg md:text-xl text-zinc-400 mb-8 md:mb-12 max-w-2xl mx-auto font-black italic uppercase tracking-widest leading-relaxed">
-                Live Franchise Equity · Institutional Execution · 24/7 Market Liquidity
+                Create an account to buy & trade official NFL team stocks with real-time equity valuation and institutional execution
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4 mb-20 px-4 w-full sm:w-auto">
-                <button onClick={() => { setIsSignUp(true); setShowLogin(true); }} className="bg-white text-black px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl shadow-white/5 whitespace-nowrap">
-                  CREATE ACCOUNT / SIGN IN
+                <button onClick={() => { setIsSignUp(true); setShowLogin(true); }} className="bg-white text-black px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl shadow-white/5 whitespace-nowrap flex items-center justify-center gap-2">
+                  <Lock className="w-4 h-4 text-blue-600" /> CREATE ACCOUNT TO BUY STOCKS
                 </button>
                 <button onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }} className="bg-zinc-900 border border-white/10 text-white px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-2xl whitespace-nowrap">
                   EXPLORE EXPERIENCES
@@ -4178,14 +4200,19 @@ export default function App() {
                 <ShieldCheck className="w-8 h-8 md:w-10 md:h-10 text-white" />
               </div>
               <h2 className="text-4xl sm:text-5xl md:text-6xl font-black italic uppercase tracking-tighter mb-6 md:mb-8 leading-none">
-                READY TO<br/>SECURE EQUITY?
+                READY TO BUY<br/>TEAM STOCKS?
               </h2>
-              <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] md:text-sm mb-10 md:12 italic px-4">
-                Join 850,000+ dedicated investors trading professional franchise equity
+              <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] md:text-sm mb-10 md:12 italic px-4">
+                Create an investor account to buy and trade NFL franchise equity shares with instant liquidity
               </p>
-              <button onClick={() => setShowLogin(true)} className="bg-white text-black px-10 md:px-12 py-4 md:py-5 rounded-2xl text-[10px] md:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all">
-                INITIALIZE PORTFOLIO
-              </button>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <button onClick={() => { setIsSignUp(true); setShowLogin(true); }} className="bg-white text-black px-10 md:px-12 py-4 md:py-5 rounded-2xl text-[10px] md:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl shadow-white/10 flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-blue-600" /> CREATE ACCOUNT TO BUY STOCKS
+                </button>
+                <button onClick={() => { setIsSignUp(false); setShowLogin(true); }} className="bg-zinc-900 border border-white/10 text-white px-8 md:px-10 py-4 md:py-5 rounded-2xl text-[10px] md:text-sm font-black uppercase tracking-widest hover:bg-zinc-800 transition-all">
+                  SIGN IN
+                </button>
+              </div>
             </div>
           </section>
         </div>
@@ -4474,6 +4501,46 @@ export default function App() {
                       <button className="w-full mt-8 py-3 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-zinc-200 transition-all">Acquire Position</button>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Unregistered User Team Stocks Banner */}
+            {!user && (
+              <div className="mx-4 sm:mx-6 md:mx-10 mt-6 p-6 md:p-8 bg-gradient-to-r from-blue-950/60 via-zinc-900 to-zinc-950 border border-blue-500/30 rounded-3xl relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+                <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                  <div className="space-y-2 max-w-2xl">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest">
+                      <Lock className="w-3.5 h-3.5" /> Unlock Franchise Equity Markets
+                    </div>
+                    <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tight text-white leading-none">
+                      Buy & Trade Official NFL Team Stocks
+                    </h3>
+                    <p className="text-xs sm:text-sm text-zinc-400 font-medium leading-relaxed">
+                      Create an institutional investor account to access live team equity valuation charts, execute real-time franchise buy/sell orders, and build your digital NFL portfolio.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <button
+                      onClick={() => {
+                        setIsSignUp(true);
+                        setShowLogin(true);
+                      }}
+                      className="flex-1 sm:flex-none px-8 py-4 bg-white hover:bg-zinc-200 text-black text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl transition-all whitespace-nowrap active:scale-95"
+                    >
+                      Create Account to Trade
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsSignUp(false);
+                        setShowLogin(true);
+                      }}
+                      className="flex-1 sm:flex-none px-6 py-4 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-white text-xs font-black uppercase tracking-widest rounded-2xl transition-all whitespace-nowrap active:scale-95"
+                    >
+                      Sign In
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
