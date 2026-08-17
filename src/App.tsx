@@ -204,7 +204,21 @@ const BackgroundRotator = ({ isLanding }: { isLanding?: boolean }) => {
   );
 };
 
-const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { isOpen: boolean, onClose: () => void, balance: number, onWithdraw: (amount: number, currency: string, address: string) => Promise<void>, transactions: any[] }) => {
+const WalletModal = ({ 
+  isOpen, 
+  onClose, 
+  balance, 
+  onWithdraw, 
+  onDeposit,
+  transactions 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  balance: number, 
+  onWithdraw: (amount: number, currency: string, address: string) => Promise<void>, 
+  onDeposit: (amount: number, method: string, reference: string, notes?: string) => Promise<string>,
+  transactions: any[] 
+}) => {
   const [copied, setCopied] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"deposit" | "withdraw" | "history">("withdraw");
   const [withdrawTab, setWithdrawTab] = useState<"fiat" | "crypto">("crypto");
@@ -215,6 +229,13 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { i
   const [withdrawAddress, setWithdrawAddress] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
+
+  // Deposit Notification state
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositReference, setDepositReference] = useState("");
+  const [depositNotes, setDepositNotes] = useState("");
+  const [isDepositSubmitting, setIsDepositSubmitting] = useState(false);
+  const [depositSuccessNotice, setDepositSuccessNotice] = useState<{ id: string; amount: number; method: string } | null>(null);
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -238,6 +259,34 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { i
       alert("Withdrawal failed: " + err.message);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleInitiateDeposit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(depositAmount);
+    if (isNaN(amt) || amt <= 0) {
+      return alert("Please specify a valid deposit amount.");
+    }
+    if (!depositReference.trim()) {
+      return alert("Please provide your transfer identifier, Cashtag, wire reference, or transaction hash so treasury can verify your deposit.");
+    }
+
+    setIsDepositSubmitting(true);
+    try {
+      const txId = await onDeposit(amt, depositMethod, depositReference.trim(), depositNotes.trim());
+      setDepositSuccessNotice({
+        id: txId,
+        amount: amt,
+        method: depositMethod.toUpperCase()
+      });
+      setDepositAmount("");
+      setDepositReference("");
+      setDepositNotes("");
+    } catch (err: any) {
+      alert("Failed to submit deposit notification: " + (err.message || String(err)));
+    } finally {
+      setIsDepositSubmitting(false);
     }
   };
 
@@ -331,16 +380,22 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { i
                       {t.type === 'withdraw' ? <ArrowUpRight className="w-4 h-4 text-rose-500" /> : <ArrowDownLeft className="w-4 h-4 text-emerald-500" />}
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase text-white tracking-widest">{t.type} {t.currency}</p>
+                      <p className="text-[10px] font-black uppercase text-white tracking-widest">{t.type} {t.currency || 'USD'} {t.method ? `• ${t.method}` : ''}</p>
                       <p className="text-[8px] font-mono text-zinc-500">{t.timestamp?.toDate ? t.timestamp.toDate().toLocaleString() : 'Processing'}</p>
+                      {t.reference && <p className="text-[8px] font-mono text-zinc-600 truncate max-w-[180px]">Ref: {t.reference}</p>}
                     </div>
                   </div>
                   <div className="text-right">
                     <p className={cn("text-xs font-black", t.type === 'withdraw' ? 'text-rose-500' : 'text-emerald-500')}>
                       {t.type === 'withdraw' ? '-' : '+'}{formatCurrency(t.amount)}
                     </p>
-                    <span className={cn("text-[8px] font-black uppercase px-1.5 py-0.5 rounded", t.status === 'Confirmed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-zinc-800 text-zinc-500')}>
-                      {t.status || 'Pending'}
+                    <span className={cn(
+                      "text-[8px] font-black uppercase px-2 py-0.5 rounded inline-block mt-0.5",
+                      t.status === 'Confirmed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                      t.status === 'Rejected' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                      'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                    )}>
+                      {t.status === 'Confirmed' ? 'Confirmed' : t.status === 'Rejected' ? 'Rejected' : 'Pending Approval'}
                     </span>
                   </div>
                 </div>
@@ -349,6 +404,28 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { i
           </div>
         ) : activeTab === "deposit" ? (
           <div className="space-y-6">
+            {depositSuccessNotice && (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-amber-400" /> Deposit Request Logged (Pending Approval)
+                  </span>
+                  <button 
+                    onClick={() => setDepositSuccessNotice(null)}
+                    className="text-zinc-500 hover:text-white text-xs font-bold"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-300">
+                  Your deposit notification for <strong className="text-white font-mono">{formatCurrency(depositSuccessNotice.amount)}</strong> via <strong className="text-amber-400">{depositSuccessNotice.method}</strong> has been submitted. Reference ID: <span className="font-mono text-white bg-zinc-900 px-1.5 py-0.5 rounded">{depositSuccessNotice.id}</span>
+                </p>
+                <p className="text-[9px] text-zinc-400 italic">
+                  Status: <span className="text-amber-400 font-bold uppercase">Pending Treasury Clearance</span>. Once verified by admin (alexwtchmn@gmail.com), your wallet balance will automatically update.
+                </p>
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2 border-b border-white/5 pb-3">
               {[
                 { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2 },
@@ -561,6 +638,88 @@ const WalletModal = ({ isOpen, onClose, balance, onWithdraw, transactions }: { i
                 </div>
               </div>
             )}
+
+            {/* Deposit Verification & Proof Form */}
+            <form onSubmit={handleInitiateDeposit} className="p-5 bg-zinc-950 rounded-2xl border border-white/10 space-y-4">
+              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                <span className="text-xs font-black uppercase text-white flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Submit Deposit For Approval
+                </span>
+                <span className="text-[9px] font-mono bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded font-black uppercase">
+                  Pending Admin Audit
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
+                    Deposit Amount ($ USD) <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      step="any"
+                      min="1"
+                      required
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      placeholder="e.g. 500.00"
+                      className="w-full p-3 bg-zinc-900 border border-white/10 rounded-xl text-sm font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-500 font-mono">
+                      USD
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
+                    Sender Ref / Cashtag / Hash <span className="text-rose-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    required
+                    value={depositReference}
+                    onChange={(e) => setDepositReference(e.target.value)}
+                    placeholder="e.g. $MyCashtag, Wire #49281, Tx Hash"
+                    className="w-full p-3 bg-zinc-900 border border-white/10 rounded-xl text-sm font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
+                  Transaction Notes / Memo (Optional)
+                </label>
+                <input 
+                  type="text" 
+                  value={depositNotes}
+                  onChange={(e) => setDepositNotes(e.target.value)}
+                  placeholder="Optional memo or bank branch detail"
+                  className="w-full p-3 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500 transition-colors"
+                />
+              </div>
+
+              <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl text-[9px] text-amber-300/80 leading-relaxed font-medium">
+                <strong className="text-amber-400 uppercase font-black">Security Policy:</strong> Every new deposit starts with a <span className="underline">Pending</span> status. Balance is credited directly to your account immediately after verification by the treasury administrator (alexwtchmn@gmail.com).
+              </div>
+
+              <button
+                type="submit"
+                disabled={isDepositSubmitting}
+                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest text-[10px] rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 active:scale-[0.99] shadow-lg shadow-emerald-500/20"
+              >
+                {isDepositSubmitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Submitting for Review...
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownLeft className="w-4 h-4" /> Submit Deposit For Approval
+                  </>
+                )}
+              </button>
+            </form>
 
             <div className="p-4 bg-blue-600/5 border border-blue-600/20 rounded-2xl">
               <h4 className="text-[10px] font-black uppercase text-blue-400 mb-1">Instant Institutional Liquidity Clearance</h4>
@@ -2104,16 +2263,59 @@ const AdminPortal = ({ user }: { user: any }) => {
     (o.userEmail || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const updateTransactionStatus = async (txId: string, userId: string, status: string) => {
+  const updateTransactionStatus = async (tx: any, newStatus: string) => {
     try {
-      // Update global log
-      await updateDoc(doc(db, "global_transactions", txId), { status });
-      // Update user specific log
-      await updateDoc(doc(db, "users", userId, "transactions", txId), { status });
-      alert(`Transaction ${txId} marked as ${status}`);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update transaction status.");
+      setAdminLoading(true);
+      const txId = tx.id;
+      const userId = tx.userId;
+
+      // Update global transaction log
+      await updateDoc(doc(db, "global_transactions", txId), { 
+        status: newStatus,
+        reviewedAt: serverTimestamp(),
+        reviewedBy: user?.email || "alexwtchmn@gmail.com"
+      });
+
+      // Update user specific sub-collection log
+      try {
+        await updateDoc(doc(db, "users", userId, "transactions", txId), { 
+          status: newStatus,
+          reviewedAt: serverTimestamp() 
+        });
+      } catch (subErr) {
+        console.warn("Subcollection transaction sync notice:", subErr);
+      }
+
+      // If this is a pending deposit and Admin approves it, credit the user's available balance!
+      if (tx.type === "deposit" && newStatus === "Confirmed" && tx.status !== "Confirmed") {
+        const userDocRef = doc(db, "users", userId);
+        const userSnap = await getDoc(userDocRef);
+        const currentBalance = userSnap.exists() ? (userSnap.data().balance || 0) : 0;
+        const depositAmt = parseFloat(tx.amount) || 0;
+        await updateDoc(userDocRef, {
+          balance: currentBalance + depositAmt,
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      // If this is a pending withdrawal and Admin rejects it, refund the deducted amount back to user's balance
+      if (tx.type === "withdraw" && newStatus === "Rejected" && tx.status === "pending") {
+        const userDocRef = doc(db, "users", userId);
+        const userSnap = await getDoc(userDocRef);
+        const currentBalance = userSnap.exists() ? (userSnap.data().balance || 0) : 0;
+        const withdrawAmt = parseFloat(tx.amount) || 0;
+        await updateDoc(userDocRef, {
+          balance: currentBalance + withdrawAmt,
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      alert(`Transaction ${txId} marked as ${newStatus}${tx.type === 'deposit' && newStatus === 'Confirmed' ? ` — Credited ${formatCurrency(tx.amount)} to user account!` : ''}`);
+    } catch (err: any) {
+      console.error("Update Transaction Status Error:", err);
+      alert("Failed to update transaction status: " + (err.message || String(err)));
+    } finally {
+      setAdminLoading(false);
     }
   };
 
@@ -2272,11 +2474,11 @@ const AdminPortal = ({ user }: { user: any }) => {
             <thead className="bg-zinc-950 border-b border-white/5">
               <tr>
                 <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Timestamp</th>
-                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Investor ID</th>
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Investor Account</th>
                 <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Type</th>
                 <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Value</th>
-                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Crypto Address / Details</th>
-                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Status</th>
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Channel & Sender Ref</th>
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Status & Action</th>
               </tr>
             </thead>
             <tbody>
@@ -2286,42 +2488,63 @@ const AdminPortal = ({ user }: { user: any }) => {
                     {t.timestamp?.toDate ? t.timestamp.toDate().toLocaleString() : 'Processing'}
                   </td>
                   <td className="p-6">
-                    <p className="text-[10px] font-mono text-zinc-300">{t.userId}</p>
+                    <p className="text-xs font-black uppercase italic text-white">{t.userName || 'Investor'}</p>
+                    <p className="text-[10px] font-mono text-zinc-400">{t.userEmail || t.userId}</p>
+                    <p className="text-[8px] font-mono text-zinc-600">ID: {t.id}</p>
                   </td>
                   <td className="p-6">
                     <span className={cn(
-                      "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest",
-                      t.type === 'withdraw' ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"
+                      "px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest inline-flex items-center gap-1",
+                      t.type === 'withdraw' ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                     )}>
-                      {t.type}
+                      {t.type === 'withdraw' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownLeft className="w-3 h-3" />}
+                      {t.type || 'deposit'}
                     </span>
                   </td>
                   <td className="p-6 font-mono text-xs font-black">
-                    {formatCurrency(t.amount || 0)}
-                    {t.currency && <span className="ml-2 text-zinc-500 font-normal">{t.currency}</span>}
+                    <span className={t.type === 'withdraw' ? 'text-rose-400' : 'text-emerald-400'}>
+                      {t.type === 'withdraw' ? '-' : '+'}{formatCurrency(t.amount || 0)}
+                    </span>
                   </td>
-                  <td className="p-6 max-w-[200px]">
-                    <p className="text-[10px] font-mono text-zinc-500 truncate" title={t.destinationAddress || 'N/A'}>
-                      {t.destinationAddress || 'N/A'}
+                  <td className="p-6 max-w-[220px]">
+                    <p className="text-[10px] font-black text-white uppercase tracking-wider">{t.method || 'Standard Wire'}</p>
+                    <p className="text-[9px] font-mono text-zinc-400 truncate" title={t.reference || t.destinationAddress || 'N/A'}>
+                      Ref: {t.reference || t.destinationAddress || 'N/A'}
                     </p>
+                    {t.notes && <p className="text-[8px] text-zinc-500 italic truncate" title={t.notes}>Note: {t.notes}</p>}
                   </td>
                   <td className="p-6 text-right">
-                    <div className="flex justify-end items-center gap-3">
-                      {t.status === 'pending' && (
-                        <button 
-                          onClick={() => updateTransactionStatus(t.id, t.userId, 'Confirmed')}
-                          className="px-3 py-1 bg-emerald-600/20 border border-emerald-600/30 text-emerald-400 text-[8px] font-black uppercase rounded-md hover:bg-emerald-600 hover:text-white transition-all mr-1"
-                        >
-                          Approve
-                        </button>
+                    <div className="flex justify-end items-center gap-2 flex-wrap">
+                      {t.status === 'pending' ? (
+                        <>
+                          <button 
+                            onClick={() => updateTransactionStatus(t, 'Confirmed')}
+                            disabled={adminLoading}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-black font-black text-[9px] uppercase rounded-lg transition-all shadow-sm flex items-center gap-1 active:scale-95 disabled:opacity-50"
+                            title={t.type === 'deposit' ? 'Approve deposit & credit user balance' : 'Approve withdrawal'}
+                          >
+                            <Check className="w-3 h-3" />
+                            {t.type === 'deposit' ? 'Approve & Credit' : 'Confirm'}
+                          </button>
+                          <button 
+                            onClick={() => updateTransactionStatus(t, 'Rejected')}
+                            disabled={adminLoading}
+                            className="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white font-black text-[9px] uppercase rounded-lg transition-all border border-rose-500/20 active:scale-95 disabled:opacity-50"
+                            title={t.type === 'deposit' ? 'Reject deposit request' : 'Reject & refund withdrawal'}
+                          >
+                            <X className="w-3 h-3" /> Reject
+                          </button>
+                        </>
+                      ) : (
+                        <span className={cn(
+                          "text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border",
+                          t.status === 'Confirmed' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : 
+                          t.status === 'Rejected' ? "bg-rose-500/10 text-rose-400 border-rose-500/20" : "bg-zinc-800 text-zinc-500 border-white/5"
+                        )}>
+                          {t.status || 'Processed'}
+                        </span>
                       )}
-                      <span className={cn(
-                        "text-[10px] font-black uppercase tracking-widest mr-2",
-                        t.status === 'Confirmed' ? "text-emerald-400" : 
-                        t.status === 'pending' ? "text-blue-400" : "text-zinc-500"
-                      )}>
-                        {t.status || 'pending'}
-                      </span>
+
                       {confirmDelete?.id === t.id && confirmDelete.type === 'ledger' ? (
                         <div className="flex items-center gap-1 bg-rose-500/10 p-1 rounded-lg border border-rose-500/20">
                           <button
@@ -2344,7 +2567,7 @@ const AdminPortal = ({ user }: { user: any }) => {
                         <button
                           onClick={() => setConfirmDelete({ id: t.id, type: 'ledger' })}
                           disabled={adminLoading}
-                          className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
+                          className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50 ml-1"
                           title="Delete Ledger Record"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -2937,7 +3160,7 @@ export default function App() {
             uid: cred.user.uid,
             displayName: cred.user.displayName || cred.user.email?.split("@")[0],
             email: cred.user.email,
-            balance: 5000,
+            balance: 0,
             createdAt: serverTimestamp()
           });
         }
@@ -3007,7 +3230,7 @@ export default function App() {
           uid: cred.user.uid,
           displayName: rawIdentifier.split("@")[0],
           email,
-          balance: 5000,
+          balance: 0,
           createdAt: serverTimestamp()
         });
       } else {
@@ -3252,6 +3475,41 @@ export default function App() {
     return () => unsub();
   }, [user]);
 
+  const handleDeposit = async (amount: number, method: string, reference: string, notes?: string): Promise<string> => {
+    if (!user) throw new Error("Authentication required to submit deposit notification.");
+    try {
+      const txId = `DEP-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+      const depositRecord = {
+        id: txId,
+        userId: user.uid,
+        userEmail: user.email || "",
+        userName: user.displayName || user.email?.split("@")[0] || "Investor",
+        type: "deposit",
+        amount: amount,
+        currency: "USD",
+        method: method.toUpperCase(),
+        destinationAddress: reference,
+        reference: reference,
+        notes: notes || "",
+        status: "pending",
+        timestamp: serverTimestamp()
+      };
+
+      // Transaction logged in user sub-collection with "pending" status
+      const userTxRef = doc(db, "users", user.uid, "transactions", txId);
+      await setDoc(userTxRef, depositRecord);
+
+      // Mirror to global_transactions for Admin Portal approval & review
+      const globalTxRef = doc(db, "global_transactions", txId);
+      await setDoc(globalTxRef, depositRecord);
+
+      return txId;
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/transactions`);
+      throw err;
+    }
+  };
+
   const handleWithdraw = async (amount: number, currency: string, address: string) => {
     if (!user) return;
     try {
@@ -3268,6 +3526,8 @@ export default function App() {
       // Transaction recorded in user sub-collection
       await setDoc(txRef, {
         userId: user.uid,
+        userEmail: user.email || "",
+        userName: user.displayName || user.email?.split("@")[0] || "Investor",
         type: "withdraw",
         amount: amount,
         currency: currency,
@@ -3280,7 +3540,8 @@ export default function App() {
       const globalTxRef = doc(db, "global_transactions", txId);
       await setDoc(globalTxRef, {
         userId: user.uid,
-        userEmail: user.email,
+        userEmail: user.email || "",
+        userName: user.displayName || user.email?.split("@")[0] || "Investor",
         type: "withdraw",
         amount: amount,
         currency: currency,
@@ -3314,6 +3575,7 @@ export default function App() {
         onClose={() => setShowWallet(false)} 
         balance={balance} 
         onWithdraw={handleWithdraw}
+        onDeposit={handleDeposit}
         transactions={userTransactions}
       />
 
