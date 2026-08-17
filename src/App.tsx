@@ -2933,7 +2933,7 @@ export default function App() {
   };
   const [activeTicket, setActiveTicket] = useState<string | null>(localStorage.getItem("active_ticket_id"));
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "giveaways">("experiences");
+  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "giveaways" | "stocks">("experiences");
   const [dismissedHero, setDismissedHero] = useState(false);
   const [deepLinkExp, setDeepLinkExp] = useState<any | null>(null);
   const [userBookings, setUserBookings] = useState<any[]>([]);
@@ -3596,7 +3596,7 @@ export default function App() {
           <div className="hidden lg:flex items-center gap-8">
             {([
               ...(!user ? [
-                { id: "stocks_locked", label: "Buy Team Stocks", icon: Lock, isPromo: true },
+                { id: "stocks", label: "Buy Team Stocks", icon: Lock, isPromo: true },
               ] : [
                 { id: "markets", label: "Exchange", icon: LayoutDashboard },
                 { id: "draft", label: "Speculation", icon: Target },
@@ -3610,24 +3610,19 @@ export default function App() {
               <button 
                 key={tab.id}
                 onClick={() => {
-                  if (tab.id === "stocks_locked") {
-                    setIsSignUp(true);
-                    setShowLogin(true);
-                    return;
-                  }
                   setActiveTab(tab.id as any);
                   setDismissedHero(true);
                 }}
                 className={cn(
                   "text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all",
                   tab.isPromo 
-                    ? "px-3 py-1.5 rounded-xl bg-blue-600/10 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white shadow-sm"
+                    ? (activeTab === tab.id ? "px-3 py-1.5 rounded-xl bg-blue-600 text-white shadow-sm font-black" : "px-3 py-1.5 rounded-xl bg-blue-600/10 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white shadow-sm")
                     : activeTab === tab.id 
                       ? "text-blue-500" 
                       : "text-zinc-500 hover:text-white"
                 )}
               >
-                <tab.icon className={cn("w-4 h-4", tab.isPromo && "text-blue-400 group-hover:text-white")} />
+                <tab.icon className={cn("w-4 h-4", tab.isPromo && (activeTab === tab.id ? "text-white" : "text-blue-400 group-hover:text-white"))} />
                 {tab.label}
               </button>
             ))}
@@ -3725,7 +3720,7 @@ export default function App() {
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-zinc-950/80 backdrop-blur-2xl border-t border-white/5 z-50 flex items-center justify-around p-4">
         {[
           ...(!user ? [
-            { id: "stocks_locked", label: "Buy Stocks", icon: Lock, isPromo: true },
+            { id: "stocks", label: "Buy Stocks", icon: Lock, isPromo: true },
           ] : [
             { id: "markets", label: "Exchange", icon: LayoutDashboard },
             { id: "draft", label: "Speculation", icon: Target },
@@ -3739,24 +3734,19 @@ export default function App() {
           <button 
             key={tab.id}
             onClick={() => {
-              if (tab.id === "stocks_locked") {
-                setIsSignUp(true);
-                setShowLogin(true);
-                return;
-              }
               setActiveTab(tab.id as any);
               setDismissedHero(true);
             }}
             className={cn(
               "flex flex-col items-center gap-1 transition-colors",
               tab.isPromo 
-                ? "text-blue-400 font-black" 
+                ? (activeTab === tab.id ? "text-blue-400 font-black scale-105" : "text-blue-400/80")
                 : activeTab === tab.id 
                   ? "text-blue-500" 
                   : "text-zinc-500"
             )}
           >
-            <tab.icon className={cn("w-5 h-5", tab.isPromo && "text-blue-400")} />
+            <tab.icon className={cn("w-5 h-5", tab.isPromo && (activeTab === tab.id ? "text-blue-400" : "text-blue-400/80"))} />
             <span className="text-[8px] font-black uppercase tracking-tighter">{tab.label}</span>
           </button>
         ))}
@@ -4505,42 +4495,34 @@ export default function App() {
               </div>
             )}
 
-            {/* Unregistered User Team Stocks Banner */}
-            {!user && (
-              <div className="mx-4 sm:mx-6 md:mx-10 mt-6 p-6 md:p-8 bg-gradient-to-r from-blue-950/60 via-zinc-900 to-zinc-950 border border-blue-500/30 rounded-3xl relative overflow-hidden shadow-2xl">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-                <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-                  <div className="space-y-2 max-w-2xl">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest">
-                      <Lock className="w-3.5 h-3.5" /> Unlock Franchise Equity Markets
-                    </div>
-                    <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tight text-white leading-none">
-                      Buy & Trade Official NFL Team Stocks
-                    </h3>
-                    <p className="text-xs sm:text-sm text-zinc-400 font-medium leading-relaxed">
-                      Create an institutional investor account to access live team equity valuation charts, execute real-time franchise buy/sell orders, and build your digital NFL portfolio.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <button
-                      onClick={() => {
-                        setIsSignUp(true);
-                        setShowLogin(true);
-                      }}
-                      className="flex-1 sm:flex-none px-8 py-4 bg-white hover:bg-zinc-200 text-black text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl transition-all whitespace-nowrap active:scale-95"
-                    >
-                      Create Account to Trade
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsSignUp(false);
-                        setShowLogin(true);
-                      }}
-                      className="flex-1 sm:flex-none px-6 py-4 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-white text-xs font-black uppercase tracking-widest rounded-2xl transition-all whitespace-nowrap active:scale-95"
-                    >
-                      Sign In
-                    </button>
-                  </div>
+            {/* Dedicated Buy Team Stocks Gateway for Non-Logged In Users */}
+            {(activeTab === ("stocks" as any) && !user) && (
+              <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12 md:p-20 text-center max-w-4xl mx-auto my-auto">
+                <div className="w-20 h-20 bg-blue-600/10 rounded-3xl flex items-center justify-center mb-8 border border-blue-500/20 shadow-xl">
+                  <Lock className="w-10 h-10 text-blue-500" />
+                </div>
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-widest mb-6">
+                  Franchise Equity Trading
+                </div>
+                <h2 className="text-3xl sm:text-5xl font-black italic uppercase tracking-tighter mb-6 leading-none">
+                  Buy Official NFL Team Stocks
+                </h2>
+                <p className="text-zinc-400 font-medium text-sm sm:text-base mb-10 max-w-xl mx-auto leading-relaxed">
+                  Access live valuation charts for all 32 NFL franchises, trade team equity shares in real time, and build your sports portfolio. Create a free account or sign in to get started.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
+                  <button 
+                    onClick={() => { setIsSignUp(true); setShowLogin(true); }} 
+                    className="bg-white text-black px-10 py-4 sm:py-5 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Lock className="w-4 h-4 text-blue-600" /> Create Account to Trade
+                  </button>
+                  <button 
+                    onClick={() => { setIsSignUp(false); setShowLogin(true); }} 
+                    className="bg-zinc-900 border border-white/10 text-white px-8 py-4 sm:py-5 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-95"
+                  >
+                    Sign In
+                  </button>
                 </div>
               </div>
             )}
