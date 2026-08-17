@@ -2933,7 +2933,7 @@ export default function App() {
   };
   const [activeTicket, setActiveTicket] = useState<string | null>(localStorage.getItem("active_ticket_id"));
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "giveaways">("markets");
+  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "giveaways">("experiences");
   const [dismissedHero, setDismissedHero] = useState(false);
   const [deepLinkExp, setDeepLinkExp] = useState<any | null>(null);
   const [userBookings, setUserBookings] = useState<any[]>([]);
@@ -3112,6 +3112,7 @@ export default function App() {
         setPortfolio([]);
         setUserBookings([]);
         portfolioRef.current = [];
+        setActiveTab((prev) => (prev === "markets" || prev === "draft" || prev === "portfolio" || prev === "admin" ? "experiences" : prev));
       }
       setLoading(false);
     });
@@ -3582,7 +3583,7 @@ export default function App() {
       {/* Nav */}
       <nav className="h-20 bg-zinc-950/60 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-4 md:px-8 z-50">
         <div className="flex items-center gap-4 md:gap-10">
-          <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setActiveTab("markets")}>
+          <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setActiveTab(user ? "markets" : "experiences")}>
             <div className="w-8 h-8 md:w-10 md:h-10 bg-zinc-950 rounded-lg md:rounded-xl flex items-center justify-center border border-white/10 group-hover:scale-105 transition-all overflow-hidden">
               <img src={NFL_LOGO_URL} alt="NFL Shield Logo" className="w-full h-full object-contain p-1" />
             </div>
@@ -3594,12 +3595,14 @@ export default function App() {
 
           <div className="hidden lg:flex items-center gap-8">
             {([
-              { id: "markets", label: "Exchange", icon: LayoutDashboard },
-              { id: "draft", label: "Speculation", icon: Target },
+              ...(user ? [
+                { id: "markets", label: "Exchange", icon: LayoutDashboard },
+                { id: "draft", label: "Speculation", icon: Target },
+              ] : []),
               { id: "experiences", label: "Experiences", icon: Star },
               { id: "giveaways", label: "Player Giveaways", icon: Gift },
               { id: "shop", label: "Arena Shop", icon: ShoppingBag },
-              { id: "portfolio", label: "Portfolio", icon: History },
+              ...(user ? [{ id: "portfolio", label: "Portfolio", icon: History }] : []),
               ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control", icon: ShieldCheck }] : [])
             ] as any[]).map(tab => (
               <button 
@@ -3710,12 +3713,14 @@ export default function App() {
       {/* Mobile Bottom Nav */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-zinc-950/80 backdrop-blur-2xl border-t border-white/5 z-50 flex items-center justify-around p-4">
         {[
-          { id: "markets", label: "Exchange", icon: LayoutDashboard },
-          { id: "draft", label: "Speculation", icon: Target },
+          ...(user ? [
+            { id: "markets", label: "Exchange", icon: LayoutDashboard },
+            { id: "draft", label: "Speculation", icon: Target },
+          ] : []),
           { id: "experiences", label: "Experiences", icon: Star },
           { id: "giveaways", label: "Giveaways", icon: Gift },
           { id: "shop", label: "Shop", icon: ShoppingBag },
-          { id: "portfolio", label: "Portfolio", icon: History },
+          ...(user ? [{ id: "portfolio", label: "Portfolio", icon: History }] : []),
           ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control", icon: ShieldCheck }] : [])
         ].map(tab => (
           <button 
@@ -4031,11 +4036,11 @@ export default function App() {
                 Live Franchise Equity · Institutional Execution · 24/7 Market Liquidity
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4 mb-20 px-4 w-full sm:w-auto">
-                <button onClick={() => setShowLogin(true)} className="bg-white text-black px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl shadow-white/5 whitespace-nowrap">
-                  ACCESS TRADING TERMINAL
+                <button onClick={() => { setIsSignUp(true); setShowLogin(true); }} className="bg-white text-black px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl shadow-white/5 whitespace-nowrap">
+                  CREATE ACCOUNT / SIGN IN
                 </button>
-                <button onClick={() => setDismissedHero(true)} className="bg-zinc-900 border border-white/10 text-white px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-2xl whitespace-nowrap">
-                  EXPLORE LIVE EXCHANGE
+                <button onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }} className="bg-zinc-900 border border-white/10 text-white px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-2xl whitespace-nowrap">
+                  EXPLORE EXPERIENCES
                 </button>
               </div>
             </motion.div>
@@ -4190,86 +4195,109 @@ export default function App() {
       {(user || dismissedHero) && (
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden pb-20 md:pb-0">
           {/* Sidebar */}
-          <aside className={cn(
-            "bg-zinc-950/40 border-r border-white/5 flex-col shrink-0 transition-all duration-300",
-            activeTab === "markets" ? "flex w-full md:w-80 h-[40%] md:h-full" : "hidden md:flex md:w-80"
-          )}>
-            <div className="p-6 flex items-center justify-between">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                <input 
-                  type="text" 
-                  placeholder="Search assets..." 
-                  className="w-full bg-zinc-900/50 border border-white/5 rounded-xl pl-10 pr-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+          {user && (
+            <aside className={cn(
+              "bg-zinc-950/40 border-r border-white/5 flex-col shrink-0 transition-all duration-300",
+              activeTab === "markets" ? "flex w-full md:w-80 h-[40%] md:h-full" : "hidden md:flex md:w-80"
+            )}>
+              <div className="p-6 flex items-center justify-between">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                  <input 
+                    type="text" 
+                    placeholder="Search assets..." 
+                    className="w-full bg-zinc-900/50 border border-white/5 rounded-xl pl-10 pr-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="flex-1 overflow-y-auto no-scrollbar pb-10">
-              {filteredTeams.map(t => {
-                const price = marketPrices[t.id] || 100;
-                const hist = historicalData[t.id] || [];
-                const change = hist.length > 1 ? ((price - hist[0].price) / hist[0].price) * 100 : 0;
-                return (
-                  <button 
-                    key={t.id}
-                    onClick={() => { setSelectedTeam(t); setActiveTab("markets"); }}
-                    className={cn(
-                      "w-full p-4 flex items-center justify-between hover:bg-white/5 transition-all text-left group",
-                      selectedTeam.id === t.id && activeTab === "markets" && "bg-blue-600/10 border-l-4 border-blue-600"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-white/5 p-2 group-hover:scale-105 transition-transform">
-                        <img src={getLogoUrl(t.id)} alt={t.id} className="w-full h-full object-contain" />
+              <div className="flex-1 overflow-y-auto no-scrollbar pb-10">
+                {filteredTeams.map(t => {
+                  const price = marketPrices[t.id] || 100;
+                  const hist = historicalData[t.id] || [];
+                  const change = hist.length > 1 ? ((price - hist[0].price) / hist[0].price) * 100 : 0;
+                  return (
+                    <button 
+                      key={t.id}
+                      onClick={() => { setSelectedTeam(t); setActiveTab("markets"); }}
+                      className={cn(
+                        "w-full p-4 flex items-center justify-between hover:bg-white/5 transition-all text-left group",
+                        selectedTeam.id === t.id && activeTab === "markets" && "bg-blue-600/10 border-l-4 border-blue-600"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-white/5 p-2 group-hover:scale-105 transition-transform">
+                          <img src={getLogoUrl(t.id)} alt={t.id} className="w-full h-full object-contain" />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-black uppercase tracking-tight">{t.name}</h3>
+                          <p className="text-[10px] font-bold text-zinc-600 uppercase">{t.id} · {t.city}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-tight">{t.name}</h3>
-                        <p className="text-[10px] font-bold text-zinc-600 uppercase">{t.id} · {t.city}</p>
+                      <div className="text-right">
+                        <p className="font-mono text-xs font-black">${price.toFixed(2)}</p>
+                        <p className={cn("text-[9px] font-black", change >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                          {change >= 0 ? "+" : ""}{change.toFixed(2)}%
+                        </p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-mono text-xs font-black">${price.toFixed(2)}</p>
-                      <p className={cn("text-[9px] font-black", change >= 0 ? "text-emerald-400" : "text-rose-400")}>
-                        {change >= 0 ? "+" : ""}{change.toFixed(2)}%
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                    </button>
+                  );
+                })}
+              </div>
 
-            {/* Sidebar Concierge & Track Footer */}
-            <div className="p-4 border-t border-white/5 bg-zinc-950/80 space-y-2">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowFanCardForm(true)}
-                  className="flex-1 py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-blue-500/40 rounded-xl text-[10px] font-black uppercase tracking-wider text-zinc-300 hover:text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Headphones className="w-3.5 h-3.5 text-blue-400" />
-                  Support
-                </button>
-                <button
-                  onClick={() => {
-                    setTrackedInquiry(null);
-                    setEmailInquiries(null);
-                    setTrackingEmail("");
-                    setTrackingId("");
-                    setShowInquiryStatus("SEARCH");
-                  }}
-                  className="flex-1 py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-emerald-500/40 rounded-xl text-[10px] font-black uppercase tracking-wider text-zinc-300 hover:text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Search className="w-3.5 h-3.5 text-emerald-400" />
-                  Track Ticket
-                </button>
+              {/* Sidebar Concierge & Track Footer */}
+              <div className="p-4 border-t border-white/5 bg-zinc-950/80 space-y-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowFanCardForm(true)}
+                    className="flex-1 py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-blue-500/40 rounded-xl text-[10px] font-black uppercase tracking-wider text-zinc-300 hover:text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Headphones className="w-3.5 h-3.5 text-blue-400" />
+                    Support
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTrackedInquiry(null);
+                      setEmailInquiries(null);
+                      setTrackingEmail("");
+                      setTrackingId("");
+                      setShowInquiryStatus("SEARCH");
+                    }}
+                    className="flex-1 py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-emerald-500/40 rounded-xl text-[10px] font-black uppercase tracking-wider text-zinc-300 hover:text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Search className="w-3.5 h-3.5 text-emerald-400" />
+                    Track Ticket
+                  </button>
+                </div>
               </div>
-            </div>
-          </aside>
+            </aside>
+          )}
 
           {/* Activity Area */}
           <main className="flex-1 flex flex-col bg-zinc-950 overflow-y-auto custom-scrollbar">
-            {activeTab === "markets" && (
+            {(activeTab === "markets" && !user) ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 md:p-20 text-center">
+                <div className="w-20 h-20 bg-blue-600/10 rounded-3xl flex items-center justify-center mb-8 border border-blue-500/20">
+                  <Lock className="w-10 h-10 text-blue-500" />
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter mb-4 leading-none">Exchange Restricted</h2>
+                <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mb-8 max-w-md leading-relaxed">
+                  Live franchise trading and order books require an active registered investor account. Create an account or sign in to access the trading terminal.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button onClick={() => { setIsSignUp(true); setShowLogin(true); }} className="bg-white text-black px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-lg">
+                    Create Account
+                  </button>
+                  <button onClick={() => { setIsSignUp(false); setShowLogin(true); }} className="bg-zinc-900 border border-white/10 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all">
+                    Sign In
+                  </button>
+                  <button onClick={() => setActiveTab("experiences")} className="bg-transparent border border-white/5 text-zinc-400 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:text-white transition-all">
+                    View Experiences
+                  </button>
+                </div>
+              </div>
+            ) : activeTab === "markets" && user && (
               <div className="p-4 sm:p-6 md:p-10 space-y-6 md:space-y-10">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                   <div className="flex items-center gap-4 md:gap-8">
@@ -4395,15 +4423,27 @@ export default function App() {
             )}
 
             {(activeTab === "draft" && !user) ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-20 text-center">
-                <div className="w-20 h-20 bg-blue-600/10 rounded-3xl flex items-center justify-center mb-8">
-                  <Target className="w-10 h-10 text-blue-600" />
+              <div className="flex-1 flex flex-col items-center justify-center p-8 md:p-20 text-center">
+                <div className="w-20 h-20 bg-blue-600/10 rounded-3xl flex items-center justify-center mb-8 border border-blue-500/20">
+                  <Lock className="w-10 h-10 text-blue-500" />
                 </div>
-                <h2 className="text-4xl font-black italic uppercase tracking-tighter mb-4">Speculation Locked</h2>
-                <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs mb-10 max-w-md">Draft speculation requires institutional clearance. Sign in to place predictive orders.</p>
-                <button onClick={() => setShowLogin(true)} className="bg-white text-black px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all">Secure Access</button>
+                <h2 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter mb-4 leading-none">Speculation Locked</h2>
+                <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mb-8 max-w-md leading-relaxed">
+                  Draft speculation and rookie asset trading are restricted to authenticated accounts. Create an account or sign in to participate.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button onClick={() => { setIsSignUp(true); setShowLogin(true); }} className="bg-white text-black px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-lg">
+                    Create Account
+                  </button>
+                  <button onClick={() => { setIsSignUp(false); setShowLogin(true); }} className="bg-zinc-900 border border-white/10 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all">
+                    Sign In
+                  </button>
+                  <button onClick={() => setActiveTab("experiences")} className="bg-transparent border border-white/5 text-zinc-400 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:text-white transition-all">
+                    View Experiences
+                  </button>
+                </div>
               </div>
-            ) : activeTab === "draft" && (
+            ) : activeTab === "draft" && user && (
               <div className="p-4 sm:p-6 md:p-10 space-y-8 md:space-y-10">
                 <div className="text-center max-w-3xl mx-auto py-6 md:py-10">
                   <h2 className="text-3xl sm:text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 leading-none">Draft Speculation</h2>
