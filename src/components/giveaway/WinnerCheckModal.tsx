@@ -17,7 +17,11 @@ import {
   ArrowRight,
   ExternalLink,
   Phone,
-  Package
+  Package,
+  MessageSquare,
+  Clock,
+  Send,
+  AlertTriangle
 } from "lucide-react";
 import { collection, query, where, getDocs, doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
@@ -32,6 +36,8 @@ interface WinnerCheckModalProps {
   savedFanProfile?: FanProfile | null;
   onOpenRegisterModal?: () => void;
   onViewFanCard?: (fan: FanProfile) => void;
+  onOpenLiveChat?: (inquiryIdOrEmail?: string) => void;
+  onOpenCustomerCareForm?: (presetMessage?: string) => void;
 }
 
 interface WinnerResult {
@@ -43,6 +49,9 @@ interface WinnerResult {
   claimCode?: string;
   winningMessage?: string;
   claimStatus?: string;
+  hasExistingClaim?: boolean;
+  existingClaimTicketId?: string;
+  existingInquiry?: any;
 }
 
 export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
@@ -51,7 +60,9 @@ export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
   currentUser,
   savedFanProfile,
   onOpenRegisterModal,
-  onViewFanCard
+  onViewFanCard,
+  onOpenLiveChat,
+  onOpenCustomerCareForm
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isSearching, setIsSearching] = useState<boolean>(false);
@@ -98,6 +109,9 @@ export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
       let matchedFan: FanProfile | undefined = undefined;
       const winnerRecords: GiveawayWinner[] = [];
       const activeEntries: GiveawayEntry[] = [];
+      let existingClaimFound = false;
+      let existingTicketId = "";
+      let matchedInquiryData: any = null;
 
       // 1. Search registered_fans by email or fanCode
       try {
@@ -164,6 +178,49 @@ export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
         console.error("Error querying entries:", err);
       }
 
+      // 4. Check customer_inquiries and fan_card_requests for existing claim submissions or ongoing support chats
+      try {
+        const inquiriesRef = collection(db, "customer_inquiries");
+        const inqSnap = await getDocs(inquiriesRef);
+        inqSnap.forEach((d) => {
+          const inq = d.data();
+          const inqEmail = (inq.userEmail || "").toLowerCase();
+          const inqFanCode = (inq.fanCode || "").toLowerCase();
+          if (
+            inqEmail === queryTerm ||
+            inqFanCode === queryTerm ||
+            (matchedFan && inqFanCode === matchedFan.fanCode?.toLowerCase()) ||
+            (matchedFan && inqEmail === matchedFan.email?.toLowerCase())
+          ) {
+            if (inq.type === "GIVEAWAY_PRIZE_CLAIM" || inq.type === "CLAIM_CODE_PRESENTED" || inq.claimCode) {
+              existingClaimFound = true;
+              existingTicketId = inq.id || d.id;
+              matchedInquiryData = inq;
+            }
+          }
+        });
+
+        // Also check fan_card_requests
+        const requestsRef = collection(db, "fan_card_requests");
+        const reqSnap = await getDocs(requestsRef);
+        reqSnap.forEach((d) => {
+          const req = d.data();
+          const reqEmail = (req.userEmail || "").toLowerCase();
+          if (
+            reqEmail === queryTerm ||
+            (matchedFan && reqEmail === matchedFan.email?.toLowerCase())
+          ) {
+            if (req.message?.includes("CLAIM CODE") || req.message?.includes("PRIZE CLAIM") || req.status !== "ended") {
+              existingClaimFound = true;
+              if (!existingTicketId) existingTicketId = req.id || d.id;
+              if (!matchedInquiryData) matchedInquiryData = req;
+            }
+          }
+        });
+      } catch (err) {
+        console.error("Error checking existing claims in support tickets:", err);
+      }
+
       // Determine winning state
       const isFanMarkedWinner = matchedFan?.isWinner === true;
       const hasWinnerRecord = winnerRecords.length > 0;
@@ -190,7 +247,7 @@ export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
       const claimStatus =
         winnerRecords[0]?.status ||
         matchedFan?.claimStatus ||
-        "PENDING_CLAIM";
+        (existingClaimFound ? "CLAIMED" : "PENDING_CLAIM");
 
       setResult({
         isWinner,
@@ -200,7 +257,10 @@ export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
         prizeName,
         claimCode,
         winningMessage,
-        claimStatus
+        claimStatus,
+        hasExistingClaim: existingClaimFound || matchedFan?.claimStatus === "CLAIMED" || winnerRecords[0]?.status === "CLAIMED",
+        existingClaimTicketId: existingTicketId,
+        existingInquiry: matchedInquiryData
       });
     } catch (err) {
       console.error("Error during winner check:", err);
@@ -227,6 +287,7 @@ export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
       const prize = result.prizeName || "Official Player Giveaway Prize";
       const claimCode = result.claimCode || "CLAIM-VERIFIED";
       const ticketId = `claim-dispatch-${Date.now()}`;
+      const reqId = `gift-req-${Date.now()}`;
 
       // 1. Log in customer inquiries / concierge dispatch queue
       await setDoc(doc(db, "customer_inquiries", ticketId), {
@@ -244,8 +305,7 @@ export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
         status: "GIFT_CLAIM_SUBMITTED"
       });
 
-      // 2. Create customer support fan ticket for immediate fulfillment
-      const reqId = `gift-req-${Date.now()}`;
+      // 2. Create customer support fan ticket with clear shipping dispatch notes and live chat ability
       await setDoc(doc(db, "fan_card_requests", reqId), {
         id: reqId,
         userId: result.fanProfile?.userId || "guest",
@@ -255,8 +315,16 @@ export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
         teamId: result.fanProfile?.favoriteTeam || "NFL",
         timestamp: Date.now(),
         status: "pending",
-        message: `[WINNER PRIZE CLAIM CONFIRMED]\nFan: ${name} (${fanCode})\nEmail: ${email}\nPrize: ${prize}\nClaim Code: ${claimCode}\nShipping Address:\n${shippingAddress.trim()}\nPhone: ${phoneNumber.trim() || "N/A"}\nDelivery Notes: ${deliveryNotes.trim() || "None"}`,
-        replies: []
+        message: `[WINNER PRIZE CLAIM & SHIPPING DISPATCH REQUEST]\nFan: ${name} (${fanCode})\nEmail: ${email}\nPrize: ${prize}\nClaim Code: ${claimCode}\nShipping Address:\n${shippingAddress.trim()}\nPhone: ${phoneNumber.trim() || "N/A"}\nDelivery Notes: ${deliveryNotes.trim() || "None"}\nStatus: Customer has submitted dispatch details. Customer is instructed to check back with Customer Care until items are marked as shipped.`,
+        replies: [
+          {
+            id: `reply-system-${Date.now()}`,
+            sender: "NFL Customer Care Concierge",
+            message: `Hello ${name}! We have securely logged your delivery details for "${prize}". Our team is verifying packaging and courier allocation. Please check back with Customer Care here in this live chat until a representative notifies you that your package has officially been shipped and provides courier tracking.`,
+            timestamp: Date.now(),
+            role: "admin"
+          }
+        ]
       });
 
       // 3. Update registered_fans status if exists
@@ -270,9 +338,10 @@ export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
         } catch (e) {}
       }
 
-      setClaimReceiptId(ticketId);
+      setClaimReceiptId(reqId);
       setClaimSubmitted(true);
       setShowClaimForm(false);
+      setResult((prev) => prev ? { ...prev, hasExistingClaim: true, existingClaimTicketId: reqId, claimStatus: "CLAIMED" } : null);
     } catch (err: any) {
       console.error("Error submitting claim:", err);
       alert("Error submitting claim details: " + err.message);
@@ -432,21 +501,109 @@ export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
                   </div>
                 </div>
 
-                {/* Claim Confirmation Success Alert */}
+                {/* Claim Confirmation Success Alert or Existing Claim Detection */}
+                {result.hasExistingClaim && !claimSubmitted && (
+                  <div className="p-5 rounded-2xl bg-blue-950/60 border border-blue-500/40 text-blue-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="w-5 h-5 text-cyan-400 shrink-0" />
+                        <h4 className="text-sm font-black uppercase tracking-wider text-white">
+                          Prize Claim Already Presented
+                        </h4>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[9px] font-black uppercase">
+                        ACTIVE INQUIRY
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      You have already presented your winner claim code for this prize. Our Customer Care team has an ongoing conversation linked to your account.
+                    </p>
+
+                    <div className="p-3 bg-zinc-950/80 rounded-xl border border-white/10 text-[11px] space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-zinc-500 font-bold uppercase text-[9px]">TICKET / INQUIRY ID:</span>
+                        <span className="font-mono font-bold text-cyan-400">{result.existingClaimTicketId || "GIVEAWAY-CLAIM"}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-zinc-500 font-bold uppercase text-[9px]">DISPATCH INSTRUCTION:</span>
+                        <span className="font-bold text-amber-300">Check live chat until confirmed shipped</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                      {onOpenLiveChat && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            onOpenLiveChat(result.existingClaimTicketId || result.fanProfile?.email || searchQuery);
+                          }}
+                          className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 cursor-pointer transition-all"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          <span>Open Live Support Chat</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setShowClaimForm(true)}
+                        className="px-4 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider border border-white/10 cursor-pointer transition-all"
+                      >
+                        Update Delivery Notes
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {claimSubmitted ? (
-                  <div className="p-5 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 space-y-2">
+                  <div className="p-5 rounded-2xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-300 space-y-3">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                       <h4 className="text-sm font-black uppercase tracking-wider text-white">
-                        Prize Claim Successfully Submitted!
+                        Delivery Details Successfully Submitted!
                       </h4>
                     </div>
-                    <p className="text-xs text-zinc-300 leading-relaxed">
-                      Our official Player Concierge and Customer Care team has received your shipping details. We are packaging your authenticated prize for dispatch. You will receive dispatch updates via email at <strong className="text-white">{result.fanProfile?.email || searchQuery}</strong>.
-                    </p>
-                    <p className="text-[10px] font-mono text-emerald-400 pt-1">
-                      Tracking Receipt ID: {claimReceiptId}
-                    </p>
+
+                    {/* Instruction notice: check back with customer care until notified shipped */}
+                    <div className="p-3.5 bg-zinc-950/80 rounded-xl border border-amber-500/30 text-amber-200 text-xs leading-relaxed space-y-1.5">
+                      <p className="font-black uppercase text-[10px] tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5" />
+                        Important Shipping Dispatch Notice:
+                      </p>
+                      <p className="text-zinc-300 text-[11px]">
+                        Since you have dropped your delivery details, <strong>please check back with Customer Care</strong> in your live ticket until our representatives confirm that your prize has officially been <strong>shipped</strong> and courier tracking is provided.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 pt-1">
+                      <span>Live Support Ticket ID:</span>
+                      <span className="text-emerald-400 font-bold">{claimReceiptId}</span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                      {onOpenLiveChat && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            onOpenLiveChat(claimReceiptId || result.fanProfile?.email || searchQuery);
+                          }}
+                          className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 cursor-pointer transition-all"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          <span>Go To Live Customer Care Chat</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-5 py-3 bg-zinc-900 hover:bg-zinc-800 text-white border border-white/10 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer"
+                      >
+                        Exit / Done
+                      </button>
+                    </div>
                   </div>
                 ) : showClaimForm ? (
                   /* Claim Shipping Address Form */
@@ -463,6 +620,12 @@ export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
                       >
                         Cancel
                       </button>
+                    </div>
+
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-200">
+                      <p className="font-bold">
+                        Notice: When dropping your shipping details, remember to check back with Customer Care until our team informs you that your package has been shipped.
+                      </p>
                     </div>
 
                     <div className="space-y-3">
@@ -536,7 +699,7 @@ export const WinnerCheckModal: React.FC<WinnerCheckModalProps> = ({
                       className="flex-1 py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-widest rounded-xl shadow-xl shadow-amber-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <Package className="w-4 h-4" />
-                      <span>Claim Prize & Set Delivery Address</span>
+                      <span>{result.hasExistingClaim ? "Update Shipping Details" : "Claim Prize & Set Delivery Address"}</span>
                     </button>
 
                     {result.fanProfile && onViewFanCard && (

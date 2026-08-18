@@ -4785,11 +4785,24 @@ export default function App() {
                 user={user} 
                 onSignInClick={() => setShowLogin(true)} 
                 onOpenCustomerCare={() => setShowFanCardForm(true)}
-                onOpenTrackInquiry={() => {
+                onNavigateHome={() => setActiveTab("experiences")}
+                onOpenTrackInquiry={(ticketIdOrEmail) => {
                   setTrackedInquiry(null);
                   setEmailInquiries(null);
-                  setTrackingEmail("");
-                  setTrackingId("");
+                  if (ticketIdOrEmail) {
+                    if (ticketIdOrEmail.includes("@")) {
+                      setTrackingTab("email");
+                      setTrackingEmail(ticketIdOrEmail);
+                      setTrackingId("");
+                    } else {
+                      setTrackingTab("ticket");
+                      setTrackingId(ticketIdOrEmail);
+                      setTrackingEmail("");
+                    }
+                  } else {
+                    setTrackingEmail("");
+                    setTrackingId("");
+                  }
                   setShowInquiryStatus("SEARCH");
                 }}
               />

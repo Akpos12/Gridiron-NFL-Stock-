@@ -32,7 +32,8 @@ interface PlayerGiveawaySectionProps {
   currentUser?: any;
   onSignInClick?: () => void;
   onOpenCustomerCare?: () => void;
-  onOpenTrackInquiry?: () => void;
+  onOpenTrackInquiry?: (ticketIdOrEmail?: string) => void;
+  onNavigateHome?: () => void;
 }
 
 export const PlayerGiveawaySection: React.FC<PlayerGiveawaySectionProps> = ({
@@ -41,7 +42,8 @@ export const PlayerGiveawaySection: React.FC<PlayerGiveawaySectionProps> = ({
   currentUser,
   onSignInClick,
   onOpenCustomerCare,
-  onOpenTrackInquiry
+  onOpenTrackInquiry,
+  onNavigateHome
 }) => {
   const activeUser = user || currentUser;
   const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
@@ -106,6 +108,30 @@ export const PlayerGiveawaySection: React.FC<PlayerGiveawaySectionProps> = ({
   return (
     <div className="space-y-8 text-left pb-16">
       <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-10">
+        {/* Top Breadcrumb / Return to Arena Navigation */}
+        {onNavigateHome && (
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={onNavigateHome}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer border border-white/10"
+            >
+              <ChevronRight className="w-4 h-4 rotate-180" />
+              Back to Main Arena
+            </button>
+
+            {onOpenTrackInquiry && (
+              <button
+                type="button"
+                onClick={() => onOpenTrackInquiry()}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+              >
+                Track Live Inquiry
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Section Hero Banner */}
         <div className="relative rounded-[2.5rem] overflow-hidden border border-white/10 bg-gradient-to-br from-[#013369] via-[#0A1A2F] to-[#020B14] p-8 md:p-12 text-white shadow-2xl">
           <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -218,7 +244,8 @@ export const PlayerGiveawaySection: React.FC<PlayerGiveawaySectionProps> = ({
 
                 {onOpenTrackInquiry && (
                   <button
-                    onClick={onOpenTrackInquiry}
+                    type="button"
+                    onClick={() => onOpenTrackInquiry()}
                     className="px-5 py-3.5 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2"
                   >
                     <Search className="w-3.5 h-3.5 text-emerald-400" />
@@ -395,6 +422,16 @@ export const PlayerGiveawaySection: React.FC<PlayerGiveawaySectionProps> = ({
         savedFanProfile={fanProfile}
         onOpenRegisterModal={() => setShowRegModal(true)}
         onViewFanCard={(fan) => setSelectedFanForCardView(fan)}
+        onOpenLiveChat={(ticketIdOrEmail) => {
+          if (onOpenTrackInquiry) {
+            onOpenTrackInquiry(ticketIdOrEmail);
+          } else if (onOpenCustomerCare) {
+            onOpenCustomerCare();
+          }
+        }}
+        onOpenCustomerCareForm={() => {
+          if (onOpenCustomerCare) onOpenCustomerCare();
+        }}
       />
 
       {/* Fan Registration Modal */}
