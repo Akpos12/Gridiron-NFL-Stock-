@@ -47,7 +47,10 @@ import {
   Clock,
   Headphones,
   MessageSquareText,
-  HelpCircle
+  HelpCircle,
+  PowerOff,
+  RotateCcw,
+  AlertTriangle
 } from "lucide-react";
 import { 
   XAxis, 
@@ -2163,6 +2166,64 @@ const AdminPortal = ({ user }: { user: any }) => {
     }
   };
 
+  const handleEndSession = async (id: string) => {
+    try {
+      setAdminLoading(true);
+      const target = requests.find(r => r.id === id) || (selectedInquiry?.id === id ? selectedInquiry : null);
+      const existingReplies = target?.replies || [];
+      const endNotice = {
+        sender: 'Customer Care',
+        text: '— Support Session Ended by Concierge Team —',
+        timestamp: new Date().toISOString(),
+        isSystem: true
+      };
+      await updateDoc(doc(db, "fan_card_requests", id), {
+        status: 'ended',
+        endedAt: serverTimestamp(),
+        endedBy: user?.email || "Control Room Admin",
+        replies: [...existingReplies, endNotice]
+      });
+      if (selectedInquiry?.id === id) {
+        setSelectedInquiry((prev: any) => prev ? { ...prev, status: 'ended' } : null);
+      }
+      alert(`Customer Support Session ${id} marked as ENDED.`);
+    } catch (err: any) {
+      console.error("End Session Error:", err);
+      handleFirestoreError(err, OperationType.WRITE, "fan_card_requests");
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleReopenSession = async (id: string) => {
+    try {
+      setAdminLoading(true);
+      const target = requests.find(r => r.id === id) || (selectedInquiry?.id === id ? selectedInquiry : null);
+      const existingReplies = target?.replies || [];
+      const reopenNotice = {
+        sender: 'Customer Care',
+        text: '— Support Session Reopened by Concierge Team —',
+        timestamp: new Date().toISOString(),
+        isSystem: true
+      };
+      await updateDoc(doc(db, "fan_card_requests", id), {
+        status: 'responded',
+        reopenedAt: serverTimestamp(),
+        reopenedBy: user?.email || "Control Room Admin",
+        replies: [...existingReplies, reopenNotice]
+      });
+      if (selectedInquiry?.id === id) {
+        setSelectedInquiry((prev: any) => prev ? { ...prev, status: 'responded' } : null);
+      }
+      alert(`Customer Support Session ${id} reopened.`);
+    } catch (err: any) {
+      console.error("Reopen Session Error:", err);
+      handleFirestoreError(err, OperationType.WRITE, "fan_card_requests");
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
   const handleDeleteLedger = async (id: string) => {
     try {
       setAdminLoading(true);
@@ -2713,50 +2774,84 @@ const AdminPortal = ({ user }: { user: any }) => {
                   </td>
                   <td className="p-6 text-right">
                     <span className={cn(
-                      "px-3 py-1 text-[10px] font-black uppercase rounded-lg",
-                      item.status === 'responded' ? "bg-emerald-600/10 text-emerald-500" : 
-                      item.status === 'pending' ? "bg-blue-600/10 text-blue-400" : "bg-zinc-800 text-zinc-500"
+                      "px-3 py-1 text-[10px] font-black uppercase rounded-lg inline-flex items-center gap-1.5",
+                      item.status === 'ended' ? "bg-zinc-800 text-zinc-400 border border-zinc-700/50" :
+                      item.status === 'responded' ? "bg-emerald-600/10 text-emerald-500 border border-emerald-500/20" : 
+                      item.status === 'pending' ? "bg-blue-600/10 text-blue-400 border border-blue-500/20" : "bg-zinc-800 text-zinc-500"
                     )}>
-                      {item.status || 'pending'}
+                      {item.status === 'ended' && <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />}
+                      {item.status === 'pending' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
+                      {item.status === 'responded' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                      {item.status === 'ended' ? 'Ended' : item.status || 'pending'}
                     </span>
                   </td>
                   {activeSubTab === "inquiries" && (
                     <td className="p-6 text-right" onClick={(e) => e.stopPropagation()}>
-                      {confirmDelete?.id === item.id && confirmDelete.type === 'inquiry' ? (
-                        <div className="flex items-center gap-1 justify-end">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {item.status === 'ended' ? (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteInquiry(item.id);
-                              setConfirmDelete(null);
+                              handleReopenSession(item.id);
                             }}
-                            className="px-2 py-1 bg-rose-600 text-white text-[8px] font-black uppercase rounded hover:bg-rose-500 transition-all"
+                            disabled={adminLoading}
+                            className="px-2.5 py-1.5 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1"
+                            title="Reopen Customer Support Session"
                           >
-                            Confirm
+                            <RotateCcw className="w-3 h-3" />
+                            <span className="hidden sm:inline">Reopen</span>
                           </button>
+                        ) : (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setConfirmDelete(null);
+                              handleEndSession(item.id);
                             }}
-                            className="px-2 py-1 bg-zinc-800 text-zinc-400 text-[8px] font-black uppercase rounded hover:bg-zinc-700 transition-all"
+                            disabled={adminLoading}
+                            className="px-2.5 py-1.5 bg-amber-600/10 hover:bg-amber-600 border border-amber-500/20 text-amber-400 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1"
+                            title="End Customer Support Session"
                           >
-                            No
+                            <PowerOff className="w-3 h-3" />
+                            <span className="hidden sm:inline">End Session</span>
                           </button>
-                        </div>
-                      ) : (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfirmDelete({ id: item.id, type: 'inquiry' });
-                          }}
-                          disabled={adminLoading}
-                          className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
-                          title="Delete Inquiry"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                        )}
+
+                        {confirmDelete?.id === item.id && confirmDelete.type === 'inquiry' ? (
+                          <div className="flex items-center gap-1 justify-end">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteInquiry(item.id);
+                                setConfirmDelete(null);
+                              }}
+                              className="px-2 py-1 bg-rose-600 text-white text-[8px] font-black uppercase rounded hover:bg-rose-500 transition-all"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDelete(null);
+                              }}
+                              className="px-2 py-1 bg-zinc-800 text-zinc-400 text-[8px] font-black uppercase rounded hover:bg-zinc-700 transition-all"
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDelete({ id: item.id, type: 'inquiry' });
+                            }}
+                            disabled={adminLoading}
+                            className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
+                            title="Delete Inquiry"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -2775,42 +2870,75 @@ const AdminPortal = ({ user }: { user: any }) => {
         >
           <div className="flex justify-between items-start">
             <div>
-              <h4 className="text-2xl font-black italic uppercase italic tracking-tighter mb-2 flex items-center gap-4">
-                Active Conversation: {selectedInquiry.id}
-                {confirmDelete?.id === selectedInquiry.id && confirmDelete.type === 'inquiry' ? (
-                  <div className="flex items-center gap-2 bg-rose-500/10 p-2 rounded-xl border border-rose-500/20">
-                    <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest animate-pulse">Are you sure?</span>
-                    <button
-                      onClick={() => {
-                        handleDeleteInquiry(selectedInquiry.id);
-                        setConfirmDelete(null);
-                      }}
-                      className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white text-[8px] font-black uppercase tracking-widest rounded-lg transition-all"
-                    >
-                      Yes, Delete
-                    </button>
-                    <button
-                      onClick={() => setConfirmDelete(null)}
-                      className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setConfirmDelete({ id: selectedInquiry.id, type: 'inquiry' })}
-                    disabled={adminLoading}
-                    className="px-3 py-1 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/20 text-rose-500 hover:text-white text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1"
-                    title="Delete Inquiry Permanently"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    Delete Inquiry
-                  </button>
-                )}
-              </h4>
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic">Reviewing initial inquiry & drafting response...</p>
+              <div className="flex flex-wrap items-center gap-3 mb-2">
+                <h4 className="text-2xl font-black italic uppercase tracking-tighter">
+                  Active Conversation: {selectedInquiry.id}
+                </h4>
+                <span className={cn(
+                  "px-3 py-1 text-[9px] font-black uppercase rounded-lg border",
+                  selectedInquiry.status === 'ended' ? "bg-zinc-800 text-zinc-400 border-zinc-700" :
+                  selectedInquiry.status === 'responded' ? "bg-emerald-600/10 text-emerald-400 border-emerald-500/20" :
+                  "bg-blue-600/10 text-blue-400 border-blue-500/20"
+                )}>
+                  {selectedInquiry.status === 'ended' ? 'Session Concluded / Ended' : selectedInquiry.status || 'Active Session'}
+                </span>
+              </div>
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic">User Email: {selectedInquiry.userEmail || "GUEST"} · Reviewing inquiry & drafting response...</p>
             </div>
-            <button onClick={() => setSelectedInquiry(null)} className="text-zinc-500 hover:text-white"><X /></button>
+            
+            <div className="flex items-center gap-3">
+              {selectedInquiry.status === 'ended' ? (
+                <button
+                  onClick={() => handleReopenSession(selectedInquiry.id)}
+                  disabled={adminLoading}
+                  className="px-3.5 py-2 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Reopen Session
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleEndSession(selectedInquiry.id)}
+                  disabled={adminLoading}
+                  className="px-3.5 py-2 bg-amber-600/10 hover:bg-amber-600 border border-amber-500/20 text-amber-400 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1.5"
+                  title="Click to End Session so user can submit new inquiries or conclude support"
+                >
+                  <PowerOff className="w-3.5 h-3.5" /> End Session
+                </button>
+              )}
+
+              {confirmDelete?.id === selectedInquiry.id && confirmDelete.type === 'inquiry' ? (
+                <div className="flex items-center gap-2 bg-rose-500/10 p-2 rounded-xl border border-rose-500/20">
+                  <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest animate-pulse">Are you sure?</span>
+                  <button
+                    onClick={() => {
+                      handleDeleteInquiry(selectedInquiry.id);
+                      setConfirmDelete(null);
+                    }}
+                    className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white text-[8px] font-black uppercase tracking-widest rounded-lg transition-all"
+                  >
+                    Yes, Delete
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(null)}
+                    className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete({ id: selectedInquiry.id, type: 'inquiry' })}
+                  disabled={adminLoading}
+                  className="px-3 py-2 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/20 text-rose-500 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1"
+                  title="Delete Inquiry Permanently"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+              )}
+
+              <button onClick={() => setSelectedInquiry(null)} className="text-zinc-500 hover:text-white p-2"><X className="w-5 h-5" /></button>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -2925,6 +3053,10 @@ export default function App() {
   const [showFanCardForm, setShowFanCardForm] = useState(false);
   const [isSubmittingInquiry, setIsSubmittingInquiry] = useState(false);
   const [inquirySuccess, setInquirySuccess] = useState<string | null>(null);
+  const [ongoingSessionAlert, setOngoingSessionAlert] = useState<any | null>(null);
+  const [checkingOngoingSession, setCheckingOngoingSession] = useState(false);
+  const [formEmail, setFormEmail] = useState("");
+  const [detectedOngoingSession, setDetectedOngoingSession] = useState<any | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -3350,27 +3482,77 @@ export default function App() {
     }
   };
 
+  const checkForOngoingSession = async (email: string): Promise<any | null> => {
+    if (!email || !email.trim()) return null;
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const q = query(
+        collection(db, "fan_card_requests"),
+        where("userEmail", "==", cleanEmail)
+      );
+      const snap = await getDocs(q);
+      const activeSessions: any[] = [];
+      snap.forEach(d => {
+        const data = d.data();
+        // Session is ongoing if it hasn't been ended by admin from the control room
+        if (data.status !== 'ended' && data.status !== 'closed') {
+          activeSessions.push({ id: d.id, ...data });
+        }
+      });
+
+      if (activeSessions.length > 0) {
+        activeSessions.sort((a, b) => {
+          const timeA = a.timestamp?.seconds || 0;
+          const timeB = b.timestamp?.seconds || 0;
+          return timeB - timeA;
+        });
+        return activeSessions[0];
+      }
+      return null;
+    } catch (err) {
+      console.error("Error checking ongoing session:", err);
+      return null;
+    }
+  };
+
   const handleFanCardRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmittingInquiry) return;
     setIsSubmittingInquiry(true);
-    const formData = new FormData(e.target as HTMLFormElement);
-    const requestId = `TRK-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-    const submittedEmail = ((formData.get("email") as string) || user?.email || "").trim().toLowerCase();
+    const formEl = e.currentTarget as HTMLFormElement || (e.target as HTMLFormElement);
+    const formData = new FormData(formEl);
+    const submittedEmail = ((formData.get("email") as string) || user?.email || formEmail || "").trim().toLowerCase();
     
     try {
+      // 1. Cross-check with their email: if they have an ongoing session not yet ended by admin, stop & prompt to continue session
+      if (submittedEmail) {
+        const activeOngoing = await checkForOngoingSession(submittedEmail);
+        if (activeOngoing) {
+          setOngoingSessionAlert(activeOngoing);
+          setDetectedOngoingSession(activeOngoing);
+          setIsSubmittingInquiry(false);
+          return;
+        }
+      }
+
+      const requestId = `TRK-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
       await setDoc(doc(db, "fan_card_requests", requestId), {
         userId: user ? user.uid : 'guest',
         userEmail: submittedEmail || null,
-        userName: formData.get("name") as string,
-        teamId: formData.get("team") as string,
-        contactMethod: formData.get("contact") as string,
+        userName: (formData.get("name") as string) || (user?.displayName || "Fan"),
+        teamId: (formData.get("team") as string) || selectedTeam.id,
+        category: (formData.get("category") as string) || "general",
+        contactMethod: (formData.get("contact") as string) || submittedEmail || "Email",
         message: formData.get("message") as string,
         status: "pending",
         replies: [],
         timestamp: serverTimestamp()
       });
       
+      localStorage.setItem("active_ticket_id", requestId);
+      setActiveTicket(requestId);
+      setOngoingSessionAlert(null);
+      setDetectedOngoingSession(null);
       setInquirySuccess(requestId);
     } catch (err: any) {
       handleFirestoreError(err, OperationType.WRITE, "fan_card_requests");
@@ -3463,6 +3645,22 @@ export default function App() {
     });
     return () => unsub();
   }, [trackedInquiry?.id]);
+
+  useEffect(() => {
+    if (showFanCardForm) {
+      const emailToCheck = user?.email || formEmail;
+      if (emailToCheck) {
+        setCheckingOngoingSession(true);
+        checkForOngoingSession(emailToCheck).then((active) => {
+          setDetectedOngoingSession(active);
+          setCheckingOngoingSession(false);
+        });
+      }
+    } else {
+      setOngoingSessionAlert(null);
+      setDetectedOngoingSession(null);
+    }
+  }, [showFanCardForm, user?.email]);
 
   const [userTransactions, setUserTransactions] = useState<any[]>([]);
 
@@ -3983,26 +4181,50 @@ export default function App() {
                     })}
                   </div>
 
-                  {/* Send Reply Box */}
-                  <div className="bg-zinc-950 p-4 rounded-2xl border border-white/5 space-y-3">
-                    <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Send Reply</p>
-                    <div className="flex gap-2">
-                      <textarea
-                        value={userReplyText}
-                        onChange={(e) => setUserReplyText(e.target.value)}
-                        placeholder="Type a reply to keep the conversation going..."
-                        rows={2}
-                        className="flex-1 bg-zinc-900 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600 font-medium text-white resize-none"
-                      />
+                  {/* Send Reply Box or Session Ended Indicator */}
+                  {trackedInquiry.status === 'ended' ? (
+                    <div className="bg-zinc-950 p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 text-left">
+                        <div className="w-9 h-9 rounded-xl bg-zinc-800 border border-white/5 flex items-center justify-center text-zinc-400 shrink-0">
+                          <PowerOff className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase text-zinc-300">Session Concluded by Control Room</p>
+                          <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">This customer care inquiry has reached completion. You can create a new support session whenever needed.</p>
+                        </div>
+                      </div>
                       <button
-                        onClick={handleUserReply}
-                        disabled={isSendingUserReply || !userReplyText.trim()}
-                        className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
+                        onClick={() => {
+                          setShowInquiryStatus(null);
+                          setTrackedInquiry(null);
+                          setShowFanCardForm(true);
+                        }}
+                        className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer text-center"
                       >
-                        <Send className="w-4 h-4" />
+                        New Ticket
                       </button>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="bg-zinc-950 p-4 rounded-2xl border border-white/5 space-y-3">
+                      <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Send Reply</p>
+                      <div className="flex gap-2">
+                        <textarea
+                          value={userReplyText}
+                          onChange={(e) => setUserReplyText(e.target.value)}
+                          placeholder="Type a reply to keep the conversation going..."
+                          rows={2}
+                          className="flex-1 bg-zinc-900 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600 font-medium text-white resize-none"
+                        />
+                        <button
+                          onClick={handleUserReply}
+                          disabled={isSendingUserReply || !userReplyText.trim()}
+                          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-3">
                     <button 
@@ -4690,11 +4912,98 @@ export default function App() {
               className="w-full max-w-lg bg-zinc-900 border border-white/10 rounded-3xl md:rounded-[3rem] p-6 sm:p-10 md:p-12 shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-white to-red-600" />
-              <button onClick={() => { setShowFanCardForm(false); setInquirySuccess(null); }} className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors">
+              <button onClick={() => { setShowFanCardForm(false); setInquirySuccess(null); setOngoingSessionAlert(null); }} className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors">
                 <X />
               </button>
 
-              {inquirySuccess ? (
+              {ongoingSessionAlert ? (
+                <div className="text-left py-2 space-y-6">
+                  <div className="p-4 sm:p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl sm:rounded-3xl flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                      <AlertTriangle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black uppercase text-amber-300 tracking-tight flex items-center gap-2">
+                        Active Support Session In Progress
+                      </h3>
+                      <p className="text-xs text-zinc-300 font-medium mt-1 leading-relaxed">
+                        We noticed you already have an ongoing customer support session registered under <span className="font-mono text-white font-bold">{ongoingSessionAlert.userEmail}</span> that is still active and awaiting resolution or response from the Control Room.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-zinc-950 p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/10 space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-white/5">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Ticket Reference</p>
+                        <p className="font-mono text-sm font-black text-white">{ongoingSessionAlert.id}</p>
+                      </div>
+                      <span className={cn(
+                        "px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg border",
+                        ongoingSessionAlert.status === 'responded' 
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" 
+                          : "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                      )}>
+                        {ongoingSessionAlert.status === 'responded' ? "Care Team Responded" : "Awaiting Agent / Active"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">Your Inquiry Message</p>
+                      <p className="text-xs text-zinc-300 bg-zinc-900/80 p-3.5 rounded-xl border border-white/5 font-medium leading-relaxed">
+                        "{ongoingSessionAlert.message}"
+                      </p>
+                    </div>
+
+                    {ongoingSessionAlert.replies && ongoingSessionAlert.replies.length > 0 && (
+                      <div className="text-[10px] text-blue-400 font-bold uppercase flex items-center gap-1.5 pt-1">
+                        <MessageSquareText className="w-3.5 h-3.5" />
+                        {ongoingSessionAlert.replies.length} update(s) in active thread
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sid = ongoingSessionAlert.id;
+                        setOngoingSessionAlert(null);
+                        setDetectedOngoingSession(null);
+                        setShowFanCardForm(false);
+                        setShowInquiryStatus(sid);
+                        trackInquiry(sid);
+                      }}
+                      className="w-full py-4.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                    >
+                      <MessageSquareText className="w-4 h-4" />
+                      Click to Continue Previous Session
+                    </button>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOngoingSessionAlert(null);
+                        }}
+                        className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black uppercase tracking-widest text-[10px] rounded-xl transition-all cursor-pointer"
+                      >
+                        Change Email Address
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOngoingSessionAlert(null);
+                          setShowFanCardForm(false);
+                        }}
+                        className="flex-1 py-3 bg-zinc-950 border border-white/5 text-zinc-500 hover:text-zinc-300 font-black uppercase tracking-widest text-[10px] rounded-xl transition-all cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : inquirySuccess ? (
                 <div className="text-center py-6 space-y-6">
                   <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/30">
                     <CheckCircle2 className="w-8 h-8 text-emerald-400" />
@@ -4730,7 +5039,7 @@ export default function App() {
                         setShowFanCardForm(false);
                         trackInquiry(inquirySuccess);
                       }}
-                      className="flex-grow py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl transition-all"
+                      className="flex-grow py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl transition-all cursor-pointer"
                     >
                       View Live Thread
                     </button>
@@ -4739,7 +5048,7 @@ export default function App() {
                         setInquirySuccess(null);
                         setShowFanCardForm(false);
                       }}
-                      className="flex-grow py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black uppercase tracking-widest text-[10px] rounded-xl transition-all"
+                      className="flex-grow py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-black uppercase tracking-widest text-[10px] rounded-xl transition-all cursor-pointer"
                     >
                       Close Window
                     </button>
@@ -4755,7 +5064,7 @@ export default function App() {
                   </div>
 
                   {/* Mode switcher inside the modal */}
-                  <div className="flex bg-zinc-950 p-1 rounded-2xl border border-white/10 mb-6">
+                  <div className="flex bg-zinc-950 p-1 rounded-2xl border border-white/10 mb-5">
                     <button
                       type="button"
                       className="flex-1 py-2.5 bg-blue-600 text-white font-black uppercase text-[10px] tracking-wider rounded-xl shadow-md flex items-center justify-center gap-1.5"
@@ -4779,6 +5088,35 @@ export default function App() {
                       Track Existing
                     </button>
                   </div>
+
+                  {/* Active ongoing session alert ribbon if detected */}
+                  {detectedOngoingSession && (
+                    <div className="mb-4 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-3 text-left">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black uppercase text-amber-300 flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          Ongoing Session Active ({detectedOngoingSession.id})
+                        </p>
+                        <p className="text-[9px] text-zinc-400 truncate mt-0.5">
+                          {detectedOngoingSession.message}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sid = detectedOngoingSession.id;
+                          setDetectedOngoingSession(null);
+                          setOngoingSessionAlert(null);
+                          setShowFanCardForm(false);
+                          setShowInquiryStatus(sid);
+                          trackInquiry(sid);
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer shadow-md"
+                      >
+                        Continue Session
+                      </button>
+                    </div>
+                  )}
                   
                   <form onSubmit={handleFanCardRequest} className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -4788,7 +5126,7 @@ export default function App() {
                           name="name" 
                           required 
                           disabled={isSubmittingInquiry} 
-                          defaultValue="" 
+                          defaultValue={user?.displayName || ""} 
                           autoComplete="off"
                           placeholder="Your full name or identifier" 
                           className="w-full bg-zinc-950 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50 text-white" 
@@ -4801,7 +5139,18 @@ export default function App() {
                           name="email" 
                           required 
                           disabled={isSubmittingInquiry} 
-                          defaultValue="" 
+                          defaultValue={user?.email || formEmail}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFormEmail(val);
+                            if (val && val.includes("@") && val.includes(".")) {
+                              checkForOngoingSession(val).then((active) => {
+                                setDetectedOngoingSession(active);
+                              });
+                            } else {
+                              setDetectedOngoingSession(null);
+                            }
+                          }}
                           autoComplete="off"
                           placeholder="name@example.com" 
                           className="w-full bg-zinc-950 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50 text-white" 
