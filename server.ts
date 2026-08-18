@@ -454,6 +454,31 @@ async function startServer() {
 
     const fallbackGames = [
       {
+        id: "tm-sea-training-session",
+        name: "Seattle Seahawks Official Training Session Access",
+        homeTeam: "Seahawks",
+        awayTeam: "Training Camp",
+        stadium: "Virginia Mason Athletic Center (VMAC)",
+        city: "Renton, WA",
+        date: "2026-08-20",
+        time: "9:30 AM",
+        competition: "Official NFL Training Camp & Practice Access",
+        status: "Daily Live Access · 9:30 AM",
+        location: "Virginia Mason Athletic Center (VMAC), Renton, WA",
+        winProbability: {
+          home: "100%",
+          away: "0%",
+          homeTeam: "Seahawks",
+          awayTeam: "Scrimmage"
+        },
+        cheapestPrice: 250,
+        vipPrice: 450,
+        seasonPassPrice: 750,
+        url: "https://www.seahawks.com/tickets/",
+        image: "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg",
+        isResale: false
+      },
+      {
         id: "tm-sea-lv-pre",
         name: "Seattle Seahawks vs Las Vegas Raiders",
         homeTeam: "Seahawks",

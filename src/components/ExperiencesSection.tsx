@@ -19,13 +19,22 @@ import {
   Info,
   SlidersHorizontal,
   Plus,
-  Minus
+  Minus,
+  Building2,
+  Smartphone,
+  Copy,
+  Check,
+  ExternalLink,
+  ShieldCheck,
+  DollarSign,
+  Wallet
 } from "lucide-react";
 import { collection, onSnapshot, getDocs, setDoc, doc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
 import { NFL_TEAMS, getLogoUrl } from "../constants";
 import { cn, formatCurrency } from "../lib/utils";
 import { NFLImage } from "../utils/nflImages";
+import { OFFICIAL_PAYMENT_CHANNELS } from "./TicketCheckoutModal";
 
 export interface Experience {
   id: string;
@@ -66,7 +75,12 @@ export interface Booking {
   qrCode: string;
   createdAt: any;
   imageUrl: string;
+  paymentMethod?: string;
+  paymentRef?: string;
+  senderName?: string;
 }
+
+const TODAY_ISO = "2026-08-18";
 
 const SEED_EXPERIENCES: Experience[] = [
   {
@@ -81,7 +95,7 @@ const SEED_EXPERIENCES: Experience[] = [
     teamId: "DAL",
     imageUrl: "https://i.postimg.cc/90c8t280/a8367675b2fbcfe31970b081bfce176f.jpg",
     location: "Arlington, TX",
-    dates: ["2026-06-15", "2026-06-16", "2026-06-20", "2026-06-25"],
+    dates: ["2026-08-22", "2026-08-25", "2026-08-29", "2026-09-05", "2026-09-12", "2026-09-19", "2026-09-26"],
     timeSlots: ["10:00 AM", "12:30 PM", "3:00 PM", "5:30 PM"],
     features: [
       "Access to Cowboys locker room",
@@ -104,7 +118,7 @@ const SEED_EXPERIENCES: Experience[] = [
     teamId: "MIN",
     imageUrl: "https://i.postimg.cc/sDYSCSgk/4545d9b7b90ee7c1f34fbb83344efb2cbank.jpg",
     location: "Minneapolis, MN",
-    dates: ["2026-06-10", "2026-06-12", "2026-06-18", "2026-06-22"],
+    dates: ["2026-08-24", "2026-08-28", "2026-09-02", "2026-09-09", "2026-09-16", "2026-09-23", "2026-09-30"],
     timeSlots: ["09:30 AM", "11:00 AM", "1:30 PM", "4:00 PM"],
     features: [
       "Viking Legacy Gallery showcase entrance",
@@ -128,7 +142,7 @@ const SEED_EXPERIENCES: Experience[] = [
     imageUrl: "https://i.postimg.cc/jdm6RKH4/1ef0abb32f5e7cb84b338bbb020c200cjetas.jpg",
     player: "Justin Jefferson",
     location: "U.S. Bank Stadium Club Room",
-    dates: ["2026-07-04", "2026-07-05"],
+    dates: ["2026-09-12", "2026-09-19", "2026-10-03", "2026-10-17", "2026-11-07"],
     timeSlots: ["2:00 PM", "6:00 PM"],
     features: [
       "1x Professionally processed high-res digital photo with Justin Jefferson",
@@ -152,7 +166,7 @@ const SEED_EXPERIENCES: Experience[] = [
     imageUrl: "https://i.postimg.cc/HLfFMf1n/f2318507a5fadb58268812cf8e9a3510.jpg",
     player: "Patrick Mahomes",
     location: "Arrowhead Elite Pavilion",
-    dates: ["2026-07-14", "2026-07-15"],
+    dates: ["2026-09-15", "2026-09-22", "2026-10-06", "2026-10-20", "2026-11-10"],
     timeSlots: ["1:00 PM", "5:00 PM"],
     features: [
       "Signed official Wilson 'The Duke' ball",
@@ -175,7 +189,7 @@ const SEED_EXPERIENCES: Experience[] = [
     teamId: "SF",
     imageUrl: "https://i.postimg.cc/tC3PGPgT/1c6b339a1ec6b4da401e9584074a5073lxi.jpg",
     location: "Host Stadium VIP Suite",
-    dates: ["2026-08-10", "2026-08-12"],
+    dates: ["2027-02-11", "2027-02-12", "2027-02-13", "2027-02-14"],
     timeSlots: ["12:00 PM", "4:00 PM"],
     features: [
       "Pre-Game field pass credentials",
@@ -198,7 +212,7 @@ const SEED_EXPERIENCES: Experience[] = [
     teamId: "GB",
     imageUrl: "https://i.postimg.cc/mg9YDqVW/33923b662167a088aa30d29b4d062f9ate.jpg",
     location: "Lambeau Field complexes",
-    dates: ["2026-06-28", "2026-06-29"],
+    dates: ["2026-08-26", "2026-08-30", "2026-09-06", "2026-09-13", "2026-09-20", "2026-09-27"],
     timeSlots: ["11:00 AM", "2:30 PM"],
     features: [
       "Access to training labs and equipment areas",
@@ -208,6 +222,29 @@ const SEED_EXPERIENCES: Experience[] = [
     ],
     rating: 4.9,
     reviewsCount: 95
+  },
+  {
+    id: "exp-sea-training",
+    title: "Seattle Seahawks Official Training Session Access",
+    description: "Experience an exclusive behind-the-scenes look at the Seattle Seahawks practice and training facility at the Virginia Mason Athletic Center (VMAC). Watch NFL drills, coaching walk-throughs, and player scrimmages up close from the premium VIP spectator zone.",
+    type: "private_tour",
+    category: "Training Session Ticket",
+    price: 250,
+    vipPrice: 450,
+    premiumPrice: 750,
+    teamId: "SEA",
+    imageUrl: "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg",
+    location: "Virginia Mason Athletic Center (VMAC), Renton, WA",
+    dates: ["2026-08-20", "2026-08-22", "2026-08-25", "2026-08-29", "2026-09-02", "2026-09-05", "2026-09-09", "2026-09-16", "2026-09-23"],
+    timeSlots: ["09:30 AM", "01:30 PM", "05:00 PM"],
+    features: [
+      "Fieldside spectator seating for official Seahawks practice drills",
+      "Exclusive Seahawks training camp guest pass & lanyard",
+      "Post-practice player autograph and photo opportunities",
+      "Complimentary training facility beverage & snack hospitality"
+    ],
+    rating: 5.0,
+    reviewsCount: 88
   }
 ];
 
@@ -231,6 +268,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   // Booking details
   const [bookingDate, setBookingDate] = useState("");
   const [bookingSlot, setBookingSlot] = useState("");
+  const [customTimeSlotInput, setCustomTimeSlotInput] = useState("");
+  const [isCustomDateMode, setIsCustomDateMode] = useState(false);
   const [guestsCount, setGuestsCount] = useState(1);
   const [tierSelection, setTierSelection] = useState<"standard" | "vip" | "premium">("standard");
 
@@ -240,11 +279,35 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const [bookingError, setBookingError] = useState("");
   const [completedBooking, setCompletedBooking] = useState<Booking | null>(null);
 
-  // Simulated Payment Form
-  const [cardName, setCardName] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCVV, setCardCVV] = useState("");
+  // Official Payment Form State
+  const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "venmo" | "zelle" | "crypto">("bank");
+  const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
+  const [senderName, setSenderName] = useState("");
+  const [buyerEmail, setBuyerEmail] = useState("");
+  const [buyerPhone, setBuyerPhone] = useState("");
+  const [paymentRef, setPaymentRef] = useState("");
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  // Helper to format clean display dates
+  const formatFriendlyDate = (dateStr: string) => {
+    if (!dateStr) return "Select Date";
+    try {
+      const [year, month, day] = dateStr.split("-").map(Number);
+      if (year && month && day) {
+        const d = new Date(year, month - 1, day);
+        return d.toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      }
+      return dateStr;
+    } catch {
+      return dateStr;
+    }
+  };
 
   // Seed / Sync Experiences
   useEffect(() => {
@@ -264,7 +327,18 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         const loaded: Experience[] = [];
         snap.forEach(d => {
           const item = { id: d.id, ...d.data() } as Experience;
-          // Standardize image URLs to high-quality corresponding NFL graphics if they are old placeholders
+          const seedMatch = SEED_EXPERIENCES.find(s => s.id === item.id);
+
+          // If the Firestore document has outdated dates, refresh them with current upcoming dates
+          const hasPastDates = item.dates && item.dates.some(dt => dt < TODAY_ISO);
+          if (hasPastDates && seedMatch) {
+            item.dates = seedMatch.dates;
+            setDoc(doc(db, "experiences", item.id), { ...item, dates: seedMatch.dates }, { merge: true }).catch(console.error);
+          } else if (!item.dates || item.dates.length === 0) {
+            if (seedMatch) item.dates = seedMatch.dates;
+          }
+
+          // Standardize image URLs & pricing to high-quality corresponding NFL graphics
           if (item.id === "exp-dal-tour" && (!item.imageUrl || item.imageUrl.includes("photo-1540747913346") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
             item.imageUrl = "https://i.postimg.cc/90c8t280/a8367675b2fbcfe31970b081bfce176f.jpg";
           } else if (item.id === "exp-min-tour" && (!item.imageUrl || item.imageUrl.includes("photo-1508098682722") || item.imageUrl.includes("photo-1551244072") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
@@ -277,9 +351,23 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
             item.imageUrl = "https://i.postimg.cc/tC3PGPgT/1c6b339a1ec6b4da401e9584074a5073lxi.jpg";
           } else if (item.id === "exp-gb-facility" && (!item.imageUrl || item.imageUrl.includes("photo-1588850561407") || item.imageUrl.includes("photo-1581009146145") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
             item.imageUrl = "https://i.postimg.cc/mg9YDqVW/33923b662167a088aa30d29b4d062f9ate.jpg";
+          } else if (item.id === "exp-sea-training") {
+            item.imageUrl = "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg";
+            item.price = 250;
+            if (seedMatch) item.dates = seedMatch.dates;
           }
           loaded.push(item);
         });
+
+        // Ensure all seed experiences exist in database
+        const existingIds = new Set(loaded.map(x => x.id));
+        for (const exp of SEED_EXPERIENCES) {
+          if (!existingIds.has(exp.id)) {
+            setDoc(doc(db, "experiences", exp.id), exp).catch(console.error);
+            loaded.push(exp);
+          }
+        }
+
         setExperiences(loaded);
       }
       setLoading(false);
@@ -314,12 +402,20 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
   const openBookingModal = (exp: Experience) => {
     setSelectedExp(exp);
-    setBookingDate(exp.dates[0] || "");
-    setBookingSlot(exp.timeSlots[0] || "");
+    const validFutureDate = exp.dates.find(d => d >= TODAY_ISO) || exp.dates[0] || TODAY_ISO;
+    setBookingDate(validFutureDate);
+    setBookingSlot(exp.timeSlots[0] || "09:30 AM");
+    setCustomTimeSlotInput("");
+    setIsCustomDateMode(false);
     setGuestsCount(1);
     setTierSelection("standard");
     setBookingStep("details");
     setBookingError("");
+    setPaymentTab("bank");
+    if (auth.currentUser) {
+      setSenderName(auth.currentUser.displayName || "");
+      setBuyerEmail(auth.currentUser.email || "");
+    }
   };
 
   const handleBookingDetailsConfirm = () => {
@@ -338,8 +434,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     e.preventDefault();
     if (!selectedExp) return;
 
-    if (!cardName || !cardNumber || !cardExpiry || !cardCVV) {
-      setBookingError("Please fill in all security credential fields.");
+    if (!senderName.trim()) {
+      setBookingError("Please provide your Sender / Account Holder Name.");
       return;
     }
 
@@ -360,7 +456,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       const bookingData: Booking = {
         id: newBookingId,
         userId: auth.currentUser?.uid || "guest",
-        userEmail: auth.currentUser?.email || "guest@nflgridiron.company",
+        userEmail: auth.currentUser?.email || buyerEmail || "guest@nflgridiron.company",
         experienceId: selectedExp.id,
         experienceTitle: selectedExp.title,
         experienceType: selectedExp.type,
@@ -369,10 +465,13 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         guestsCount: guestsNum,
         totalPrice: totalAmount,
         tier: tierSelection,
-        status: "approved", // auto approved on successful payment simulator
+        status: "approved", // auto approved on payment submission
         qrCode: `GRIDIRON-${newBookingId}-${selectedExp.teamId}`,
         createdAt: new Date().toISOString(),
-        imageUrl: selectedExp.imageUrl
+        imageUrl: selectedExp.imageUrl,
+        paymentMethod: paymentTab,
+        paymentRef: paymentRef || "PENDING_VERIFICATION",
+        senderName: senderName
       };
 
       // Add to Firestore database
@@ -382,13 +481,41 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       const storeOrderId = `order-${Date.now()}`;
       await setDoc(doc(db, "store_orders", storeOrderId), {
         userId: auth.currentUser?.uid || "guest",
-        userEmail: auth.currentUser?.email || "guest@nflgridiron.company",
+        userEmail: auth.currentUser?.email || buyerEmail || "guest@nflgridiron.company",
         itemType: "ticket",
         itemName: `Experience: ${selectedExp.title} (${tierSelection.toUpperCase()})`,
         price: totalAmount,
         teamId: selectedExp.teamId,
+        paymentMethod: paymentTab,
+        paymentRef: paymentRef || "PENDING_VERIFICATION",
+        senderName: senderName,
         timestamp: new Date().toISOString()
       });
+
+      // Also record in ticket_orders so the admin control room and user passes sync identically
+      try {
+        const ticketOrderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        await setDoc(doc(db, "ticket_orders", ticketOrderId), {
+          id: ticketOrderId,
+          userId: auth.currentUser?.uid || "guest",
+          userEmail: auth.currentUser?.email || buyerEmail || "guest@nflgridiron.company",
+          gameId: selectedExp.id,
+          gameName: selectedExp.title,
+          stadium: selectedExp.location,
+          city: "Seattle, WA",
+          tier: tierSelection,
+          quantity: guestsNum,
+          totalAmount: totalAmount,
+          paymentMethod: paymentTab,
+          senderName: senderName,
+          paymentRef: paymentRef || "SUBMITTED",
+          status: "confirmed",
+          qrCode: `RFID-SEA-${ticketOrderId.toUpperCase()}`,
+          timestamp: serverTimestamp()
+        });
+      } catch (e) {
+        console.warn("ticket_orders write error (non-fatal):", e);
+      }
 
       // Also create a transaction so user balance is updated or modeled
       try {
@@ -565,6 +692,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         <span className="truncate">{feat}</span>
                       </div>
                     ))}
+                    <div className="flex items-center gap-1.5 text-[8px] font-mono text-emerald-400/90 pt-1 border-t border-white/[0.03]">
+                      <Building2 className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">BMO Bank · Cash App · Venmo · Zelle · Crypto</span>
+                    </div>
                   </div>
 
                   {/* Pricing and Action */}
@@ -665,46 +796,201 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       <p className="text-xs text-zinc-500 font-bold leading-relaxed">{selectedExp.description}</p>
                     </div>
 
-                    {/* Booking parameters */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-white/5">
-                      {/* Pick Date */}
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-blue-500" />
-                          Select Date Range
-                        </label>
-                        <select
-                          value={bookingDate}
-                          onChange={(e) => setBookingDate(e.target.value)}
-                          className="w-full bg-zinc-900 border border-white/5 rounded-xl px-4 py-3 text-xs text-white uppercase font-bold focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
-                        >
-                          {selectedExp.dates.map(d => (
-                            <option key={d} value={d}>
-                              {new Date(d).toLocaleDateString("en-US", { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
-                            </option>
-                          ))}
-                        </select>
+                    {/* Booking parameters: Interactive Custom Date & Time Selection */}
+                    <div className="space-y-5 pt-2 border-t border-white/5">
+                      {/* Date Selection Box */}
+                      <div className="space-y-3 p-4 bg-zinc-950/80 rounded-2xl border border-white/10">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2.5">
+                          <label className="text-[11px] font-black uppercase tracking-widest text-white flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-blue-500" />
+                            1. Select Attendance Date
+                          </label>
+                          <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                            <button
+                              type="button"
+                              onClick={() => setIsCustomDateMode(false)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                                !isCustomDateMode 
+                                  ? "bg-blue-600 text-white shadow-sm shadow-blue-500/20" 
+                                  : "bg-zinc-900 text-zinc-400 hover:text-white"
+                              )}
+                            >
+                              ⚡ Scheduled Sessions
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setIsCustomDateMode(true)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1",
+                                isCustomDateMode 
+                                  ? "bg-blue-600 text-white shadow-sm shadow-blue-500/20" 
+                                  : "bg-zinc-900 text-zinc-400 hover:text-white"
+                              )}
+                            >
+                              📅 Pick Any Custom Date
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Direct HTML5 Date Picker */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black uppercase text-zinc-400">
+                              {isCustomDateMode ? "Choose any specific date on your calendar:" : "Select or enter your preferred attendance date:"}
+                            </span>
+                            <span className="text-[9px] font-mono font-bold text-emerald-400">
+                              Live NFL Calendar Active
+                            </span>
+                          </div>
+
+                          <div className="relative">
+                            <input
+                              type="date"
+                              min={TODAY_ISO}
+                              value={bookingDate}
+                              onChange={(e) => {
+                                setBookingDate(e.target.value);
+                                setIsCustomDateMode(true);
+                              }}
+                              className="w-full bg-zinc-900 border border-blue-500/40 rounded-xl px-4 py-3 text-xs text-white uppercase font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 cursor-pointer shadow-inner"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Scheduled / Quick Preset Date Chips */}
+                        <div className="space-y-1.5 pt-1">
+                          <span className="text-[9px] font-black uppercase text-zinc-500 tracking-wider block">
+                            Quick Selection & Scheduled Slots:
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedExp.dates.map(d => {
+                              const isSelected = bookingDate === d;
+                              return (
+                                <button
+                                  key={d}
+                                  type="button"
+                                  onClick={() => {
+                                    setBookingDate(d);
+                                    setIsCustomDateMode(false);
+                                  }}
+                                  className={cn(
+                                    "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border",
+                                    isSelected
+                                      ? "bg-blue-600 border-blue-400 text-white shadow-md shadow-blue-600/30"
+                                      : "bg-zinc-900/90 border-white/5 text-zinc-400 hover:text-white hover:border-white/20"
+                                  )}
+                                >
+                                  {formatFriendlyDate(d)}
+                                </button>
+                              );
+                            })}
+
+                            {/* Additional convenient presets if not already in list */}
+                            {[
+                              { label: "Today", value: "2026-08-18" },
+                              { label: "Tomorrow", value: "2026-08-19" },
+                              { label: "This Weekend", value: "2026-08-22" },
+                              { label: "Next Week", value: "2026-08-25" }
+                            ].filter(preset => !selectedExp.dates.includes(preset.value)).map(preset => {
+                              const isSelected = bookingDate === preset.value;
+                              return (
+                                <button
+                                  key={preset.value}
+                                  type="button"
+                                  onClick={() => {
+                                    setBookingDate(preset.value);
+                                    setIsCustomDateMode(true);
+                                  }}
+                                  className={cn(
+                                    "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border",
+                                    isSelected
+                                      ? "bg-blue-600 border-blue-400 text-white shadow-md shadow-blue-600/30"
+                                      : "bg-zinc-900/50 border-dashed border-white/10 text-zinc-400 hover:text-white hover:border-white/30"
+                                  )}
+                                >
+                                  {preset.label} ({formatFriendlyDate(preset.value)})
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Selected Date Confirmation Banner */}
+                        <div className="p-3 bg-blue-600/10 border border-blue-500/20 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
+                            <div>
+                              <span className="text-[9px] text-zinc-400 uppercase font-black block">Selected Session Date</span>
+                              <span className="text-xs font-black text-white">{formatFriendlyDate(bookingDate)}</span>
+                            </div>
+                          </div>
+                          <span className="text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full w-fit">
+                            ✓ Open For Reservation
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Pick Time Slot */}
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-blue-500" />
-                          Select Time Session
-                        </label>
-                        <select
-                          value={bookingSlot}
-                          onChange={(e) => setBookingSlot(e.target.value)}
-                          className="w-full bg-zinc-900 border border-white/5 rounded-xl px-4 py-3 text-xs text-white uppercase font-bold focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
-                        >
-                          {selectedExp.timeSlots.map(s => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                        <p className="text-[8px] text-blue-400 font-black tracking-widest uppercase flex items-center gap-1 mt-1">
-                          <Info className="w-3 h-3" />
-                          Live Spot Status: 8 positions remaining
-                        </p>
+                      {/* Time Session Selection Box */}
+                      <div className="space-y-3 p-4 bg-zinc-950/80 rounded-2xl border border-white/10">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+                          <label className="text-[11px] font-black uppercase tracking-widest text-white flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-blue-500" />
+                            2. Select Time Session / Arrival Slot
+                          </label>
+                          <span className="text-[9px] text-blue-400 font-black tracking-widest uppercase flex items-center gap-1">
+                            <Info className="w-3 h-3" /> 8 Live Positions Left
+                          </span>
+                        </div>
+
+                        {/* Time Slot Quick Chips */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          {selectedExp.timeSlots.map(slot => {
+                            const isSelected = bookingSlot === slot;
+                            return (
+                              <button
+                                key={slot}
+                                type="button"
+                                onClick={() => {
+                                  setBookingSlot(slot);
+                                  setCustomTimeSlotInput("");
+                                }}
+                                className={cn(
+                                  "p-3 rounded-xl border text-left transition-all",
+                                  isSelected
+                                    ? "bg-blue-600 border-blue-400 text-white shadow-md shadow-blue-600/20"
+                                    : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-white hover:border-white/10"
+                                )}
+                              >
+                                <span className="text-xs font-mono font-black block text-white">{slot}</span>
+                                <span className="text-[9px] uppercase font-bold text-zinc-300">
+                                  {slot.includes("09:") || slot.includes("10:") || slot.includes("11:") ? "Morning Session" :
+                                   slot.includes("12:") || slot.includes("01:") || slot.includes("02:") || slot.includes("03:") ? "Afternoon Scrimmage" :
+                                   "Evening Walkthrough"}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Custom Time Entry (Optional) */}
+                        <div className="pt-2 border-t border-white/5 flex flex-col sm:flex-row sm:items-center gap-2">
+                          <span className="text-[9px] font-black uppercase text-zinc-400 shrink-0">
+                            Or Custom Arrival Time:
+                          </span>
+                          <input
+                            type="text"
+                            placeholder="e.g. 11:30 AM / Twilight Session"
+                            value={customTimeSlotInput}
+                            onChange={(e) => {
+                              setCustomTimeSlotInput(e.target.value);
+                              if (e.target.value.trim()) {
+                                setBookingSlot(e.target.value.trim());
+                              }
+                            }}
+                            className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -858,66 +1144,239 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       </div>
                     </div>
 
+                    {/* Official Payment Channels */}
                     <div className="space-y-4">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
-                        <CreditCard className="w-4 h-4 text-blue-500" />
-                        Secure Payment Credentials
-                      </h4>
-
-                      {/* Cardholder Name */}
-                      <div className="space-y-2">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Cardholder Name</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g., BRYCE J. YOUNG"
-                          value={cardName}
-                          onChange={(e) => setCardName(e.target.value)}
-                          className="w-full bg-zinc-900 border border-white/5 rounded-xl px-4 py-3 text-xs uppercase font-bold focus:outline-none focus:ring-1 focus:ring-blue-600"
-                        />
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+                          <Building2 className="w-4 h-4 text-blue-500" />
+                          Official Payment Channel
+                        </h4>
+                        <span className="text-[9px] font-black uppercase text-emerald-400 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" /> Concierge Verified
+                        </span>
                       </div>
 
-                      {/* Card number */}
-                      <div className="space-y-2">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Credit Card Number</label>
-                        <input
-                          type="text"
-                          required
-                          maxLength={19}
-                          placeholder="4000 1234 5678 9010"
-                          value={cardNumber}
-                          onChange={(e) => setCardNumber(e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim())}
-                          className="w-full bg-zinc-900 border border-white/5 rounded-xl px-4 py-3 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-600"
-                        />
+                      {/* Payment Method Selector Tabs */}
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2 },
+                          { id: "cashapp", label: "Cash App", icon: Smartphone },
+                          { id: "venmo", label: "Venmo", icon: Smartphone },
+                          { id: "zelle", label: "Zelle", icon: Smartphone },
+                          { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode }
+                        ].map(method => {
+                          const isSelected = paymentTab === method.id;
+                          return (
+                            <button
+                              key={method.id}
+                              type="button"
+                              onClick={() => setPaymentTab(method.id as any)}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                                isSelected
+                                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20 ring-1 ring-blue-400"
+                                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
+                              }`}
+                            >
+                              <method.icon className="w-3.5 h-3.5" />
+                              {method.label}
+                            </button>
+                          );
+                        })}
                       </div>
 
-                      {/* Exp and CVV */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Expiry Date</label>
+                      {/* Payment Channel Details Box */}
+                      <div className="p-4 bg-zinc-950 rounded-2xl border border-white/10 space-y-3">
+                        {paymentTab === "bank" && (
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                              <span className="text-[10px] font-black uppercase text-blue-400">Domestic Wire / ACH Settlement</span>
+                              <span className="text-[9px] font-mono uppercase bg-blue-500/10 text-blue-300 px-2 py-0.5 rounded">Fast Clearing</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              <div className="p-2.5 bg-zinc-900 rounded-xl border border-white/5">
+                                <span className="text-[9px] text-zinc-500 uppercase font-black block">Bank Institution</span>
+                                <span className="font-mono font-bold text-white uppercase">{OFFICIAL_PAYMENT_CHANNELS.bank.bankName}</span>
+                              </div>
+                              <div className="p-2.5 bg-zinc-900 rounded-xl border border-white/5">
+                                <span className="text-[9px] text-zinc-500 uppercase font-black block">Account Beneficiary</span>
+                                <span className="font-mono font-bold text-white uppercase">{OFFICIAL_PAYMENT_CHANNELS.bank.accountName}</span>
+                              </div>
+                              <div className="p-2.5 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
+                                <div>
+                                  <span className="text-[9px] text-zinc-500 uppercase font-black block">Account Number</span>
+                                  <span className="font-mono font-bold text-emerald-400">{OFFICIAL_PAYMENT_CHANNELS.bank.accountNumber}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.bank.accountNumber, "acc")}
+                                  className="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white"
+                                >
+                                  {copiedKey === "acc" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                              <div className="p-2.5 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
+                                <div>
+                                  <span className="text-[9px] text-zinc-500 uppercase font-black block">Routing Number</span>
+                                  <span className="font-mono font-bold text-blue-400">{OFFICIAL_PAYMENT_CHANNELS.bank.routingNumber}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.bank.routingNumber, "rout")}
+                                  className="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white"
+                                >
+                                  {copiedKey === "rout" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {paymentTab === "cashapp" && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                              <span className="text-[10px] font-black uppercase text-emerald-400">Direct Cash App Transfer</span>
+                              <span className="text-[9px] font-mono text-zinc-400">Instant Access</span>
+                            </div>
+                            <div className="p-3 bg-zinc-900 rounded-xl border border-emerald-500/20 flex items-center justify-between">
+                              <div>
+                                <span className="text-[9px] text-zinc-500 uppercase font-black block">Official Cashtag</span>
+                                <span className="text-base font-mono font-black text-emerald-400">{OFFICIAL_PAYMENT_CHANNELS.cashapp.tag}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.cashapp.tag, "cashapp")}
+                                className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1"
+                              >
+                                {copiedKey === "cashapp" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                {copiedKey === "cashapp" ? "Copied" : "Copy Tag"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {paymentTab === "venmo" && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                              <span className="text-[10px] font-black uppercase text-blue-400">Venmo Peer Transfer</span>
+                              <span className="text-[9px] font-mono text-zinc-400">Instant Access</span>
+                            </div>
+                            <div className="p-3 bg-zinc-900 rounded-xl border border-blue-500/20 flex items-center justify-between">
+                              <div>
+                                <span className="text-[9px] text-zinc-500 uppercase font-black block">Venmo Handle</span>
+                                <span className="text-base font-mono font-black text-blue-400">{OFFICIAL_PAYMENT_CHANNELS.venmo.handle}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.venmo.handle, "venmo")}
+                                className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1"
+                              >
+                                {copiedKey === "venmo" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                {copiedKey === "venmo" ? "Copied" : "Copy Handle"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {paymentTab === "zelle" && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                              <span className="text-[10px] font-black uppercase text-purple-400">Zelle Direct Banking</span>
+                              <span className="text-[9px] font-mono text-zinc-400">Zero Fees</span>
+                            </div>
+                            <div className="p-3 bg-zinc-900 rounded-xl border border-purple-500/20 flex items-center justify-between">
+                              <div>
+                                <span className="text-[9px] text-zinc-500 uppercase font-black block">Recipient Name & Email</span>
+                                <span className="text-sm font-mono font-black text-white">{OFFICIAL_PAYMENT_CHANNELS.zelle.name}</span>
+                                <span className="text-xs font-mono text-purple-300 block">{OFFICIAL_PAYMENT_CHANNELS.zelle.email}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.zelle.email, "zelle")}
+                                className="px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1"
+                              >
+                                {copiedKey === "zelle" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                {copiedKey === "zelle" ? "Copied" : "Copy Email"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {paymentTab === "crypto" && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                              <span className="text-[10px] font-black uppercase text-amber-400">Blockchain Asset Settlement</span>
+                              <div className="flex gap-1">
+                                {(["usdt", "eth", "btc"] as const).map(c => (
+                                  <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => setSelectedCrypto(c)}
+                                    className={`px-2 py-0.5 text-[9px] font-mono font-bold uppercase rounded ${
+                                      selectedCrypto === c ? "bg-amber-400 text-black font-black" : "bg-zinc-800 text-zinc-400"
+                                    }`}
+                                  >
+                                    {c}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="p-3 bg-zinc-900 rounded-xl border border-amber-500/20 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[9px] text-zinc-500 uppercase font-black">
+                                  {OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].name} ({OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].network})
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].address, "crypto")}
+                                  className="px-2.5 py-1 bg-amber-400/10 hover:bg-amber-400/20 text-amber-400 text-[10px] font-black uppercase tracking-wider rounded flex items-center gap-1"
+                                >
+                                  {copiedKey === "crypto" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                  {copiedKey === "crypto" ? "Copied" : "Copy Address"}
+                                </button>
+                              </div>
+                              <div className="font-mono text-xs text-amber-300 break-all select-all bg-black/40 p-2 rounded-lg border border-white/5">
+                                {OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].address}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Sender Confirmation Details */}
+                      <div className="space-y-3 pt-2">
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                            Sender / Account Holder Name <span className="text-red-400">*</span>
+                          </label>
                           <input
                             type="text"
                             required
-                            maxLength={5}
-                            placeholder="MM/YY"
-                            value={cardExpiry}
-                            onChange={(e) => setCardExpiry(e.target.value)}
-                            className="w-full bg-zinc-900 border border-white/5 rounded-xl px-4 py-3 text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-blue-600"
+                            placeholder="e.g. Matthew Smith / @userhandle"
+                            value={senderName}
+                            onChange={(e) => setSenderName(e.target.value)}
+                            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
                           />
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">CVV Security Code</label>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                            Payment Reference / Transaction ID / Notes (Optional)
+                          </label>
                           <input
-                            type="password"
-                            required
-                            maxLength={3}
-                            placeholder="***"
-                            value={cardCVV}
-                            onChange={(e) => setCardCVV(e.target.value)}
-                            className="w-full bg-zinc-900 border border-white/5 rounded-xl px-4 py-3 text-xs text-center font-mono focus:outline-none focus:ring-1 focus:ring-blue-600"
+                            type="text"
+                            placeholder="e.g. Wire Ref #84920 or Cashtag confirmation"
+                            value={paymentRef}
+                            onChange={(e) => setPaymentRef(e.target.value)}
+                            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
                           />
                         </div>
                       </div>
+
+                      {bookingError && (
+                        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs font-medium">
+                          {bookingError}
+                        </div>
+                      )}
                     </div>
 
                     {/* Booking payment CTA */}
@@ -937,7 +1396,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         {isSubmittingBooking ? (
                           <>
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            AUTHOZIRING PAYMENT...
+                            AUTHORIZING PAYMENT...
                           </>
                         ) : (
                           <>

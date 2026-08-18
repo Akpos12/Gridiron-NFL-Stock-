@@ -167,8 +167,9 @@ export function getNFLImage(item: {
       } else {
         baseSrc = "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg";
       }
-    } else if (isStadiumTour) {
-      if (teamId === "DAL") baseSrc = NFL_IMAGES.stadiums.DAL;
+    } else if (isStadiumTour || normCategory.includes("training") || normTitle.includes("training")) {
+      if (teamId === "SEA" || normTitle.includes("seahawks")) baseSrc = "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg";
+      else if (teamId === "DAL") baseSrc = NFL_IMAGES.stadiums.DAL;
       else if (teamId === "MIN") baseSrc = NFL_IMAGES.stadiums.MIN;
       else if (teamId === "KC") baseSrc = NFL_IMAGES.stadiums.KC;
       else if (teamId === "GB") baseSrc = NFL_IMAGES.stadiums.GB;
