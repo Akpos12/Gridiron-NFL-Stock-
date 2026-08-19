@@ -10,20 +10,25 @@ import {
   CheckCircle2, 
   ChevronRight, 
   Users, 
-  Plus,
-  Trophy,
-  Mail,
-  Check
+  Trophy, 
+  Mail, 
+  Check, 
+  UserPlus, 
+  Star, 
+  SlidersHorizontal, 
+  RefreshCw, 
+  X 
 } from "lucide-react";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import { Giveaway, FanProfile } from "../../types/giveaway";
+import { Giveaway, FanProfile, Player } from "../../types/giveaway";
 import { NFL_TEAMS } from "../../constants";
 import { FanRegistrationModal } from "./FanRegistrationModal";
 import { VirtualFanCard } from "./VirtualFanCard";
 import { PlayerGiveawayPage } from "./PlayerGiveawayPage";
 import { WinnerTicker } from "./WinnerTicker";
 import { WinnerCheckModal } from "./WinnerCheckModal";
+import { PRESET_NFL_STARS } from "./PlayerManagerModal";
 import { cn } from "../../lib/utils";
 
 interface PlayerGiveawaySectionProps {
@@ -47,8 +52,10 @@ export const PlayerGiveawaySection: React.FC<PlayerGiveawaySectionProps> = ({
 }) => {
   const activeUser = user || currentUser;
   const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTeam, setSelectedTeam] = useState<string>("ALL");
+  const [selectedPlayerFilter, setSelectedPlayerFilter] = useState<string>("ALL");
   const [showRegModal, setShowRegModal] = useState(false);
   const [showWinnerCheckModal, setShowWinnerCheckModal] = useState(false);
   const [quickCheckEmail, setQuickCheckEmail] = useState("");
@@ -76,6 +83,32 @@ export const PlayerGiveawaySection: React.FC<PlayerGiveawaySectionProps> = ({
     return () => unsub();
   }, []);
 
+  // Sync players from Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "players"), (snap) => {
+      const docs: Player[] = [];
+      snap.forEach((d) => {
+        docs.push({ id: d.id, ...(d.data() as Player) });
+      });
+      setPlayers(docs);
+    });
+    return () => unsub();
+  }, []);
+
+  // Fallback combined players list: Firestore players + preset star players (if not already present)
+  const displayPlayers: Player[] = React.useMemo(() => {
+    if (players.length > 0) return players;
+    return PRESET_NFL_STARS.map((s, idx) => ({
+      id: `preset-player-${idx}`,
+      name: s.name,
+      teamId: s.teamId,
+      position: s.position,
+      jerseyNumber: s.jerseyNumber,
+      description: s.description,
+      photoUrl: s.photoUrl
+    }));
+  }, [players]);
+
   // Sync registered fan profile if available
   useEffect(() => {
     const saved = localStorage.getItem("nfg_fan_profile");
@@ -102,7 +135,8 @@ export const PlayerGiveawaySection: React.FC<PlayerGiveawaySectionProps> = ({
       g.playerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       g.teamId.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesTeam = selectedTeam === "ALL" || g.teamId === selectedTeam;
-    return matchesSearch && matchesTeam;
+    const matchesPlayer = selectedPlayerFilter === "ALL" || g.playerId === selectedPlayerFilter || g.playerName.toLowerCase() === selectedPlayerFilter.toLowerCase();
+    return matchesSearch && matchesTeam && matchesPlayer;
   });
 
   return (
@@ -278,6 +312,108 @@ export const PlayerGiveawaySection: React.FC<PlayerGiveawaySectionProps> = ({
           </div>
         </div>
 
+        {/* Featured NFL Star Players Showcase */}
+        <div className="space-y-4 bg-zinc-900/40 p-6 md:p-8 rounded-[2.5rem] border border-white/10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-600/20 text-red-400 border border-red-500/30">
+                  NFL STAR ROSTER
+                </span>
+                <span className="text-[10px] text-zinc-400 font-mono">
+                  {displayPlayers.length} Star Players
+                </span>
+              </div>
+              <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tight text-white flex items-center gap-2">
+                <Star className="w-5 h-5 text-amber-400" />
+                FEATURED PLAYERS IN GIVEAWAYS
+              </h3>
+              <p className="text-xs text-zinc-400 font-medium">
+                Click on any star player below to filter giveaways and exclusive player-signed drops.
+              </p>
+            </div>
+
+            {selectedPlayerFilter !== "ALL" && (
+              <button
+                type="button"
+                onClick={() => setSelectedPlayerFilter("ALL")}
+                className="px-3.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-black uppercase tracking-wider text-zinc-300 hover:text-white transition-all cursor-pointer w-fit"
+              >
+                Clear Filter ({selectedPlayerFilter}) ✕
+              </button>
+            )}
+          </div>
+
+          {/* Players Carousel / Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 pt-2">
+            {displayPlayers.map((player) => {
+              const isSelected = selectedPlayerFilter === player.id || selectedPlayerFilter.toLowerCase() === player.name.toLowerCase();
+              const playerGws = giveaways.filter(g => g.playerId === player.id || g.playerName.toLowerCase() === player.name.toLowerCase());
+
+              return (
+                <div
+                  key={player.id || player.name}
+                  onClick={() => {
+                    if (selectedPlayerFilter === player.name) {
+                      setSelectedPlayerFilter("ALL");
+                    } else {
+                      setSelectedPlayerFilter(player.name);
+                    }
+                  }}
+                  className={cn(
+                    "relative p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between group text-left overflow-hidden min-h-[170px]",
+                    isSelected 
+                      ? "bg-zinc-900 border-red-500 shadow-lg shadow-red-600/10" 
+                      : "bg-zinc-950/80 hover:bg-zinc-900 border-white/10 hover:border-white/25"
+                  )}
+                >
+                  <div className="space-y-2">
+                    <div className="w-12 h-14 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 relative">
+                      <img
+                        src={player.photoUrl || "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=300"}
+                        alt={player.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <span className="absolute bottom-0 right-0 px-1 py-0.2 text-[8px] font-mono font-black bg-black/80 text-white rounded-tl">
+                        #{player.jerseyNumber || "00"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[8px] font-mono font-black text-amber-400">
+                          {player.teamId}
+                        </span>
+                        <span className="text-[8px] font-mono font-bold text-zinc-500">
+                          · {player.position || "ATH"}
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-black uppercase text-white truncate group-hover:text-red-400 transition-colors">
+                        {player.name}
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+                    <span className="text-[8px] font-bold text-zinc-400">
+                      {playerGws.length} Giveaway{playerGws.length === 1 ? "" : "s"}
+                    </span>
+                    {isSelected ? (
+                      <span className="text-[8px] font-black text-red-400 uppercase">
+                        Filtering ✓
+                      </span>
+                    ) : (
+                      <span className="text-[8px] font-bold text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        View &rarr;
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Filter and Search Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-900/60 p-4 rounded-2xl border border-white/5">
           <div className="relative w-full sm:w-80">
@@ -291,7 +427,19 @@ export const PlayerGiveawaySection: React.FC<PlayerGiveawaySectionProps> = ({
             />
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* Player Filter Reset */}
+            {selectedPlayerFilter !== "ALL" && (
+              <button
+                type="button"
+                onClick={() => setSelectedPlayerFilter("ALL")}
+                className="px-3 py-2 bg-red-600/20 text-red-300 border border-red-500/30 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+              >
+                <span>Player: {selectedPlayerFilter}</span>
+                <X className="w-3 h-3" />
+              </button>
+            )}
+
             <button
               onClick={() => setShowWinnerCheckModal(true)}
               className="px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
@@ -327,13 +475,20 @@ export const PlayerGiveawaySection: React.FC<PlayerGiveawaySectionProps> = ({
               <Award className="w-4 h-4 text-red-500" />
               FEATURED PLAYER CAMPAIGNS ({filteredGiveaways.length})
             </h3>
+            {selectedPlayerFilter !== "ALL" && (
+              <span className="text-xs text-zinc-400 font-mono">
+                Showing: {selectedPlayerFilter}
+              </span>
+            )}
           </div>
 
           {filteredGiveaways.length === 0 ? (
-            <div className="p-12 text-center bg-zinc-900/30 border border-white/5 rounded-3xl space-y-3">
+            <div className="p-12 text-center bg-zinc-900/30 border border-white/5 rounded-3xl space-y-4">
               <Award className="w-10 h-10 text-zinc-600 mx-auto" />
               <h4 className="text-sm font-black uppercase text-zinc-400">NO GIVEAWAYS MATCH CRITERIA</h4>
-              <p className="text-xs text-zinc-500">Check back soon for new player giveaway drops.</p>
+              <p className="text-xs text-zinc-500">
+                {selectedPlayerFilter !== "ALL" ? `No active campaigns found for ${selectedPlayerFilter}. Check back soon for new memorabilia drops!` : "Check back soon for new player giveaway drops."}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -344,7 +499,7 @@ export const PlayerGiveawaySection: React.FC<PlayerGiveawaySectionProps> = ({
                   <div
                     key={g.id}
                     onClick={() => handleCardClick(g.id)}
-                    className="group bg-zinc-900/80 hover:bg-zinc-900 border border-white/10 hover:border-blue-500/50 rounded-[2rem] overflow-hidden transition-all duration-300 shadow-xl cursor-pointer flex flex-col justify-between"
+                    className="group bg-zinc-900/80 hover:bg-zinc-900 border border-white/10 hover:border-blue-500/50 rounded-[2rem] overflow-hidden transition-all duration-300 shadow-xl cursor-pointer flex flex-col justify-between relative"
                   >
                     <div>
                       {/* Card Image Banner */}

@@ -181,6 +181,176 @@ export const ExperienceAdmin: React.FC = () => {
     }
   };
 
+  const handleQuickAdjustPrice = async (expId: string, tier: "price" | "vipPrice" | "premiumPrice", delta: number) => {
+    try {
+      const targetExp = experiences.find(e => e.id === expId);
+      if (!targetExp) return;
+      const currentVal = Number(targetExp[tier] ?? (tier === "vipPrice" ? targetExp.price * 2 : tier === "premiumPrice" ? targetExp.price * 4 : targetExp.price));
+      const nextVal = Math.max(5, currentVal + delta);
+      await updateDoc(doc(db, "experiences", expId), {
+        [tier]: nextVal,
+        updatedAt: Date.now()
+      });
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to update price: " + err.message);
+    }
+  };
+
+  const handleSetCustomPrice = async (expId: string, tier: "price" | "vipPrice" | "premiumPrice", val: number) => {
+    if (isNaN(val) || val < 0) return;
+    try {
+      await updateDoc(doc(db, "experiences", expId), {
+        [tier]: Math.max(0, val),
+        updatedAt: Date.now()
+      });
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to update price: " + err.message);
+    }
+  };
+
+  const handleSeedDefaultExperiences = async () => {
+    try {
+      const defaults = [
+        {
+          id: "exp-sea-training",
+          title: "Seattle Seahawks Official Training Session Access",
+          description: "Experience an exclusive behind-the-scenes look at the Seattle Seahawks practice and training facility at VMAC. Watch NFL drills, coaching walk-throughs, and player scrimmages up close.",
+          type: "private_tour",
+          category: "Training Session Ticket",
+          price: 250,
+          vipPrice: 450,
+          premiumPrice: 750,
+          teamId: "SEA",
+          imageUrl: "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg",
+          location: "Virginia Mason Athletic Center (VMAC), Renton, WA",
+          dates: ["2026-08-20", "2026-08-22", "2026-08-25", "2026-08-29", "2026-09-02", "2026-09-05", "2026-09-09", "2026-09-16", "2026-09-23"],
+          timeSlots: ["09:30 AM", "01:30 PM", "05:00 PM"],
+          features: ["Fieldside spectator seating", "Guest pass & lanyard", "Player autographs", "Complimentary hospitality"],
+          rating: 5.0,
+          reviewsCount: 88
+        },
+        {
+          id: "exp-jefferson-meet",
+          title: "Justin Jefferson VIP Private Meet & Greet",
+          description: "Exclusive encounter with Minnesota Vikings superstar receiver Justin Jefferson.",
+          type: "meet_greet",
+          category: "Star Player Encounter",
+          price: 350,
+          vipPrice: 650,
+          premiumPrice: 1200,
+          teamId: "MIN",
+          imageUrl: "https://i.postimg.cc/jdm6RKH4/1ef0abb32f5e7cb84b338bbb020c200cjetas.jpg",
+          location: "Minneapolis, MN",
+          dates: ["2026-08-24", "2026-08-31", "2026-09-07", "2026-09-14", "2026-09-21", "2026-09-28"],
+          timeSlots: ["01:00 PM", "04:30 PM"],
+          features: ["Personal photo op", "Autographed authentic jersey", "Q&A session"],
+          rating: 5.0,
+          reviewsCount: 145
+        },
+        {
+          id: "exp-mahomes-meet",
+          title: "Patrick Mahomes Championship Lounge Encounter",
+          description: "Spend 45 minutes in the Arrowhead Champions suite with 3x Super Bowl MVP Patrick Mahomes.",
+          type: "meet_greet",
+          category: "Star Player Encounter",
+          price: 500,
+          vipPrice: 950,
+          premiumPrice: 1800,
+          teamId: "KC",
+          imageUrl: "https://i.postimg.cc/HLfFMf1n/f2318507a5fadb58268812cf8e9a3510.jpg",
+          location: "GEHA Field at Arrowhead Stadium, Kansas City, MO",
+          dates: ["2026-08-28", "2026-09-04", "2026-09-11", "2026-09-18", "2026-09-25"],
+          timeSlots: ["02:00 PM", "05:00 PM"],
+          features: ["Exclusive photo", "Signed Wilson Duke football", "Lounge catering"],
+          rating: 5.0,
+          reviewsCount: 210
+        },
+        {
+          id: "exp-dal-tour",
+          title: "AT&T Stadium Ultimate Access Tour",
+          description: "Go behind the scenes at the home of the Dallas Cowboys. Explore the locker rooms and walk onto the 50-yard line.",
+          type: "stadium_tour",
+          category: "VIP Stadium Tour",
+          price: 45,
+          vipPrice: 120,
+          premiumPrice: 250,
+          teamId: "DAL",
+          imageUrl: "https://i.postimg.cc/90c8t280/a8367675b2fbcfe31970b081bfce176f.jpg",
+          location: "Arlington, TX",
+          dates: ["2026-08-22", "2026-08-25", "2026-08-29", "2026-09-05", "2026-09-12", "2026-09-19", "2026-09-26"],
+          timeSlots: ["10:00 AM", "12:30 PM", "3:00 PM", "5:30 PM"],
+          features: ["Cowboys locker room", "50-Yard Star photo", "Executive narration"],
+          rating: 4.9,
+          reviewsCount: 420
+        },
+        {
+          id: "exp-min-tour",
+          title: "U.S. Bank Stadium Architectural Journey",
+          description: "Immerse yourself inside Minneapolis' legendary glass cathedral.",
+          type: "stadium_tour",
+          category: "Standard Stadium Tour",
+          price: 35,
+          vipPrice: 90,
+          premiumPrice: 180,
+          teamId: "MIN",
+          imageUrl: "https://i.postimg.cc/sDYSCSgk/4545d9b7b90ee7c1f34fbb83344efb2cbank.jpg",
+          location: "Minneapolis, MN",
+          dates: ["2026-08-23", "2026-08-27", "2026-09-03", "2026-09-10", "2026-09-17", "2026-09-24"],
+          timeSlots: ["11:00 AM", "01:30 PM", "04:00 PM"],
+          features: ["Viking ship landmarks", "Locker room suites", "Interactive turf run"],
+          rating: 4.8,
+          reviewsCount: 180
+        },
+        {
+          id: "exp-sb-premium",
+          title: "Super Bowl LXI Field Access & Executive Hospitality",
+          description: "The pinnacle experience of professional sports. Pre-game field passes and all-inclusive club access.",
+          type: "private_tour",
+          category: "Championship Package",
+          price: 2500,
+          vipPrice: 4800,
+          premiumPrice: 8500,
+          teamId: "LA",
+          imageUrl: "https://i.postimg.cc/tC3PGPgT/1c6b339a1ec6b4da401e9584074a5073lxi.jpg",
+          location: "SoFi Stadium, Inglewood, CA",
+          dates: ["2026-08-25", "2026-09-01", "2026-09-08", "2026-09-15", "2026-09-22"],
+          timeSlots: ["12:00 PM", "04:00 PM"],
+          features: ["Pre-game field pass", "Executive club buffet", "Celebrity concierge"],
+          rating: 5.0,
+          reviewsCount: 16
+        },
+        {
+          id: "exp-gb-facility",
+          title: "Titans of Lambeau Training Facility Tour",
+          description: "Trace the frozen tundra facility locker labs, Packers equipment bays, and Don Hutson Center.",
+          type: "private_tour",
+          category: "Team Training Facility Tour",
+          price: 150,
+          vipPrice: 350,
+          premiumPrice: 750,
+          teamId: "GB",
+          imageUrl: "https://i.postimg.cc/mg9YDqVW/33923b662167a088aa30d29b4d062f9ate.jpg",
+          location: "Lambeau Field complexes, Green Bay, WI",
+          dates: ["2026-08-26", "2026-08-30", "2026-09-06", "2026-09-13", "2026-09-20", "2026-09-27"],
+          timeSlots: ["11:00 AM", "02:30 PM"],
+          features: ["Training labs & equipment", "Hall of Fame galleries", "Dining Lounge lunch"],
+          rating: 4.9,
+          reviewsCount: 95
+        }
+      ];
+
+      for (const item of defaults) {
+        await setDoc(doc(db, "experiences", item.id), item, { merge: true });
+      }
+      alert("✅ All standard NFL experiences & training ticket records successfully seeded to database!");
+    } catch (err: any) {
+      console.error(err);
+      alert("Error seeding experiences: " + err.message);
+    }
+  };
+
   const handleToggleBookingApproval = async (bId: string, currentStatus: string) => {
     try {
       const nextStatus = currentStatus === "pending" ? "approved" : "pending";
@@ -432,37 +602,146 @@ export const ExperienceAdmin: React.FC = () => {
                 </div>
               </div>
 
-              {/* Pricing breakdown */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-1.5">
-                  <label className="text-[8px] font-black uppercase text-zinc-500">Standard ($)</label>
-                  <input
-                    type="number"
-                    required
-                    value={price}
-                    onChange={(e) => setPrice(Number(e.target.value))}
-                    className="w-full bg-zinc-950 border border-white/5 rounded-xl p-2 text-xs font-mono text-center text-white"
-                  />
+              {/* Pricing breakdown with Stepper Controls */}
+              <div className="space-y-3 p-4 bg-zinc-950/80 rounded-2xl border border-white/5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase tracking-wider text-zinc-400">Pricing Matrix Tier Parameters</span>
+                  <span className="text-[8px] font-mono text-zinc-500">Auto-calculated</span>
                 </div>
+
+                {/* Standard Price Input & Steppers */}
                 <div className="space-y-1.5">
-                  <label className="text-[8px] font-black uppercase text-zinc-500">VIP Upgrade ($)</label>
-                  <input
-                    type="number"
-                    required
-                    value={vipPrice}
-                    onChange={(e) => setVipPrice(Number(e.target.value))}
-                    className="w-full bg-zinc-950 border border-white/5 rounded-xl p-2 text-xs font-mono text-center text-white"
-                  />
+                  <div className="flex items-center justify-between text-[8px] font-black uppercase text-zinc-400">
+                    <span>Standard Ticket Price</span>
+                    <span className="font-mono text-blue-400">{formatCurrency(price)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setPrice(Math.max(5, price - 25))}
+                      className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-lg text-[9px] font-mono font-bold cursor-pointer"
+                    >
+                      -$25
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPrice(Math.max(5, price - 10))}
+                      className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-lg text-[9px] font-mono font-bold cursor-pointer"
+                    >
+                      -$10
+                    </button>
+                    <input
+                      type="number"
+                      required
+                      value={price}
+                      onChange={(e) => setPrice(Number(e.target.value))}
+                      className="flex-1 bg-zinc-900 border border-white/10 rounded-lg p-2 text-xs font-mono text-center text-white font-bold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPrice(price + 10)}
+                      className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-emerald-400 rounded-lg text-[9px] font-mono font-bold cursor-pointer"
+                    >
+                      +$10
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPrice(price + 25)}
+                      className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-emerald-400 rounded-lg text-[9px] font-mono font-bold cursor-pointer"
+                    >
+                      +$25
+                    </button>
+                  </div>
                 </div>
+
+                {/* VIP Price Input & Steppers */}
                 <div className="space-y-1.5">
-                  <label className="text-[8px] font-black uppercase text-zinc-500">Platinum ($)</label>
-                  <input
-                    type="number"
-                    required
-                    value={premiumPrice}
-                    onChange={(e) => setPremiumPrice(Number(e.target.value))}
-                    className="w-full bg-zinc-950 border border-white/5 rounded-xl p-2 text-xs font-mono text-center text-white"
-                  />
+                  <div className="flex items-center justify-between text-[8px] font-black uppercase text-zinc-400">
+                    <span>VIP Upgrade Price</span>
+                    <span className="font-mono text-amber-400">{formatCurrency(vipPrice)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setVipPrice(Math.max(5, vipPrice - 50))}
+                      className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-lg text-[9px] font-mono font-bold cursor-pointer"
+                    >
+                      -$50
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVipPrice(Math.max(5, vipPrice - 25))}
+                      className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-lg text-[9px] font-mono font-bold cursor-pointer"
+                    >
+                      -$25
+                    </button>
+                    <input
+                      type="number"
+                      required
+                      value={vipPrice}
+                      onChange={(e) => setVipPrice(Number(e.target.value))}
+                      className="flex-1 bg-zinc-900 border border-white/10 rounded-lg p-2 text-xs font-mono text-center text-white font-bold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setVipPrice(vipPrice + 25)}
+                      className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-amber-400 rounded-lg text-[9px] font-mono font-bold cursor-pointer"
+                    >
+                      +$25
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVipPrice(vipPrice + 50)}
+                      className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-amber-400 rounded-lg text-[9px] font-mono font-bold cursor-pointer"
+                    >
+                      +$50
+                    </button>
+                  </div>
+                </div>
+
+                {/* Platinum Price Input & Steppers */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[8px] font-black uppercase text-zinc-400">
+                    <span>Platinum / Executive Price</span>
+                    <span className="font-mono text-purple-400">{formatCurrency(premiumPrice)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setPremiumPrice(Math.max(5, premiumPrice - 100))}
+                      className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-lg text-[9px] font-mono font-bold cursor-pointer"
+                    >
+                      -$100
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPremiumPrice(Math.max(5, premiumPrice - 50))}
+                      className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded-lg text-[9px] font-mono font-bold cursor-pointer"
+                    >
+                      -$50
+                    </button>
+                    <input
+                      type="number"
+                      required
+                      value={premiumPrice}
+                      onChange={(e) => setPremiumPrice(Number(e.target.value))}
+                      className="flex-1 bg-zinc-900 border border-white/10 rounded-lg p-2 text-xs font-mono text-center text-white font-bold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPremiumPrice(premiumPrice + 50)}
+                      className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-purple-400 rounded-lg text-[9px] font-mono font-bold cursor-pointer"
+                    >
+                      +$50
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPremiumPrice(premiumPrice + 100)}
+                      className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-purple-400 rounded-lg text-[9px] font-mono font-bold cursor-pointer"
+                    >
+                      +$100
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -549,34 +828,183 @@ export const ExperienceAdmin: React.FC = () => {
 
           {/* Roster list */}
           <div className="lg:col-span-7 bg-zinc-900/40 border border-white/5 rounded-[2rem] p-8 space-y-4">
-            <h4 className="text-xs font-black uppercase tracking-widest text-white border-b border-white/5 pb-4">OFFICIAL STADIUM & LEGENDS ROSTER ({experiences.length})</h4>
-            <div className="space-y-4 overflow-y-auto max-h-[70vh] no-scrollbar">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 gap-3">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-widest text-white">OFFICIAL STADIUM & LEGENDS ROSTER ({experiences.length})</h4>
+                <p className="text-[9px] text-zinc-400 font-bold">Use 1-click price steppers to adjust live pricing instantly</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSeedDefaultExperiences}
+                className="px-3.5 py-1.5 bg-blue-600/10 hover:bg-blue-600 border border-blue-500/20 text-blue-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Seed / Reset Official Experiences
+              </button>
+            </div>
+
+            <div className="space-y-4 overflow-y-auto max-h-[70vh] no-scrollbar pr-1">
               {experiences.map(exp => (
-                <div key={exp.id} className="p-4 bg-zinc-950/60 border border-white/5 rounded-2xl flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-white/5">
-                      <NFLImage item={exp} className="w-full h-full object-cover" />
+                <div key={exp.id} className="p-4 bg-zinc-950/80 border border-white/5 rounded-2xl space-y-3 hover:border-white/10 transition-colors">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-white/5">
+                        <NFLImage item={exp} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-black uppercase tracking-tight text-white line-clamp-1">{exp.title}</h4>
+                        <p className="text-[9px] font-black text-zinc-500 uppercase font-mono mt-0.5">{exp.category} · {exp.teamId} · {exp.location}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-tight text-white line-clamp-1">{exp.title}</h4>
-                      <p className="text-[9px] font-black text-zinc-500 uppercase font-mono mt-0.5">{exp.category} · {exp.teamId}</p>
-                      <p className="text-[10px] font-mono font-black text-blue-400 mt-1">{formatCurrency(exp.price)} — VIP: {formatCurrency(exp.vipPrice || exp.price*2)}</p>
+
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(exp)}
+                        className="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-white/5 hover:border-white/10 hover:text-white text-zinc-300 text-[9px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
+                        title="Edit Full Parameters"
+                      >
+                        <Edit className="w-3 h-3" />
+                        <span className="hidden sm:inline">Edit Details</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteExperience(exp.id)}
+                        className="p-1.5 rounded-lg bg-zinc-900/10 border border-red-500/10 hover:bg-red-500/10 hover:text-red-400 text-rose-500 flex items-center justify-center transition-all cursor-pointer"
+                        title="Delete Experience"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => startEdit(exp)}
-                      className="w-8 h-8 rounded-lg bg-zinc-900 border border-white/5 hover:border-white/10 hover:text-white text-zinc-400 flex items-center justify-center transition-all cursor-pointer"
-                    >
-                      <Edit className="w-4 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteExperience(exp.id)}
-                      className="w-8 h-8 rounded-lg bg-zinc-900/10 border border-red-500/10 hover:bg-red-500/10 hover:text-red-400 text-rose-500 flex items-center justify-center transition-all cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-3.5" />
-                    </button>
+                  {/* 1-Click Price Adjustment Steppers Tray */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2 border-t border-white/5">
+                    {/* Standard Price Stepper */}
+                    <div className="p-2 bg-zinc-900/60 rounded-xl border border-white/5 space-y-1">
+                      <div className="flex items-center justify-between text-[8px] font-black uppercase text-zinc-400">
+                        <span>Standard Price</span>
+                        <span className="font-mono text-blue-400 font-bold">{formatCurrency(exp.price)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAdjustPrice(exp.id, "price", -25)}
+                          className="flex-1 py-1 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 rounded text-[8px] font-mono font-black border border-white/5 cursor-pointer"
+                          title="Reduce by $25"
+                        >
+                          -$25
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAdjustPrice(exp.id, "price", -10)}
+                          className="flex-1 py-1 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 rounded text-[8px] font-mono font-black border border-white/5 cursor-pointer"
+                          title="Reduce by $10"
+                        >
+                          -$10
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAdjustPrice(exp.id, "price", 10)}
+                          className="flex-1 py-1 bg-zinc-950 hover:bg-zinc-800 text-emerald-400 rounded text-[8px] font-mono font-black border border-white/5 cursor-pointer"
+                          title="Increase by $10"
+                        >
+                          +$10
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAdjustPrice(exp.id, "price", 25)}
+                          className="flex-1 py-1 bg-zinc-950 hover:bg-zinc-800 text-emerald-400 rounded text-[8px] font-mono font-black border border-white/5 cursor-pointer"
+                          title="Increase by $25"
+                        >
+                          +$25
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* VIP Price Stepper */}
+                    <div className="p-2 bg-zinc-900/60 rounded-xl border border-white/5 space-y-1">
+                      <div className="flex items-center justify-between text-[8px] font-black uppercase text-zinc-400">
+                        <span>VIP Price</span>
+                        <span className="font-mono text-amber-400 font-bold">{formatCurrency(exp.vipPrice || exp.price * 2)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAdjustPrice(exp.id, "vipPrice", -50)}
+                          className="flex-1 py-1 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 rounded text-[8px] font-mono font-black border border-white/5 cursor-pointer"
+                          title="Reduce by $50"
+                        >
+                          -$50
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAdjustPrice(exp.id, "vipPrice", -25)}
+                          className="flex-1 py-1 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 rounded text-[8px] font-mono font-black border border-white/5 cursor-pointer"
+                          title="Reduce by $25"
+                        >
+                          -$25
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAdjustPrice(exp.id, "vipPrice", 25)}
+                          className="flex-1 py-1 bg-zinc-950 hover:bg-zinc-800 text-amber-400 rounded text-[8px] font-mono font-black border border-white/5 cursor-pointer"
+                          title="Increase by $25"
+                        >
+                          +$25
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAdjustPrice(exp.id, "vipPrice", 50)}
+                          className="flex-1 py-1 bg-zinc-950 hover:bg-zinc-800 text-amber-400 rounded text-[8px] font-mono font-black border border-white/5 cursor-pointer"
+                          title="Increase by $50"
+                        >
+                          +$50
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Platinum Price Stepper */}
+                    <div className="p-2 bg-zinc-900/60 rounded-xl border border-white/5 space-y-1">
+                      <div className="flex items-center justify-between text-[8px] font-black uppercase text-zinc-400">
+                        <span>Platinum Price</span>
+                        <span className="font-mono text-purple-400 font-bold">{formatCurrency(exp.premiumPrice || exp.price * 4)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAdjustPrice(exp.id, "premiumPrice", -100)}
+                          className="flex-1 py-1 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 rounded text-[8px] font-mono font-black border border-white/5 cursor-pointer"
+                          title="Reduce by $100"
+                        >
+                          -$100
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAdjustPrice(exp.id, "premiumPrice", -50)}
+                          className="flex-1 py-1 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 rounded text-[8px] font-mono font-black border border-white/5 cursor-pointer"
+                          title="Reduce by $50"
+                        >
+                          -$50
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAdjustPrice(exp.id, "premiumPrice", 50)}
+                          className="flex-1 py-1 bg-zinc-950 hover:bg-zinc-800 text-purple-400 rounded text-[8px] font-mono font-black border border-white/5 cursor-pointer"
+                          title="Increase by $50"
+                        >
+                          +$50
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAdjustPrice(exp.id, "premiumPrice", 100)}
+                          className="flex-1 py-1 bg-zinc-950 hover:bg-zinc-800 text-purple-400 rounded text-[8px] font-mono font-black border border-white/5 cursor-pointer"
+                          title="Increase by $100"
+                        >
+                          +$100
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}

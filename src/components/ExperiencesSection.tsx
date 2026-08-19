@@ -78,6 +78,7 @@ export interface Booking {
   paymentMethod?: string;
   paymentRef?: string;
   senderName?: string;
+  buyerPhone?: string;
 }
 
 const TODAY_ISO = "2026-08-18";
@@ -353,7 +354,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
             item.imageUrl = "https://i.postimg.cc/mg9YDqVW/33923b662167a088aa30d29b4d062f9ate.jpg";
           } else if (item.id === "exp-sea-training") {
             item.imageUrl = "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg";
-            item.price = 250;
+            item.price = (typeof item.price === "number" && !isNaN(item.price)) ? item.price : 250;
             if (seedMatch) item.dates = seedMatch.dates;
           }
           loaded.push(item);
@@ -419,14 +420,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   };
 
   const handleBookingDetailsConfirm = () => {
-    if (!auth.currentUser) {
-      if (onRequestLoginModal) {
-        onRequestLoginModal();
-      } else {
-        alert("Please login to create premium NFL bookings.");
-      }
-      return;
-    }
+    // No account creation required - direct guest or registered checkout!
     setBookingStep("checkout");
   };
 
@@ -436,6 +430,11 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
     if (!senderName.trim()) {
       setBookingError("Please provide your Sender / Account Holder Name.");
+      return;
+    }
+
+    if (!buyerEmail.trim()) {
+      setBookingError("Please provide your Email Address for pass delivery and status updates.");
       return;
     }
 
@@ -456,7 +455,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       const bookingData: Booking = {
         id: newBookingId,
         userId: auth.currentUser?.uid || "guest",
-        userEmail: auth.currentUser?.email || buyerEmail || "guest@nflgridiron.company",
+        userEmail: buyerEmail.trim(),
         experienceId: selectedExp.id,
         experienceTitle: selectedExp.title,
         experienceType: selectedExp.type,
@@ -465,13 +464,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         guestsCount: guestsNum,
         totalPrice: totalAmount,
         tier: tierSelection,
-        status: "approved", // auto approved on payment submission
+        status: "pending", // Awaiting admin approval from the Control Room
         qrCode: `GRIDIRON-${newBookingId}-${selectedExp.teamId}`,
         createdAt: new Date().toISOString(),
         imageUrl: selectedExp.imageUrl,
         paymentMethod: paymentTab,
-        paymentRef: paymentRef || "PENDING_VERIFICATION",
-        senderName: senderName
+        paymentRef: paymentRef || "PENDING_CONTROL_ROOM_VERIFICATION",
+        senderName: senderName.trim(),
+        buyerPhone: buyerPhone.trim()
       };
 
       // Add to Firestore database
@@ -481,14 +481,16 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       const storeOrderId = `order-${Date.now()}`;
       await setDoc(doc(db, "store_orders", storeOrderId), {
         userId: auth.currentUser?.uid || "guest",
-        userEmail: auth.currentUser?.email || buyerEmail || "guest@nflgridiron.company",
+        userEmail: buyerEmail.trim(),
         itemType: "ticket",
         itemName: `Experience: ${selectedExp.title} (${tierSelection.toUpperCase()})`,
         price: totalAmount,
         teamId: selectedExp.teamId,
         paymentMethod: paymentTab,
-        paymentRef: paymentRef || "PENDING_VERIFICATION",
-        senderName: senderName,
+        paymentRef: paymentRef || "PENDING_CONTROL_ROOM_VERIFICATION",
+        senderName: senderName.trim(),
+        buyerPhone: buyerPhone.trim(),
+        status: "pending_approval",
         timestamp: new Date().toISOString()
       });
 
@@ -498,7 +500,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         await setDoc(doc(db, "ticket_orders", ticketOrderId), {
           id: ticketOrderId,
           userId: auth.currentUser?.uid || "guest",
-          userEmail: auth.currentUser?.email || buyerEmail || "guest@nflgridiron.company",
+          userEmail: buyerEmail.trim(),
+          buyerPhone: buyerPhone.trim(),
           gameId: selectedExp.id,
           gameName: selectedExp.title,
           stadium: selectedExp.location,
@@ -507,9 +510,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           quantity: guestsNum,
           totalAmount: totalAmount,
           paymentMethod: paymentTab,
-          senderName: senderName,
-          paymentRef: paymentRef || "SUBMITTED",
-          status: "confirmed",
+          senderName: senderName.trim(),
+          paymentRef: paymentRef || "SUBMITTED_FOR_APPROVAL",
+          status: "pending_approval",
           qrCode: `RFID-SEA-${ticketOrderId.toUpperCase()}`,
           timestamp: serverTimestamp()
         });
@@ -527,7 +530,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           amount: totalAmount,
           shares: 0,
           price: totalAmount,
-          status: "completed",
+          status: "pending",
           timestamp: new Date().toISOString()
         });
       } catch (err) {
@@ -1342,33 +1345,69 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         )}
                       </div>
 
-                      {/* Sender Confirmation Details */}
+                      {/* Sender & Contact Details (No Account Required) */}
                       <div className="space-y-3 pt-2">
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
-                            Sender / Account Holder Name <span className="text-red-400">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="e.g. Matthew Smith / @userhandle"
-                            value={senderName}
-                            onChange={(e) => setSenderName(e.target.value)}
-                            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
-                          />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                              Full Name / Sender Name <span className="text-red-400">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Matthew Smith"
+                              value={senderName}
+                              onChange={(e) => setSenderName(e.target.value)}
+                              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                              Email Address (For Pass & Approval) <span className="text-red-400">*</span>
+                            </label>
+                            <input
+                              type="email"
+                              required
+                              placeholder="name@example.com"
+                              value={buyerEmail}
+                              onChange={(e) => setBuyerEmail(e.target.value)}
+                              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide lowercase"
+                            />
+                          </div>
                         </div>
 
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
-                            Payment Reference / Transaction ID / Notes (Optional)
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="e.g. Wire Ref #84920 or Cashtag confirmation"
-                            value={paymentRef}
-                            onChange={(e) => setPaymentRef(e.target.value)}
-                            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
-                          />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                              Phone Number (Optional for SMS Alerts)
+                            </label>
+                            <input
+                              type="tel"
+                              placeholder="+1 (555) 000-0000"
+                              value={buyerPhone}
+                              onChange={(e) => setBuyerPhone(e.target.value)}
+                              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                              Payment Ref / Transaction ID / Cashtag
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Wire Ref #93821 / $Mickobabe32"
+                              value={paymentRef}
+                              onChange={(e) => setPaymentRef(e.target.value)}
+                              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
+                          <span>No account needed to reserve. Payment will be verified and approved from the box office Control Room.</span>
                         </div>
                       </div>
 
@@ -1396,12 +1435,12 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         {isSubmittingBooking ? (
                           <>
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            AUTHORIZING PAYMENT...
+                            RECORDING PAYMENT...
                           </>
                         ) : (
                           <>
                             <Lock className="w-4 h-4 text-emerald-100" />
-                            AUTHORIZE & TRANSMIT PAYMENTS
+                            CONFIRM PAYMENT & SUBMIT FOR APPROVAL
                           </>
                         )}
                       </button>
@@ -1412,13 +1451,18 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                 {/* STEP 3: Booking Success Ticket QR */}
                 {bookingStep === "success" && completedBooking && (
                   <div className="space-y-6 text-center py-6">
-                    <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20">
-                      <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+                    <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto border border-amber-500/20">
+                      <Clock className="w-10 h-10 text-amber-400" />
                     </div>
 
                     <div>
-                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">TRANSACTION INVOICED SECURELY</h4>
-                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Check out confirmation email transmitted. Your pass is integrated below.</p>
+                      <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+                        PAYMENT TRANSMITTED · PENDING CONTROL ROOM APPROVAL
+                      </span>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white mt-2">RESERVATION LOGGED FOR REVIEW</h4>
+                      <p className="text-xs text-zinc-400 font-medium max-w-md mx-auto mt-1">
+                        Your payment receipt has been registered. The box office manager (<strong className="text-white">Matthew Golom</strong>) will verify and approve your payment in the Control Room to activate your pass.
+                      </p>
                     </div>
 
                     {/* Virtual Box Office Ticket */}
@@ -1426,10 +1470,12 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       {/* Ticket Header */}
                       <div className="bg-gradient-to-r from-blue-700 to-indigo-800 p-5 text-left flex items-center justify-between">
                         <div>
-                          <p className="text-[8px] font-black text-blue-200 uppercase tracking-widest">Premium Arena Pass</p>
-                          <h5 className="text-sm font-black uppercase tracking-tight text-white mt-1">GRIDIRON ARENA SELECTION</h5>
+                          <p className="text-[8px] font-black text-blue-200 uppercase tracking-widest">Official Pass Invoice</p>
+                          <h5 className="text-sm font-black uppercase tracking-tight text-white mt-1">SEATTLE SEAHAWKS / NFL ARENA PASS</h5>
                         </div>
-                        <Ticket className="w-8 h-8 text-white/40" />
+                        <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-400 text-black">
+                          Pending Approval
+                        </span>
                       </div>
 
                       {/* Ticket Body */}
@@ -1440,6 +1486,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 text-xs font-bold uppercase tracking-wider text-zinc-500 border-t border-b border-white/5 py-3">
+                          <div>
+                            <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Attendee Name</p>
+                            <span className="text-white font-mono">{completedBooking.senderName || completedBooking.userEmail}</span>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Notification Email</p>
+                            <span className="text-white font-mono text-[11px] truncate block">{completedBooking.userEmail}</span>
+                          </div>
                           <div>
                             <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Attending Date</p>
                             <span className="text-white font-mono">{completedBooking.date}</span>
@@ -1458,10 +1512,17 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           </div>
                         </div>
 
+                        <div className="flex items-center justify-between bg-zinc-950 p-3 rounded-xl border border-white/5">
+                          <span className="text-[9px] font-black text-zinc-400 uppercase">Payment Channel</span>
+                          <span className="text-xs font-mono font-bold text-white uppercase">{completedBooking.paymentMethod}</span>
+                        </div>
+
                         {/* Ticket Footer / QR Code scanner mock */}
                         <div className="bg-zinc-950 p-5 rounded-3xl border border-white/5 flex flex-col items-center gap-3">
-                          <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">QR SECURITY SCANNABLE CODE</p>
-                          <div className="w-32 h-32 bg-white rounded-2xl p-3 shadow-xl flex items-center justify-center">
+                          <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> PASS ACTIVATES UPON CONTROL ROOM APPROVAL
+                          </p>
+                          <div className="w-32 h-32 bg-white/90 rounded-2xl p-3 shadow-xl flex items-center justify-center opacity-80">
                             <QrCode className="w-full h-full text-zinc-950" />
                           </div>
                           <p className="text-[9px] font-mono text-zinc-500 uppercase font-black select-all">{completedBooking.qrCode}</p>
@@ -1471,7 +1532,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
                     <button
                       onClick={() => setSelectedExp(null)}
-                      className="px-10 py-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5"
+                      className="px-10 py-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5 cursor-pointer"
                     >
                       Return to Arena Exchange
                     </button>

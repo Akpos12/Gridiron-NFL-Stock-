@@ -16,17 +16,28 @@ import {
   Calendar, 
   FileText, 
   X,
-  Palette
+  Palette,
+  Clock,
+  Ticket,
+  Building2,
+  Smartphone,
+  QrCode,
+  DollarSign,
+  CheckCircle2,
+  AlertCircle,
+  Filter
 } from "lucide-react";
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, addDoc, query, orderBy } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { NFL_TEAMS } from "../../constants";
 import { ImageUploader } from "../common/ImageUploader";
 import { Player, Prize, Giveaway, GiveawayStatus, FanProfile, GiveawayEntry, GiveawayWinner, TeamConfig } from "../../types/giveaway";
-import { cn } from "../../lib/utils";
+import { PRESET_NFL_STARS } from "./PlayerManagerModal";
+import { cn, formatCurrency } from "../../lib/utils";
+import { ExperienceAdmin } from "../ExperienceAdmin";
 
 export const GiveawayControlRoom: React.FC = () => {
-  const [subTab, setSubTab] = useState<"giveaways" | "create_giveaway" | "players" | "entries" | "winners" | "team_config">("giveaways");
+  const [subTab, setSubTab] = useState<"giveaways" | "create_giveaway" | "players" | "bookings" | "experiences" | "entries" | "winners" | "team_config">("giveaways");
 
   // State data from Firestore
   const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
@@ -35,12 +46,19 @@ export const GiveawayControlRoom: React.FC = () => {
   const [entries, setEntries] = useState<GiveawayEntry[]>([]);
   const [winners, setWinners] = useState<GiveawayWinner[]>([]);
   const [teamsConfig, setTeamsConfig] = useState<Record<string, TeamConfig>>({});
+  const [bookings, setBookings] = useState<any[]>([]);
 
   // Giveaway creation/editing form
   const [editingGiveawayId, setEditingGiveawayId] = useState<string | null>(null);
   const [gwTitle, setGwTitle] = useState("");
   const [gwDescription, setGwDescription] = useState("");
   const [gwPlayerId, setGwPlayerId] = useState("");
+  const [isCustomPlayerMode, setIsCustomPlayerMode] = useState(false);
+  const [customPlayerName, setCustomPlayerName] = useState("");
+  const [customPlayerTeam, setCustomPlayerTeam] = useState("SEA");
+  const [customPlayerPos, setCustomPlayerPos] = useState("WR");
+  const [customPlayerJersey, setCustomPlayerJersey] = useState("11");
+  const [customPlayerPhoto, setCustomPlayerPhoto] = useState("");
   const [gwHeroImage, setGwHeroImage] = useState("");
   const [gwStartDate, setGwStartDate] = useState("");
   const [gwEndDate, setGwEndDate] = useState("");
@@ -248,22 +266,86 @@ export const GiveawayControlRoom: React.FC = () => {
       setTeamsConfig(map);
     });
 
-    return () => { unsubGw(); unsubPl(); unsubFans(); unsubEntries(); unsubWinners(); unsubTeams(); };
+    const unsubBookings = onSnapshot(collection(db, "bookings"), (snap) => {
+      const docs: any[] = [];
+      snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
+      setBookings(docs);
+    });
+
+    return () => { unsubGw(); unsubPl(); unsubFans(); unsubEntries(); unsubWinners(); unsubTeams(); unsubBookings(); };
   }, []);
+
+  const handleToggleBookingApproval = async (bookingId: string, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === "approved" ? "pending" : "approved";
+      await updateDoc(doc(db, "bookings", bookingId), {
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      });
+      try {
+        await updateDoc(doc(db, "ticket_orders", bookingId), {
+          status: newStatus === "approved" ? "confirmed" : "pending_approval"
+        });
+      } catch {}
+      alert(`Booking ${bookingId} has been updated to ${newStatus.toUpperCase()}!`);
+    } catch (err: any) {
+      console.error("Error updating booking status:", err);
+      alert("Error updating booking status: " + err.message);
+    }
+  };
+
+  const handleDeleteBooking = async (bookingId: string) => {
+    if (!confirm("Are you sure you want to delete this booking record?")) return;
+    try {
+      await deleteDoc(doc(db, "bookings", bookingId));
+    } catch (err: any) {
+      console.error(err);
+    }
+  };
+
+  // Unified players list merging Firestore records with all NFL Star presets
+  const allAvailablePlayers: Player[] = React.useMemo(() => {
+    const list: Player[] = [...players];
+    PRESET_NFL_STARS.forEach((preset) => {
+      const presetId = `player-${preset.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
+      const exists = list.some(
+        (p) => p.name.toLowerCase() === preset.name.toLowerCase() || p.id === presetId
+      );
+      if (!exists) {
+        list.push({
+          id: presetId,
+          name: preset.name,
+          teamId: preset.teamId,
+          position: preset.position,
+          jerseyNumber: preset.jerseyNumber,
+          description: preset.description,
+          photoUrl: preset.photoUrl,
+          createdAt: Date.now()
+        });
+      }
+    });
+    return list;
+  }, [players]);
 
   // Set default player if available
   useEffect(() => {
-    if (players.length > 0 && !gwPlayerId) {
-      setGwPlayerId(players[0].id);
+    if (allAvailablePlayers.length > 0 && !gwPlayerId) {
+      setGwPlayerId(allAvailablePlayers[0].id);
     }
-  }, [players]);
+  }, [allAvailablePlayers]);
 
   // Reset Giveaway Form
   const resetGiveawayForm = () => {
     setEditingGiveawayId(null);
     setGwTitle("");
     setGwDescription("");
-    setGwPlayerId(players[0]?.id || "");
+    setGwPlayerId(allAvailablePlayers[0]?.id || "");
+    setIsCustomPlayerMode(false);
+    setCustomPlayerName("");
+    setCustomPlayerTeam("SEA");
+    setCustomPlayerPos("WR");
+    setCustomPlayerJersey("11");
+    setCustomPlayerPhoto("");
     setGwHeroImage("");
     setGwStartDate("");
     setGwEndDate("");
@@ -297,14 +379,50 @@ export const GiveawayControlRoom: React.FC = () => {
 
   const handleSaveGiveaway = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!gwTitle.trim() || !gwPlayerId) {
-      alert("Please provide campaign title and select a featured player.");
+    if (!gwTitle.trim()) {
+      alert("Please provide campaign title.");
       return;
     }
 
-    const selectedPlayer = players.find(p => p.id === gwPlayerId);
-    const pName = selectedPlayer ? selectedPlayer.name : "Featured Player";
-    const pTeam = selectedPlayer ? selectedPlayer.teamId : "MIN";
+    let finalPlayerId = gwPlayerId;
+    let pName = "Featured Player";
+    let pTeam = "SEA";
+
+    if (isCustomPlayerMode || gwPlayerId === "__CUSTOM__") {
+      if (!customPlayerName.trim()) {
+        alert("Please enter the custom player name.");
+        return;
+      }
+      pName = customPlayerName.trim();
+      pTeam = customPlayerTeam;
+      finalPlayerId = `player-${pName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
+
+      // Persist custom player in Firestore
+      const newPlayerObj: Player = {
+        id: finalPlayerId,
+        name: pName,
+        teamId: pTeam,
+        position: customPlayerPos.trim().toUpperCase() || "ATH",
+        jerseyNumber: customPlayerJersey.trim() || "00",
+        description: `Official NFL player ${pName} for ${pTeam}.`,
+        photoUrl: customPlayerPhoto.trim() || "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=600",
+        createdAt: Date.now()
+      };
+      await setDoc(doc(db, "players", finalPlayerId), newPlayerObj);
+    } else {
+      const selectedPlayer = allAvailablePlayers.find(p => p.id === gwPlayerId || p.name.toLowerCase() === gwPlayerId.toLowerCase());
+      if (selectedPlayer) {
+        finalPlayerId = selectedPlayer.id;
+        pName = selectedPlayer.name;
+        pTeam = selectedPlayer.teamId;
+
+        // Auto-seed player into Firestore if not present yet
+        const existingInDb = players.some(p => p.id === selectedPlayer.id || p.name.toLowerCase() === selectedPlayer.name.toLowerCase());
+        if (!existingInDb) {
+          await setDoc(doc(db, "players", selectedPlayer.id), selectedPlayer);
+        }
+      }
+    }
 
     try {
       const gwId = editingGiveawayId || `gw-${Date.now()}`;
@@ -312,7 +430,7 @@ export const GiveawayControlRoom: React.FC = () => {
         id: gwId,
         title: (gwTitle || "").trim(),
         description: (gwDescription || "").trim(),
-        playerId: gwPlayerId || "",
+        playerId: finalPlayerId || "",
         playerName: pName || "",
         teamId: pTeam || "",
         heroImageUrl: gwHeroImage || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
@@ -349,7 +467,18 @@ export const GiveawayControlRoom: React.FC = () => {
     setEditingGiveawayId(g.id);
     setGwTitle(g.title || "");
     setGwDescription(g.description || "");
-    setGwPlayerId(g.playerId || "");
+
+    const found = allAvailablePlayers.find(p => p.id === g.playerId || p.name.toLowerCase() === g.playerName?.toLowerCase());
+    if (found) {
+      setGwPlayerId(found.id);
+      setIsCustomPlayerMode(false);
+    } else {
+      setGwPlayerId("__CUSTOM__");
+      setIsCustomPlayerMode(true);
+      setCustomPlayerName(g.playerName || "");
+      setCustomPlayerTeam(g.teamId || "SEA");
+    }
+
     setGwHeroImage(g.heroImageUrl || "");
     setGwStartDate(g.startDate || "");
     setGwEndDate(g.endDate || "");
@@ -495,17 +624,21 @@ export const GiveawayControlRoom: React.FC = () => {
             { id: "giveaways", label: "Giveaways" },
             { id: "create_giveaway", label: editingGiveawayId ? "Edit Campaign" : "+ New Giveaway" },
             { id: "players", label: "Players Roster" },
+            { id: "experiences", label: "Experience Pricing" },
+            { id: "bookings", label: `Bookings & Approvals ${bookings.filter(b => b.status === "pending").length > 0 ? `(${bookings.filter(b => b.status === "pending").length} Pending)` : `(${bookings.length})`}` },
             { id: "entries", label: "Entries & Fans" },
             { id: "winners", label: "Winners Audit" }
           ] as const).map(tab => (
             <button
               key={tab.id}
-              onClick={() => setSubTab(tab.id)}
+              onClick={() => setSubTab(tab.id as any)}
               className={cn(
                 "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap cursor-pointer",
                 subTab === tab.id
                   ? "bg-red-600 text-white shadow-lg"
-                  : "text-zinc-400 hover:text-white"
+                  : tab.id === "bookings" && bookings.filter(b => b.status === "pending").length > 0
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:text-white"
+                    : "text-zinc-400 hover:text-white"
               )}
             >
               {tab.label}
@@ -616,19 +749,138 @@ export const GiveawayControlRoom: React.FC = () => {
               </div>
 
               {/* Select Player */}
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase text-zinc-400">Featured Player *</label>
-                <select
-                  value={gwPlayerId}
-                  onChange={(e) => setGwPlayerId(e.target.value)}
-                  className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-bold uppercase focus:outline-none"
-                >
-                  {players.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.teamId} - #{p.jerseyNumber})
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[9px] font-black uppercase text-zinc-400">Featured Player *</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomPlayerMode(!isCustomPlayerMode);
+                      if (!isCustomPlayerMode) {
+                        setGwPlayerId("__CUSTOM__");
+                      } else {
+                        setGwPlayerId(allAvailablePlayers[0]?.id || "");
+                      }
+                    }}
+                    className="text-[9px] font-bold text-red-400 hover:text-red-300 underline cursor-pointer"
+                  >
+                    {isCustomPlayerMode ? "← Select From Roster Presets" : "+ Enter Custom Player Details"}
+                  </button>
+                </div>
+
+                {!isCustomPlayerMode ? (
+                  <select
+                    value={gwPlayerId}
+                    onChange={(e) => {
+                      if (e.target.value === "__CUSTOM__") {
+                        setIsCustomPlayerMode(true);
+                        setGwPlayerId("__CUSTOM__");
+                      } else {
+                        setGwPlayerId(e.target.value);
+                      }
+                    }}
+                    className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-bold uppercase focus:outline-none"
+                  >
+                    <optgroup label="⭐ Top NFL Stars & Registered Roster">
+                      {allAvailablePlayers.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.teamId} - #{p.jerseyNumber || "00"} · {p.position || "ATH"})
+                        </option>
+                      ))}
+                    </optgroup>
+                    <option value="__CUSTOM__">➕ Enter / Register New Custom Player...</option>
+                  </select>
+                ) : (
+                  <div className="p-3 bg-zinc-950/90 border border-red-500/30 rounded-xl space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black uppercase text-zinc-400">Custom Player Full Name *</label>
+                      <input
+                        type="text"
+                        required={isCustomPlayerMode}
+                        placeholder="e.g. Jaxon Smith-Njigba"
+                        value={customPlayerName}
+                        onChange={(e) => setCustomPlayerName(e.target.value)}
+                        className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-bold focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[8px] font-black uppercase text-zinc-400">Team</label>
+                        <select
+                          value={customPlayerTeam}
+                          onChange={(e) => setCustomPlayerTeam(e.target.value)}
+                          className="w-full bg-zinc-900 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white font-bold uppercase"
+                        >
+                          {NFL_TEAMS.map(t => <option key={t.id} value={t.id}>{t.id} - {t.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[8px] font-black uppercase text-zinc-400">Position</label>
+                        <input
+                          type="text"
+                          placeholder="WR"
+                          value={customPlayerPos}
+                          onChange={(e) => setCustomPlayerPos(e.target.value)}
+                          className="w-full bg-zinc-900 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white font-bold uppercase text-center"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8px] font-black uppercase text-zinc-400">Jersey #</label>
+                        <input
+                          type="text"
+                          placeholder="11"
+                          value={customPlayerJersey}
+                          onChange={(e) => setCustomPlayerJersey(e.target.value)}
+                          className="w-full bg-zinc-900 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white font-mono text-center"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick 1-Click NFL Stars Preset Chips */}
+                <div className="pt-1">
+                  <span className="text-[8px] font-mono text-zinc-500 uppercase font-black block mb-1.5">
+                    ⚡ Quick 1-Click Star Presets:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1 no-scrollbar">
+                    {PRESET_NFL_STARS.map((star) => {
+                      const presetId = `player-${star.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
+                      const isSelected = !isCustomPlayerMode && gwPlayerId === presetId;
+                      return (
+                        <button
+                          key={star.name}
+                          type="button"
+                          onClick={() => {
+                            setIsCustomPlayerMode(false);
+                            setGwPlayerId(presetId);
+                            if (!gwTitle || gwTitle.includes("Giveaway")) {
+                              setGwTitle(`Official ${star.name} (${star.teamId}) Fan Club Giveaway`);
+                            }
+                            if (gwPrizes.length === 0) {
+                              setGwPrizes([{
+                                id: `p-${Date.now()}`,
+                                name: star.defaultPrizeName,
+                                description: star.defaultPrizeDesc,
+                                quantity: 1,
+                                imageUrl: star.photoUrl
+                              }]);
+                            }
+                          }}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border",
+                            isSelected
+                              ? "bg-red-600 text-white border-red-500 shadow-sm"
+                              : "bg-zinc-950 hover:bg-zinc-800 text-zinc-300 hover:text-white border-white/10"
+                          )}
+                        >
+                          {star.name} (#{star.jerseyNumber} · {star.teamId})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -860,9 +1112,68 @@ export const GiveawayControlRoom: React.FC = () => {
 
           {/* List */}
           <div className="lg:col-span-7 bg-zinc-900/60 p-6 rounded-[2rem] border border-white/10 space-y-4">
-            <h4 className="text-xs font-black uppercase tracking-widest text-white border-b border-white/5 pb-3">
-              PLAYER ROSTER ({players.length})
-            </h4>
+            <div className="flex flex-wrap items-center justify-between border-b border-white/5 pb-3 gap-2">
+              <h4 className="text-xs font-black uppercase tracking-widest text-white">
+                PLAYER ROSTER ({players.length})
+              </h4>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!window.confirm("Seed/restore full roster of 12+ NFL Star Players and Active Giveaways?")) return;
+                  try {
+                    for (const star of PRESET_NFL_STARS) {
+                      const playerId = `player-${star.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
+                      await setDoc(doc(db, "players", playerId), {
+                        id: playerId,
+                        name: star.name,
+                        teamId: star.teamId,
+                        position: star.position,
+                        jerseyNumber: star.jerseyNumber,
+                        description: star.description,
+                        photoUrl: star.photoUrl,
+                        updatedAt: Date.now(),
+                        createdAt: Date.now()
+                      });
+
+                      const gwId = `gw-${playerId}`;
+                      await setDoc(doc(db, "giveaways", gwId), {
+                        id: gwId,
+                        title: `Official ${star.name} Fan Giveaway`,
+                        description: `Win authentic memorabilia signed by ${star.name}. Open to all registered fan club members!`,
+                        playerId: playerId,
+                        playerName: star.name,
+                        teamId: star.teamId,
+                        heroImageUrl: star.heroImageUrl,
+                        startDate: new Date().toISOString().split("T")[0],
+                        endDate: "2026-12-31",
+                        eligibility: "Open to all registered fans aged 18+",
+                        entryRequirements: "Must hold a valid registered Fan Code.",
+                        numWinners: 1,
+                        rules: "Official giveaway rules apply. Winner selected fairly.",
+                        status: "ACTIVE",
+                        entriesCount: 15,
+                        prizes: [{
+                          id: `p-${Date.now()}`,
+                          name: star.defaultPrizeName,
+                          description: star.defaultPrizeDesc,
+                          quantity: 1,
+                          imageUrl: star.photoUrl
+                        }],
+                        updatedAt: Date.now(),
+                        createdAt: Date.now()
+                      });
+                    }
+                    alert("Successfully populated all 12+ NFL Stars Roster & Giveaways!");
+                  } catch (err: any) {
+                    alert("Error: " + err.message);
+                  }
+                }}
+                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer shadow-sm"
+              >
+                <Sparkles className="w-3 h-3" />
+                Seed Full Stars Roster
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pr-2 no-scrollbar">
               {players.map(p => (
@@ -1083,6 +1394,13 @@ export const GiveawayControlRoom: React.FC = () => {
         </div>
       )}
 
+      {/* 4. EXPERIENCES & LIVE PRICING TAB */}
+      {subTab === "experiences" && (
+        <div className="space-y-6">
+          <ExperienceAdmin />
+        </div>
+      )}
+
       {/* 5. WINNERS AUDIT TAB */}
       {subTab === "winners" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -1171,6 +1489,199 @@ export const GiveawayControlRoom: React.FC = () => {
                   </span>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. BOOKINGS & PAYMENT APPROVALS TAB */}
+      {subTab === "bookings" && (
+        <div className="space-y-6">
+          {/* Summary Stat Tiles */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-5 bg-zinc-900/60 border border-white/5 rounded-2xl space-y-1">
+              <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Total Bookings</span>
+              <p className="text-2xl font-black font-mono text-white">{bookings.length}</p>
+            </div>
+
+            <div className="p-5 bg-amber-500/10 border border-amber-500/20 rounded-2xl space-y-1">
+              <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 animate-pulse" /> Pending Approval
+              </span>
+              <p className="text-2xl font-black font-mono text-amber-300">
+                {bookings.filter(b => b.status === "pending").length}
+              </p>
+            </div>
+
+            <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-1">
+              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Approved Passes
+              </span>
+              <p className="text-2xl font-black font-mono text-emerald-300">
+                {bookings.filter(b => b.status === "approved").length}
+              </p>
+            </div>
+
+            <div className="p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl space-y-1">
+              <span className="text-[9px] font-black uppercase tracking-widest text-blue-400 flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5" /> Volume Total
+              </span>
+              <p className="text-2xl font-black font-mono text-blue-300">
+                {formatCurrency(bookings.reduce((sum, b) => sum + (Number(b.totalPrice) || 0), 0))}
+              </p>
+            </div>
+          </div>
+
+          {/* Search Filter Header */}
+          <div className="bg-zinc-900/60 border border-white/10 rounded-[2rem] p-6 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
+                  <Ticket className="w-4 h-4 text-blue-500" />
+                  EXPERIENCE TICKET RESERVATIONS & PAYMENT VERIFICATION ({bookings.length})
+                </h4>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase mt-0.5">
+                  Review customer payments (BMO Bank, CashApp, Venmo, Zelle, Crypto) and manually approve passes.
+                </p>
+              </div>
+
+              <div className="relative w-full md:w-80">
+                <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search attendee, email, ref, ticket..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-zinc-950 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder:text-zinc-600 font-bold focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Bookings List Table */}
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left min-w-[900px]">
+                <thead className="bg-zinc-950 text-[9px] font-black uppercase font-mono text-zinc-500">
+                  <tr>
+                    <th className="p-3">Attendee Details</th>
+                    <th className="p-3">Experience & Session</th>
+                    <th className="p-3">Payment Channel</th>
+                    <th className="p-3">Sender / Proof Ref</th>
+                    <th className="p-3 text-right">Invoice Sum</th>
+                    <th className="p-3 text-center">Status</th>
+                    <th className="p-3 text-right">Approve / Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-xs">
+                  {bookings.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-10 text-center text-zinc-600 font-bold uppercase tracking-widest text-xs">
+                        No ticket booking records found.
+                      </td>
+                    </tr>
+                  ) : (
+                    bookings
+                      .filter(b => {
+                        if (!searchTerm.trim()) return true;
+                        const term = searchTerm.toLowerCase();
+                        return (
+                          (b.userEmail && b.userEmail.toLowerCase().includes(term)) ||
+                          (b.senderName && b.senderName.toLowerCase().includes(term)) ||
+                          (b.buyerPhone && b.buyerPhone.toLowerCase().includes(term)) ||
+                          (b.experienceTitle && b.experienceTitle.toLowerCase().includes(term)) ||
+                          (b.paymentMethod && b.paymentMethod.toLowerCase().includes(term)) ||
+                          (b.paymentRef && b.paymentRef.toLowerCase().includes(term)) ||
+                          (b.id && b.id.toLowerCase().includes(term))
+                        );
+                      })
+                      .map(b => (
+                        <tr key={b.id} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="p-3">
+                            <p className="font-black text-white">{b.senderName || b.userEmail || "Anonymous Guest"}</p>
+                            <p className="text-[10px] text-zinc-400 font-mono mt-0.5 lowercase">{b.userEmail}</p>
+                            {b.buyerPhone && (
+                              <p className="text-[9px] text-zinc-500 font-mono mt-0.5">{b.buyerPhone}</p>
+                            )}
+                            <span className="text-[8px] font-mono text-zinc-600 block mt-0.5 select-all">{b.id}</span>
+                          </td>
+
+                          <td className="p-3">
+                            <p className="font-black text-white uppercase line-clamp-1">{b.experienceTitle}</p>
+                            <p className="text-[10px] text-blue-400 font-mono mt-0.5 uppercase font-bold">
+                              {b.tier?.toUpperCase()} · {b.guestsCount || 1} GUEST(S)
+                            </p>
+                            <p className="text-[9px] text-zinc-500 font-mono mt-0.5">
+                              {b.date} @ {b.timeSlot}
+                            </p>
+                          </td>
+
+                          <td className="p-3">
+                            <span className="px-2.5 py-1 rounded-lg bg-zinc-950 border border-white/10 text-[10px] font-black uppercase text-zinc-300 inline-flex items-center gap-1">
+                              {b.paymentMethod === "bank" ? <Building2 className="w-3 h-3 text-blue-400" /> :
+                               b.paymentMethod === "crypto" ? <QrCode className="w-3 h-3 text-amber-400" /> :
+                               <Smartphone className="w-3 h-3 text-emerald-400" />}
+                              {b.paymentMethod === "bank" ? "BMO Bank Wire" :
+                               b.paymentMethod === "cashapp" ? "Cash App" :
+                               b.paymentMethod === "venmo" ? "Venmo" :
+                               b.paymentMethod === "zelle" ? "Zelle" :
+                               b.paymentMethod === "crypto" ? "Crypto (USDT/BTC/ETH)" :
+                               (b.paymentMethod || "Verified Transfer")}
+                            </span>
+                          </td>
+
+                          <td className="p-3">
+                            <p className="font-mono text-xs font-bold text-white select-all">
+                              {b.paymentRef || "PENDING_PROOF"}
+                            </p>
+                            <span className="text-[9px] text-zinc-500 font-bold block mt-0.5">
+                              Sender: {b.senderName || "Unspecified"}
+                            </span>
+                          </td>
+
+                          <td className="p-3 text-right">
+                            <span className="font-mono text-sm font-black text-emerald-400">
+                              {formatCurrency(b.totalPrice || 0)}
+                            </span>
+                          </td>
+
+                          <td className="p-3 text-center">
+                            <span className={cn(
+                              "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1",
+                              b.status === "approved"
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : "bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse"
+                            )}>
+                              {b.status === "approved" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                              {b.status === "approved" ? "APPROVED" : "PENDING APPROVAL"}
+                            </span>
+                          </td>
+
+                          <td className="p-3 text-right space-x-2 whitespace-nowrap">
+                            <button
+                              onClick={() => handleToggleBookingApproval(b.id, b.status)}
+                              className={cn(
+                                "px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-md inline-flex items-center gap-1",
+                                b.status === "approved"
+                                  ? "bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-black border border-amber-500/20"
+                                  : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30"
+                              )}
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              {b.status === "approved" ? "Mark Pending" : "✓ Approve Payment"}
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteBooking(b.id)}
+                              className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all cursor-pointer inline-flex items-center justify-center"
+                              title="Delete booking"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
