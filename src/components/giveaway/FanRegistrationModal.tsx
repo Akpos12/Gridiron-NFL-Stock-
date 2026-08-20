@@ -70,6 +70,11 @@ export const FanRegistrationModal: React.FC<FanRegistrationModalProps> = ({
       };
 
       await setDoc(doc(db, "registered_fans", fanId), newFan);
+      try {
+        localStorage.setItem("nfg_fan_profile", JSON.stringify(newFan));
+      } catch (storageErr) {
+        console.warn("Could not save fan to localStorage:", storageErr);
+      }
       setRegisteredFan(newFan);
       if (onRegistered) onRegistered(newFan);
     } catch (err: any) {

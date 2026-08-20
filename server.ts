@@ -504,6 +504,33 @@ async function startServer() {
         isResale: false
       },
       {
+        id: "tm-sea-ne-sep10",
+        name: "Seattle Seahawks vs New England Patriots",
+        homeTeam: "Seahawks",
+        awayTeam: "Patriots",
+        stadium: "Lumen Field",
+        city: "Seattle, WA",
+        date: "2026-09-10",
+        time: "01:20",
+        competition: "NFL Regular Season · Primetime",
+        status: "Upcoming · 10 Sept 01:20 (WAT)",
+        location: "Lumen Field, Seattle",
+        venue: "Lumen Field, Seattle",
+        timezone: "All times are in West Africa Time",
+        winProbability: {
+          home: "58.0%",
+          away: "42.0%",
+          homeTeam: "Seahawks",
+          awayTeam: "Patriots"
+        },
+        cheapestPrice: 600,
+        vipPrice: 1800,
+        seasonPassPrice: 4200,
+        url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
+        image: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800",
+        isResale: false
+      },
+      {
         id: "tm-sea-sf-wk1",
         name: "Seattle Seahawks vs San Francisco 49ers",
         homeTeam: "Seahawks",

@@ -817,7 +817,19 @@ const WalletModal = ({
 
 // --- Arena Shop View ---
 const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCardForm, setShowInquiryStatus, activeTicket }: any) => {
-  const [shopView, setShopView] = useState<"jerseys" | "passes" | "tickets" | "cards">("jerseys");
+  const [shopView, setShopView] = useState<"jerseys" | "passes" | "tickets" | "cards">(() => {
+    const saved = localStorage.getItem("shop_view");
+    if (saved && ["jerseys", "passes", "tickets", "cards"].includes(saved)) {
+      return saved as any;
+    }
+    return "jerseys";
+  });
+
+  useEffect(() => {
+    if (shopView) {
+      localStorage.setItem("shop_view", shopView);
+    }
+  }, [shopView]);
 
   // Merchandise Shop Filter States
   const [selectedShopTeam, setSelectedShopTeam] = useState<string>(selectedTeam?.id || "MIN");
@@ -1279,6 +1291,33 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               seasonPassPrice: 8000,
               url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
               image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+              isResale: false
+            },
+            {
+              id: "tm-sea-ne-sep10",
+              name: "Seattle Seahawks vs New England Patriots",
+              homeTeam: "Seahawks",
+              awayTeam: "Patriots",
+              stadium: "Lumen Field",
+              city: "Seattle, WA",
+              date: "2026-09-10",
+              time: "01:20",
+              competition: "NFL Regular Season · Primetime",
+              status: "Upcoming · 10 Sept 01:20 (WAT)",
+              location: "Lumen Field, Seattle",
+              venue: "Lumen Field, Seattle",
+              timezone: "All times are in West Africa Time",
+              winProbability: {
+                home: "58.0%",
+                away: "42.0%",
+                homeTeam: "Seahawks",
+                awayTeam: "Patriots"
+              },
+              cheapestPrice: 600,
+              vipPrice: 1800,
+              seasonPassPrice: 4200,
+              url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
+              image: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800",
               isResale: false
             },
             {
@@ -2165,7 +2204,19 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [orders, setOrders] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences" | "giveaways">("inquiries");
+  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences" | "giveaways">(() => {
+    const saved = localStorage.getItem("admin_subtab");
+    if (saved && ["inquiries", "orders", "users", "transactions", "experiences", "giveaways"].includes(saved)) {
+      return saved as any;
+    }
+    return "inquiries";
+  });
+
+  useEffect(() => {
+    if (activeSubTab) {
+      localStorage.setItem("admin_subtab", activeSubTab);
+    }
+  }, [activeSubTab]);
   const [searchTerm, setSearchTerm] = useState("");
   const [replyText, setReplyText] = useState("");
   const [selectedInquiry, setSelectedInquiry] = useState<any | null>(null);
@@ -3071,7 +3122,21 @@ export default function App() {
   const [portfolio, setPortfolio] = useState<any[]>([]);
   const [marketPrices, setMarketPrices] = useState<Record<string, number>>({});
   const [historicalData, setHistoricalData] = useState<Record<string, any[]>>({});
-  const [selectedTeam, setSelectedTeam] = useState<Team>(NFL_TEAMS.find(t => t.id === "MIN") || NFL_TEAMS[0]);
+  const [selectedTeam, setSelectedTeam] = useState<Team>(() => {
+    const saved = localStorage.getItem("selected_team_id");
+    if (saved) {
+      const found = NFL_TEAMS.find(t => t.id === saved);
+      if (found) return found;
+    }
+    return NFL_TEAMS.find(t => t.id === "MIN") || NFL_TEAMS[0];
+  });
+
+  useEffect(() => {
+    if (selectedTeam?.id) {
+      localStorage.setItem("selected_team_id", selectedTeam.id);
+    }
+  }, [selectedTeam]);
+
   const [showLogin, setShowLogin] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
@@ -3090,7 +3155,19 @@ export default function App() {
   };
   const [activeTicket, setActiveTicket] = useState<string | null>(localStorage.getItem("active_ticket_id"));
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "giveaways" | "stocks">("experiences");
+  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "giveaways" | "stocks">(() => {
+    const saved = localStorage.getItem("active_tab");
+    if (saved && ["markets", "draft", "portfolio", "shop", "admin", "experiences", "giveaways", "stocks"].includes(saved)) {
+      return saved as any;
+    }
+    return "experiences";
+  });
+
+  useEffect(() => {
+    if (activeTab) {
+      localStorage.setItem("active_tab", activeTab);
+    }
+  }, [activeTab]);
   const [dismissedHero, setDismissedHero] = useState(false);
   const [deepLinkExp, setDeepLinkExp] = useState<any | null>(null);
   const [userBookings, setUserBookings] = useState<any[]>([]);

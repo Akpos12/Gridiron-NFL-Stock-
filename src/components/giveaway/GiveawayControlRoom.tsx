@@ -37,7 +37,19 @@ import { cn, formatCurrency } from "../../lib/utils";
 import { ExperienceAdmin } from "../ExperienceAdmin";
 
 export const GiveawayControlRoom: React.FC = () => {
-  const [subTab, setSubTab] = useState<"giveaways" | "create_giveaway" | "players" | "bookings" | "experiences" | "entries" | "winners" | "team_config">("giveaways");
+  const [subTab, setSubTab] = useState<"giveaways" | "create_giveaway" | "players" | "bookings" | "experiences" | "entries" | "winners" | "team_config">(() => {
+    const saved = localStorage.getItem("giveaway_admin_subtab");
+    if (saved && ["giveaways", "create_giveaway", "players", "bookings", "experiences", "entries", "winners", "team_config"].includes(saved)) {
+      return saved as any;
+    }
+    return "giveaways";
+  });
+
+  useEffect(() => {
+    if (subTab) {
+      localStorage.setItem("giveaway_admin_subtab", subTab);
+    }
+  }, [subTab]);
 
   // State data from Firestore
   const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
@@ -300,6 +312,42 @@ export const GiveawayControlRoom: React.FC = () => {
       await deleteDoc(doc(db, "bookings", bookingId));
     } catch (err: any) {
       console.error(err);
+    }
+  };
+
+  const handleDeleteFan = async (fanId: string, fanName: string) => {
+    if (!window.confirm(`Are you sure you want to permanently delete registered fan entry for "${fanName}"?`)) return;
+    try {
+      await deleteDoc(doc(db, "registered_fans", fanId));
+      try {
+        await deleteDoc(doc(db, "fans", fanId));
+      } catch {}
+      alert(`Fan entry for "${fanName}" has been deleted.`);
+    } catch (err: any) {
+      console.error("Error deleting fan:", err);
+      alert("Error deleting fan entry: " + err.message);
+    }
+  };
+
+  const handleDeleteEntry = async (entryId: string, fanCode: string, userName: string) => {
+    if (!window.confirm(`Permanently remove campaign entry for ${userName} (${fanCode})?`)) return;
+    try {
+      await deleteDoc(doc(db, "giveaway_entries", entryId));
+      alert(`Campaign entry for ${userName} (${fanCode}) has been removed.`);
+    } catch (err: any) {
+      console.error("Error deleting entry:", err);
+      alert("Error deleting entry: " + err.message);
+    }
+  };
+
+  const handleDeleteWinner = async (winnerId: string, winnerName: string) => {
+    if (!window.confirm(`Permanently remove winner record for ${winnerName}?`)) return;
+    try {
+      await deleteDoc(doc(db, "giveaway_winners", winnerId));
+      alert(`Winner record for ${winnerName} removed.`);
+    } catch (err: any) {
+      console.error("Error deleting winner:", err);
+      alert("Error deleting winner record: " + err.message);
     }
   };
 
@@ -1289,25 +1337,34 @@ export const GiveawayControlRoom: React.FC = () => {
                           )}
                         </td>
                         <td className="p-3 text-right">
-                          <button
-                            onClick={() => handleOpenCareModal({
-                              id: f.id,
-                              fullName: f.fullName,
-                              email: f.email,
-                              fanCode: f.fanCode,
-                              city: f.city,
-                              favoriteTeam: f.favoriteTeam,
-                              userId: f.userId,
-                              isWinner: f.isWinner,
-                              winningPrize: f.winningPrize,
-                              winningMessage: f.winningMessage,
-                              claimCode: f.claimCode
-                            })}
-                            className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-md inline-flex items-center gap-1"
-                          >
-                            <Award className="w-3 h-3" />
-                            {f.isWinner ? "Update Winner Notice" : "🏆 Tell Them They Won"}
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleOpenCareModal({
+                                id: f.id,
+                                fullName: f.fullName,
+                                email: f.email,
+                                fanCode: f.fanCode,
+                                city: f.city,
+                                favoriteTeam: f.favoriteTeam,
+                                userId: f.userId,
+                                isWinner: f.isWinner,
+                                winningPrize: f.winningPrize,
+                                winningMessage: f.winningMessage,
+                                claimCode: f.claimCode
+                              })}
+                              className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-md inline-flex items-center gap-1"
+                            >
+                              <Award className="w-3 h-3" />
+                              {f.isWinner ? "Update Winner Notice" : "🏆 Tell Them They Won"}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFan(f.id, f.fullName)}
+                              className="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white rounded-xl transition-all border border-rose-500/20"
+                              title="Delete Fan Entry"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1364,26 +1421,35 @@ export const GiveawayControlRoom: React.FC = () => {
                           </span>
                         </td>
                         <td className="p-3 text-right">
-                          <button
-                            onClick={() => handleOpenCareModal({
-                              id: registeredFans.find(f => f.fanCode === e.fanCode)?.id || `fan-${e.fanCode}`,
-                              fullName: e.userName,
-                              email: e.userEmail,
-                              fanCode: e.fanCode,
-                              city: e.city || "Minneapolis, MN",
-                              favoriteTeam: e.teamId,
-                              giveawayId: e.giveawayId,
-                              giveawayTitle: e.giveawayTitle,
-                              userId: e.userId,
-                              entryId: e.id,
-                              isWinner: e.status === "WINNER",
-                              claimCode: e.claimCode
-                            })}
-                            className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-md inline-flex items-center gap-1"
-                          >
-                            <Award className="w-3 h-3" />
-                            {e.status === "WINNER" ? "Manage Winner Notice" : "🏆 Tell Them They Won"}
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleOpenCareModal({
+                                id: registeredFans.find(f => f.fanCode === e.fanCode)?.id || `fan-${e.fanCode}`,
+                                fullName: e.userName,
+                                email: e.userEmail,
+                                fanCode: e.fanCode,
+                                city: e.city || "Minneapolis, MN",
+                                favoriteTeam: e.teamId,
+                                giveawayId: e.giveawayId,
+                                giveawayTitle: e.giveawayTitle,
+                                userId: e.userId,
+                                entryId: e.id,
+                                isWinner: e.status === "WINNER",
+                                claimCode: e.claimCode
+                              })}
+                              className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-md inline-flex items-center gap-1"
+                            >
+                              <Award className="w-3 h-3" />
+                              {e.status === "WINNER" ? "Manage Winner Notice" : "🏆 Tell Them They Won"}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteEntry(e.id, e.fanCode, e.userName)}
+                              className="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white rounded-xl transition-all border border-rose-500/20"
+                              title="Delete Giveaway Entry"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1484,9 +1550,18 @@ export const GiveawayControlRoom: React.FC = () => {
                     )}
                   </div>
 
-                  <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-[8px] font-black uppercase">
-                    {w.status}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-[8px] font-black uppercase">
+                      {w.status}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteWinner(w.id, w.winnerName)}
+                      className="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white rounded-xl transition-all border border-rose-500/20"
+                      title="Delete Winner Record"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
