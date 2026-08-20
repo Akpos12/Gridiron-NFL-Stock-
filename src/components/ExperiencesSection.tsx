@@ -236,7 +236,20 @@ const SEED_EXPERIENCES: Experience[] = [
     teamId: "SEA",
     imageUrl: "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg",
     location: "Virginia Mason Athletic Center (VMAC), Renton, WA",
-    dates: ["2026-08-20", "2026-08-22", "2026-08-25", "2026-08-29", "2026-09-02", "2026-09-05", "2026-09-09", "2026-09-16", "2026-09-23"],
+    dates: [
+      "2026-08-18",
+      "2026-08-19",
+      "2026-08-20",
+      "2026-08-22",
+      "2026-08-25",
+      "2026-08-29",
+      "2026-09-02",
+      "2026-09-05",
+      "2026-09-09",
+      "2026-09-16",
+      "2026-09-18",
+      "2026-09-23"
+    ],
     timeSlots: ["09:30 AM", "01:30 PM", "05:00 PM"],
     features: [
       "Fieldside spectator seating for official Seahawks practice drills",
@@ -299,6 +312,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const formatFriendlyDate = (dateStr: string) => {
     if (!dateStr) return "Select Date";
     try {
+      if (dateStr === "2026-08-18") return "Today (Tue, Aug 18, 2026)";
+      if (dateStr === "2026-08-19") return "Tomorrow (Wed, Aug 19, 2026)";
       const [year, month, day] = dateStr.split("-").map(Number);
       if (year && month && day) {
         const d = new Date(year, month - 1, day);
@@ -355,7 +370,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           } else if (item.id === "exp-sea-training") {
             item.imageUrl = "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg";
             item.price = (typeof item.price === "number" && !isNaN(item.price)) ? item.price : 250;
-            if (seedMatch) item.dates = seedMatch.dates;
+            if (seedMatch) {
+              item.dates = seedMatch.dates;
+              // If Firestore document doesn't include the complete scheduled dates, update it
+              const currentDocDates = d.data().dates || [];
+              if (JSON.stringify(currentDocDates) !== JSON.stringify(seedMatch.dates)) {
+                setDoc(doc(db, "experiences", item.id), { dates: seedMatch.dates }, { merge: true }).catch(console.error);
+              }
+            }
           }
           loaded.push(item);
         });
