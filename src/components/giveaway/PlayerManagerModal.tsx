@@ -370,7 +370,6 @@ export const PlayerManagerModal: React.FC<PlayerManagerModalProps> = ({
   };
 
   const handleDeletePlayer = async (p: Player) => {
-    if (!window.confirm(`Are you sure you want to remove ${p.name} from featured players?`)) return;
     try {
       await deleteDoc(doc(db, "players", p.id));
       // Also delete corresponding giveaway if present
@@ -387,7 +386,6 @@ export const PlayerManagerModal: React.FC<PlayerManagerModalProps> = ({
   };
 
   const handleSeedAllPresets = async () => {
-    if (!window.confirm("Add the full roster of 12+ top NFL Star Players with active Giveaway campaigns?")) return;
     setIsSeeding(true);
     setStatusMsg(null);
 

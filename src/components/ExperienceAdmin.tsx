@@ -186,10 +186,8 @@ export const ExperienceAdmin: React.FC = () => {
   };
 
   const handleDeleteExperience = async (expId: string) => {
-    if (!window.confirm("Permanently remove this Experience? This will de-authorize new purchases.")) return;
     try {
       await deleteDoc(doc(db, "experiences", expId));
-      alert("Experience removed.");
     } catch (err: any) {
       console.error(err);
     }

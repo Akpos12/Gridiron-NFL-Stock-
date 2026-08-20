@@ -60,6 +60,49 @@ export const GiveawayControlRoom: React.FC = () => {
   const [teamsConfig, setTeamsConfig] = useState<Record<string, TeamConfig>>({});
   const [bookings, setBookings] = useState<any[]>([]);
 
+  // Giveaway Entries deletion & filtering state
+  const [entryFilterGiveawayId, setEntryFilterGiveawayId] = useState<string>("");
+  const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
+  const [isDeletingBatch, setIsDeletingBatch] = useState<boolean>(false);
+  const [viewEntriesForGiveaway, setViewEntriesForGiveaway] = useState<Giveaway | null>(null);
+
+  // In-app Toast & Confirm Modal states (Reliable across iFrame environments)
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    isDestructive?: boolean;
+    onConfirm: () => Promise<void> | void;
+  } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
+    setToast({ message, type });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const requestConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => Promise<void> | void,
+    confirmLabel = "Delete",
+    isDestructive = true
+  ) => {
+    setConfirmModal({
+      title,
+      message,
+      confirmLabel,
+      isDestructive,
+      onConfirm
+    });
+  };
+
   // Giveaway creation/editing form
   const [editingGiveawayId, setEditingGiveawayId] = useState<string | null>(null);
   const [gwTitle, setGwTitle] = useState("");
@@ -299,56 +342,172 @@ export const GiveawayControlRoom: React.FC = () => {
           status: newStatus === "approved" ? "confirmed" : "pending_approval"
         });
       } catch {}
-      alert(`Booking ${bookingId} has been updated to ${newStatus.toUpperCase()}!`);
+      showToast(`Booking status updated to ${newStatus.toUpperCase()}`, "success");
     } catch (err: any) {
       console.error("Error updating booking status:", err);
-      alert("Error updating booking status: " + err.message);
+      showToast("Error updating booking: " + err.message, "error");
     }
   };
 
   const handleDeleteBooking = async (bookingId: string) => {
-    if (!confirm("Are you sure you want to delete this booking record?")) return;
-    try {
-      await deleteDoc(doc(db, "bookings", bookingId));
-    } catch (err: any) {
-      console.error(err);
-    }
+    requestConfirm(
+      "Delete Booking Record",
+      "Are you sure you want to delete this booking record?",
+      async () => {
+        try {
+          setBookings(prev => prev.filter(b => b.id !== bookingId));
+          await deleteDoc(doc(db, "bookings", bookingId));
+          showToast("Booking record removed", "success");
+        } catch (err: any) {
+          console.error(err);
+          showToast("Failed to delete booking: " + err.message, "error");
+        }
+      }
+    );
   };
 
   const handleDeleteFan = async (fanId: string, fanName: string) => {
-    if (!window.confirm(`Are you sure you want to permanently delete registered fan entry for "${fanName}"?`)) return;
-    try {
-      await deleteDoc(doc(db, "registered_fans", fanId));
-      try {
-        await deleteDoc(doc(db, "fans", fanId));
-      } catch {}
-      alert(`Fan entry for "${fanName}" has been deleted.`);
-    } catch (err: any) {
-      console.error("Error deleting fan:", err);
-      alert("Error deleting fan entry: " + err.message);
-    }
+    requestConfirm(
+      "Delete Fan Profile",
+      `Are you sure you want to permanently delete registered fan entry for "${fanName}"?`,
+      async () => {
+        try {
+          // Optimistic local state removal
+          setRegisteredFans(prev => prev.filter(f => f.id !== fanId));
+          await deleteDoc(doc(db, "registered_fans", fanId));
+          try {
+            await deleteDoc(doc(db, "fans", fanId));
+          } catch {}
+          showToast(`Fan profile for "${fanName}" has been deleted.`, "success");
+        } catch (err: any) {
+          console.error("Error deleting fan:", err);
+          showToast("Error deleting fan entry: " + err.message, "error");
+        }
+      }
+    );
   };
 
   const handleDeleteEntry = async (entryId: string, fanCode: string, userName: string) => {
-    if (!window.confirm(`Permanently remove campaign entry for ${userName} (${fanCode})?`)) return;
-    try {
-      await deleteDoc(doc(db, "giveaway_entries", entryId));
-      alert(`Campaign entry for ${userName} (${fanCode}) has been removed.`);
-    } catch (err: any) {
-      console.error("Error deleting entry:", err);
-      alert("Error deleting entry: " + err.message);
+    requestConfirm(
+      "Delete Campaign Entry",
+      `Are you sure you want to permanently remove campaign entry for ${userName} (${fanCode})?`,
+      async () => {
+        try {
+          // Optimistic state removal
+          setEntries(prev => prev.filter(e => e.id !== entryId));
+          setSelectedEntryIds(prev => prev.filter(id => id !== entryId));
+          
+          await deleteDoc(doc(db, "giveaway_entries", entryId));
+          showToast(`Campaign entry for ${userName} (${fanCode}) removed.`, "success");
+        } catch (err: any) {
+          console.error("Error deleting entry:", err);
+          showToast("Error deleting entry: " + err.message, "error");
+        }
+      }
+    );
+  };
+
+  const handleBulkDeleteEntries = async () => {
+    if (selectedEntryIds.length === 0) return;
+    const targetIds = [...selectedEntryIds];
+    
+    requestConfirm(
+      "Delete Selected Entries",
+      `Are you sure you want to permanently delete ${targetIds.length} selected giveaway entries? This action is irreversible.`,
+      async () => {
+        setIsDeletingBatch(true);
+        try {
+          // Optimistic state removal
+          const idSet = new Set(targetIds);
+          setEntries(prev => prev.filter(e => !idSet.has(e.id)));
+          setSelectedEntryIds([]);
+
+          let count = 0;
+          for (const id of targetIds) {
+            await deleteDoc(doc(db, "giveaway_entries", id));
+            count++;
+          }
+          showToast(`Successfully deleted ${count} giveaway entries.`, "success");
+        } catch (err: any) {
+          console.error("Error in bulk deleting entries:", err);
+          showToast("Error in bulk deleting entries: " + err.message, "error");
+        } finally {
+          setIsDeletingBatch(false);
+        }
+      }
+    );
+  };
+
+  const handleDeleteAllEntriesForGiveaway = async (giveawayId?: string, giveawayTitle?: string) => {
+    const targetEntries = giveawayId
+      ? entries.filter(e => e.giveawayId === giveawayId)
+      : (entryFilterGiveawayId ? entries.filter(e => e.giveawayId === entryFilterGiveawayId) : entries);
+
+    if (targetEntries.length === 0) {
+      showToast("No entries found to delete.", "info");
+      return;
+    }
+
+    const titleStr = giveawayTitle || (giveawayId ? giveaways.find(g => g.id === giveawayId)?.title : (entryFilterGiveawayId ? giveaways.find(g => g.id === entryFilterGiveawayId)?.title : "all campaigns"));
+    const confirmMsg = `Are you sure you want to permanently delete ALL ${targetEntries.length} entries for "${titleStr}"? This action is irreversible.`;
+
+    requestConfirm(
+      "Delete All Entries",
+      confirmMsg,
+      async () => {
+        setIsDeletingBatch(true);
+        try {
+          const deletedIds = new Set(targetEntries.map(e => e.id));
+          // Optimistic state update
+          setEntries(prev => prev.filter(e => !deletedIds.has(e.id)));
+          setSelectedEntryIds(prev => prev.filter(id => !deletedIds.has(id)));
+
+          let count = 0;
+          for (const entry of targetEntries) {
+            await deleteDoc(doc(db, "giveaway_entries", entry.id));
+            count++;
+          }
+          showToast(`Successfully removed ${count} entries.`, "success");
+        } catch (err: any) {
+          console.error("Error deleting entries:", err);
+          showToast("Error deleting entries: " + err.message, "error");
+        } finally {
+          setIsDeletingBatch(false);
+        }
+      }
+    );
+  };
+
+  const handleToggleSelectEntry = (entryId: string) => {
+    setSelectedEntryIds(prev => 
+      prev.includes(entryId) ? prev.filter(id => id !== entryId) : [...prev, entryId]
+    );
+  };
+
+  const handleSelectAllVisibleEntries = (visibleEntryIds: string[]) => {
+    const allSelected = visibleEntryIds.length > 0 && visibleEntryIds.every(id => selectedEntryIds.includes(id));
+    if (allSelected) {
+      setSelectedEntryIds(prev => prev.filter(id => !visibleEntryIds.includes(id)));
+    } else {
+      setSelectedEntryIds(prev => Array.from(new Set([...prev, ...visibleEntryIds])));
     }
   };
 
   const handleDeleteWinner = async (winnerId: string, winnerName: string) => {
-    if (!window.confirm(`Permanently remove winner record for ${winnerName}?`)) return;
-    try {
-      await deleteDoc(doc(db, "giveaway_winners", winnerId));
-      alert(`Winner record for ${winnerName} removed.`);
-    } catch (err: any) {
-      console.error("Error deleting winner:", err);
-      alert("Error deleting winner record: " + err.message);
-    }
+    requestConfirm(
+      "Delete Winner Record",
+      `Are you sure you want to permanently remove winner record for ${winnerName}?`,
+      async () => {
+        try {
+          setWinners(prev => prev.filter(w => w.id !== winnerId));
+          await deleteDoc(doc(db, "giveaway_winners", winnerId));
+          showToast(`Winner record for ${winnerName} removed.`, "success");
+        } catch (err: any) {
+          console.error("Error deleting winner:", err);
+          showToast("Error deleting winner record: " + err.message, "error");
+        }
+      }
+    );
   };
 
   // Unified players list merging Firestore records with all NFL Star presets
@@ -502,12 +661,12 @@ export const GiveawayControlRoom: React.FC = () => {
       };
 
       await setDoc(doc(db, "giveaways", gwId), payload);
-      alert(editingGiveawayId ? "Giveaway campaign updated!" : "New Giveaway campaign published!");
+      showToast(editingGiveawayId ? "Giveaway campaign updated!" : "New Giveaway campaign published!", "success");
       resetGiveawayForm();
       setSubTab("giveaways");
     } catch (err: any) {
       console.error(err);
-      alert("Error saving giveaway: " + err.message);
+      showToast("Error saving giveaway: " + err.message, "error");
     }
   };
 
@@ -540,12 +699,20 @@ export const GiveawayControlRoom: React.FC = () => {
   };
 
   const handleDeleteGiveaway = async (id: string) => {
-    if (!window.confirm("Permanently remove this giveaway campaign?")) return;
-    try {
-      await deleteDoc(doc(db, "giveaways", id));
-    } catch (err) {
-      console.error(err);
-    }
+    requestConfirm(
+      "Delete Giveaway Campaign",
+      "Are you sure you want to permanently remove this giveaway campaign?",
+      async () => {
+        try {
+          setGiveaways(prev => prev.filter(g => g.id !== id));
+          await deleteDoc(doc(db, "giveaways", id));
+          showToast("Giveaway campaign removed.", "success");
+        } catch (err: any) {
+          console.error(err);
+          showToast("Failed to delete giveaway: " + err.message, "error");
+        }
+      }
+    );
   };
 
   // Player CRUD
@@ -578,11 +745,11 @@ export const GiveawayControlRoom: React.FC = () => {
       };
 
       await setDoc(doc(db, "players", pId), payload);
-      alert(editingPlayerId ? "Player record updated." : "New Player added to roster!");
+      showToast(editingPlayerId ? "Player record updated." : "New Player added to roster!", "success");
       resetPlayerForm();
     } catch (err: any) {
       console.error(err);
-      alert("Error saving player: " + err.message);
+      showToast("Error saving player: " + err.message, "error");
     }
   };
 
@@ -597,12 +764,20 @@ export const GiveawayControlRoom: React.FC = () => {
   };
 
   const handleDeletePlayer = async (id: string) => {
-    if (!window.confirm("Remove this player record from system?")) return;
-    try {
-      await deleteDoc(doc(db, "players", id));
-    } catch (err) {
-      console.error(err);
-    }
+    requestConfirm(
+      "Remove Player Record",
+      "Are you sure you want to remove this player record from system?",
+      async () => {
+        try {
+          setPlayers(prev => prev.filter(p => p.id !== id));
+          await deleteDoc(doc(db, "players", id));
+          showToast("Player record removed.", "success");
+        } catch (err: any) {
+          console.error(err);
+          showToast("Failed to delete player: " + err.message, "error");
+        }
+      }
+    );
   };
 
   // Winner selection execution
@@ -745,6 +920,14 @@ export const GiveawayControlRoom: React.FC = () => {
 
                 <div className="flex items-center gap-2 pt-3 border-t border-white/5">
                   <button
+                    onClick={() => setViewEntriesForGiveaway(g)}
+                    className="py-2 px-3 bg-red-600/20 hover:bg-red-600 border border-red-500/30 text-red-300 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1 cursor-pointer transition-all"
+                    title="View & Delete Fan Entries for this Giveaway"
+                  >
+                    <Gift className="w-3 h-3" />
+                    Entries ({entries.filter(e => e.giveawayId === g.id).length})
+                  </button>
+                  <button
                     onClick={() => handleStartEditGiveaway(g)}
                     className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1 cursor-pointer"
                   >
@@ -754,6 +937,7 @@ export const GiveawayControlRoom: React.FC = () => {
                   <button
                     onClick={() => handleDeleteGiveaway(g.id)}
                     className="p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl transition-all cursor-pointer"
+                    title="Delete Giveaway"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -1166,55 +1350,62 @@ export const GiveawayControlRoom: React.FC = () => {
               </h4>
               <button
                 type="button"
-                onClick={async () => {
-                  if (!window.confirm("Seed/restore full roster of 12+ NFL Star Players and Active Giveaways?")) return;
-                  try {
-                    for (const star of PRESET_NFL_STARS) {
-                      const playerId = `player-${star.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
-                      await setDoc(doc(db, "players", playerId), {
-                        id: playerId,
-                        name: star.name,
-                        teamId: star.teamId,
-                        position: star.position,
-                        jerseyNumber: star.jerseyNumber,
-                        description: star.description,
-                        photoUrl: star.photoUrl,
-                        updatedAt: Date.now(),
-                        createdAt: Date.now()
-                      });
+                onClick={() => {
+                  requestConfirm(
+                    "Seed Full Stars Roster",
+                    "Add/restore full roster of 12+ top NFL Star Players and active giveaway campaigns?",
+                    async () => {
+                      try {
+                        for (const star of PRESET_NFL_STARS) {
+                          const playerId = `player-${star.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
+                          await setDoc(doc(db, "players", playerId), {
+                            id: playerId,
+                            name: star.name,
+                            teamId: star.teamId,
+                            position: star.position,
+                            jerseyNumber: star.jerseyNumber,
+                            description: star.description,
+                            photoUrl: star.photoUrl,
+                            updatedAt: Date.now(),
+                            createdAt: Date.now()
+                          });
 
-                      const gwId = `gw-${playerId}`;
-                      await setDoc(doc(db, "giveaways", gwId), {
-                        id: gwId,
-                        title: `Official ${star.name} Fan Giveaway`,
-                        description: `Win authentic memorabilia signed by ${star.name}. Open to all registered fan club members!`,
-                        playerId: playerId,
-                        playerName: star.name,
-                        teamId: star.teamId,
-                        heroImageUrl: star.heroImageUrl,
-                        startDate: new Date().toISOString().split("T")[0],
-                        endDate: "2026-12-31",
-                        eligibility: "Open to all registered fans aged 18+",
-                        entryRequirements: "Must hold a valid registered Fan Code.",
-                        numWinners: 1,
-                        rules: "Official giveaway rules apply. Winner selected fairly.",
-                        status: "ACTIVE",
-                        entriesCount: 15,
-                        prizes: [{
-                          id: `p-${Date.now()}`,
-                          name: star.defaultPrizeName,
-                          description: star.defaultPrizeDesc,
-                          quantity: 1,
-                          imageUrl: star.photoUrl
-                        }],
-                        updatedAt: Date.now(),
-                        createdAt: Date.now()
-                      });
-                    }
-                    alert("Successfully populated all 12+ NFL Stars Roster & Giveaways!");
-                  } catch (err: any) {
-                    alert("Error: " + err.message);
-                  }
+                          const gwId = `gw-${playerId}`;
+                          await setDoc(doc(db, "giveaways", gwId), {
+                            id: gwId,
+                            title: `Official ${star.name} Fan Giveaway`,
+                            description: `Win authentic memorabilia signed by ${star.name}. Open to all registered fan club members!`,
+                            playerId: playerId,
+                            playerName: star.name,
+                            teamId: star.teamId,
+                            heroImageUrl: star.heroImageUrl,
+                            startDate: new Date().toISOString().split("T")[0],
+                            endDate: "2026-12-31",
+                            eligibility: "Open to all registered fans aged 18+",
+                            entryRequirements: "Must hold a valid registered Fan Code.",
+                            numWinners: 1,
+                            rules: "Official giveaway rules apply. Winner selected fairly.",
+                            status: "ACTIVE",
+                            entriesCount: 15,
+                            prizes: [{
+                              id: `p-${Date.now()}`,
+                              name: star.defaultPrizeName,
+                              description: star.defaultPrizeDesc,
+                              quantity: 1,
+                              imageUrl: star.photoUrl
+                            }],
+                            updatedAt: Date.now(),
+                            createdAt: Date.now()
+                          });
+                        }
+                        showToast("Successfully populated all 12+ NFL Stars Roster & Giveaways!", "success");
+                      } catch (err: any) {
+                        showToast("Error: " + err.message, "error");
+                      }
+                    },
+                    "Seed Roster",
+                    false
+                  );
                 }}
                 className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer shadow-sm"
               >
@@ -1280,13 +1471,13 @@ export const GiveawayControlRoom: React.FC = () => {
 
           {/* Registered Fans List */}
           <div className="bg-zinc-900/60 border border-white/10 rounded-[2rem] p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-3">
               <h4 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
                 <Users className="w-4 h-4 text-blue-400" />
                 REGISTERED FANS DIRECTORY ({registeredFans.length})
               </h4>
               <span className="text-[9px] text-zinc-400 font-bold uppercase">
-                Click "Tell Them They Won" to issue winner notification
+                Click "Tell Them They Won" to issue winner notification or "Delete Fan" to remove record
               </span>
             </div>
 
@@ -1300,7 +1491,7 @@ export const GiveawayControlRoom: React.FC = () => {
                     <th className="p-3">City</th>
                     <th className="p-3">Team</th>
                     <th className="p-3">Winner Status</th>
-                    <th className="p-3 text-right">Customer Care Action</th>
+                    <th className="p-3 text-right">Customer Care & Delete Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-xs">
@@ -1359,10 +1550,11 @@ export const GiveawayControlRoom: React.FC = () => {
                             </button>
                             <button
                               onClick={() => handleDeleteFan(f.id, f.fullName)}
-                              className="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white rounded-xl transition-all border border-rose-500/20"
-                              title="Delete Fan Entry"
+                              className="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white rounded-xl transition-all border border-rose-500/20 text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1 cursor-pointer"
+                              title="Delete Fan Profile"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
+                              Delete Fan
                             </button>
                           </div>
                         </td>
@@ -1373,90 +1565,182 @@ export const GiveawayControlRoom: React.FC = () => {
             </div>
           </div>
 
-          {/* Giveaway Entries Log */}
-          <div className="bg-zinc-900/60 border border-white/10 rounded-[2rem] p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <h4 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
-                <Gift className="w-4 h-4 text-red-500" />
-                CAMPAIGN ENTRY RECORDS ({entries.length})
-              </h4>
-            </div>
+          {/* Giveaway Entries Log with Filtering, Bulk Selection & Delete Controls */}
+          {(() => {
+            const visibleEntries = entries
+              .filter(e => {
+                if (entryFilterGiveawayId && e.giveawayId !== entryFilterGiveawayId) return false;
+                if (!searchTerm.trim()) return true;
+                const term = searchTerm.toLowerCase();
+                return (
+                  e.userName.toLowerCase().includes(term) ||
+                  e.userEmail.toLowerCase().includes(term) ||
+                  e.fanCode.toLowerCase().includes(term) ||
+                  e.giveawayTitle.toLowerCase().includes(term)
+                );
+              });
+            const visibleIds = visibleEntries.map(e => e.id);
+            const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedEntryIds.includes(id));
 
-            <div className="overflow-x-auto no-scrollbar">
-              <table className="w-full text-left min-w-[750px]">
-                <thead className="bg-zinc-950 text-[9px] font-black uppercase font-mono text-zinc-500">
-                  <tr>
-                    <th className="p-3">Fan Code</th>
-                    <th className="p-3">User Name</th>
-                    <th className="p-3">Giveaway Title</th>
-                    <th className="p-3">Player</th>
-                    <th className="p-3">Entry Status</th>
-                    <th className="p-3 text-right">Customer Care Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 text-xs">
-                  {entries
-                    .filter(e => {
-                      if (!searchTerm.trim()) return true;
-                      const term = searchTerm.toLowerCase();
-                      return (
-                        e.userName.toLowerCase().includes(term) ||
-                        e.userEmail.toLowerCase().includes(term) ||
-                        e.fanCode.toLowerCase().includes(term) ||
-                        e.giveawayTitle.toLowerCase().includes(term)
-                      );
-                    })
-                    .map(e => (
-                      <tr key={e.id} className="hover:bg-white/[0.02]">
-                        <td className="p-3 font-mono font-black text-cyan-400">{e.fanCode}</td>
-                        <td className="p-3 font-black text-white">{e.userName} ({e.userEmail})</td>
-                        <td className="p-3 text-zinc-300 font-bold">{e.giveawayTitle}</td>
-                        <td className="p-3 text-blue-400 font-black">{e.playerName} ({e.teamId})</td>
-                        <td className="p-3">
-                          <span className={cn(
-                            "px-2.5 py-1 rounded text-[8px] font-black uppercase",
-                            e.status === "WINNER" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-emerald-500/20 text-emerald-400"
-                          )}>
-                            {e.status}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => handleOpenCareModal({
-                                id: registeredFans.find(f => f.fanCode === e.fanCode)?.id || `fan-${e.fanCode}`,
-                                fullName: e.userName,
-                                email: e.userEmail,
-                                fanCode: e.fanCode,
-                                city: e.city || "Minneapolis, MN",
-                                favoriteTeam: e.teamId,
-                                giveawayId: e.giveawayId,
-                                giveawayTitle: e.giveawayTitle,
-                                userId: e.userId,
-                                entryId: e.id,
-                                isWinner: e.status === "WINNER",
-                                claimCode: e.claimCode
-                              })}
-                              className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-md inline-flex items-center gap-1"
-                            >
-                              <Award className="w-3 h-3" />
-                              {e.status === "WINNER" ? "Manage Winner Notice" : "🏆 Tell Them They Won"}
-                            </button>
-                            <button
-                              onClick={() => handleDeleteEntry(e.id, e.fanCode, e.userName)}
-                              className="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white rounded-xl transition-all border border-rose-500/20"
-                              title="Delete Giveaway Entry"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
+            return (
+              <div className="bg-zinc-900/60 border border-white/10 rounded-[2rem] p-6 space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
+                  <div className="flex items-center gap-3">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
+                      <Gift className="w-4 h-4 text-red-500" />
+                      CAMPAIGN ENTRY RECORDS ({visibleEntries.length}{entryFilterGiveawayId ? ` filtered of ${entries.length}` : ""})
+                    </h4>
+                    {selectedEntryIds.length > 0 && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-red-600/30 border border-red-500/40 text-red-300 text-[9px] font-black uppercase">
+                        {selectedEntryIds.length} Selected
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Filter by Giveaway Selector */}
+                    <div className="flex items-center gap-1.5 bg-zinc-950 border border-white/10 px-3 py-1.5 rounded-xl">
+                      <Filter className="w-3.5 h-3.5 text-zinc-400" />
+                      <select
+                        value={entryFilterGiveawayId}
+                        onChange={(e) => setEntryFilterGiveawayId(e.target.value)}
+                        className="bg-transparent text-xs text-zinc-300 font-bold uppercase focus:outline-none max-w-[200px]"
+                      >
+                        <option value="">All Giveaways ({entries.length} entries)</option>
+                        {giveaways.map(g => (
+                          <option key={g.id} value={g.id}>
+                            {g.title} ({entries.filter(e => e.giveawayId === g.id).length})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Bulk Delete Selected Button */}
+                    {selectedEntryIds.length > 0 && (
+                      <button
+                        onClick={handleBulkDeleteEntries}
+                        disabled={isDeletingBatch}
+                        className="px-3.5 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-lg shadow-red-600/30 transition-all disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete Selected ({selectedEntryIds.length})
+                      </button>
+                    )}
+
+                    {/* Delete All in View Button */}
+                    {visibleEntries.length > 0 && (
+                      <button
+                        onClick={() => handleDeleteAllEntriesForGiveaway(entryFilterGiveawayId || undefined)}
+                        disabled={isDeletingBatch}
+                        className="px-3 py-1.5 bg-zinc-950 hover:bg-rose-950/60 text-zinc-400 hover:text-rose-400 border border-white/10 hover:border-rose-500/30 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        {entryFilterGiveawayId ? "Delete All for This Campaign" : "Delete All Entries"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto no-scrollbar">
+                  <table className="w-full text-left min-w-[850px]">
+                    <thead className="bg-zinc-950 text-[9px] font-black uppercase font-mono text-zinc-500">
+                      <tr>
+                        <th className="p-3 w-10 text-center">
+                          <input
+                            type="checkbox"
+                            checked={allVisibleSelected}
+                            onChange={() => handleSelectAllVisibleEntries(visibleIds)}
+                            className="rounded border-zinc-700 bg-zinc-900 text-red-600 focus:ring-0 cursor-pointer"
+                            title="Select all visible entries"
+                          />
+                        </th>
+                        <th className="p-3">Fan Code</th>
+                        <th className="p-3">User Name & Email</th>
+                        <th className="p-3">Giveaway Title</th>
+                        <th className="p-3">Player</th>
+                        <th className="p-3">Entry Status</th>
+                        <th className="p-3 text-right">Customer Care & Delete Action</th>
                       </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 text-xs">
+                      {visibleEntries.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="p-10 text-center text-zinc-600 font-bold uppercase tracking-widest text-xs">
+                            No giveaway entries match current filter.
+                          </td>
+                        </tr>
+                      ) : (
+                        visibleEntries.map(e => {
+                          const isSelected = selectedEntryIds.includes(e.id);
+                          return (
+                            <tr key={e.id} className={cn("hover:bg-white/[0.02] transition-colors", isSelected && "bg-red-600/5")}>
+                              <td className="p-3 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => handleToggleSelectEntry(e.id)}
+                                  className="rounded border-zinc-700 bg-zinc-900 text-red-600 focus:ring-0 cursor-pointer"
+                                />
+                              </td>
+                              <td className="p-3 font-mono font-black text-cyan-400">{e.fanCode}</td>
+                              <td className="p-3 font-black text-white">
+                                <div>{e.userName}</div>
+                                <div className="text-[10px] text-zinc-500 font-mono font-normal">{e.userEmail}</div>
+                              </td>
+                              <td className="p-3 text-zinc-300 font-bold max-w-[200px] truncate" title={e.giveawayTitle}>
+                                {e.giveawayTitle}
+                              </td>
+                              <td className="p-3 text-blue-400 font-black">{e.playerName} ({e.teamId})</td>
+                              <td className="p-3">
+                                <span className={cn(
+                                  "px-2.5 py-1 rounded text-[8px] font-black uppercase",
+                                  e.status === "WINNER" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-emerald-500/20 text-emerald-400"
+                                )}>
+                                  {e.status}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => handleOpenCareModal({
+                                      id: registeredFans.find(f => f.fanCode === e.fanCode)?.id || `fan-${e.fanCode}`,
+                                      fullName: e.userName,
+                                      email: e.userEmail,
+                                      fanCode: e.fanCode,
+                                      city: e.city || "Minneapolis, MN",
+                                      favoriteTeam: e.teamId,
+                                      giveawayId: e.giveawayId,
+                                      giveawayTitle: e.giveawayTitle,
+                                      userId: e.userId,
+                                      entryId: e.id,
+                                      isWinner: e.status === "WINNER",
+                                      claimCode: e.claimCode
+                                    })}
+                                    className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-md inline-flex items-center gap-1"
+                                  >
+                                    <Award className="w-3 h-3" />
+                                    {e.status === "WINNER" ? "Manage Winner" : "🏆 Tell Them They Won"}
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteEntry(e.id, e.fanCode, e.userName)}
+                                    className="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white rounded-xl transition-all border border-rose-500/20 text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1 cursor-pointer"
+                                    title="Permanently Delete Fan Entry"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Delete Entry
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1880,6 +2164,189 @@ export const GiveawayControlRoom: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DEDICATED GIVEAWAY ENTRIES MANAGEMENT MODAL */}
+      {viewEntriesForGiveaway && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-zinc-900 border-2 border-red-500/40 rounded-[2.5rem] max-w-3xl w-full p-6 md:p-8 space-y-6 shadow-2xl relative text-left overflow-y-auto max-h-[90vh]">
+            <button
+              onClick={() => setViewEntriesForGiveaway(null)}
+              className="absolute top-6 right-6 p-2 rounded-full bg-zinc-800 text-zinc-400 hover:text-white cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-2 border-b border-white/10 pb-4">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded-full text-[10px] font-black uppercase tracking-widest">
+                <Gift className="w-3.5 h-3.5" />
+                CAMPAIGN ENTRIES MANAGER
+              </span>
+              <h3 className="text-xl md:text-2xl font-black italic uppercase text-white line-clamp-1">
+                {viewEntriesForGiveaway.title}
+              </h3>
+              <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-400 font-medium">
+                <span>Player: <strong className="text-white">{viewEntriesForGiveaway.playerName} ({viewEntriesForGiveaway.teamId})</strong></span>
+                <span>•</span>
+                <span>Total Registered Entries: <strong className="text-cyan-400 font-mono">{entries.filter(e => e.giveawayId === viewEntriesForGiveaway.id).length}</strong></span>
+              </div>
+            </div>
+
+            {/* Campaign Quick Actions */}
+            <div className="flex items-center justify-between bg-zinc-950 p-4 rounded-2xl border border-white/10">
+              <div className="text-xs text-zinc-400 font-medium">
+                Manage and delete fan entries specifically submitted for this giveaway.
+              </div>
+              {entries.filter(e => e.giveawayId === viewEntriesForGiveaway.id).length > 0 && (
+                <button
+                  onClick={() => handleDeleteAllEntriesForGiveaway(viewEntriesForGiveaway.id, viewEntriesForGiveaway.title)}
+                  disabled={isDeletingBatch}
+                  className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-lg shadow-rose-600/30 transition-all disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete All Entries for this Campaign
+                </button>
+              )}
+            </div>
+
+            {/* Entries List */}
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left min-w-[600px]">
+                <thead className="bg-zinc-950 text-[9px] font-black uppercase font-mono text-zinc-500">
+                  <tr>
+                    <th className="p-3">Fan Code</th>
+                    <th className="p-3">User Name & Email</th>
+                    <th className="p-3">Entry Status</th>
+                    <th className="p-3 text-right">Delete Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-xs">
+                  {(() => {
+                    const campaignEntries = entries.filter(e => e.giveawayId === viewEntriesForGiveaway.id);
+                    if (campaignEntries.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={4} className="p-8 text-center text-zinc-500 font-bold uppercase tracking-widest text-xs">
+                            No fan entries found for this giveaway campaign.
+                          </td>
+                        </tr>
+                      );
+                    }
+                    return campaignEntries.map(e => (
+                      <tr key={e.id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="p-3 font-mono font-black text-cyan-400">{e.fanCode}</td>
+                        <td className="p-3 font-black text-white">
+                          <div>{e.userName}</div>
+                          <div className="text-[10px] text-zinc-500 font-mono font-normal">{e.userEmail}</div>
+                        </td>
+                        <td className="p-3">
+                          <span className={cn(
+                            "px-2.5 py-1 rounded text-[8px] font-black uppercase",
+                            e.status === "WINNER" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-emerald-500/20 text-emerald-400"
+                          )}>
+                            {e.status}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => handleDeleteEntry(e.id, e.fanCode, e.userName)}
+                            className="px-3 py-1.5 bg-rose-500/15 hover:bg-rose-600 text-rose-300 hover:text-white rounded-xl transition-all border border-rose-500/30 text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
+                            title="Delete this entry"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete Entry
+                          </button>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setViewEntriesForGiveaway(null)}
+                className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GLOBAL IN-APP CONFIRMATION MODAL (Bypasses iframe window.confirm blocks) */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-zinc-900 border border-white/15 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl relative text-left">
+            <div className="flex items-start gap-3.5">
+              <div className={cn(
+                "p-3 rounded-2xl shrink-0",
+                confirmModal.isDestructive ? "bg-rose-500/15 text-rose-400 border border-rose-500/30" : "bg-blue-500/15 text-blue-400 border border-blue-500/30"
+              )}>
+                {confirmModal.isDestructive ? <Trash2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-black text-white uppercase tracking-wide">
+                  {confirmModal.title}
+                </h3>
+                <p className="text-xs text-zinc-400 font-medium leading-relaxed">
+                  {confirmModal.message}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const action = confirmModal.onConfirm;
+                  setConfirmModal(null);
+                  if (action) await action();
+                }}
+                className={cn(
+                  "px-5 py-2.5 text-white text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer shadow-lg transition-all",
+                  confirmModal.isDestructive 
+                    ? "bg-rose-600 hover:bg-rose-500 shadow-rose-600/30" 
+                    : "bg-blue-600 hover:bg-blue-500 shadow-blue-600/30"
+                )}
+              >
+                {confirmModal.confirmLabel || "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST NOTIFICATION OVERLAY */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[110] animate-in slide-in-from-bottom-4 duration-200">
+          <div className={cn(
+            "px-4 py-3 rounded-2xl shadow-2xl border text-xs font-black uppercase tracking-wider flex items-center gap-2.5",
+            toast.type === "success" && "bg-zinc-900 border-emerald-500/40 text-emerald-300 shadow-emerald-500/10",
+            toast.type === "error" && "bg-zinc-900 border-rose-500/40 text-rose-300 shadow-rose-500/10",
+            toast.type === "info" && "bg-zinc-900 border-cyan-500/40 text-cyan-300 shadow-cyan-500/10"
+          )}>
+            {toast.type === "success" && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+            {toast.type === "error" && <AlertCircle className="w-4 h-4 text-rose-400" />}
+            {toast.type === "info" && <Sparkles className="w-4 h-4 text-cyan-400" />}
+            <span>{toast.message}</span>
+            <button
+              onClick={() => setToast(null)}
+              className="p-1 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white ml-2 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       )}

@@ -13,9 +13,11 @@ import {
   ChevronUp, 
   Gift, 
   FileText, 
-  Share2 
+  Share2,
+  Trash2,
+  X
 } from "lucide-react";
-import { collection, onSnapshot, doc, setDoc, getDoc, query, where, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc, getDoc, query, where, getDocs, deleteDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { Giveaway, FanProfile, GiveawayEntry } from "../../types/giveaway";
 import { NFL_TEAMS } from "../../constants";
@@ -42,6 +44,15 @@ export const PlayerGiveawayPage: React.FC<PlayerGiveawayPageProps> = ({
   const [showRules, setShowRules] = useState(false);
   const [isEntering, setIsEntering] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (successToast) {
+      const timer = setTimeout(() => setSuccessToast(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [successToast]);
 
   // 1. Fetch Giveaway campaign details
   useEffect(() => {
@@ -139,6 +150,25 @@ export const PlayerGiveawayPage: React.FC<PlayerGiveawayPageProps> = ({
       setError("Failed to process giveaway entry: " + err.message);
     } finally {
       setIsEntering(false);
+    }
+  };
+
+  const handleWithdrawEntry = async () => {
+    if (!entry || !giveaway) return;
+
+    try {
+      const entryId = entry.id;
+      // Optimistically clear local entry state
+      setEntry(null);
+      setShowConfirmDelete(false);
+      
+      await deleteDoc(doc(db, "giveaway_entries", entryId));
+      const currentCount = Math.max(0, (giveaway.entriesCount || 1) - 1);
+      await setDoc(doc(db, "giveaways", giveaway.id), { entriesCount: currentCount }, { merge: true });
+      setSuccessToast("Your entry has been removed from this giveaway.");
+    } catch (err: any) {
+      console.error("Error withdrawing entry:", err);
+      setError("Failed to withdraw entry: " + err.message);
     }
   };
 
@@ -255,9 +285,19 @@ export const PlayerGiveawayPage: React.FC<PlayerGiveawayPageProps> = ({
 
           <div>
             {entry ? (
-              <div className="px-6 py-3 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl text-emerald-400 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5" />
-                <span className="text-xs font-black uppercase tracking-wider">ENTRY CONFIRMED ✓</span>
+              <div className="flex items-center gap-3">
+                <div className="px-6 py-3 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl text-emerald-400 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span className="text-xs font-black uppercase tracking-wider">ENTRY CONFIRMED ✓</span>
+                </div>
+                <button
+                  onClick={() => setShowConfirmDelete(true)}
+                  className="px-4 py-3 bg-zinc-900 hover:bg-rose-950/60 text-zinc-400 hover:text-rose-300 border border-white/10 hover:border-rose-500/30 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all"
+                  title="Withdraw / Delete your giveaway entry"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Entry
+                </button>
               </div>
             ) : fanProfile ? (
               <button
@@ -388,6 +428,60 @@ export const PlayerGiveawayPage: React.FC<PlayerGiveawayPageProps> = ({
           localStorage.setItem("nfg_fan_profile", JSON.stringify(newFan));
         }}
       />
+
+      {/* Delete / Withdraw Confirmation Modal */}
+      {showConfirmDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-zinc-900 border border-white/15 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl relative text-left">
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 bg-rose-500/15 text-rose-400 border border-rose-500/30 rounded-2xl shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-black text-white uppercase tracking-wide">
+                  Withdraw Giveaway Entry
+                </h3>
+                <p className="text-xs text-zinc-400 font-medium leading-relaxed">
+                  Are you sure you want to withdraw and permanently delete your entry for this giveaway campaign?
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setShowConfirmDelete(false)}
+                className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all"
+              >
+                Keep Entry
+              </button>
+              <button
+                type="button"
+                onClick={handleWithdrawEntry}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer shadow-lg shadow-rose-600/30 transition-all"
+              >
+                Delete Entry
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {successToast && (
+        <div className="fixed bottom-6 right-6 z-[110] animate-in slide-in-from-bottom-4 duration-200">
+          <div className="px-4 py-3 rounded-2xl shadow-2xl border bg-zinc-900 border-emerald-500/40 text-emerald-300 shadow-emerald-500/10 text-xs font-black uppercase tracking-wider flex items-center gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>{successToast}</span>
+            <button
+              onClick={() => setSuccessToast(null)}
+              className="p-1 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white ml-2 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

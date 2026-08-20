@@ -99,6 +99,7 @@ import { GiveawayControlRoom } from "./components/giveaway/GiveawayControlRoom";
 import { WinnerTicker } from "./components/giveaway/WinnerTicker";
 import { TicketCheckoutModal, GameTicket } from "./components/TicketCheckoutModal";
 import { CustomerCareWidget } from "./components/CustomerCareWidget";
+import { ReceiptReviewModal, BookingAuditItem } from "./components/common/ReceiptReviewModal";
 import { NFLImage } from "./utils/nflImages";
 
 // --- Constants ---
@@ -2225,7 +2226,10 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [adminLoading, setAdminLoading] = useState(false);
   const [permError, setPermError] = useState<string | null>(null);
 
-  const [confirmDelete, setConfirmDelete] = useState<{ id: string, type: 'inquiry' | 'ledger' | 'user' } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string, type: 'inquiry' | 'ledger' | 'user' | 'order' } | null>(null);
+  const [selectedOrderForReview, setSelectedOrderForReview] = useState<BookingAuditItem | null>(null);
+  const [isOrderReviewOpen, setIsOrderReviewOpen] = useState(false);
+  const [orderActionFeedback, setOrderActionFeedback] = useState<{ text: string, type: 'success' | 'error' | 'info' } | null>(null);
 
   const handleDeleteInquiry = async (id: string) => {
     try {
@@ -2234,12 +2238,106 @@ const AdminPortal = ({ user }: { user: any }) => {
       if (selectedInquiry?.id === id) {
         setSelectedInquiry(null);
       }
+      setRequests(prev => prev.filter(r => r.id !== id));
     } catch (err: any) {
       console.error("Delete Inquiry Error:", err);
       handleFirestoreError(err, OperationType.WRITE, "fan_card_requests");
     } finally {
       setAdminLoading(false);
     }
+  };
+
+  const handleDeleteOrder = async (id: string) => {
+    try {
+      setAdminLoading(true);
+      // Delete across all collections
+      await deleteDoc(doc(db, "store_orders", id)).catch(() => {});
+      await deleteDoc(doc(db, "bookings", id)).catch(() => {});
+      await deleteDoc(doc(db, "ticket_orders", id)).catch(() => {});
+      if (selectedOrderForReview?.id === id) {
+        setSelectedOrderForReview(null);
+        setIsOrderReviewOpen(false);
+      }
+      setOrders(prev => prev.filter(o => o.id !== id));
+      setOrderActionFeedback({ text: `Order #${id.slice(-6)} deleted successfully from database.`, type: 'info' });
+      setTimeout(() => setOrderActionFeedback(null), 3500);
+    } catch (err: any) {
+      console.error("Delete Order Error:", err);
+      alert("Error deleting order: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleApproveOrder = async (orderId: string, customCode?: string) => {
+    try {
+      setAdminLoading(true);
+      const target = orders.find(o => o.id === orderId) || {};
+      const finalCode = customCode || target.ticketCode || target.qrCode || `NFL-PASS-${orderId.slice(-6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      
+      const payload = {
+        status: "approved",
+        isApproved: true,
+        ticketCode: finalCode,
+        qrCode: finalCode,
+        approvedAt: new Date().toISOString(),
+        reviewedBy: user?.email || "Control Room Admin"
+      };
+
+      await setDoc(doc(db, "store_orders", orderId), payload, { merge: true }).catch(() => {});
+      await setDoc(doc(db, "bookings", orderId), payload, { merge: true }).catch(() => {});
+      await setDoc(doc(db, "ticket_orders", orderId), { ...payload, status: "confirmed" }, { merge: true }).catch(() => {});
+
+      // Optimistic local update
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...payload } : o));
+
+      setOrderActionFeedback({
+        text: `Order #${orderId.slice(-6)} Approved! Pass Code Issued: ${finalCode}`,
+        type: 'success'
+      });
+      setTimeout(() => setOrderActionFeedback(null), 4000);
+    } catch (err: any) {
+      console.error("Approve Order Error:", err);
+      setOrderActionFeedback({ text: `Failed to approve order: ${err.message}`, type: 'error' });
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleOpenOrderReview = (item: any) => {
+    setSelectedOrderForReview({
+      id: item.id,
+      userId: item.userId,
+      userEmail: item.userEmail || item.buyerEmail,
+      userName: item.userName || item.senderName || item.buyerName,
+      senderName: item.senderName || item.buyerName || item.userName,
+      buyerName: item.buyerName || item.userName || item.senderName,
+      buyerEmail: item.buyerEmail || item.userEmail,
+      buyerPhone: item.buyerPhone || item.contactMethod,
+      experienceId: item.experienceId || item.gameId,
+      experienceTitle: item.experienceTitle || item.itemName || item.gameName || "NFL Official Experience / Match Pass",
+      itemName: item.itemName || item.experienceTitle || item.gameName,
+      gameName: item.gameName || item.experienceTitle || item.itemName,
+      date: item.date,
+      timeSlot: item.timeSlot || item.time,
+      tier: item.tier || item.itemType || "Standard",
+      guestsCount: item.guestsCount || item.quantity || 1,
+      quantity: item.quantity || item.guestsCount || 1,
+      totalPrice: item.totalPrice || item.price || item.totalAmount || 0,
+      price: item.price || item.totalPrice || item.totalAmount || 0,
+      totalAmount: item.totalAmount || item.totalPrice || item.price || 0,
+      dueToday: item.dueToday,
+      paymentMethod: item.paymentMethod || item.paymentChannel || "Direct Settlement",
+      paymentRef: item.paymentRef || item.paymentReference || "N/A",
+      paymentReference: item.paymentReference || item.paymentRef || "N/A",
+      receiptImage: item.receiptImage || item.receiptImageUrl || "",
+      receiptImageUrl: item.receiptImageUrl || item.receiptImage || "",
+      status: item.status || "pending",
+      qrCode: item.qrCode || item.ticketCode,
+      ticketCode: item.ticketCode || item.qrCode,
+      timestamp: item.timestamp
+    });
+    setIsOrderReviewOpen(true);
   };
 
   const handleEndSession = async (id: string) => {
@@ -2335,13 +2433,48 @@ const AdminPortal = ({ user }: { user: any }) => {
       if (err.message.includes("permission")) setPermError("Permission Denied: Ensure your email is alexwtchmn@gmail.com and rules are deployed.");
     });
 
-    const unsubOrders = onSnapshot(query(collection(db, "store_orders"), orderBy("timestamp", "desc")), (snap) => {
-      const docs: any[] = [];
-      snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
-      setOrders(docs);
+    // Multi-collection order sync: store_orders, ticket_orders, bookings
+    let storeOrdersMap = new Map<string, any>();
+    let ticketOrdersMap = new Map<string, any>();
+    let bookingsMap = new Map<string, any>();
+
+    const updateMergedOrders = () => {
+      const mergedMap = new Map<string, any>();
+      // Order of precedence: bookings / ticket_orders / store_orders
+      storeOrdersMap.forEach((v, k) => mergedMap.set(k, v));
+      ticketOrdersMap.forEach((v, k) => mergedMap.set(k, { ...mergedMap.get(k), ...v }));
+      bookingsMap.forEach((v, k) => mergedMap.set(k, { ...mergedMap.get(k), ...v }));
+      
+      const list = Array.from(mergedMap.values()).sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.timestamp?.toDate?.() || a.timestamp || 0).getTime();
+        const timeB = new Date(b.createdAt || b.timestamp?.toDate?.() || b.timestamp || 0).getTime();
+        return timeB - timeA;
+      });
+      setOrders(list);
+    };
+
+    const unsubStoreOrders = onSnapshot(query(collection(db, "store_orders"), orderBy("timestamp", "desc")), (snap) => {
+      storeOrdersMap.clear();
+      snap.forEach(d => storeOrdersMap.set(d.id, { id: d.id, ...d.data() }));
+      updateMergedOrders();
     }, (err) => {
-      console.error("Orders Listen Error:", err);
-      if (err.message.includes("permission")) setPermError("Permission Denied: Order sync restricted.");
+      console.error("Store Orders Listen Error:", err);
+    });
+
+    const unsubTicketOrders = onSnapshot(collection(db, "ticket_orders"), (snap) => {
+      ticketOrdersMap.clear();
+      snap.forEach(d => ticketOrdersMap.set(d.id, { id: d.id, ...d.data() }));
+      updateMergedOrders();
+    }, (err) => {
+      console.error("Ticket Orders Listen Error:", err);
+    });
+
+    const unsubBookings = onSnapshot(collection(db, "bookings"), (snap) => {
+      bookingsMap.clear();
+      snap.forEach(d => bookingsMap.set(d.id, { id: d.id, ...d.data() }));
+      updateMergedOrders();
+    }, (err) => {
+      console.error("Bookings Listen Error:", err);
     });
 
     const unsubUsers = onSnapshot(query(collection(db, "users"), orderBy("balance", "desc")), (snap) => {
@@ -2353,11 +2486,6 @@ const AdminPortal = ({ user }: { user: any }) => {
       if (err.message.includes("permission")) setPermError("Permission Denied: Treasury database restricted.");
     });
 
-    // Cross-user transaction monitoring (only for admins)
-    // Note: This requires a collection group query or flattened transactions if we want to see ALL user transactions.
-    // For now, let's assume we want to see transactions from a 'global_transactions' log if it existed, 
-    // OR we just monitor the fan_card_requests and store_orders which are top-level.
-    // Since transactions are sub-collections, let's add a global 'transactions' collection for admin monitoring.
     const unsubTransactions = onSnapshot(query(collection(db, "global_transactions"), orderBy("timestamp", "desc"), limit(50)), (snap) => {
       const docs: any[] = [];
       snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
@@ -2366,7 +2494,14 @@ const AdminPortal = ({ user }: { user: any }) => {
       console.error("Transactions Listen Error:", err);
     });
 
-    return () => { unsubInquiries(); unsubOrders(); unsubUsers(); unsubTransactions(); };
+    return () => { 
+      unsubInquiries(); 
+      unsubStoreOrders(); 
+      unsubTicketOrders(); 
+      unsubBookings(); 
+      unsubUsers(); 
+      unsubTransactions(); 
+    };
   }, [user]);
 
   // Keep selectedInquiry in real-time sync with database requests list
@@ -2397,7 +2532,18 @@ const AdminPortal = ({ user }: { user: any }) => {
 
   const filteredOrders = orders.filter(o => 
     (o.itemName || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (o.userEmail || "").toLowerCase().includes(searchTerm.toLowerCase())
+    (o.experienceTitle || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (o.gameName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (o.userEmail || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (o.buyerEmail || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (o.buyerName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (o.userName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (o.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (o.ticketCode || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (o.qrCode || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (o.paymentMethod || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (o.paymentRef || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (o.status || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const updateTransactionStatus = async (tx: any, newStatus: string) => {
@@ -2406,48 +2552,50 @@ const AdminPortal = ({ user }: { user: any }) => {
       const txId = tx.id;
       const userId = tx.userId;
 
-      // Update global transaction log
-      await updateDoc(doc(db, "global_transactions", txId), { 
+      // Update global transaction log safely using setDoc with merge
+      await setDoc(doc(db, "global_transactions", txId), { 
         status: newStatus,
         reviewedAt: serverTimestamp(),
         reviewedBy: user?.email || "alexwtchmn@gmail.com"
-      });
+      }, { merge: true });
 
-      // Update user specific sub-collection log
-      try {
-        await updateDoc(doc(db, "users", userId, "transactions", txId), { 
-          status: newStatus,
-          reviewedAt: serverTimestamp() 
-        });
-      } catch (subErr) {
-        console.warn("Subcollection transaction sync notice:", subErr);
+      // Update user specific sub-collection log and balance if not a guest
+      if (userId && userId !== "guest") {
+        try {
+          await setDoc(doc(db, "users", userId, "transactions", txId), { 
+            status: newStatus,
+            reviewedAt: serverTimestamp() 
+          }, { merge: true });
+        } catch (subErr) {
+          console.warn("Subcollection transaction sync notice:", subErr);
+        }
+
+        // If this is a pending deposit and Admin approves it, credit the user's available balance!
+        if (tx.type === "deposit" && newStatus === "Confirmed" && tx.status !== "Confirmed") {
+          const userDocRef = doc(db, "users", userId);
+          const userSnap = await getDoc(userDocRef);
+          const currentBalance = userSnap.exists() ? (userSnap.data().balance || 0) : 0;
+          const depositAmt = parseFloat(tx.amount) || 0;
+          await setDoc(userDocRef, {
+            balance: currentBalance + depositAmt,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        }
+
+        // If this is a pending withdrawal and Admin rejects it, refund the deducted amount back to user's balance
+        if (tx.type === "withdraw" && newStatus === "Rejected" && tx.status === "pending") {
+          const userDocRef = doc(db, "users", userId);
+          const userSnap = await getDoc(userDocRef);
+          const currentBalance = userSnap.exists() ? (userSnap.data().balance || 0) : 0;
+          const withdrawAmt = parseFloat(tx.amount) || 0;
+          await setDoc(userDocRef, {
+            balance: currentBalance + withdrawAmt,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        }
       }
 
-      // If this is a pending deposit and Admin approves it, credit the user's available balance!
-      if (tx.type === "deposit" && newStatus === "Confirmed" && tx.status !== "Confirmed") {
-        const userDocRef = doc(db, "users", userId);
-        const userSnap = await getDoc(userDocRef);
-        const currentBalance = userSnap.exists() ? (userSnap.data().balance || 0) : 0;
-        const depositAmt = parseFloat(tx.amount) || 0;
-        await updateDoc(userDocRef, {
-          balance: currentBalance + depositAmt,
-          updatedAt: serverTimestamp()
-        });
-      }
-
-      // If this is a pending withdrawal and Admin rejects it, refund the deducted amount back to user's balance
-      if (tx.type === "withdraw" && newStatus === "Rejected" && tx.status === "pending") {
-        const userDocRef = doc(db, "users", userId);
-        const userSnap = await getDoc(userDocRef);
-        const currentBalance = userSnap.exists() ? (userSnap.data().balance || 0) : 0;
-        const withdrawAmt = parseFloat(tx.amount) || 0;
-        await updateDoc(userDocRef, {
-          balance: currentBalance + withdrawAmt,
-          updatedAt: serverTimestamp()
-        });
-      }
-
-      alert(`Transaction ${txId} marked as ${newStatus}${tx.type === 'deposit' && newStatus === 'Confirmed' ? ` — Credited ${formatCurrency(tx.amount)} to user account!` : ''}`);
+      alert(`Transaction #${txId ? txId.slice(-6).toUpperCase() : 'ENTRY'} marked as ${newStatus}${userId && userId !== 'guest' && tx.type === 'deposit' && newStatus === 'Confirmed' ? ` — Credited ${formatCurrency(tx.amount)} to user account!` : ''}`);
     } catch (err: any) {
       console.error("Update Transaction Status Error:", err);
       alert("Failed to update transaction status: " + (err.message || String(err)));
@@ -2519,16 +2667,17 @@ const AdminPortal = ({ user }: { user: any }) => {
   };
 
   const adjustBalance = async (userId: string, amount: number) => {
-    const userToUpdate = users.find(u => u.uid === userId);
+    if (!userId || userId === "guest") return;
+    const userToUpdate = users.find(u => u.uid === userId || u.id === userId);
     if (!userToUpdate) return;
     
     setAdminLoading(true);
     try {
       const newBalance = (userToUpdate.balance || 0) + amount;
-      await updateDoc(doc(db, "users", userId), {
+      await setDoc(doc(db, "users", userId), {
         balance: Math.max(0, newBalance),
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
     } catch (err) {
       console.error(err);
       alert("Failed to adjust balance: " + (err instanceof Error ? err.message : String(err)));
@@ -2808,6 +2957,262 @@ const AdminPortal = ({ user }: { user: any }) => {
               ))}
             </tbody>
           </table>
+        ) : activeSubTab === "orders" ? (
+          <div>
+            {/* Orders Header Stats Strip */}
+            <div className="p-6 bg-zinc-950/80 border-b border-white/5 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-6 flex-wrap">
+                <div>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 block">Total Orders</span>
+                  <span className="text-xl font-mono font-black text-white">{orders.length}</span>
+                </div>
+                <div className="h-8 w-px bg-white/10" />
+                <div>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 block flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" /> Pending Audit
+                  </span>
+                  <span className="text-xl font-mono font-black text-amber-300">
+                    {orders.filter(o => o.status === 'pending' || !o.isApproved).length}
+                  </span>
+                </div>
+                <div className="h-8 w-px bg-white/10" />
+                <div>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 block flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" /> Approved & Issued
+                  </span>
+                  <span className="text-xl font-mono font-black text-emerald-400">
+                    {orders.filter(o => o.status === 'approved' || o.isApproved || o.status === 'confirmed').length}
+                  </span>
+                </div>
+              </div>
+
+              {orderActionFeedback && (
+                <div className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 animate-fade-in",
+                  orderActionFeedback.type === 'success' ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" :
+                  orderActionFeedback.type === 'error' ? "bg-rose-500/20 text-rose-300 border border-rose-500/30" :
+                  "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                )}>
+                  <CheckCircle2 className="w-4 h-4" />
+                  {orderActionFeedback.text}
+                </div>
+              )}
+            </div>
+
+            {filteredOrders.length === 0 ? (
+              <div className="p-16 text-center text-zinc-500 space-y-2">
+                <Ticket className="w-12 h-12 mx-auto text-zinc-600 stroke-[1.5]" />
+                <p className="text-sm font-black uppercase tracking-wider text-zinc-400">No Store Orders Found</p>
+                <p className="text-xs text-zinc-600">Customer ticket orders, passes, and merchandise purchases will appear here in real-time.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-zinc-950 border-b border-white/5">
+                    <tr>
+                      <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Date & Order ID</th>
+                      <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Item & Tier</th>
+                      <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Purchaser Account</th>
+                      <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Amount & Plan</th>
+                      <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Payment Proof & Ref</th>
+                      <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Audit Status</th>
+                      <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Box Office Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((item: any) => {
+                      const isApproved = item.status === 'approved' || item.isApproved || item.status === 'confirmed';
+                      const isPending = !isApproved && item.status !== 'rejected';
+                      const formattedDate = item.createdAt 
+                        ? new Date(item.createdAt).toLocaleString() 
+                        : (item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString() : 'Recent');
+                      const title = item.experienceTitle || item.itemName || item.gameName || 'NFL Experience Pass';
+                      const amount = item.totalPrice || item.price || item.totalAmount || 0;
+                      const receiptUrl = item.receiptImage || item.receiptImageUrl || '';
+                      const ticketCode = item.ticketCode || item.qrCode;
+
+                      return (
+                        <tr 
+                          key={item.id} 
+                          className={cn(
+                            "border-b border-white/5 hover:bg-white/[0.02] transition-colors",
+                            isPending && "bg-amber-500/[0.02]"
+                          )}
+                        >
+                          <td className="p-6">
+                            <p className="text-[10px] font-mono text-zinc-400">{formattedDate}</p>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className="text-xs font-mono font-black text-white bg-zinc-800/80 px-2 py-0.5 rounded border border-white/5">
+                                #{item.id.slice(-8).toUpperCase()}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="p-6 max-w-xs">
+                            <p className="text-xs font-black uppercase italic text-white line-clamp-1">{title}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {item.tier && (
+                                <span className="text-[9px] font-black uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded">
+                                  {String(item.tier).toUpperCase().replace('_', ' ')}
+                                </span>
+                              )}
+                              {(item.guestsCount || item.quantity) && (
+                                <span className="text-[9px] font-mono text-zinc-400">
+                                  Qty: {item.guestsCount || item.quantity}x
+                                </span>
+                              )}
+                              {ticketCode && (
+                                <span className="text-[8px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                  PASS: {ticketCode}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-6">
+                            <p className="text-xs font-black text-white">{item.buyerName || item.userName || item.senderName || 'Valued Fan'}</p>
+                            <p className="text-[10px] font-mono text-zinc-400">{item.buyerEmail || item.userEmail || 'GUEST'}</p>
+                            {item.buyerPhone && (
+                              <p className="text-[9px] font-mono text-zinc-500">{item.buyerPhone}</p>
+                            )}
+                          </td>
+
+                          <td className="p-6">
+                            <span className="text-sm font-mono font-black text-emerald-400 block">
+                              ${Number(amount).toLocaleString()}
+                            </span>
+                            {item.dueToday && item.dueToday !== amount && (
+                              <span className="text-[9px] font-mono text-cyan-400 block">
+                                Due Today: ${Number(item.dueToday).toLocaleString()}
+                              </span>
+                            )}
+                            {item.splitMode && item.splitMode !== 'full' && (
+                              <span className="text-[8px] font-black uppercase text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded block w-fit mt-0.5">
+                                Plan: {item.splitMode}
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="p-6">
+                            <div className="space-y-1">
+                              <span className="text-[10px] font-black uppercase text-zinc-300 block">
+                                {item.paymentMethod || item.paymentChannel || 'Direct Settlement'}
+                              </span>
+                              <p className="text-[9px] font-mono text-zinc-500 truncate max-w-[140px]" title={item.paymentRef || item.paymentReference || 'N/A'}>
+                                Ref: {item.paymentRef || item.paymentReference || 'Direct'}
+                              </p>
+                              {receiptUrl ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenOrderReview(item)}
+                                  className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-2 py-1 rounded-lg transition-all"
+                                >
+                                  <ShieldCheck className="w-3 h-3" /> Proof Attached
+                                </button>
+                              ) : (
+                                <span className="text-[8px] font-mono text-zinc-600 block">
+                                  No image uploaded
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-6">
+                            <span className={cn(
+                              "px-3 py-1 text-[10px] font-black uppercase rounded-lg inline-flex items-center gap-1.5",
+                              isApproved ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20" :
+                              isPending ? "bg-amber-600/10 text-amber-400 border border-amber-500/20 animate-pulse" :
+                              "bg-rose-600/10 text-rose-400 border border-rose-500/20"
+                            )}>
+                              <span className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                isApproved ? "bg-emerald-400" : isPending ? "bg-amber-400" : "bg-rose-400"
+                              )} />
+                              {isApproved ? "Approved / Pass Issued" : isPending ? "Pending Review" : "Rejected"}
+                            </span>
+                          </td>
+
+                          <td className="p-6 text-right">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              {/* Audit Receipt Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenOrderReview(item)}
+                                disabled={adminLoading}
+                                className="px-3 py-1.5 bg-blue-600/10 hover:bg-blue-600 border border-blue-500/20 text-blue-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shadow-sm"
+                                title="Audit Payment Receipt, Issue Official Pass, or Print Invoice"
+                              >
+                                <ShieldCheck className="w-3 h-3" />
+                                <span>Audit & Approve</span>
+                              </button>
+
+                              {/* Quick Issue Pass Code */}
+                              {!isApproved && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleApproveOrder(item.id)}
+                                  disabled={adminLoading}
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-black font-black text-[9px] uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-1 active:scale-95 disabled:opacity-50"
+                                  title="Approve transaction and issue ticket barcode immediately"
+                                >
+                                  <Ticket className="w-3 h-3" />
+                                  <span>Issue Pass</span>
+                                </button>
+                              )}
+
+                              {/* Receipt / Invoice Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenOrderReview(item)}
+                                disabled={adminLoading}
+                                className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-all"
+                                title="View & Print Official Receipt of Payment"
+                              >
+                                <QrCode className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Delete Order with Inline Confirmation */}
+                              {confirmDelete?.id === item.id && confirmDelete.type === 'order' ? (
+                                <div className="flex items-center gap-1 justify-end bg-rose-500/10 p-1 rounded-lg border border-rose-500/20">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleDeleteOrder(item.id);
+                                      setConfirmDelete(null);
+                                    }}
+                                    className="px-2 py-1 bg-rose-600 hover:bg-rose-500 text-white text-[8px] font-black uppercase rounded transition-all"
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDelete(null)}
+                                    className="px-2 py-1 bg-zinc-800 text-zinc-400 text-[8px] font-black uppercase rounded hover:bg-zinc-700 transition-all"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDelete({ id: item.id, type: 'order' })}
+                                  disabled={adminLoading}
+                                  className="p-1.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
+                                  title="Delete Order Entry Permanently"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         ) : (
           <table className="w-full text-left">
             <thead className="bg-zinc-950 border-b border-white/5">
@@ -2817,20 +3222,18 @@ const AdminPortal = ({ user }: { user: any }) => {
                 <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Contact Handle</th>
                 <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Message / Detail</th>
                 <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Status</th>
-                {activeSubTab === "inquiries" && (
-                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Actions</th>
-                )}
+                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {(activeSubTab === "inquiries" ? filteredInquiries : filteredOrders).map((item: any) => (
+              {filteredInquiries.map((item: any) => (
                 <tr 
                   key={item.id} 
                   className={cn(
                     "border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer",
                     selectedInquiry?.id === item.id && "bg-white/[0.05]"
                   )}
-                  onClick={() => activeSubTab === "inquiries" && setSelectedInquiry(item)}
+                  onClick={() => setSelectedInquiry(item)}
                 >
                   <td className="p-6 text-[10px] font-mono text-zinc-400">
                     {item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString() : 'Recent'}
@@ -2840,13 +3243,13 @@ const AdminPortal = ({ user }: { user: any }) => {
                     <p className="text-[10px] font-bold text-zinc-600 uppercase">
                       {item.userEmail || (item.userId === 'guest' ? 'GUEST' : 'USER')}
                     </p>
-                    {activeSubTab === "inquiries" && <p className="text-[8px] font-mono text-zinc-500">{item.id}</p>}
+                    <p className="text-[8px] font-mono text-zinc-500">{item.id}</p>
                   </td>
                   <td className="p-6 text-xs font-bold text-blue-400 underline decoration-blue-400/30">
                     {item.contactMethod || (item.userId !== 'guest' ? 'Registered Account' : 'Unknown')}
                   </td>
                   <td className="p-6 text-xs text-zinc-500 max-w-xs truncate">
-                    {item.message || `Direct Purchase: ${item.itemName} (${formatCurrency(item.price)})`}
+                    {item.message || `Inquiry / Request: ${item.id}`}
                   </td>
                   <td className="p-6 text-right">
                     <span className={cn(
@@ -2861,75 +3264,73 @@ const AdminPortal = ({ user }: { user: any }) => {
                       {item.status === 'ended' ? 'Ended' : item.status || 'pending'}
                     </span>
                   </td>
-                  {activeSubTab === "inquiries" && (
-                    <td className="p-6 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1.5">
-                        {item.status === 'ended' ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleReopenSession(item.id);
-                            }}
-                            disabled={adminLoading}
-                            className="px-2.5 py-1.5 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1"
-                            title="Reopen Customer Support Session"
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                            <span className="hidden sm:inline">Reopen</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEndSession(item.id);
-                            }}
-                            disabled={adminLoading}
-                            className="px-2.5 py-1.5 bg-amber-600/10 hover:bg-amber-600 border border-amber-500/20 text-amber-400 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1"
-                            title="End Customer Support Session"
-                          >
-                            <PowerOff className="w-3 h-3" />
-                            <span className="hidden sm:inline">End Session</span>
-                          </button>
-                        )}
+                  <td className="p-6 text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1.5">
+                      {item.status === 'ended' ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReopenSession(item.id);
+                          }}
+                          disabled={adminLoading}
+                          className="px-2.5 py-1.5 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1"
+                          title="Reopen Customer Support Session"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span className="hidden sm:inline">Reopen</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEndSession(item.id);
+                          }}
+                          disabled={adminLoading}
+                          className="px-2.5 py-1.5 bg-amber-600/10 hover:bg-amber-600 border border-amber-500/20 text-amber-400 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1"
+                          title="End Customer Support Session"
+                        >
+                          <PowerOff className="w-3 h-3" />
+                          <span className="hidden sm:inline">End Session</span>
+                        </button>
+                      )}
 
-                        {confirmDelete?.id === item.id && confirmDelete.type === 'inquiry' ? (
-                          <div className="flex items-center gap-1 justify-end">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteInquiry(item.id);
-                                setConfirmDelete(null);
-                              }}
-                              className="px-2 py-1 bg-rose-600 text-white text-[8px] font-black uppercase rounded hover:bg-rose-500 transition-all"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setConfirmDelete(null);
-                              }}
-                              className="px-2 py-1 bg-zinc-800 text-zinc-400 text-[8px] font-black uppercase rounded hover:bg-zinc-700 transition-all"
-                            >
-                              No
-                            </button>
-                          </div>
-                        ) : (
-                          <button 
+                      {confirmDelete?.id === item.id && confirmDelete.type === 'inquiry' ? (
+                        <div className="flex items-center gap-1 justify-end">
+                          <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setConfirmDelete({ id: item.id, type: 'inquiry' });
+                              handleDeleteInquiry(item.id);
+                              setConfirmDelete(null);
                             }}
-                            disabled={adminLoading}
-                            className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
-                            title="Delete Inquiry"
+                            className="px-2 py-1 bg-rose-600 text-white text-[8px] font-black uppercase rounded hover:bg-rose-500 transition-all"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            Confirm
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDelete(null);
+                            }}
+                            className="px-2 py-1 bg-zinc-800 text-zinc-400 text-[8px] font-black uppercase rounded hover:bg-zinc-700 transition-all"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDelete({ id: item.id, type: 'inquiry' });
+                          }}
+                          disabled={adminLoading}
+                          className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 rounded-lg transition-all hover:text-white disabled:opacity-50"
+                          title="Delete Inquiry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -3107,6 +3508,21 @@ const AdminPortal = ({ user }: { user: any }) => {
             </button>
           </div>
         </motion.div>
+      )}
+
+      {/* Box Office Receipt Review & Pass Issuance Modal */}
+      {isOrderReviewOpen && selectedOrderForReview && (
+        <ReceiptReviewModal
+          isOpen={isOrderReviewOpen}
+          onClose={() => {
+            setIsOrderReviewOpen(false);
+            setSelectedOrderForReview(null);
+          }}
+          booking={selectedOrderForReview}
+          onStatusUpdated={() => {
+            // Real-time Firestore snapshot listeners automatically sync state
+          }}
+        />
       )}
     </div>
   );
