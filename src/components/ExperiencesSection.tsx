@@ -1503,7 +1503,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       </span>
                       <h4 className="text-xl font-black italic uppercase tracking-tighter text-white mt-2">RESERVATION LOGGED FOR REVIEW</h4>
                       <p className="text-xs text-zinc-400 font-medium max-w-md mx-auto mt-1">
-                        Your payment receipt has been registered. The box office manager (<strong className="text-white">Matthew Golom</strong>) will verify and approve your payment in the Control Room to activate your pass.
+                        Your payment receipt has been registered. The box office manager (<strong className="text-white">{completedBooking.experienceTitle ? `${completedBooking.experienceTitle} Operations` : "NFL Gridiron Manager"}</strong>) will verify and approve your payment in the Control Room to activate your pass.
                       </p>
                     </div>
 

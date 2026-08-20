@@ -32,12 +32,15 @@ export const PaymentReceiptUploader: React.FC<PaymentReceiptUploaderProps> = ({
   subtitle,
   description
 }) => {
-  const displaySubtitle = subtitle || description || "Drop your transaction screenshot, banking receipt, or transfer proof here";
+  const displaySubtitle = subtitle || description || "Upload your transaction screenshot, banking receipt, or transfer proof";
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Separate refs for standard device photo gallery / file selector vs live camera capture
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Compress & encode image client-side to optimized data URL (< 600KB)
@@ -164,6 +167,23 @@ export const PaymentReceiptUploader: React.FC<PaymentReceiptUploaderProps> = ({
         )}
       </div>
 
+      {/* Hidden File Inputs */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
       {!value ? (
         <div
           ref={containerRef}
@@ -171,28 +191,21 @@ export const PaymentReceiptUploader: React.FC<PaymentReceiptUploaderProps> = ({
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
           className={cn(
-            "relative group border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer select-none",
+            "relative group border-2 border-dashed rounded-2xl p-5 text-center transition-all select-none",
             dragActive 
               ? "border-blue-500 bg-blue-600/10 scale-[1.01]" 
               : "border-white/10 hover:border-blue-500/50 bg-zinc-950/70 hover:bg-zinc-900/60"
           )}
         >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-
-          <div className="flex flex-col items-center justify-center space-y-2">
-            <div className={cn(
-              "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110",
-              dragActive ? "bg-blue-600 text-white" : "bg-zinc-900 text-blue-400 border border-white/5"
-            )}>
+          <div className="flex flex-col items-center justify-center space-y-3">
+            <div 
+              onClick={() => galleryInputRef.current?.click()}
+              className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform cursor-pointer group-hover:scale-110",
+                dragActive ? "bg-blue-600 text-white" : "bg-zinc-900 text-blue-400 border border-white/5"
+              )}
+            >
               {isProcessing ? (
                 <RotateCcw className="w-5 h-5 animate-spin text-blue-400" />
               ) : (
@@ -200,18 +213,45 @@ export const PaymentReceiptUploader: React.FC<PaymentReceiptUploaderProps> = ({
               )}
             </div>
 
-            <div>
+            <div onClick={() => galleryInputRef.current?.click()} className="cursor-pointer">
               <p className="text-xs font-black uppercase tracking-wide text-white">
-                {isProcessing ? "Processing Screenshot..." : "Drop Payment Screenshot or Browse"}
+                {isProcessing ? "Processing Screenshot..." : "Attach Payment Screenshot or Receipt"}
               </p>
               <p className="text-[9px] text-zinc-500 font-bold uppercase mt-0.5">
                 {displaySubtitle}
               </p>
             </div>
 
+            {/* Mobile & Desktop Action Buttons */}
+            <div className="flex items-center justify-center gap-2 pt-1 flex-wrap w-full max-w-sm">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  galleryInputRef.current?.click();
+                }}
+                className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span>Photo Gallery / Photos</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  cameraInputRef.current?.click();
+                }}
+                className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-200 hover:text-white border border-white/10 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+              >
+                <Camera className="w-3.5 h-3.5 text-zinc-300" />
+                <span>Take Photo</span>
+              </button>
+            </div>
+
             <div className="flex items-center gap-2 pt-1">
               <span className="px-2 py-0.5 rounded bg-zinc-900 border border-white/5 text-[8px] font-mono text-zinc-400">
-                JPG / PNG / WEBP
+                Screenshots • JPG • PNG • WEBP • HEIC
               </span>
               <span className="text-zinc-600 text-[8px]">•</span>
               <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[8px] font-mono font-bold">
@@ -257,15 +297,24 @@ export const PaymentReceiptUploader: React.FC<PaymentReceiptUploaderProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => galleryInputRef.current?.click()}
               className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-white/5 text-[9px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
-              title="Replace receipt"
+              title="Replace receipt from photo gallery"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Replace</span>
+              <ImageIcon className="w-3.5 h-3.5 text-blue-400" />
+              <span className="hidden sm:inline">Gallery</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-white/5 text-[9px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
+              title="Take a new photo with camera"
+            >
+              <Camera className="w-3.5 h-3.5 text-zinc-300" />
+              <span className="hidden sm:inline">Camera</span>
             </button>
             <button
               type="button"
@@ -276,15 +325,6 @@ export const PaymentReceiptUploader: React.FC<PaymentReceiptUploaderProps> = ({
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handleFileChange}
-          />
         </div>
       )}
 

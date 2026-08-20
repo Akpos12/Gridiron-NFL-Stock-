@@ -142,7 +142,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/png, image/jpeg, image/jpg, image/webp"
+        accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
         onChange={handleFileChange}
         className="hidden"
       />

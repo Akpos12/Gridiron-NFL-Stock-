@@ -382,7 +382,7 @@ export const ExperienceAdmin: React.FC = () => {
       await updateDoc(doc(db, "bookings", bId), { 
         status: nextStatus,
         reviewedAt: new Date().toISOString(),
-        reviewedBy: "Management (Matthew Golom)"
+        reviewedBy: "NFL Gridiron Box Office Management"
       });
       // Also update ticket_orders if matching
       try {
@@ -425,7 +425,7 @@ export const ExperienceAdmin: React.FC = () => {
       await updateDoc(doc(db, "bookings", bookingId), {
         status: "approved",
         approvedAt: new Date().toISOString(),
-        approvedBy: "Matthew Golom (Box Office Management)"
+        approvedBy: "NFL Gridiron Manager (Box Office)"
       });
       try {
         await updateDoc(doc(db, "ticket_orders", bookingId), {
