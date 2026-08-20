@@ -35,6 +35,7 @@ import { NFL_TEAMS, getLogoUrl } from "../constants";
 import { cn, formatCurrency } from "../lib/utils";
 import { NFLImage } from "../utils/nflImages";
 import { OFFICIAL_PAYMENT_CHANNELS } from "./TicketCheckoutModal";
+import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 
 export interface Experience {
   id: string;
@@ -77,6 +78,8 @@ export interface Booking {
   imageUrl: string;
   paymentMethod?: string;
   paymentRef?: string;
+  receiptImage?: string;
+  receiptImageUrl?: string;
   senderName?: string;
   buyerPhone?: string;
 }
@@ -300,6 +303,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [paymentRef, setPaymentRef] = useState("");
+  const [receiptImageUrl, setReceiptImageUrl] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const handleCopy = (text: string, key: string) => {
@@ -492,6 +496,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         imageUrl: selectedExp.imageUrl,
         paymentMethod: paymentTab,
         paymentRef: paymentRef || "PENDING_CONTROL_ROOM_VERIFICATION",
+        receiptImage: receiptImageUrl,
+        receiptImageUrl: receiptImageUrl,
         senderName: senderName.trim(),
         buyerPhone: buyerPhone.trim()
       };
@@ -510,6 +516,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         teamId: selectedExp.teamId,
         paymentMethod: paymentTab,
         paymentRef: paymentRef || "PENDING_CONTROL_ROOM_VERIFICATION",
+        receiptImage: receiptImageUrl,
+        receiptImageUrl: receiptImageUrl,
         senderName: senderName.trim(),
         buyerPhone: buyerPhone.trim(),
         status: "pending_approval",
@@ -534,6 +542,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           paymentMethod: paymentTab,
           senderName: senderName.trim(),
           paymentRef: paymentRef || "SUBMITTED_FOR_APPROVAL",
+          receiptImage: receiptImageUrl,
+          receiptImageUrl: receiptImageUrl,
           status: "pending_approval",
           qrCode: `RFID-SEA-${ticketOrderId.toUpperCase()}`,
           timestamp: serverTimestamp()
@@ -1427,6 +1437,16 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           </div>
                         </div>
 
+                        {/* Payment Receipt / Screenshot Proof */}
+                        <div className="pt-1">
+                          <PaymentReceiptUploader
+                            value={receiptImageUrl}
+                            onChange={setReceiptImageUrl}
+                            label="Drop Screenshot of Payment or Receipt (Optional but Recommended)"
+                            description="Attach your payment screenshot or receipt so management can quickly verify and approve your booking."
+                          />
+                        </div>
+
                         <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
                           <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
                           <span>No account needed to reserve. Payment will be verified and approved from the box office Control Room.</span>
@@ -1538,6 +1558,22 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           <span className="text-[9px] font-black text-zinc-400 uppercase">Payment Channel</span>
                           <span className="text-xs font-mono font-bold text-white uppercase">{completedBooking.paymentMethod}</span>
                         </div>
+
+                        {completedBooking.receiptImage && (
+                          <div className="p-3 bg-zinc-950 rounded-xl border border-emerald-500/20 flex items-center gap-3">
+                            <img
+                              src={completedBooking.receiptImage}
+                              alt="Attached Receipt"
+                              className="w-12 h-12 rounded-lg object-cover border border-white/10 shrink-0"
+                            />
+                            <div className="text-left min-w-0">
+                              <p className="text-[10px] font-black text-emerald-400 uppercase flex items-center gap-1">
+                                <ShieldCheck className="w-3.5 h-3.5" /> Payment Receipt Attached
+                              </p>
+                              <p className="text-[9px] text-zinc-400 truncate">Screenshot forwarded for review</p>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Ticket Footer / QR Code scanner mock */}
                         <div className="bg-zinc-950 p-5 rounded-3xl border border-white/5 flex flex-col items-center gap-3">

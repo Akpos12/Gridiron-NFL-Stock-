@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { doc, setDoc } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
+import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 
 export interface GameTicket {
   id: string;
@@ -148,6 +149,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [paymentRef, setPaymentRef] = useState("");
+  const [paymentReceiptUrl, setPaymentReceiptUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedTicket, setConfirmedTicket] = useState<any | null>(null);
 
@@ -298,7 +300,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         buyerEmail,
         buyerPhone,
         paymentReference: paymentRef || (splitMode !== "full" ? `Split Payment (1 of ${currentSplit.installmentsCount})` : "Direct Verified Transfer"),
-        status: "confirmed",
+        receiptImage: paymentReceiptUrl,
+        receiptImageUrl: paymentReceiptUrl,
+        status: "pending",
+        isApproved: false,
         createdAt: new Date().toISOString(),
         userId: auth.currentUser?.uid || "guest",
         userEmail: auth.currentUser?.email || buyerEmail
@@ -307,11 +312,14 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
       // Save to Firestore ticket_orders
       await setDoc(doc(db, "ticket_orders", orderId), ticketOrderData);
       
-      // Also write to bookings so it's queryable in portfolio
+      // Also write to bookings so it's queryable in portfolio and Control Room
       await setDoc(doc(db, "bookings", orderId), {
         id: orderId,
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail,
+        senderName: buyerName,
+        buyerName: buyerName,
+        buyerPhone: buyerPhone,
         experienceId: game.id,
         experienceTitle: `${passName || game.name} · ${selectedTier.toUpperCase().replace("_", " ")} (${quantity}x)${appliedPromo ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`,
         experienceType: selectedTier === "season_pass" ? "season_pass" : "match_ticket",
@@ -321,7 +329,11 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         totalPrice: totalAmount,
         dueToday: currentSplit.dueToday,
         tier: selectedTier,
-        status: "approved",
+        status: "pending",
+        paymentMethod: paymentTab,
+        paymentRef: paymentRef || "Direct Transfer",
+        receiptImage: paymentReceiptUrl,
+        receiptImageUrl: paymentReceiptUrl,
         qrCode: `NFL-${selectedTier === "season_pass" ? "SEASON-PASS" : "MATCH"}-${orderId}`,
         createdAt: new Date().toISOString(),
         imageUrl: game.image
@@ -370,19 +382,19 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
 
         {confirmedTicket ? (
           <div className="py-8 text-center space-y-6">
-            <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-3xl flex items-center justify-center mx-auto text-emerald-400 animate-bounce">
-              <Sparkles className="w-8 h-8" />
+            <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/30 rounded-3xl flex items-center justify-center mx-auto text-amber-400 animate-pulse">
+              <Clock className="w-8 h-8" />
             </div>
 
             <div className="space-y-2">
-              <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full">
-                OFFICIAL MATCHDAY PASS ISSUED
+              <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+                PAYMENT RECEIPT SUBMITTED · PENDING MANAGER APPROVAL
               </span>
               <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-white">
-                Tickets Confirmed!
+                Reservation Logged For Review
               </h3>
               <p className="text-zinc-400 text-xs font-medium max-w-md mx-auto">
-                Your admission barcodes have been generated and dispatched to <strong className="text-white">{confirmedTicket.buyerEmail}</strong>.
+                Your payment reference and receipt proof have been delivered to the Control Room. Box office management will review your receipt to confirm payment and issue your official pass to <strong className="text-white">{confirmedTicket.buyerEmail}</strong>.
               </p>
             </div>
 
@@ -392,10 +404,26 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   <Ticket className="w-4 h-4 text-blue-500" />
                   <span className="text-xs font-mono font-black text-white">{confirmedTicket.orderId}</span>
                 </div>
-                <span className="text-[10px] font-black uppercase bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded">
-                  {confirmedTicket.quantity}x {confirmedTicket.tier.replace("_", " ")}
+                <span className="text-[10px] font-black uppercase bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded">
+                  Pending Review
                 </span>
               </div>
+
+              {confirmedTicket.receiptImage && (
+                <div className="p-2.5 bg-zinc-900 rounded-2xl border border-white/10 flex items-center gap-3">
+                  <img
+                    src={confirmedTicket.receiptImage}
+                    alt="Uploaded Receipt"
+                    className="w-12 h-12 object-cover rounded-xl border border-white/10 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase text-emerald-400 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3" /> Receipt Screenshot Attached
+                    </p>
+                    <p className="text-[9px] text-zinc-400 truncate">Queued for manager verification</p>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <h4 className="text-sm font-black uppercase italic text-white">{confirmedTicket.gameName}</h4>
@@ -428,7 +456,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
               <div className="pt-3 border-t border-white/5 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] font-black uppercase text-zinc-500 block">
-                    {confirmedTicket.splitMode && confirmedTicket.splitMode !== "full" ? "Total Order Value" : "Total Settled"}
+                    {confirmedTicket.splitMode && confirmedTicket.splitMode !== "full" ? "Total Order Value" : "Amount Paid"}
                   </span>
                   {confirmedTicket.dueToday && confirmedTicket.splitMode !== "full" && (
                     <span className="text-[10px] text-cyan-400 font-bold uppercase">
@@ -439,18 +467,18 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                 <span className="text-lg font-mono font-black text-emerald-400">${confirmedTicket.totalAmount.toLocaleString()} USD</span>
               </div>
 
-              <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-center gap-2 text-zinc-400">
-                <QrCode className="w-6 h-6 text-white" />
-                <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-300 font-bold">DIGITAL RFID GATE PASS ACTIVE</span>
+              <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-center gap-2 text-amber-300">
+                <Clock className="w-5 h-5 text-amber-400" />
+                <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-300 font-bold">MANUAL MANAGER AUDIT IN PROGRESS</span>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
               <button
                 onClick={onClose}
-                className="px-8 py-3.5 bg-white hover:bg-zinc-200 text-black text-xs font-black uppercase tracking-widest rounded-2xl transition-all"
+                className="px-8 py-3.5 bg-white hover:bg-zinc-200 text-black text-xs font-black uppercase tracking-widest rounded-2xl transition-all cursor-pointer"
               >
-                Close & View Arena
+                Done
               </button>
             </div>
           </div>
@@ -1191,6 +1219,17 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
+                </div>
+
+                {/* Upload Payment Screenshot or Picture of Receipt */}
+                <div className="pt-2">
+                  <PaymentReceiptUploader
+                    value={paymentReceiptUrl}
+                    onChange={setPaymentReceiptUrl}
+                    label="Attach Payment Receipt / Screenshot Proof"
+                    description="Upload or drag & drop a screenshot of your payment confirmation, wire slip, or receipt for manager approval."
+                    required={false}
+                  />
                 </div>
               </div>
 

@@ -19,7 +19,14 @@ import {
   Clock,
   MapPin,
   TrendingUp,
-  Ticket
+  Ticket,
+  Eye,
+  Camera,
+  FileCheck,
+  Search,
+  Filter,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -28,6 +35,7 @@ import { formatCurrency, cn } from "../lib/utils";
 import { Experience, Booking } from "./ExperiencesSection";
 import { PromoBanner } from "./PromoSlider";
 import { NFLImage } from "../utils/nflImages";
+import { ReceiptReviewModal, BookingAuditItem } from "./common/ReceiptReviewModal";
 
 export const ExperienceAdmin: React.FC = () => {
   const [experiences, setExperiences] = useState<Experience[]>([]);
@@ -36,6 +44,12 @@ export const ExperienceAdmin: React.FC = () => {
   
   // Tab states
   const [adminTab, setAdminTab] = useState<"experiences" | "bookings" | "banners" | "analytics">("experiences");
+
+  // Booking Receipt Review modal state
+  const [selectedBookingForReview, setSelectedBookingForReview] = useState<BookingAuditItem | null>(null);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [bookingFilter, setBookingFilter] = useState<"all" | "pending" | "approved">("all");
+  const [bookingSearch, setBookingSearch] = useState("");
 
   // Experience addition states
   const [isEditing, setIsEditing] = useState(false);
@@ -367,9 +381,82 @@ export const ExperienceAdmin: React.FC = () => {
   const handleToggleBookingApproval = async (bId: string, currentStatus: string) => {
     try {
       const nextStatus = currentStatus === "pending" ? "approved" : "pending";
-      await updateDoc(doc(db, "bookings", bId), { status: nextStatus });
+      await updateDoc(doc(db, "bookings", bId), { 
+        status: nextStatus,
+        reviewedAt: new Date().toISOString(),
+        reviewedBy: "Management (Matthew Golom)"
+      });
+      // Also update ticket_orders if matching
+      try {
+        await updateDoc(doc(db, "ticket_orders", bId), {
+          status: nextStatus === "approved" ? "confirmed" : "pending",
+          isApproved: nextStatus === "approved"
+        });
+      } catch (e) {
+        // non-fatal
+      }
     } catch (err: any) {
       console.error(err);
+    }
+  };
+
+  const handleOpenReceiptReview = (b: Booking) => {
+    setSelectedBookingForReview({
+      id: b.id,
+      userEmail: b.userEmail,
+      userId: b.userId,
+      experienceTitle: b.experienceTitle,
+      date: b.date,
+      timeSlot: b.timeSlot,
+      tier: b.tier,
+      guestsCount: b.guestsCount,
+      totalPrice: b.totalPrice,
+      status: b.status,
+      receiptImage: b.receiptImage || (b as any).receiptImageUrl,
+      paymentMethod: b.paymentMethod,
+      paymentRef: b.paymentRef,
+      senderName: b.senderName,
+      buyerPhone: b.buyerPhone,
+      createdAt: b.createdAt
+    });
+    setReviewModalOpen(true);
+  };
+
+  const handleApproveBookingFromModal = async (bookingId: string) => {
+    try {
+      await updateDoc(doc(db, "bookings", bookingId), {
+        status: "approved",
+        approvedAt: new Date().toISOString(),
+        approvedBy: "Matthew Golom (Box Office Management)"
+      });
+      try {
+        await updateDoc(doc(db, "ticket_orders", bookingId), {
+          status: "confirmed",
+          isApproved: true,
+          approvedAt: new Date().toISOString()
+        });
+      } catch (e) {}
+      setReviewModalOpen(false);
+      setSelectedBookingForReview(null);
+    } catch (err: any) {
+      console.error(err);
+      alert("Error approving pass: " + err.message);
+    }
+  };
+
+  const handleRejectBookingFromModal = async (bookingId: string, reason: string) => {
+    try {
+      await updateDoc(doc(db, "bookings", bookingId), {
+        status: "pending",
+        rejectionReason: reason,
+        reviewNotes: "Receipt rejected by management: " + reason,
+        reviewedAt: new Date().toISOString()
+      });
+      setReviewModalOpen(false);
+      setSelectedBookingForReview(null);
+    } catch (err: any) {
+      console.error(err);
+      alert("Error updating review: " + err.message);
     }
   };
 
@@ -1028,68 +1115,179 @@ export const ExperienceAdmin: React.FC = () => {
 
       {/* RENDER BOOKINGS AUDIT TAB */}
       {adminTab === "bookings" && (
-        <div className="bg-zinc-900/40 border border-white/5 rounded-[2.5rem] overflow-hidden">
-          <div className="p-6 border-b border-white/5 flex items-center justify-between">
-            <h4 className="text-xs font-black uppercase tracking-widest text-white">GLOBAL ORDER BOOK RESERVATIONS AUDIT CHANNEL</h4>
-            <span className="text-[9px] font-bold text-zinc-500 uppercase">TELEMETRY SYNCED</span>
+        <div className="bg-zinc-900/40 border border-white/5 rounded-[2.5rem] overflow-hidden space-y-4">
+          <div className="p-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
+                <FileCheck className="w-4 h-4 text-emerald-400" />
+                GLOBAL ORDER BOOK & PAYMENT RECEIPT AUDIT
+              </h4>
+              <p className="text-[10px] text-zinc-400 font-medium mt-1">
+                Review payment screenshots & bank receipts dropped by attendees. Approve to issue digital passes.
+              </p>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex bg-zinc-950 p-1 rounded-xl border border-white/5">
+                {(["all", "pending", "approved"] as const).map(tab => {
+                  const count = tab === "all" ? bookings.length : bookings.filter(b => b.status === tab).length;
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => setBookingFilter(tab)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                        bookingFilter === tab 
+                          ? tab === "pending" ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-blue-600 text-white" 
+                          : "text-zinc-400 hover:text-white"
+                      )}
+                    >
+                      {tab === "all" ? "All" : tab === "pending" ? "Pending Review" : "Approved"} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search buyer, ID..."
+                  value={bookingSearch}
+                  onChange={(e) => setBookingSearch(e.target.value)}
+                  className="bg-zinc-950 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 w-40 sm:w-52"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="overflow-x-auto no-scrollbar">
-            <table className="w-full text-left min-w-[700px]">
+            <table className="w-full text-left min-w-[850px]">
               <thead className="bg-zinc-950/40 border-b border-white/5">
                 <tr>
                   <th className="p-4 sm:p-6 text-[9px] font-black uppercase font-mono text-zinc-500 tracking-widest">Reserve ID</th>
-                  <th className="p-4 sm:p-6 text-[9px] font-black uppercase font-mono text-zinc-500 tracking-widest">Attendee</th>
+                  <th className="p-4 sm:p-6 text-[9px] font-black uppercase font-mono text-zinc-500 tracking-widest">Attendee & Contact</th>
                   <th className="p-4 sm:p-6 text-[9px] font-black uppercase font-mono text-zinc-500 tracking-widest">Pass Specifics</th>
+                  <th className="p-4 sm:p-6 text-[9px] font-black uppercase font-mono text-zinc-500 tracking-widest">Payment Proof</th>
                   <th className="p-4 sm:p-6 text-[9px] font-black uppercase font-mono text-zinc-500 tracking-widest text-right">Invoice Sum</th>
                   <th className="p-4 sm:p-6 text-[9px] font-black uppercase font-mono text-zinc-500 tracking-widest text-center">Audit Status</th>
-                  <th className="p-4 sm:p-6 text-[9px] font-black uppercase font-mono text-zinc-500 tracking-widest text-center">Authorize Actions</th>
+                  <th className="p-4 sm:p-6 text-[9px] font-black uppercase font-mono text-zinc-500 tracking-widest text-center">Manager Review</th>
                 </tr>
               </thead>
               <tbody>
-                {bookings.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="p-12 text-center text-zinc-600 font-bold uppercase tracking-widest text-xs">No experience transaction receipts located in audit blocks.</td>
-                  </tr>
-                ) : (
-                  bookings.map(b => (
-                    <tr key={b.id} className="border-b border-white/5 hover:bg-white/[0.01]">
-                      <td className="p-4 sm:p-6 font-mono text-[9px] font-black text-zinc-400 select-all shrink-0">
-                        {b.id}
-                      </td>
-                      <td className="p-4 sm:p-6">
-                        <p className="text-xs font-black text-white">{b.userEmail}</p>
-                        <p className="text-[10px] font-mono text-zinc-600 uppercase mt-0.5">{b.userId.slice(0, 8)}...</p>
-                      </td>
-                      <td className="p-4 sm:p-6">
-                        <h4 className="text-xs font-black text-white uppercase">{b.experienceTitle}</h4>
-                        <p className="text-[9px] font-black text-zinc-500 uppercase mt-0.5 font-mono">{b.tier.toUpperCase()} · {b.date} · {b.timeSlot} · {b.guestsCount} GUEST(S)</p>
-                      </td>
-                      <td className="p-4 sm:p-6 text-right font-mono text-xs font-black text-blue-400">
-                        {formatCurrency(b.totalPrice)}
-                      </td>
-                      <td className="p-4 sm:p-6 text-center">
-                        <span className={cn(
-                          "inline-flex px-2.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest",
-                          b.status === "approved" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border border-amber-500/20 text-amber-400"
-                        )}>
-                          {b.status}
-                        </span>
-                      </td>
-                      <td className="p-4 sm:p-6 text-center">
-                        <button
-                          onClick={() => handleToggleBookingApproval(b.id, b.status)}
-                          className={cn(
-                            "px-4 py-2 hover:scale-[1.03] transition-transform rounded-xl text-[8px] font-black uppercase tracking-widest",
-                            b.status === "approved" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-emerald-600 text-white"
+                {(() => {
+                  const filtered = bookings.filter(b => {
+                    const matchesFilter = bookingFilter === "all" || b.status === bookingFilter;
+                    const searchLower = bookingSearch.toLowerCase();
+                    const matchesSearch = !bookingSearch || 
+                      b.id.toLowerCase().includes(searchLower) ||
+                      b.userEmail.toLowerCase().includes(searchLower) ||
+                      (b.senderName && b.senderName.toLowerCase().includes(searchLower)) ||
+                      b.experienceTitle.toLowerCase().includes(searchLower);
+                    return matchesFilter && matchesSearch;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={7} className="p-12 text-center text-zinc-600 font-bold uppercase tracking-widest text-xs">
+                          No reservation receipts found matching the filter criteria.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return filtered.map(b => {
+                    const hasReceipt = Boolean(b.receiptImage || (b as any).receiptImageUrl);
+                    const receiptUrl = b.receiptImage || (b as any).receiptImageUrl;
+
+                    return (
+                      <tr key={b.id} className="border-b border-white/5 hover:bg-white/[0.01]">
+                        <td className="p-4 sm:p-6 font-mono text-[9px] font-black text-zinc-400 select-all shrink-0">
+                          {b.id}
+                        </td>
+                        <td className="p-4 sm:p-6">
+                          <p className="text-xs font-black text-white">{b.senderName || b.userEmail}</p>
+                          <p className="text-[10px] font-mono text-zinc-400 mt-0.5">{b.userEmail}</p>
+                          {b.buyerPhone && (
+                            <p className="text-[9px] font-mono text-zinc-500">{b.buyerPhone}</p>
                           )}
-                        >
-                          {b.status === "approved" ? "Revoke Approval" : "Approve Pass"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                        </td>
+                        <td className="p-4 sm:p-6">
+                          <h4 className="text-xs font-black text-white uppercase">{b.experienceTitle}</h4>
+                          <p className="text-[9px] font-black text-zinc-500 uppercase mt-0.5 font-mono">
+                            {b.tier.toUpperCase()} · {b.date} · {b.timeSlot} · {b.guestsCount} GUEST(S)
+                          </p>
+                        </td>
+                        <td className="p-4 sm:p-6">
+                          {hasReceipt ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenReceiptReview(b)}
+                              className="group flex items-center gap-2 p-1.5 bg-zinc-950 hover:bg-zinc-800 border border-emerald-500/30 rounded-xl transition-all cursor-pointer text-left"
+                            >
+                              <img
+                                src={receiptUrl}
+                                alt="Receipt"
+                                className="w-9 h-9 object-cover rounded-lg border border-white/10 group-hover:scale-105 transition-transform"
+                              />
+                              <div className="text-[9px]">
+                                <span className="font-black uppercase text-emerald-400 flex items-center gap-1">
+                                  <Eye className="w-3 h-3" /> View Proof
+                                </span>
+                                <span className="font-mono text-zinc-500 block">Screenshot Attached</span>
+                              </div>
+                            </button>
+                          ) : (
+                            <div className="text-[9px] text-zinc-500 uppercase font-mono flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-zinc-700 inline-block" />
+                              Ref: {b.paymentRef ? (b.paymentRef.length > 14 ? b.paymentRef.slice(0, 14) + '...' : b.paymentRef) : "Direct"}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-4 sm:p-6 text-right font-mono text-xs font-black text-blue-400">
+                          {formatCurrency(b.totalPrice)}
+                        </td>
+                        <td className="p-4 sm:p-6 text-center">
+                          <span className={cn(
+                            "inline-flex px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
+                            b.status === "approved" 
+                              ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" 
+                              : "bg-amber-500/10 border border-amber-500/20 text-amber-400"
+                          )}>
+                            {b.status === "approved" ? "Approved / Pass Issued" : "Pending Review"}
+                          </span>
+                        </td>
+                        <td className="p-4 sm:p-6 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenReceiptReview(b)}
+                              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <Eye className="w-3 h-3 text-blue-400" />
+                              Review
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleToggleBookingApproval(b.id, b.status)}
+                              className={cn(
+                                "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-transform cursor-pointer",
+                                b.status === "approved" 
+                                  ? "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5" 
+                                  : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20"
+                              )}
+                            >
+                              {b.status === "approved" ? "Revoke" : "Confirm"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>
@@ -1214,6 +1412,18 @@ export const ExperienceAdmin: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* RECEIPT REVIEW & MANAGEMENT APPROVAL MODAL */}
+      <ReceiptReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => {
+          setReviewModalOpen(false);
+          setSelectedBookingForReview(null);
+        }}
+        booking={selectedBookingForReview}
+        onApprove={handleApproveBookingFromModal}
+        onReject={handleRejectBookingFromModal}
+      />
 
     </div>
   );
