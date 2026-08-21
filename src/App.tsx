@@ -2631,38 +2631,50 @@ const AdminPortal = ({ user }: { user: any }) => {
   const handleSaveEditedReply = async (idx: number) => {
     if (!selectedInquiry || !editReplyText.trim()) return;
     try {
+      setAdminLoading(true);
       const updatedReplies = [...(selectedInquiry.replies || [])];
       if (updatedReplies[idx]) {
         updatedReplies[idx] = {
           ...updatedReplies[idx],
-          text: editReplyText,
+          text: editReplyText.trim(),
           editedAt: new Date().toISOString(),
-          isEdited: true
+          isEdited: true,
+          editedBy: user?.email || "Customer Care Representative"
         };
         await updateDoc(doc(db, "fan_card_requests", selectedInquiry.id), {
-          replies: updatedReplies
+          replies: updatedReplies,
+          lastUpdated: serverTimestamp()
         });
+        setSelectedInquiry((prev: any) => prev ? { ...prev, replies: updatedReplies } : null);
         setEditingReplyIdx(null);
         setEditReplyText("");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error editing reply:", err);
-      alert("Failed to edit reply.");
+      alert("Failed to edit reply: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setAdminLoading(false);
     }
   };
 
   const handleDeleteReply = async (idx: number) => {
     if (!selectedInquiry) return;
+    if (!window.confirm("Are you sure you want to delete this reply from the support thread?")) return;
     try {
+      setAdminLoading(true);
       const updatedReplies = [...(selectedInquiry.replies || [])];
       updatedReplies.splice(idx, 1);
       
       await updateDoc(doc(db, "fan_card_requests", selectedInquiry.id), {
-        replies: updatedReplies
+        replies: updatedReplies,
+        lastUpdated: serverTimestamp()
       });
-    } catch (err) {
+      setSelectedInquiry((prev: any) => prev ? { ...prev, replies: updatedReplies } : null);
+    } catch (err: any) {
       console.error("Error deleting reply:", err);
-      alert("Failed to delete reply.");
+      alert("Failed to delete reply: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setAdminLoading(false);
     }
   };
 
@@ -3424,68 +3436,90 @@ const AdminPortal = ({ user }: { user: any }) => {
               <p className="text-sm font-medium text-white">{selectedInquiry.message}</p>
             </div>
             {selectedInquiry.replies?.map((r: any, idx: number) => {
-              const isCc = r.sender === 'Customer Care';
+              const isCc = r.sender === 'Customer Care' || (r.sender && r.sender.toLowerCase().includes('care')) || (r.sender && r.sender.toLowerCase().includes('concierge'));
               const isEditing = editingReplyIdx === idx;
               return (
                 <div key={idx} className={cn(
-                  "p-6 rounded-2xl border ml-8 relative group transition-all",
-                  isCc ? "bg-blue-600/5 border-blue-600/10" : "bg-zinc-900/40 border-white/5"
+                  "p-6 rounded-2xl border ml-4 sm:ml-8 relative group transition-all",
+                  isCc ? "bg-blue-600/5 border-blue-600/20" : "bg-zinc-900/40 border-white/5"
                 )}>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className={cn(
-                      "text-[10px] font-black uppercase tracking-widest flex items-center gap-2",
-                      isCc ? "text-blue-500" : "text-zinc-500"
-                    )}>
-                      {r.sender} {r.isEdited && <span className="text-[8px] text-zinc-500 italic font-medium lowercase tracking-normal">(edited)</span>}
-                    </p>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <p className={cn(
+                        "text-[10px] font-black uppercase tracking-widest flex items-center gap-2",
+                        isCc ? "text-blue-400" : "text-zinc-400"
+                      )}>
+                        {r.sender || "Customer Care"}
+                      </p>
+                      {r.isEdited && (
+                        <span className="px-2 py-0.5 bg-zinc-800 border border-white/10 text-[8px] text-zinc-400 font-bold uppercase rounded-md flex items-center gap-1" title={r.editedAt ? `Edited: ${new Date(r.editedAt).toLocaleString()}` : "Edited"}>
+                          <Edit2 className="w-2 h-2 text-blue-400" /> edited
+                        </span>
+                      )}
+                      {r.timestamp && (
+                        <span className="text-[8px] font-mono text-zinc-500">
+                          {new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
                     {isCc && !isEditing && (
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1.5 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => {
                             setEditingReplyIdx(idx);
-                            setEditReplyText(r.text);
+                            setEditReplyText(r.text || "");
                           }}
-                          className="text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-white flex items-center gap-1 bg-zinc-950 border border-white/5 px-2.5 py-1 rounded-lg"
+                          className="text-[9px] font-black uppercase tracking-wider text-blue-300 hover:text-white flex items-center gap-1 bg-blue-950/60 hover:bg-blue-600 border border-blue-500/30 px-3 py-1 rounded-lg transition-all cursor-pointer shadow-sm"
+                          title="Edit this Customer Care response"
                         >
-                          <Edit2 className="w-2.5 h-2.5" /> Edit
+                          <Edit2 className="w-2.5 h-2.5" /> Edit Reply
                         </button>
                         <button
                           onClick={() => handleDeleteReply(idx)}
-                          className="text-[9px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-400 flex items-center gap-1 bg-zinc-950 border border-white/5 px-2.5 py-1 rounded-lg"
+                          className="text-[9px] font-black uppercase tracking-wider text-rose-400 hover:text-white flex items-center gap-1 bg-rose-950/40 hover:bg-rose-600 border border-rose-500/30 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-sm"
+                          title="Delete this reply"
                         >
-                          <Trash2 className="w-2.5 h-2.5" /> Delete
+                          <Trash2 className="w-2.5 h-2.5" />
                         </button>
                       </div>
                     )}
                   </div>
                   {isEditing ? (
-                    <div className="space-y-3 mt-2">
+                    <div className="space-y-3 mt-2 bg-zinc-950 p-4 rounded-xl border border-blue-500/30 shadow-inner">
+                      <div className="flex items-center justify-between text-[9px] font-black uppercase text-blue-400 tracking-wider">
+                        <span>Editing Customer Care Response</span>
+                        <span className="text-zinc-500 font-normal">Press Save to update for the fan in real-time</span>
+                      </div>
                       <textarea
                         value={editReplyText}
                         onChange={(e) => setEditReplyText(e.target.value)}
                         rows={3}
-                        className="w-full bg-zinc-950 border border-white/10 rounded-xl p-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-medium"
+                        placeholder="Edit your Customer Care response here..."
+                        className="w-full bg-zinc-900 border border-white/10 rounded-xl p-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium text-white resize-y"
+                        autoFocus
                       />
-                      <div className="flex gap-2 justify-end">
+                      <div className="flex gap-2 justify-end items-center">
                         <button
                           onClick={() => {
                             setEditingReplyIdx(null);
                             setEditReplyText("");
                           }}
-                          className="px-3 py-1.5 bg-zinc-900 text-zinc-400 text-[9px] font-black uppercase tracking-wider rounded-xl hover:bg-zinc-800 transition-colors border border-white/5"
+                          disabled={adminLoading}
+                          className="px-3 py-1.5 bg-zinc-900 text-zinc-400 hover:text-white text-[9px] font-black uppercase tracking-wider rounded-xl hover:bg-zinc-800 transition-colors border border-white/5 cursor-pointer disabled:opacity-50"
                         >
                           Cancel
                         </button>
                         <button
                           onClick={() => handleSaveEditedReply(idx)}
-                          className="px-4 py-1.5 bg-white text-black text-[9px] font-black uppercase tracking-wider rounded-xl hover:bg-zinc-200 transition-colors flex items-center gap-1"
+                          disabled={adminLoading || !editReplyText.trim()}
+                          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[9px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
                         >
-                          <Check className="w-3 h-3" /> Save
+                          <Check className="w-3 h-3" /> Save Changes
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm font-medium text-zinc-300 whitespace-pre-line">{r.text}</p>
+                    <p className="text-sm font-medium text-zinc-200 whitespace-pre-line leading-relaxed">{r.text}</p>
                   )}
                 </div>
               );
@@ -3600,6 +3634,9 @@ export default function App() {
   const [isSearchingEmail, setIsSearchingEmail] = useState(false);
   const [userReplyText, setUserReplyText] = useState("");
   const [isSendingUserReply, setIsSendingUserReply] = useState(false);
+  const [editingTrackedReplyIdx, setEditingTrackedReplyIdx] = useState<number | null>(null);
+  const [editTrackedReplyText, setEditTrackedReplyText] = useState("");
+  const [isSavingTrackedReply, setIsSavingTrackedReply] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const portfolioRef = useRef<any[]>([]);
   
@@ -4151,6 +4188,52 @@ export default function App() {
     }
   };
 
+  const handleSaveTrackedReplyEdit = async (idx: number) => {
+    if (!trackedInquiry || !editTrackedReplyText.trim()) return;
+    setIsSavingTrackedReply(true);
+    try {
+      const updatedReplies = [...(trackedInquiry.replies || [])];
+      if (updatedReplies[idx]) {
+        updatedReplies[idx] = {
+          ...updatedReplies[idx],
+          text: editTrackedReplyText.trim(),
+          editedAt: new Date().toISOString(),
+          isEdited: true,
+          editedBy: user?.email || "Customer Care"
+        };
+        await updateDoc(doc(db, "fan_card_requests", trackedInquiry.id), {
+          replies: updatedReplies,
+          lastUpdated: serverTimestamp()
+        });
+        setTrackedInquiry((prev: any) => prev ? { ...prev, replies: updatedReplies } : null);
+        setEditingTrackedReplyIdx(null);
+        setEditTrackedReplyText("");
+      }
+    } catch (err: any) {
+      console.error("Error editing tracked reply:", err);
+      alert("Failed to edit reply: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsSavingTrackedReply(false);
+    }
+  };
+
+  const handleDeleteTrackedReply = async (idx: number) => {
+    if (!trackedInquiry) return;
+    if (!window.confirm("Are you sure you want to delete this reply?")) return;
+    try {
+      const updatedReplies = [...(trackedInquiry.replies || [])];
+      updatedReplies.splice(idx, 1);
+      await updateDoc(doc(db, "fan_card_requests", trackedInquiry.id), {
+        replies: updatedReplies,
+        lastUpdated: serverTimestamp()
+      });
+      setTrackedInquiry((prev: any) => prev ? { ...prev, replies: updatedReplies } : null);
+    } catch (err: any) {
+      console.error("Error deleting tracked reply:", err);
+      alert("Failed to delete reply: " + (err instanceof Error ? err.message : String(err)));
+    }
+  };
+
   // Keep trackedInquiry in real-time sync with database for instant cross-device updates
   useEffect(() => {
     if (!trackedInquiry?.id) return;
@@ -4667,31 +4750,102 @@ export default function App() {
                       <p className="text-xs sm:text-sm font-medium text-white">{trackedInquiry.message}</p>
                     </div>
                     {trackedInquiry.replies?.map((r: any, idx: number) => {
-                      const isCustomerCare = r.sender === 'Customer Care';
+                      const isCustomerCare = r.sender === 'Customer Care' || (r.sender && r.sender.toLowerCase().includes('care')) || (r.sender && r.sender.toLowerCase().includes('concierge'));
+                      const isEditing = editingTrackedReplyIdx === idx;
+                      const canEdit = isCustomerCare && user?.email === 'alexwtchmn@gmail.com';
+
                       return (
                         <div 
                           key={idx} 
                           className={cn(
-                            "p-4 sm:p-6 rounded-2xl max-w-[90%] sm:max-w-[80%] border transition-all",
+                            "p-4 sm:p-6 rounded-2xl max-w-[95%] sm:max-w-[85%] border transition-all",
                             isCustomerCare 
-                              ? "bg-blue-600/10 border-blue-600/20 ml-auto" 
+                              ? "bg-blue-600/10 border-blue-600/30 ml-auto" 
                               : "bg-zinc-950 border-white/5 mr-auto"
                           )}
                         >
-                          <p className={cn(
-                            "text-[10px] font-black uppercase mb-2 tracking-widest",
-                            isCustomerCare ? "text-blue-500" : "text-zinc-500"
-                          )}>
-                            {isCustomerCare ? "Customer Care" : "You (Reply)"}
-                          </p>
-                          <p className={cn(
-                            "text-xs sm:text-sm font-medium",
-                            isCustomerCare ? "text-zinc-100" : "text-white"
-                          )}>{r.text}</p>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <p className={cn(
+                                "text-[10px] font-black uppercase tracking-widest",
+                                isCustomerCare ? "text-blue-400" : "text-zinc-500"
+                              )}>
+                                {isCustomerCare ? (r.sender || "Customer Care") : "You (Reply)"}
+                              </p>
+                              {r.isEdited && (
+                                <span className="text-[8px] text-zinc-400 italic bg-zinc-800/80 px-1.5 py-0.5 rounded border border-white/5" title={r.editedAt ? `Edited: ${new Date(r.editedAt).toLocaleString()}` : "Edited"}>
+                                  (edited)
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Customer Care Edit / Delete action buttons for Admin */}
+                            {canEdit && !isEditing && (
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setEditingTrackedReplyIdx(idx);
+                                    setEditTrackedReplyText(r.text || "");
+                                  }}
+                                  className="px-2 py-0.5 bg-blue-950/80 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/30 rounded text-[8px] font-black uppercase tracking-wider flex items-center gap-1 transition-colors cursor-pointer"
+                                  title="Edit Customer Care reply"
+                                >
+                                  <Edit2 className="w-2 h-2" /> Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTrackedReply(idx)}
+                                  className="px-1.5 py-0.5 bg-rose-950/60 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 rounded text-[8px] font-black uppercase tracking-wider flex items-center gap-1 transition-colors cursor-pointer"
+                                  title="Delete reply"
+                                >
+                                  <Trash2 className="w-2 h-2" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {isEditing ? (
+                            <div className="space-y-2 mt-2 bg-zinc-950/90 p-3 rounded-xl border border-blue-500/30">
+                              <div className="flex items-center justify-between text-[8px] font-black uppercase text-blue-400 tracking-wider">
+                                <span>Editing Response</span>
+                              </div>
+                              <textarea
+                                value={editTrackedReplyText}
+                                onChange={(e) => setEditTrackedReplyText(e.target.value)}
+                                rows={3}
+                                className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-xs text-white font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                autoFocus
+                              />
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => {
+                                    setEditingTrackedReplyIdx(null);
+                                    setEditTrackedReplyText("");
+                                  }}
+                                  disabled={isSavingTrackedReply}
+                                  className="px-2.5 py-1 bg-zinc-800 text-zinc-400 hover:text-white text-[8px] font-black uppercase rounded-lg transition-colors cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => handleSaveTrackedReplyEdit(idx)}
+                                  disabled={isSavingTrackedReply || !editTrackedReplyText.trim()}
+                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-[8px] font-black uppercase rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow disabled:opacity-50"
+                                >
+                                  <Check className="w-2.5 h-2.5" /> Save
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className={cn(
+                              "text-xs sm:text-sm font-medium whitespace-pre-line leading-relaxed",
+                              isCustomerCare ? "text-zinc-100" : "text-white"
+                            )}>{r.text}</p>
+                          )}
+
                           {r.timestamp && (
                             <p className={cn(
                               "text-[8px] font-mono mt-2",
-                              isCustomerCare ? "text-blue-400/50" : "text-zinc-600"
+                              isCustomerCare ? "text-blue-400/60" : "text-zinc-600"
                             )}>{new Date(r.timestamp).toLocaleString()}</p>
                           )}
                         </div>
