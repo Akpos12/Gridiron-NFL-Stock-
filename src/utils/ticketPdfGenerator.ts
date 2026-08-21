@@ -1,0 +1,311 @@
+import { jsPDF } from "jspdf";
+
+export interface TicketPassInfo {
+  id: string;
+  orderId?: string;
+  ticketCode?: string;
+  qrCode?: string;
+  passCode?: string;
+  eventTitle?: string;
+  experienceTitle?: string;
+  gameName?: string;
+  homeTeam?: string;
+  awayTeam?: string;
+  stadium?: string;
+  city?: string;
+  date?: string;
+  time?: string;
+  timeSlot?: string;
+  tier?: string;
+  quantity?: number;
+  guestsCount?: number;
+  totalAmount?: number;
+  totalPrice?: number;
+  buyerName?: string;
+  senderName?: string;
+  buyerEmail?: string;
+  userEmail?: string;
+  buyerPhone?: string;
+  status?: string;
+  isApproved?: boolean;
+  approvedAt?: string;
+  approvedBy?: string;
+  paymentMethod?: string;
+  paymentRef?: string;
+  paymentReference?: string;
+  createdAt?: string;
+  seatInfo?: string;
+  gateInfo?: string;
+  sectionInfo?: string;
+}
+
+export function generateTicketPDF(ticket: TicketPassInfo): void {
+  // Create PDF document (Landscape standard ticket format 210mm x 100mm or Portrait 210mm x 297mm A4)
+  // Let's create an elegant A4 Portrait official digital pass (210 x 297 mm)
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const pageWidth = 210;
+  const margin = 14;
+  const contentWidth = pageWidth - margin * 2;
+
+  const eventName =
+    ticket.eventTitle ||
+    ticket.experienceTitle ||
+    ticket.gameName ||
+    "NFL VIP Gridiron Experience & Match Pass";
+
+  const passCode =
+    ticket.ticketCode ||
+    ticket.qrCode ||
+    ticket.passCode ||
+    `NFL-PASS-${(ticket.id || ticket.orderId || "AUTH").slice(-8).toUpperCase()}`;
+
+  const orderNumber = (ticket.orderId || ticket.id || "ORD-001").toUpperCase();
+  const attendeeName = ticket.buyerName || ticket.senderName || "VIP Passholder";
+  const attendeeEmail = ticket.buyerEmail || ticket.userEmail || "attendee@nflgridiron.com";
+  const eventDate = ticket.date || "Scheduled Season Match";
+  const eventTime = ticket.time || ticket.timeSlot || "Kickoff Time (TBA)";
+  const venue = ticket.stadium || (ticket.city ? `${ticket.city} Stadium Arena` : "Official NFL Stadium");
+  const venueLocation = ticket.city || "United States";
+  const tierName = (ticket.tier || "VIP ALL-ACCESS").toUpperCase().replace(/_/g, " ");
+  const guests = ticket.quantity || ticket.guestsCount || 1;
+  const totalPaid = ticket.totalAmount || ticket.totalPrice || 0;
+  const approvedBy = ticket.approvedBy || "NFL Gridiron Box Office Management";
+  const approvalDate = ticket.approvedAt ? new Date(ticket.approvedAt).toLocaleDateString() : new Date().toLocaleDateString();
+
+  // Background Canvas
+  doc.setFillColor(15, 17, 23); // Dark modern theme
+  doc.rect(0, 0, 210, 297, "F");
+
+  // Top Accent Bar (NFL Red / White / Blue)
+  doc.setFillColor(14, 82, 214); // Electric Blue
+  doc.rect(0, 0, 70, 4, "F");
+  doc.setFillColor(255, 255, 255); // White
+  doc.rect(70, 0, 70, 4, "F");
+  doc.setFillColor(220, 38, 38); // Crimson Red
+  doc.rect(140, 0, 70, 4, "F");
+
+  // Header Box
+  doc.setFillColor(24, 27, 36);
+  doc.roundedRect(margin, 12, contentWidth, 34, 4, 4, "F");
+  doc.setDrawColor(45, 50, 65);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(margin, 12, contentWidth, 34, 4, 4, "S");
+
+  // Header Title & Logo text
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("NFL GRIDIRON EXCHANGE", margin + 8, 24);
+
+  doc.setFontSize(8);
+  doc.setTextColor(96, 165, 250); // Blue accent
+  doc.text("OFFICIAL VERIFIED DIGITAL ADMISSION PASS", margin + 8, 30);
+
+  doc.setFontSize(7);
+  doc.setTextColor(156, 163, 175);
+  doc.text(`TICKET ORDER: #${orderNumber}  |  STATUS: AUTHORIZED & CONFIRMED`, margin + 8, 38);
+
+  // Status Badge in Header
+  doc.setFillColor(16, 185, 129); // Emerald green badge
+  doc.roundedRect(pageWidth - margin - 52, 20, 44, 18, 2, 2, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("GATE READY", pageWidth - margin - 30, 28, { align: "center" });
+  doc.setFontSize(6.5);
+  doc.text("VERIFIED RFID ENTRY", pageWidth - margin - 30, 33, { align: "center" });
+
+  // Main Ticket Container Card
+  const cardY = 52;
+  const cardHeight = 175;
+  doc.setFillColor(28, 32, 45);
+  doc.roundedRect(margin, cardY, contentWidth, cardHeight, 6, 6, "F");
+  doc.setDrawColor(55, 65, 81);
+  doc.setLineWidth(0.6);
+  doc.roundedRect(margin, cardY, contentWidth, cardHeight, 6, 6, "S");
+
+  // Event Banner Strip inside Card
+  doc.setFillColor(14, 82, 214);
+  doc.roundedRect(margin + 4, cardY + 4, contentWidth - 8, 26, 4, 4, "F");
+  
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  const truncatedTitle = doc.splitTextToSize(eventName.toUpperCase(), contentWidth - 20);
+  doc.text(truncatedTitle[0] || eventName.toUpperCase(), margin + 10, cardY + 16);
+
+  doc.setFontSize(8);
+  doc.setTextColor(219, 234, 254);
+  doc.text(`TIER: ${tierName}  |  ADMIT: ${guests} ${guests > 1 ? "GUESTS" : "GUEST"}`, margin + 10, cardY + 24);
+
+  // Event Details Grid
+  let curY = cardY + 40;
+
+  // Box: Date & Time
+  doc.setFillColor(18, 21, 30);
+  doc.roundedRect(margin + 8, curY, 80, 24, 3, 3, "F");
+  doc.setTextColor(156, 163, 175);
+  doc.setFontSize(6.5);
+  doc.text("DATE & KICKOFF / ADMISSION TIME", margin + 12, curY + 7);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text(`${eventDate}`, margin + 12, curY + 14);
+  doc.setTextColor(96, 165, 250);
+  doc.setFontSize(8);
+  doc.text(`TIME: ${eventTime}`, margin + 12, curY + 20);
+
+  // Box: Stadium Venue
+  doc.setFillColor(18, 21, 30);
+  doc.roundedRect(margin + 94, curY, 80, 24, 3, 3, "F");
+  doc.setTextColor(156, 163, 175);
+  doc.setFontSize(6.5);
+  doc.text("STADIUM ARENA & LOCATION", margin + 98, curY + 7);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text(`${venue}`, margin + 98, curY + 14);
+  doc.setTextColor(209, 213, 219);
+  doc.setFontSize(7.5);
+  doc.text(`${venueLocation}`, margin + 98, curY + 20);
+
+  curY += 28;
+
+  // Box: Attendee & Seat Info
+  doc.setFillColor(18, 21, 30);
+  doc.roundedRect(margin + 8, curY, 80, 24, 3, 3, "F");
+  doc.setTextColor(156, 163, 175);
+  doc.setFontSize(6.5);
+  doc.text("PASSHOLDER (LEAD ATTENDEE)", margin + 12, curY + 7);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text(`${attendeeName}`, margin + 12, curY + 14);
+  doc.setTextColor(156, 163, 175);
+  doc.setFontSize(7);
+  doc.text(`${attendeeEmail}`, margin + 12, curY + 20);
+
+  // Box: Access Tier & Seating
+  doc.setFillColor(18, 21, 30);
+  doc.roundedRect(margin + 94, curY, 80, 24, 3, 3, "F");
+  doc.setTextColor(156, 163, 175);
+  doc.setFontSize(6.5);
+  doc.text("SEATING / ACCESS ALLOCATION", margin + 98, curY + 7);
+  doc.setTextColor(245, 158, 11); // Amber
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text(`${tierName}`, margin + 98, curY + 14);
+  doc.setTextColor(156, 163, 175);
+  doc.setFontSize(7);
+  doc.text(`TOTAL AMOUNT: $${Number(totalPaid).toLocaleString()}`, margin + 98, curY + 20);
+
+  curY += 30;
+
+  // Dashed Cut / Security Perforation Line
+  doc.setDrawColor(75, 85, 99);
+  doc.setLineWidth(0.4);
+  doc.setLineDashPattern([2, 2], 0);
+  doc.line(margin + 8, curY, pageWidth - margin - 8, curY);
+  doc.setLineDashPattern([], 0); // Reset
+
+  curY += 8;
+
+  // Passcode & Barcode Section
+  doc.setFillColor(18, 21, 30);
+  doc.roundedRect(margin + 8, curY, contentWidth - 16, 56, 4, 4, "F");
+  doc.setDrawColor(45, 55, 72);
+  doc.roundedRect(margin + 8, curY, contentWidth - 16, 56, 4, 4, "S");
+
+  // Left Column: Passcode info
+  doc.setTextColor(156, 163, 175);
+  doc.setFontSize(6.5);
+  doc.text("OFFICIAL ACCESS PASSCODE (GATE SCAN CODE)", margin + 16, curY + 10);
+
+  doc.setTextColor(52, 211, 153); // Emerald
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text(`${passCode}`, margin + 16, curY + 20);
+
+  doc.setTextColor(156, 163, 175);
+  doc.setFontSize(6.5);
+  doc.text(`APPROVED BY: ${approvedBy}`, margin + 16, curY + 27);
+  doc.text(`APPROVAL DATE: ${approvalDate}`, margin + 16, curY + 33);
+  doc.text(`SECURITY SIGNATURE: SHA-256 ENCRYPTED NFC / RFID COMPLIANT`, margin + 16, curY + 39);
+
+  // Simulated Barcode on the right
+  const barcodeX = pageWidth - margin - 60;
+  const barcodeY = curY + 8;
+  const barcodeWidth = 48;
+  const barcodeHeight = 30;
+
+  doc.setFillColor(255, 255, 255);
+  doc.rect(barcodeX, barcodeY, barcodeWidth, barcodeHeight, "F");
+
+  // Draw simulated barcode lines
+  doc.setFillColor(0, 0, 0);
+  const pattern = [2, 1, 3, 1, 2, 2, 1, 3, 1, 2, 1, 3, 2, 1, 1, 2, 3, 1, 2, 1, 2, 3, 1, 1];
+  let barOffset = 3;
+  for (let i = 0; i < pattern.length && barOffset < barcodeWidth - 4; i++) {
+    const width = pattern[i] * 0.7;
+    if (i % 2 === 0) {
+      doc.rect(barcodeX + barOffset, barcodeY + 2, width, barcodeHeight - 9, "F");
+    }
+    barOffset += width + 0.8;
+  }
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6);
+  doc.text(`${passCode}`, barcodeX + barcodeWidth / 2, barcodeY + barcodeHeight - 2, { align: "center" });
+
+  // Security Seal at bottom of ticket card
+  doc.setTextColor(107, 114, 128);
+  doc.setFontSize(6);
+  doc.text("STADIUM GATE INSTRUCTIONS: Present this digital or printed pass at the VIP Turnstile / RFID reader for priority entry.", margin + 16, curY + 49);
+
+  // Bottom Notice & Terms Box
+  const bottomY = cardY + cardHeight + 10;
+  doc.setFillColor(24, 27, 36);
+  doc.roundedRect(margin, bottomY, contentWidth, 38, 4, 4, "F");
+  doc.setDrawColor(45, 50, 65);
+  doc.roundedRect(margin, bottomY, contentWidth, 38, 4, 4, "S");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.text("IMPORTANT ADMISSION & PASS RULES", margin + 8, bottomY + 8);
+
+  doc.setTextColor(156, 163, 175);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  const terms = [
+    "1. This official pass is non-transferable without prior Box Office authorization.",
+    "2. Photo ID matching the passholder name may be requested at entry gates or VIP suite desks.",
+    "3. Gates open 2 hours prior to scheduled game/event kickoff. Early arrival is recommended for security clearance.",
+    "4. For customer service or rescheduling assistance, contact NFL Gridiron Support Concierge.",
+  ];
+  let termY = bottomY + 14;
+  terms.forEach((t) => {
+    doc.text(t, margin + 8, termY);
+    termY += 5;
+  });
+
+  // Footer Branding
+  doc.setTextColor(107, 114, 128);
+  doc.setFontSize(6);
+  doc.text(
+    `NFL Gridiron Exchange © ${new Date().getFullYear()} Official Passbook · Issued for ${attendeeName} · Pass ID: ${passCode}`,
+    pageWidth / 2,
+    290,
+    { align: "center" }
+  );
+
+  // Trigger Save / Download
+  const cleanFileName = `NFL-Pass-${passCode.replace(/[^a-zA-Z0-9-]/g, "_")}.pdf`;
+  doc.save(cleanFileName);
+}

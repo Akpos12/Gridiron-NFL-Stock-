@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   X, 
@@ -28,11 +28,14 @@ import {
   Share2,
   DollarSign,
   Wallet,
-  ChevronRight
+  ChevronRight,
+  Download,
+  Search
 } from "lucide-react";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
+import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 
 export interface GameTicket {
   id: string;
@@ -65,6 +68,7 @@ interface TicketCheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  onOpenTicketCheck?: (query?: string) => void;
   initialTier?: "general" | "lower_bowl" | "club" | "vip" | "season_pass";
   initialPromoCode?: string;
   passName?: string;
@@ -114,6 +118,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  onOpenTicketCheck,
   initialTier = "general",
   initialPromoCode = "",
   passName
@@ -137,6 +142,20 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
     initialPromoCode ? "VIP Promo Applied: 50% Off Match Tickets & $3,000 Off Season Pass!" : null
   );
 
+  const [liveBookingState, setLiveBookingState] = useState<any>(null);
+  const [confirmedTicket, setConfirmedTicket] = useState<any | null>(null);
+
+  // Sync real-time updates for confirmed ticket order to detect immediate manager approval
+  useEffect(() => {
+    if (!confirmedTicket?.orderId) return;
+    const unsub = onSnapshot(doc(db, "bookings", confirmedTicket.orderId), (snap) => {
+      if (snap.exists()) {
+        setLiveBookingState(snap.data());
+      }
+    });
+    return () => unsub();
+  }, [confirmedTicket?.orderId]);
+
   // Update initial tier when opened
   React.useEffect(() => {
     if (initialTier) {
@@ -151,7 +170,6 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   const [paymentRef, setPaymentRef] = useState("");
   const [paymentReceiptUrl, setPaymentReceiptUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [confirmedTicket, setConfirmedTicket] = useState<any | null>(null);
 
   if (!isOpen || !game) return null;
 
@@ -339,6 +357,18 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         imageUrl: game.image
       });
 
+      // Save order to localStorage for instant lookup in TicketCheckModal
+      try {
+        const recent: string[] = JSON.parse(localStorage.getItem("recent_ticket_orders") || "[]");
+        if (!recent.includes(orderId)) {
+          recent.unshift(orderId);
+          localStorage.setItem("recent_ticket_orders", JSON.stringify(recent.slice(0, 10)));
+        }
+        localStorage.setItem("user_email", buyerEmail);
+      } catch (e) {
+        // Safe fallback
+      }
+
       setConfirmedTicket(ticketOrderData);
       if (onSuccess) onSuccess();
     } catch (err: any) {
@@ -382,20 +412,42 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
 
         {confirmedTicket ? (
           <div className="py-8 text-center space-y-6">
-            <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/30 rounded-3xl flex items-center justify-center mx-auto text-amber-400 animate-pulse">
-              <Clock className="w-8 h-8" />
-            </div>
+            {liveBookingState?.status === "approved" || liveBookingState?.isApproved ? (
+              <div className="w-16 h-16 bg-emerald-500/20 border border-emerald-500/40 rounded-3xl flex items-center justify-center mx-auto text-emerald-400">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+            ) : (
+              <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/30 rounded-3xl flex items-center justify-center mx-auto text-amber-400 animate-pulse">
+                <Clock className="w-8 h-8" />
+              </div>
+            )}
 
             <div className="space-y-2">
-              <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full">
-                PAYMENT RECEIPT SUBMITTED · PENDING MANAGER APPROVAL
-              </span>
-              <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-white">
-                Reservation Logged For Review
-              </h3>
-              <p className="text-zinc-400 text-xs font-medium max-w-md mx-auto">
-                Your payment reference and receipt proof have been delivered to the Control Room. Box office management will review your receipt to confirm payment and issue your official pass to <strong className="text-white">{confirmedTicket.buyerEmail}</strong>.
-              </p>
+              {liveBookingState?.status === "approved" || liveBookingState?.isApproved ? (
+                <>
+                  <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+                    ✅ PAYMENT APPROVED · OFFICIAL PASS ISSUED
+                  </span>
+                  <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-white">
+                    Pass Ready for Download
+                  </h3>
+                  <p className="text-zinc-400 text-xs font-medium max-w-md mx-auto">
+                    Your payment receipt has been verified and approved by the Box Office Manager! Your high-security official PDF pass is ready to download below.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+                    PAYMENT RECEIPT SUBMITTED · PENDING MANAGER APPROVAL
+                  </span>
+                  <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-white">
+                    Reservation Logged For Review
+                  </h3>
+                  <p className="text-zinc-400 text-xs font-medium max-w-md mx-auto">
+                    Your payment reference and receipt proof have been delivered to the Control Room. Box office management will review your receipt to confirm payment and activate your pass for <strong className="text-white">{confirmedTicket.buyerEmail}</strong>.
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="p-6 bg-zinc-950 rounded-3xl border border-white/10 max-w-md mx-auto text-left space-y-4 shadow-xl">
@@ -404,10 +456,29 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   <Ticket className="w-4 h-4 text-blue-500" />
                   <span className="text-xs font-mono font-black text-white">{confirmedTicket.orderId}</span>
                 </div>
-                <span className="text-[10px] font-black uppercase bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded">
-                  Pending Review
-                </span>
+                {liveBookingState?.status === "approved" || liveBookingState?.isApproved ? (
+                  <span className="text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Approved
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-black uppercase bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded">
+                    Pending Review
+                  </span>
+                )}
               </div>
+
+              {/* Passcode if approved */}
+              {(liveBookingState?.ticketCode || liveBookingState?.qrCode) && (
+                <div className="p-3 bg-blue-950/40 border border-blue-500/30 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-blue-400 block tracking-wider">Pass Code / Entry Pass</span>
+                    <span className="text-xs font-mono font-black text-white">{liveBookingState?.ticketCode || liveBookingState?.qrCode}</span>
+                  </div>
+                  <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-[8px] font-black uppercase rounded-lg border border-blue-400/30">
+                    Active RFID
+                  </span>
+                </div>
+              )}
 
               {confirmedTicket.receiptImage && (
                 <div className="p-2.5 bg-zinc-900 rounded-2xl border border-white/10 flex items-center gap-3">
@@ -420,7 +491,9 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     <p className="text-[10px] font-black uppercase text-emerald-400 flex items-center gap-1">
                       <ShieldCheck className="w-3 h-3" /> Receipt Screenshot Attached
                     </p>
-                    <p className="text-[9px] text-zinc-400 truncate">Queued for manager verification</p>
+                    <p className="text-[9px] text-zinc-400 truncate">
+                      {liveBookingState?.status === "approved" ? "Verified by Box Office" : "Queued for manager verification"}
+                    </p>
                   </div>
                 </div>
               )}
@@ -428,10 +501,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
               <div className="space-y-1.5">
                 <h4 className="text-sm font-black uppercase italic text-white">{confirmedTicket.gameName}</h4>
                 <p className="text-[10px] text-zinc-400 flex items-center gap-1.5">
-                  <MapPin className="w-3 h-3 text-red-400" /> {game.location || `${game.stadium}, ${game.city}`}
+                  <MapPin className="w-3 h-3 text-red-400" /> {game?.location || `${game?.stadium || "NFL Arena"}, ${game?.city || "USA"}`}
                 </p>
                 <p className="text-[10px] text-zinc-400 flex items-center gap-1.5">
-                  <Clock className="w-3 h-3 text-blue-400" /> {game.status || `${game.date} @ ${game.time}`}
+                  <Clock className="w-3 h-3 text-blue-400" /> {game?.status || `${game?.date || "2025 Season"} @ ${game?.time || "TBD"}`}
                 </p>
               </div>
 
@@ -467,18 +540,71 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                 <span className="text-lg font-mono font-black text-emerald-400">${confirmedTicket.totalAmount.toLocaleString()} USD</span>
               </div>
 
-              <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-center gap-2 text-amber-300">
-                <Clock className="w-5 h-5 text-amber-400" />
-                <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-300 font-bold">MANUAL MANAGER AUDIT IN PROGRESS</span>
-              </div>
+              {liveBookingState?.status === "approved" || liveBookingState?.isApproved ? (
+                <div className="p-3 bg-emerald-950/40 rounded-xl border border-emerald-500/30 flex items-center justify-center gap-2 text-emerald-300">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-emerald-300 font-bold">
+                    OFFICIALLY AUTHENTICATED BY BOX OFFICE
+                  </span>
+                </div>
+              ) : (
+                <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-center gap-2 text-amber-300">
+                  <Clock className="w-5 h-5 text-amber-400" />
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-300 font-bold">MANUAL MANAGER AUDIT IN PROGRESS</span>
+                </div>
+              )}
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
+            {/* Action Buttons: Download PDF if approved, or Check & Download Portal */}
+            <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2 max-w-md mx-auto">
+              {(liveBookingState?.status === "approved" || liveBookingState?.isApproved) && (
+                <button
+                  onClick={() => {
+                    generateTicketPDF({
+                      id: confirmedTicket.orderId,
+                      orderId: confirmedTicket.orderId,
+                      ticketCode: liveBookingState?.ticketCode || liveBookingState?.qrCode,
+                      eventTitle: confirmedTicket.gameName,
+                      stadium: game?.stadium || "NFL Stadium",
+                      city: game?.city || "USA",
+                      date: game?.date || "2025-2026 Season",
+                      time: game?.time || "TBD",
+                      tier: confirmedTicket.tier,
+                      quantity: confirmedTicket.quantity,
+                      totalPrice: confirmedTicket.totalAmount,
+                      totalAmount: confirmedTicket.totalAmount,
+                      buyerName: confirmedTicket.buyerName,
+                      buyerEmail: confirmedTicket.buyerEmail,
+                      status: "approved",
+                      isApproved: true,
+                      approvedAt: liveBookingState?.approvedAt
+                    });
+                  }}
+                  className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-xs font-black uppercase tracking-wider rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Official Ticket (PDF)
+                </button>
+              )}
+
+              {onOpenTicketCheck && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onOpenTicketCheck(confirmedTicket.buyerEmail || confirmedTicket.orderId);
+                  }}
+                  className="w-full sm:w-auto px-6 py-3.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-black uppercase tracking-wider rounded-2xl transition-all border border-white/10 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Search className="w-4 h-4 text-blue-400" />
+                  Check & Download Portal
+                </button>
+              )}
+
               <button
                 onClick={onClose}
-                className="px-8 py-3.5 bg-white hover:bg-zinc-200 text-black text-xs font-black uppercase tracking-widest rounded-2xl transition-all cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3.5 bg-white hover:bg-zinc-200 text-black text-xs font-black uppercase tracking-widest rounded-2xl transition-all cursor-pointer"
               >
-                Done
+                Close
               </button>
             </div>
           </div>

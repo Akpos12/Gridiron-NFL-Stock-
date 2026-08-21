@@ -27,7 +27,8 @@ import {
   ExternalLink,
   ShieldCheck,
   DollarSign,
-  Wallet
+  Wallet,
+  Download
 } from "lucide-react";
 import { collection, onSnapshot, getDocs, setDoc, doc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -36,6 +37,7 @@ import { cn, formatCurrency } from "../lib/utils";
 import { NFLImage } from "../utils/nflImages";
 import { OFFICIAL_PAYMENT_CHANNELS } from "./TicketCheckoutModal";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
+import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 
 export interface Experience {
   id: string;
@@ -1588,12 +1590,21 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => setSelectedExp(null)}
-                      className="px-10 py-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5 cursor-pointer"
-                    >
-                      Return to Arena Exchange
-                    </button>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                      <button
+                        onClick={() => generateTicketPDF(completedBooking)}
+                        className="w-full sm:w-auto px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 cursor-pointer"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download Pass Preview (PDF)
+                      </button>
+                      <button
+                        onClick={() => setSelectedExp(null)}
+                        className="w-full sm:w-auto px-8 py-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5 cursor-pointer"
+                      >
+                        Return to Arena Exchange
+                      </button>
+                    </div>
                   </div>
                 )}
 

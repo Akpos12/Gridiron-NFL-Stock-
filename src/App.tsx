@@ -50,7 +50,9 @@ import {
   HelpCircle,
   PowerOff,
   RotateCcw,
-  AlertTriangle
+  AlertTriangle,
+  Download,
+  Zap
 } from "lucide-react";
 import { 
   XAxis, 
@@ -100,6 +102,8 @@ import { WinnerTicker } from "./components/giveaway/WinnerTicker";
 import { TicketCheckoutModal, GameTicket } from "./components/TicketCheckoutModal";
 import { CustomerCareWidget } from "./components/CustomerCareWidget";
 import { ReceiptReviewModal, BookingAuditItem } from "./components/common/ReceiptReviewModal";
+import { TicketCheckModal } from "./components/TicketCheckModal";
+import { generateTicketPDF } from "./utils/ticketPdfGenerator";
 import { NFLImage } from "./utils/nflImages";
 
 // --- Constants ---
@@ -3637,6 +3641,8 @@ export default function App() {
   const [editingTrackedReplyIdx, setEditingTrackedReplyIdx] = useState<number | null>(null);
   const [editTrackedReplyText, setEditTrackedReplyText] = useState("");
   const [isSavingTrackedReply, setIsSavingTrackedReply] = useState(false);
+  const [showTicketCheckModal, setShowTicketCheckModal] = useState(false);
+  const [ticketCheckInitialQuery, setTicketCheckInitialQuery] = useState("");
   const [resetSent, setResetSent] = useState(false);
   const portfolioRef = useRef<any[]>([]);
   
@@ -3812,47 +3818,107 @@ export default function App() {
     };
   }, []);
 
+  const handleQuickDemoLogin = async (type: "whale" | "fan") => {
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const email = type === "whale" ? "institutional@gridiron.exchange" : "demo_fan@gridiron.exchange";
+      const pass = type === "whale" ? "Vikings_Whale_2024" : "Gridiron_Fan_2024";
+      const displayName = type === "whale" ? "Institutional Whale" : "VIP Fan Member";
+      let cred;
+      try {
+        cred = await signInWithEmailAndPassword(auth, email, pass);
+      } catch (err: any) {
+        if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential") {
+          try {
+            cred = await createUserWithEmailAndPassword(auth, email, pass);
+          } catch (createErr: any) {
+            if (createErr.code === "auth/email-already-in-use") {
+              // Sign in if created concurrently
+              cred = await signInWithEmailAndPassword(auth, email, pass);
+            } else {
+              throw createErr;
+            }
+          }
+        } else {
+          throw err;
+        }
+      }
+
+      const userRef = doc(db, "users", cred.user.uid);
+      await setDoc(userRef, {
+        uid: cred.user.uid,
+        displayName,
+        email,
+        balance: type === "whale" ? 5000000 : 25000,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      if (type === "whale") {
+        const currentVikingsPrice = marketPrices["MIN"] || 100;
+        const targetShares = 5000000 / currentVikingsPrice;
+        const vikingsPosRef = doc(db, "users", cred.user.uid, "portfolio", "MIN");
+        const vPos = await getDoc(vikingsPosRef);
+        if (!vPos.exists() || (vPos.data().shares || 0) < targetShares) {
+          await setDoc(vikingsPosRef, {
+            teamId: "MIN",
+            shares: targetShares,
+            avgPrice: currentVikingsPrice
+          });
+        }
+      }
+
+      setShowLogin(false);
+    } catch (err: any) {
+      console.error("Demo login error:", err);
+      setAuthError(err.message || "Failed to initialize demo session.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   const handleAuth = async (e: React.FormEvent | "google") => {
     setAuthLoading(true);
     setAuthError(null);
     try {
       if (typeof e === "string") {
-        let provider;
         if (e === "google") {
-          provider = new GoogleAuthProvider();
-        } else return;
+          const provider = new GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: "select_account" });
 
-        let cred;
-        try {
-          await setPersistence(auth, browserLocalPersistence);
-          cred = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
-        } catch (innerErr: any) {
-          console.error("Popup Error Detail:", innerErr);
-          if (innerErr.code === "auth/popup-closed-by-user") {
-            throw new Error("The sign-in popup was closed before completion. Please try again.");
+          let cred;
+          try {
+            // Directly trigger signInWithPopup synchronously within user gesture context
+            cred = await signInWithPopup(auth, provider);
+          } catch (innerErr: any) {
+            console.error("Popup Error Detail:", innerErr);
+            if (innerErr.code === "auth/popup-closed-by-user") {
+              throw new Error("The sign-in popup was closed before completion. Please try again.");
+            }
+            if (innerErr.code === "auth/popup-blocked" || innerErr.message?.includes("popup-blocked")) {
+              throw new Error("Sign-in popup was blocked by your browser. Please allow popups, open the app in a new tab, or use Quick Demo Sign-In below.");
+            }
+            if (innerErr.message?.includes("missing initial state") || innerErr.code === "auth/internal-error" || innerErr.code === "auth/cancelled-popup-request") {
+              throw new Error("Popup was blocked or restricted in this window. Try opening the app in a new tab, or use Quick Demo Sign-In below.");
+            }
+            throw innerErr;
           }
-          if (innerErr.code === "auth/popup-blocked") {
-            throw new Error("Sign-in popup was blocked. Please allow popups for this site.");
-          }
-          if (innerErr.message?.includes("missing initial state") || innerErr.code === "auth/internal-error") {
-            throw new Error("Your browser is blocking the sign-in. Please try opening the app in a new tab.");
-          }
-          throw innerErr;
-        }
 
-        const userRef = doc(db, "users", cred.user.uid);
-        const userDoc = await getDoc(userRef);
-        
-        if (!userDoc.exists()) {
-          await setDoc(userRef, {
-            uid: cred.user.uid,
-            displayName: cred.user.displayName || cred.user.email?.split("@")[0],
-            email: cred.user.email,
-            balance: 0,
-            createdAt: serverTimestamp()
-          });
+          const userRef = doc(db, "users", cred.user.uid);
+          const userDoc = await getDoc(userRef);
+          
+          if (!userDoc.exists()) {
+            await setDoc(userRef, {
+              uid: cred.user.uid,
+              displayName: cred.user.displayName || cred.user.email?.split("@")[0],
+              email: cred.user.email,
+              balance: 10000,
+              createdAt: serverTimestamp()
+            });
+          }
+          setShowLogin(false);
+          return;
         }
-        setShowLogin(false);
         return;
       }
 
@@ -4445,7 +4511,20 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 md:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+          {/* Quick Check & Download Pass Navbar Button */}
+          <button
+            onClick={() => {
+              setTicketCheckInitialQuery(user?.email || "");
+              setShowTicketCheckModal(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-950/70 to-zinc-900 hover:from-emerald-900/80 hover:to-zinc-800 border border-emerald-500/40 hover:border-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-wider text-emerald-300 hover:text-white transition-all cursor-pointer shadow-sm"
+            title="Check ticket status and download official PDF passes"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden xs:inline">Check /</span> Download Pass
+          </button>
+
           {/* Quick Track Ticket Navbar Button */}
           <button
             onClick={() => {
@@ -4511,6 +4590,10 @@ export default function App() {
           setTrackingId("");
           if (tab) setTrackingTab(tab);
           setShowInquiryStatus("SEARCH");
+        }}
+        onOpenTicketCheck={() => {
+          setTicketCheckInitialQuery(user?.email || "");
+          setShowTicketCheckModal(true);
         }}
         user={user}
       />
@@ -5554,25 +5637,64 @@ export default function App() {
                 {/* Active Experience booked tickets list */}
                 {userBookings && userBookings.length > 0 && (
                   <div className="space-y-6 pt-6">
-                    <div>
-                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">My Active Passes</h4>
-                      <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mt-1">Authorized tickets & secure access passes for upcoming VIP NFL events.</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h4 className="text-xl font-black italic uppercase tracking-tighter text-white flex items-center gap-2">
+                          <Ticket className="w-5 h-5 text-emerald-400" /> My Active Passes
+                        </h4>
+                        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mt-1">Authorized tickets & secure access passes for upcoming VIP NFL events.</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setTicketCheckInitialQuery(user?.email || "");
+                          setShowTicketCheckModal(true);
+                        }}
+                        className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-850 border border-emerald-500/30 hover:border-emerald-400 text-emerald-300 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-sm self-start sm:self-auto"
+                      >
+                        <Download className="w-3.5 h-3.5 text-emerald-400" />
+                        Ticket Portal & PDF Downloads
+                      </button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {userBookings.map((b: any) => (
-                        <div key={b.id} className="p-5 bg-zinc-900/60 border border-white/5 rounded-[2rem] flex items-center gap-5">
-                          <NFLImage item={b} className="w-20 h-20 rounded-2xl object-cover border border-white/5 shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <span className={cn(
-                              "inline-flex px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-widest mb-1.5",
-                              b.status === "approved" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/10" : "bg-amber-500/10 text-amber-500 border border-amber-500/10"
-                            )}>
-                              {b.status === "approved" ? "AUTHORIZED PASS" : "PENDING AUDIT"}
-                            </span>
-                            <h5 className="text-xs font-black uppercase tracking-tight text-white truncate">{b.experienceTitle}</h5>
-                            <p className="text-[9px] font-black text-zinc-500 font-mono uppercase mt-0.5">{b.tier.toUpperCase()} · {b.date} · {b.timeSlot}</p>
-                            <p className="text-[8px] font-mono font-black text-blue-400 mt-1 uppercase select-all">PASSCODE: {b.qrCode}</p>
+                        <div key={b.id} className="p-5 bg-zinc-900/80 border border-white/10 rounded-[2rem] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 hover:border-white/20 transition-all">
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            <NFLImage item={b} className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-white/5 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <span className={cn(
+                                "inline-flex px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-widest mb-1.5",
+                                b.status === "approved" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                              )}>
+                                {b.status === "approved" ? "AUTHORIZED & APPROVED" : "PENDING CONTROL ROOM AUDIT"}
+                              </span>
+                              <h5 className="text-xs font-black uppercase tracking-tight text-white truncate">{b.experienceTitle}</h5>
+                              <p className="text-[9px] font-black text-zinc-500 font-mono uppercase mt-0.5">{b.tier?.toUpperCase()} · {b.date} · {b.timeSlot}</p>
+                              <p className="text-[8px] font-mono font-black text-blue-400 mt-1 uppercase select-all">PASSCODE: {b.qrCode}</p>
+                            </div>
+                          </div>
+
+                          <div className="w-full sm:w-auto flex sm:flex-col items-center gap-2 shrink-0">
+                            {b.status === "approved" ? (
+                              <button
+                                onClick={() => generateTicketPDF(b)}
+                                className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-[10px] font-black uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md shadow-emerald-950/40 cursor-pointer active:scale-95"
+                                title="Download official ticket PDF with QR code"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                Download PDF
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setTicketCheckInitialQuery(b.id || b.qrCode || "");
+                                  setShowTicketCheckModal(true);
+                                }}
+                                className="w-full sm:w-auto px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-black uppercase tracking-wider rounded-xl flex items-center justify-center gap-1 transition-all cursor-pointer"
+                              >
+                                Check Status
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -5946,19 +6068,31 @@ export default function App() {
 
               <form onSubmit={handleAuth} className="space-y-6">
                 {authError && (
-                  <div className="flex flex-col gap-2 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl">
-                    <div className="flex gap-3 text-[10px] font-black uppercase text-rose-400 tracking-widest items-center">
-                      <AlertCircle className="w-4 h-4 shrink-0" /> {authError}
+                  <div className="flex flex-col gap-3 p-4 bg-rose-500/10 border border-rose-500/25 rounded-2xl">
+                    <div className="flex gap-3 text-[10px] font-black uppercase text-rose-300 tracking-wider items-start leading-relaxed">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                      <span>{authError}</span>
                     </div>
-                    {authError.includes("new tab") && (
-                      <a 
-                        href={window.location.href} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-[10px] font-black uppercase text-white bg-rose-500/20 py-2 px-4 rounded-xl text-center hover:bg-rose-500/30 transition-all border border-rose-500/30 w-full mt-1"
-                      >
-                        Open Website in New Tab
-                      </a>
+                    {(authError.toLowerCase().includes("popup") || authError.toLowerCase().includes("tab") || authError.toLowerCase().includes("blocked")) && (
+                      <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+                        <a 
+                          href={window.location.href} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-[9px] font-black uppercase text-white bg-blue-600 hover:bg-blue-500 py-2.5 px-4 rounded-xl text-center transition-all w-full flex items-center justify-center gap-1.5 shadow-md"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Open App in New Tab
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickDemoLogin("whale")}
+                          className="text-[9px] font-black uppercase text-emerald-300 hover:text-white bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/30 py-2.5 px-4 rounded-xl text-center transition-all w-full flex items-center justify-center gap-1.5"
+                        >
+                          <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                          1-Click Demo Login
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
@@ -6006,7 +6140,7 @@ export default function App() {
                 <button 
                   type="submit" 
                   disabled={authLoading}
-                  className="w-full py-5 bg-blue-600 text-white font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/20 active:scale-95 text-xs flex items-center justify-center gap-2"
+                  className="w-full py-5 bg-blue-600 text-white font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/20 active:scale-95 text-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {authLoading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -6016,29 +6150,49 @@ export default function App() {
                 </button>
               </form>
 
-              <div className="mt-8 space-y-4">
+              <div className="mt-6 space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="flex-1 h-px bg-white/5" />
-                  <span className="text-[8px] font-black uppercase tracking-[0.4em] text-zinc-600">Secure SSO</span>
+                  <span className="text-[8px] font-black uppercase tracking-[0.4em] text-zinc-600">Quick Access & SSO</span>
                   <div className="flex-1 h-px bg-white/5" />
                 </div>
                 
-                <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <button 
                     onClick={() => handleAuth("google")}
                     disabled={authLoading}
-                    className="w-full flex items-center justify-center gap-3 py-4 bg-zinc-950 border border-white/5 rounded-2xl hover:bg-white/5 transition-all group disabled:opacity-50"
+                    className="sm:col-span-2 w-full flex items-center justify-center gap-3 py-3.5 bg-zinc-950 border border-white/10 hover:border-white/20 rounded-2xl hover:bg-white/5 transition-all group disabled:opacity-50 cursor-pointer"
                   >
                     {authLoading ? (
                       <div className="w-4 h-4 border-2 border-white/10 border-t-white/60 rounded-full animate-spin" />
                     ) : (
                       <>
-                        <svg className="w-4 h-4 fill-white/60 group-hover:fill-white transition-colors" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 fill-white/60 group-hover:fill-white transition-colors shrink-0" viewBox="0 0 24 24">
                           <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.9 3.33-1.91 4.34-1.2 1.2-3.07 2.48-6.93 2.48-6.12 0-10.88-4.94-10.88-11.06s4.76-11.06 10.88-11.06c3.28 0 5.66 1.3 7.34 2.9l2.31-2.31c-2.5-2.07-5.59-3.33-9.65-3.33-7.41 0-13.48 6.07-13.48 13.48s6.07 13.48 13.48 13.48c4.08 0 7.34-1.35 9.87-3.99 2.53-2.64 3.34-6.39 3.34-9.28 0-.89-.07-1.74-.2-2.54h-12.8z"/>
                         </svg>
                         <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white transition-colors">Continue with Google</span>
                       </>
                     )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoLogin("whale")}
+                    disabled={authLoading}
+                    className="flex items-center justify-center gap-2 py-3 px-3 bg-zinc-950/80 hover:bg-zinc-900 border border-emerald-500/20 hover:border-emerald-500/40 rounded-2xl text-[9px] font-black uppercase tracking-wider text-emerald-400 hover:text-emerald-300 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Zap className="w-3 h-3 text-emerald-400" />
+                    Demo Whale ($5M)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoLogin("fan")}
+                    disabled={authLoading}
+                    className="flex items-center justify-center gap-2 py-3 px-3 bg-zinc-950/80 hover:bg-zinc-900 border border-blue-500/20 hover:border-blue-500/40 rounded-2xl text-[9px] font-black uppercase tracking-wider text-blue-400 hover:text-blue-300 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <ShieldCheck className="w-3 h-3 text-blue-400" />
+                    Demo VIP Fan ($25K)
                   </button>
                 </div>
               </div>
@@ -6055,6 +6209,20 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Ticket Check & PDF Download Portal Modal */}
+      <TicketCheckModal
+        isOpen={showTicketCheckModal}
+        onClose={() => setShowTicketCheckModal(false)}
+        initialSearchQuery={ticketCheckInitialQuery}
+        onOpenLiveChat={(emailOrOrderId) => {
+          setTrackedInquiry(null);
+          setEmailInquiries(null);
+          setTrackingEmail(emailOrOrderId || "");
+          setTrackingId(emailOrOrderId || "");
+          setShowInquiryStatus("SEARCH");
+        }}
+      />
     </div>
   );
 }

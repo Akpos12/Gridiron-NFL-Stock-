@@ -12,7 +12,9 @@ import {
   ShieldCheck, 
   RefreshCw,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Ticket,
+  Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
@@ -20,12 +22,14 @@ import { cn } from "../lib/utils";
 interface CustomerCareWidgetProps {
   onOpenCustomerCare: () => void;
   onOpenTrackInquiry: (initialTab?: "ticket" | "email") => void;
+  onOpenTicketCheck?: () => void;
   user?: any;
 }
 
 export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
   onOpenCustomerCare,
   onOpenTrackInquiry,
+  onOpenTicketCheck,
   user
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -72,7 +76,33 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
 
               {/* Action Buttons */}
               <div className="py-4 space-y-2.5">
-                {/* 1. Track Existing Inquiry */}
+                {/* 1. Check & Download Approved Ticket Pass */}
+                {onOpenTicketCheck && (
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      onOpenTicketCheck();
+                    }}
+                    className="w-full p-3.5 bg-gradient-to-r from-emerald-950/60 to-blue-950/60 hover:from-emerald-900/70 hover:to-blue-900/70 border border-emerald-500/40 hover:border-emerald-400/60 rounded-2xl transition-all flex items-center justify-between group cursor-pointer shadow-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 group-hover:scale-105 transition-transform">
+                        <Download className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-wider text-emerald-300 group-hover:text-emerald-200 transition-colors block">
+                          Check & Download Ticket
+                        </span>
+                        <span className="text-[9px] font-bold text-zinc-400 uppercase">
+                          Download Approved PDF Pass
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                  </button>
+                )}
+
+                {/* 2. Track Existing Inquiry */}
                 <button
                   onClick={() => {
                     setIsOpen(false);
@@ -96,20 +126,20 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
                   <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
                 </button>
 
-                {/* 2. Contact Customer Care */}
+                {/* 3. Contact Customer Care */}
                 <button
                   onClick={() => {
                     setIsOpen(false);
                     onOpenCustomerCare();
                   }}
-                  className="w-full p-3.5 bg-gradient-to-r from-emerald-950/40 to-zinc-900/90 hover:from-emerald-900/50 hover:to-zinc-800/90 border border-emerald-500/30 hover:border-emerald-400/50 rounded-2xl transition-all flex items-center justify-between group cursor-pointer shadow-lg"
+                  className="w-full p-3.5 bg-gradient-to-r from-zinc-900 to-zinc-950 hover:from-zinc-850 hover:to-zinc-900 border border-white/10 hover:border-white/20 rounded-2xl transition-all flex items-center justify-between group cursor-pointer shadow-lg"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 group-hover:scale-105 transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-300 group-hover:scale-105 transition-transform">
                       <MessageSquareText className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="text-xs font-black uppercase tracking-wider text-white group-hover:text-emerald-300 transition-colors block">
+                      <span className="text-xs font-black uppercase tracking-wider text-white group-hover:text-blue-300 transition-colors block">
                         Contact Customer Care
                       </span>
                       <span className="text-[9px] font-bold text-zinc-400 uppercase">
@@ -137,6 +167,15 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
         <div className="flex items-center gap-2">
           {/* Quick direct buttons on desktop */}
           <div className="hidden md:flex items-center gap-1.5 bg-zinc-950/90 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl">
+            {onOpenTicketCheck && (
+              <button
+                onClick={() => onOpenTicketCheck()}
+                className="px-3.5 py-2 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border border-emerald-500/30 cursor-pointer shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                Download Ticket
+              </button>
+            )}
             <button
               onClick={() => onOpenTrackInquiry()}
               className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border border-white/5 cursor-pointer"
