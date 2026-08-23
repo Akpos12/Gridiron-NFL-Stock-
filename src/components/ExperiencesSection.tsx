@@ -38,6 +38,7 @@ import { NFLImage } from "../utils/nflImages";
 import { OFFICIAL_PAYMENT_CHANNELS } from "./TicketCheckoutModal";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
+import { QRCodeSVG } from "qrcode.react";
 
 export interface Experience {
   id: string;
@@ -1577,16 +1578,34 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           </div>
                         )}
 
-                        {/* Ticket Footer / QR Code scanner mock */}
-                        <div className="bg-zinc-950 p-5 rounded-3xl border border-white/5 flex flex-col items-center gap-3">
-                          <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> PASS ACTIVATES UPON CONTROL ROOM APPROVAL
-                          </p>
-                          <div className="w-32 h-32 bg-white/90 rounded-2xl p-3 shadow-xl flex items-center justify-center opacity-80">
-                            <QrCode className="w-full h-full text-zinc-950" />
-                          </div>
-                          <p className="text-[9px] font-mono text-zinc-500 uppercase font-black select-all">{completedBooking.qrCode}</p>
-                        </div>
+                        {/* Ticket Footer / Real Scannable QR Code Pass */}
+                        {(() => {
+                          const origin =
+                            typeof window !== "undefined" && window.location.origin
+                              ? window.location.origin
+                              : "https://ais-dev-fzmmrb2i7l3evzvs4xbafg-53620454143.europe-west2.run.app";
+                          const passCodeVal = (completedBooking as any).ticketCode || completedBooking.qrCode || `PASS-${completedBooking.id}`;
+                          const qrUrl = `${origin}/?verifyTicket=${encodeURIComponent(passCodeVal)}`;
+                          
+                          return (
+                            <div className="bg-zinc-950 p-5 rounded-3xl border border-white/5 flex flex-col items-center gap-3">
+                              <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> SCANNABLE DIGITAL PASS
+                              </p>
+                              <div className="p-3 bg-white rounded-2xl shadow-xl flex items-center justify-center border-2 border-emerald-500/30">
+                                <QRCodeSVG
+                                  value={qrUrl}
+                                  size={128}
+                                  level="M"
+                                  includeMargin={false}
+                                  className="w-28 h-28"
+                                />
+                              </div>
+                              <p className="text-[10px] font-mono text-emerald-400 uppercase font-black tracking-wider select-all">{passCodeVal}</p>
+                              <span className="text-[8px] text-zinc-500 font-medium">Scannable with any mobile phone camera</span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 

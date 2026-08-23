@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import QRCode from "qrcode";
 
 export interface TicketPassInfo {
   id: string;
@@ -39,7 +40,7 @@ export interface TicketPassInfo {
   sectionInfo?: string;
 }
 
-export function generateTicketPDF(ticket: TicketPassInfo): void {
+export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   // Create PDF document (Landscape standard ticket format 210mm x 100mm or Portrait 210mm x 297mm A4)
   // Let's create an elegant A4 Portrait official digital pass (210 x 297 mm)
   const doc = new jsPDF({
@@ -224,49 +225,61 @@ export function generateTicketPDF(ticket: TicketPassInfo): void {
   // Left Column: Passcode info
   doc.setTextColor(156, 163, 175);
   doc.setFontSize(6.5);
-  doc.text("OFFICIAL ACCESS PASSCODE (GATE SCAN CODE)", margin + 16, curY + 10);
+  doc.text("OFFICIAL ACCESS PASSCODE (GATE SCAN CODE)", margin + 14, curY + 10);
 
   doc.setTextColor(52, 211, 153); // Emerald
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text(`${passCode}`, margin + 16, curY + 20);
+  doc.setFontSize(13);
+  doc.text(`${passCode}`, margin + 14, curY + 20);
 
   doc.setTextColor(156, 163, 175);
   doc.setFontSize(6.5);
-  doc.text(`APPROVED BY: ${approvedBy}`, margin + 16, curY + 27);
-  doc.text(`APPROVAL DATE: ${approvalDate}`, margin + 16, curY + 33);
-  doc.text(`SECURITY SIGNATURE: SHA-256 ENCRYPTED NFC / RFID COMPLIANT`, margin + 16, curY + 39);
+  doc.text(`APPROVED BY: ${approvedBy}`, margin + 14, curY + 27);
+  doc.text(`APPROVAL DATE: ${approvalDate}`, margin + 14, curY + 33);
+  doc.text(`SECURITY: SHA-256 ENCRYPTED NFC / RFID COMPLIANT`, margin + 14, curY + 39);
+  doc.setTextColor(96, 165, 250);
+  doc.text(`VERIFICATION: SCAN QR CODE WITH ANY CAMERA`, margin + 14, curY + 45);
 
-  // Simulated Barcode on the right
-  const barcodeX = pageWidth - margin - 60;
-  const barcodeY = curY + 8;
-  const barcodeWidth = 48;
-  const barcodeHeight = 30;
+  // Real Scannable 2D QR Code on the right
+  const qrSize = 36;
+  const qrX = pageWidth - margin - qrSize - 14;
+  const qrY = curY + 6;
 
-  doc.setFillColor(255, 255, 255);
-  doc.rect(barcodeX, barcodeY, barcodeWidth, barcodeHeight, "F");
+  const origin =
+    typeof window !== "undefined" && window.location.origin
+      ? window.location.origin
+      : "https://ais-dev-fzmmrb2i7l3evzvs4xbafg-53620454143.europe-west2.run.app";
+  const verificationUrl = `${origin}/?verifyTicket=${encodeURIComponent(passCode || orderNumber)}`;
 
-  // Draw simulated barcode lines
-  doc.setFillColor(0, 0, 0);
-  const pattern = [2, 1, 3, 1, 2, 2, 1, 3, 1, 2, 1, 3, 2, 1, 1, 2, 3, 1, 2, 1, 2, 3, 1, 1];
-  let barOffset = 3;
-  for (let i = 0; i < pattern.length && barOffset < barcodeWidth - 4; i++) {
-    const width = pattern[i] * 0.7;
-    if (i % 2 === 0) {
-      doc.rect(barcodeX + barOffset, barcodeY + 2, width, barcodeHeight - 9, "F");
-    }
-    barOffset += width + 0.8;
+  try {
+    const qrDataUrl = await QRCode.toDataURL(verificationUrl, {
+      margin: 1,
+      width: 400,
+      errorCorrectionLevel: "M",
+      color: {
+        dark: "#000000",
+        light: "#FFFFFF",
+      },
+    });
+
+    // White backing container for QR code
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4, 2, 2, "F");
+    doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+
+    doc.setTextColor(107, 114, 128);
+    doc.setFontSize(5.5);
+    doc.setFont("helvetica", "bold");
+    doc.text("VERIFIED RFID SCAN", qrX + qrSize / 2, qrY + qrSize + 5, { align: "center" });
+  } catch (err) {
+    console.error("Error drawing QR to PDF:", err);
   }
-
-  doc.setTextColor(0, 0, 0);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(6);
-  doc.text(`${passCode}`, barcodeX + barcodeWidth / 2, barcodeY + barcodeHeight - 2, { align: "center" });
 
   // Security Seal at bottom of ticket card
   doc.setTextColor(107, 114, 128);
   doc.setFontSize(6);
-  doc.text("STADIUM GATE INSTRUCTIONS: Present this digital or printed pass at the VIP Turnstile / RFID reader for priority entry.", margin + 16, curY + 49);
+  doc.setFont("helvetica", "normal");
+  doc.text("STADIUM GATE INSTRUCTIONS: Present this digital or printed pass at the VIP Turnstile / RFID reader for priority entry.", margin + 14, curY + 52);
 
   // Bottom Notice & Terms Box
   const bottomY = cardY + cardHeight + 10;

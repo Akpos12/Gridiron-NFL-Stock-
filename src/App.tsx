@@ -105,6 +105,7 @@ import { ReceiptReviewModal, BookingAuditItem } from "./components/common/Receip
 import { TicketCheckModal } from "./components/TicketCheckModal";
 import { generateTicketPDF } from "./utils/ticketPdfGenerator";
 import { NFLImage } from "./utils/nflImages";
+import { QRCodeSVG } from "qrcode.react";
 
 // --- Constants ---
 const NFL_LOGO_URL = "/nfl_logo.svg";
@@ -609,38 +610,62 @@ const WalletModal = ({
 
                 <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 space-y-3">
                   {selectedDepositCrypto === "btc" && (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Bitcoin (BTC Mainnet) Address</span>
                         <button onClick={() => copyToClipboard("16246wmdY6kGfFkWevPKCQrTKH8CRJ62yJ", "btcDep")}>
                           {copied === "btcDep" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
                         </button>
                       </div>
-                      <p className="text-[10px] font-mono break-all text-emerald-400 bg-zinc-900 p-2.5 rounded-xl select-all font-bold">16246wmdY6kGfFkWevPKCQrTKH8CRJ62yJ</p>
+                      <div className="flex flex-col sm:flex-row items-center gap-3 bg-zinc-900 p-3 rounded-xl">
+                        <div className="p-1.5 bg-white rounded-lg shrink-0 shadow">
+                          <QRCodeSVG value="16246wmdY6kGfFkWevPKCQrTKH8CRJ62yJ" size={72} level="M" />
+                        </div>
+                        <div className="min-w-0 flex-1 text-center sm:text-left">
+                          <p className="text-[10px] font-mono break-all text-emerald-400 select-all font-bold">16246wmdY6kGfFkWevPKCQrTKH8CRJ62yJ</p>
+                          <span className="text-[8px] text-zinc-500 block mt-1">Scannable BTC Deposit Address</span>
+                        </div>
+                      </div>
                     </div>
                   )}
 
                   {selectedDepositCrypto === "eth" && (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ethereum (ETH ERC-20) Address</span>
                         <button onClick={() => copyToClipboard("0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf", "ethDep")}>
                           {copied === "ethDep" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
                         </button>
                       </div>
-                      <p className="text-[10px] font-mono break-all text-emerald-400 bg-zinc-900 p-2.5 rounded-xl select-all font-bold">0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf</p>
+                      <div className="flex flex-col sm:flex-row items-center gap-3 bg-zinc-900 p-3 rounded-xl">
+                        <div className="p-1.5 bg-white rounded-lg shrink-0 shadow">
+                          <QRCodeSVG value="0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf" size={72} level="M" />
+                        </div>
+                        <div className="min-w-0 flex-1 text-center sm:text-left">
+                          <p className="text-[10px] font-mono break-all text-emerald-400 select-all font-bold">0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf</p>
+                          <span className="text-[8px] text-zinc-500 block mt-1">Scannable ETH ERC-20 Address</span>
+                        </div>
+                      </div>
                     </div>
                   )}
 
                   {selectedDepositCrypto === "usdt" && (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">USDT (Ethereum ERC-20) Address</span>
                         <button onClick={() => copyToClipboard("0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf", "usdtDep")}>
                           {copied === "usdtDep" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
                         </button>
                       </div>
-                      <p className="text-[10px] font-mono break-all text-emerald-400 bg-zinc-900 p-2.5 rounded-xl select-all font-bold">0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf</p>
+                      <div className="flex flex-col sm:flex-row items-center gap-3 bg-zinc-900 p-3 rounded-xl">
+                        <div className="p-1.5 bg-white rounded-lg shrink-0 shadow">
+                          <QRCodeSVG value="0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf" size={72} level="M" />
+                        </div>
+                        <div className="min-w-0 flex-1 text-center sm:text-left">
+                          <p className="text-[10px] font-mono break-all text-emerald-400 select-all font-bold">0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf</p>
+                          <span className="text-[8px] text-zinc-500 block mt-1">Scannable USDT ERC-20 Address</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -3645,6 +3670,26 @@ export default function App() {
   const [ticketCheckInitialQuery, setTicketCheckInitialQuery] = useState("");
   const [resetSent, setResetSent] = useState(false);
   const portfolioRef = useRef<any[]>([]);
+
+  // Deep-link / QR Code scan verification listener
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const verifyTicket =
+        params.get("verifyTicket") ||
+        params.get("ticketCode") ||
+        params.get("passCode") ||
+        params.get("orderId") ||
+        params.get("checkTicket");
+
+      if (verifyTicket) {
+        setTicketCheckInitialQuery(verifyTicket);
+        setShowTicketCheckModal(true);
+      }
+    } catch (e) {
+      console.error("Error reading URL search params:", e);
+    }
+  }, []);
   
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -3818,65 +3863,6 @@ export default function App() {
     };
   }, []);
 
-  const handleQuickDemoLogin = async (type: "whale" | "fan") => {
-    setAuthLoading(true);
-    setAuthError(null);
-    try {
-      const email = type === "whale" ? "institutional@gridiron.exchange" : "demo_fan@gridiron.exchange";
-      const pass = type === "whale" ? "Vikings_Whale_2024" : "Gridiron_Fan_2024";
-      const displayName = type === "whale" ? "Institutional Whale" : "VIP Fan Member";
-      let cred;
-      try {
-        cred = await signInWithEmailAndPassword(auth, email, pass);
-      } catch (err: any) {
-        if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential") {
-          try {
-            cred = await createUserWithEmailAndPassword(auth, email, pass);
-          } catch (createErr: any) {
-            if (createErr.code === "auth/email-already-in-use") {
-              // Sign in if created concurrently
-              cred = await signInWithEmailAndPassword(auth, email, pass);
-            } else {
-              throw createErr;
-            }
-          }
-        } else {
-          throw err;
-        }
-      }
-
-      const userRef = doc(db, "users", cred.user.uid);
-      await setDoc(userRef, {
-        uid: cred.user.uid,
-        displayName,
-        email,
-        balance: type === "whale" ? 5000000 : 25000,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
-      if (type === "whale") {
-        const currentVikingsPrice = marketPrices["MIN"] || 100;
-        const targetShares = 5000000 / currentVikingsPrice;
-        const vikingsPosRef = doc(db, "users", cred.user.uid, "portfolio", "MIN");
-        const vPos = await getDoc(vikingsPosRef);
-        if (!vPos.exists() || (vPos.data().shares || 0) < targetShares) {
-          await setDoc(vikingsPosRef, {
-            teamId: "MIN",
-            shares: targetShares,
-            avgPrice: currentVikingsPrice
-          });
-        }
-      }
-
-      setShowLogin(false);
-    } catch (err: any) {
-      console.error("Demo login error:", err);
-      setAuthError(err.message || "Failed to initialize demo session.");
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
   const handleAuth = async (e: React.FormEvent | "google") => {
     setAuthLoading(true);
     setAuthError(null);
@@ -3896,10 +3882,10 @@ export default function App() {
               throw new Error("The sign-in popup was closed before completion. Please try again.");
             }
             if (innerErr.code === "auth/popup-blocked" || innerErr.message?.includes("popup-blocked")) {
-              throw new Error("Sign-in popup was blocked by your browser. Please allow popups, open the app in a new tab, or use Quick Demo Sign-In below.");
+              throw new Error("Sign-in popup was blocked by your browser. Please allow popups or open the app in a new tab.");
             }
             if (innerErr.message?.includes("missing initial state") || innerErr.code === "auth/internal-error" || innerErr.code === "auth/cancelled-popup-request") {
-              throw new Error("Popup was blocked or restricted in this window. Try opening the app in a new tab, or use Quick Demo Sign-In below.");
+              throw new Error("Popup was blocked or restricted in this window. Try opening the app in a new tab.");
             }
             throw innerErr;
           }
@@ -6074,7 +6060,7 @@ export default function App() {
                       <span>{authError}</span>
                     </div>
                     {(authError.toLowerCase().includes("popup") || authError.toLowerCase().includes("tab") || authError.toLowerCase().includes("blocked")) && (
-                      <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+                      <div className="flex items-center gap-2 pt-1">
                         <a 
                           href={window.location.href} 
                           target="_blank" 
@@ -6084,14 +6070,6 @@ export default function App() {
                           <ExternalLink className="w-3.5 h-3.5" />
                           Open App in New Tab
                         </a>
-                        <button
-                          type="button"
-                          onClick={() => handleQuickDemoLogin("whale")}
-                          className="text-[9px] font-black uppercase text-emerald-300 hover:text-white bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/30 py-2.5 px-4 rounded-xl text-center transition-all w-full flex items-center justify-center gap-1.5"
-                        >
-                          <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                          1-Click Demo Login
-                        </button>
                       </div>
                     )}
                   </div>
@@ -6157,11 +6135,11 @@ export default function App() {
                   <div className="flex-1 h-px bg-white/5" />
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-2.5">
                   <button 
                     onClick={() => handleAuth("google")}
                     disabled={authLoading}
-                    className="sm:col-span-2 w-full flex items-center justify-center gap-3 py-3.5 bg-zinc-950 border border-white/10 hover:border-white/20 rounded-2xl hover:bg-white/5 transition-all group disabled:opacity-50 cursor-pointer"
+                    className="w-full flex items-center justify-center gap-3 py-3.5 bg-zinc-950 border border-white/10 hover:border-white/20 rounded-2xl hover:bg-white/5 transition-all group disabled:opacity-50 cursor-pointer"
                   >
                     {authLoading ? (
                       <div className="w-4 h-4 border-2 border-white/10 border-t-white/60 rounded-full animate-spin" />
@@ -6173,26 +6151,6 @@ export default function App() {
                         <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white transition-colors">Continue with Google</span>
                       </>
                     )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemoLogin("whale")}
-                    disabled={authLoading}
-                    className="flex items-center justify-center gap-2 py-3 px-3 bg-zinc-950/80 hover:bg-zinc-900 border border-emerald-500/20 hover:border-emerald-500/40 rounded-2xl text-[9px] font-black uppercase tracking-wider text-emerald-400 hover:text-emerald-300 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    <Zap className="w-3 h-3 text-emerald-400" />
-                    Demo Whale ($5M)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickDemoLogin("fan")}
-                    disabled={authLoading}
-                    className="flex items-center justify-center gap-2 py-3 px-3 bg-zinc-950/80 hover:bg-zinc-900 border border-blue-500/20 hover:border-blue-500/40 rounded-2xl text-[9px] font-black uppercase tracking-wider text-blue-400 hover:text-blue-300 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    <ShieldCheck className="w-3 h-3 text-blue-400" />
-                    Demo VIP Fan ($25K)
                   </button>
                 </div>
               </div>

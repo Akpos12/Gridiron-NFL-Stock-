@@ -36,6 +36,7 @@ import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
+import { QRCodeSVG } from "qrcode.react";
 
 export interface GameTicket {
   id: string;
@@ -1270,7 +1271,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                         </span>
                       </div>
 
-                      <div className="p-4 bg-zinc-900 rounded-xl border border-white/5 space-y-2">
+                      <div className="p-4 bg-zinc-900 rounded-xl border border-white/5 space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-[9px] font-black uppercase text-zinc-500">
                             {OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].name} DEPOSIT ADDRESS
@@ -1284,9 +1285,25 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                             {copiedKey === "cryptoAddress" ? "Copied!" : "Copy"}
                           </button>
                         </div>
-                        <p className="text-xs font-mono break-all text-emerald-400 font-bold bg-zinc-950 p-2.5 rounded-lg select-all">
-                          {OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].address}
-                        </p>
+                        
+                        <div className="flex flex-col sm:flex-row items-center gap-4 bg-zinc-950 p-3 rounded-xl border border-white/5">
+                          <div className="p-2 bg-white rounded-xl shadow shrink-0">
+                            <QRCodeSVG
+                              value={OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].address}
+                              size={84}
+                              level="M"
+                              includeMargin={false}
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1 text-center sm:text-left">
+                            <p className="text-xs font-mono break-all text-emerald-400 font-bold select-all">
+                              {OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].address}
+                            </p>
+                            <span className="text-[8px] text-zinc-500 block mt-1">
+                              Scan with mobile wallet app (Coinbase, Trust Wallet, MetaMask, etc.)
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}

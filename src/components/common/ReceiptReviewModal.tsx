@@ -31,6 +31,7 @@ import {
 import { doc, updateDoc, setDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { formatCurrency, cn } from "../../lib/utils";
+import { QRCodeSVG } from "qrcode.react";
 
 export interface BookingAuditItem {
   id: string;
@@ -528,16 +529,21 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
                 </div>
               </div>
 
-              {/* Barcode / RFID Code Display */}
+              {/* Barcode / Scannable RFID Code Display */}
               <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 bg-white p-1.5 rounded-xl shrink-0 flex items-center justify-center">
-                    <QrCode className="w-full h-full text-black" />
+                  <div className="w-16 h-16 bg-white p-1.5 rounded-xl shrink-0 flex items-center justify-center border border-emerald-500/30">
+                    <QRCodeSVG
+                      value={`${typeof window !== "undefined" ? window.location.origin : ""}/?verifyTicket=${encodeURIComponent(currentTicketCode)}`}
+                      size={54}
+                      level="M"
+                      includeMargin={false}
+                    />
                   </div>
                   <div>
-                    <span className="text-[9px] font-black uppercase text-zinc-400 block font-mono">BARCODE PASS VALIDATION</span>
+                    <span className="text-[9px] font-black uppercase text-zinc-400 block font-mono">SCANNABLE PASS VALIDATION</span>
                     <span className="text-sm font-black text-white font-mono tracking-widest select-all">{currentTicketCode}</span>
-                    <p className="text-[9px] text-emerald-400 font-medium">Scannable at Executive VIP Turnstiles</p>
+                    <p className="text-[9px] text-emerald-400 font-medium">Scannable by phone camera or executive VIP turnstiles</p>
                   </div>
                 </div>
 

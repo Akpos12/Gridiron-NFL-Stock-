@@ -17,8 +17,12 @@ import {
   RefreshCw,
   Eye,
   ExternalLink,
-  MessageSquare
+  MessageSquare,
+  Copy,
+  Check,
+  Smartphone
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { generateTicketPDF, TicketPassInfo } from "../utils/ticketPdfGenerator";
@@ -43,6 +47,13 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2500);
+  };
 
   // Sync initial query when opened
   useEffect(() => {
@@ -538,6 +549,106 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                         <p className="font-bold text-emerald-400 mt-0.5">${Number(selectedTicket.totalPrice || selectedTicket.totalAmount || 0).toLocaleString()}</p>
                       </div>
                     </div>
+
+                    {/* Scannable Live QR Gate Pass Section */}
+                    {(() => {
+                      const origin =
+                        typeof window !== "undefined" && window.location.origin
+                          ? window.location.origin
+                          : "https://ais-dev-fzmmrb2i7l3evzvs4xbafg-53620454143.europe-west2.run.app";
+                      const passCodeVal =
+                        selectedTicket.ticketCode ||
+                        selectedTicket.qrCode ||
+                        `PASS-${selectedTicket.id.slice(-8).toUpperCase()}`;
+                      const qrVerificationUrl = `${origin}/?verifyTicket=${encodeURIComponent(passCodeVal)}`;
+                      const isApproved =
+                        selectedTicket.status === "approved" ||
+                        selectedTicket.status === "confirmed" ||
+                        selectedTicket.isApproved;
+
+                      return (
+                        <div className="my-4 p-4 sm:p-5 rounded-2xl bg-zinc-950/80 border border-white/10 flex flex-col sm:flex-row items-center gap-5">
+                          {/* QR Code Canvas */}
+                          <div className="relative group shrink-0">
+                            <div className="p-3 bg-white rounded-2xl shadow-xl flex items-center justify-center border-2 border-emerald-500/40">
+                              <QRCodeSVG
+                                value={qrVerificationUrl}
+                                size={132}
+                                level="M"
+                                includeMargin={false}
+                                className="w-28 h-28 sm:w-32 sm:h-32"
+                              />
+                            </div>
+                            <div className="mt-1.5 text-center">
+                              <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                {isApproved ? "SCANNABLE PASS" : "PREVIEW PASS"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Pass Scanner & Verification Details */}
+                          <div className="flex-1 text-center sm:text-left space-y-2.5 min-w-0">
+                            <div className="flex flex-wrap items-center justify-center sm:justify-between gap-2">
+                              <div>
+                                <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1 justify-center sm:justify-start">
+                                  <Smartphone className="w-2.5 h-2.5 text-blue-400" /> OFFICIAL DIGITAL RFID PASSCODE
+                                </span>
+                                <p className="text-sm sm:text-base font-mono font-black text-emerald-400 tracking-wider break-all select-all">
+                                  {passCodeVal}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(passCodeVal, "passCode")}
+                                className="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 border border-white/10 transition-colors cursor-pointer"
+                              >
+                                {copiedKey === "passCode" ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-400" /> Copied!
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3 text-blue-400" /> Copy Code
+                                  </>
+                                )}
+                              </button>
+                            </div>
+
+                            <p className="text-[10px] text-zinc-400 leading-relaxed">
+                              Point any smartphone camera at this QR code to instantly verify official box office credentials and authorized gate clearance.
+                            </p>
+
+                            <div className="pt-1 flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(qrVerificationUrl, "qrLink")}
+                                className="px-3 py-1.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-300 text-[9px] font-black uppercase tracking-wider border border-blue-500/20 flex items-center gap-1 transition-all cursor-pointer"
+                              >
+                                {copiedKey === "qrLink" ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-400" /> Verification Link Copied!
+                                  </>
+                                ) : (
+                                  <>
+                                    <ExternalLink className="w-3 h-3" /> Copy Scan URL
+                                  </>
+                                )}
+                              </button>
+
+                              <a
+                                href={qrVerificationUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white text-[9px] font-black uppercase tracking-wider border border-white/5 flex items-center gap-1 transition-all"
+                              >
+                                <Eye className="w-3 h-3" /> Test Gate Scan Link
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Card Actions: Download PDF / Print */}
                     <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
