@@ -35,6 +35,7 @@ import { QRCodeSVG } from "qrcode.react";
 
 export interface BookingAuditItem {
   id: string;
+  orderId?: string;
   userId?: string;
   userEmail?: string;
   userName?: string;
@@ -111,9 +112,10 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
   const paymentChannel = booking.paymentMethod || "Direct Settlement";
   const referenceCode = booking.paymentRef || booking.paymentReference || "PENDING_VERIFICATION";
   const receiptImg = booking.receiptImage || booking.receiptImageUrl || "";
+  const bookingIdStr = String(booking.id || booking.orderId || "BOOKING");
   
   // Deterministic or stored ticket code
-  const currentTicketCode = customTicketCode || booking.ticketCode || booking.qrCode || `NFL-PASS-${booking.id.slice(-6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const currentTicketCode = customTicketCode || booking.ticketCode || booking.qrCode || `NFL-PASS-${bookingIdStr.slice(-6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
   const showFeedback = (text: string, type: "success" | "error" | "info" = "success") => {
     setStatusMessage({ text, type });
@@ -128,7 +130,7 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
   };
 
   const handleGenerateNewCode = () => {
-    const newCode = `NFL-PASS-${booking.id.slice(-4).toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
+    const newCode = `NFL-PASS-${bookingIdStr.slice(-4).toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
     setCustomTicketCode(newCode);
     showFeedback(`Generated new pass code: ${newCode}`, "info");
   };
@@ -237,7 +239,7 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
             </div>
             <h3 className="text-2xl font-black italic uppercase tracking-tight text-white flex items-center gap-2">
               <span>ORDER & TICKET AUDIT</span>
-              <span className="text-zinc-600 font-mono text-sm">#{booking.id.slice(-8)}</span>
+              <span className="text-zinc-600 font-mono text-sm">#{bookingIdStr.slice(-8)}</span>
             </h3>
           </div>
 
@@ -619,7 +621,7 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
                 </div>
                 <div className="text-right">
                   <span className="text-[9px] font-mono text-zinc-500 uppercase block">Receipt / Invoice No.</span>
-                  <span className="font-mono text-xs font-black text-zinc-900">REC-{booking.id.slice(-8).toUpperCase()}</span>
+                  <span className="font-mono text-xs font-black text-zinc-900">REC-{bookingIdStr.slice(-8).toUpperCase()}</span>
                 </div>
               </div>
 
@@ -699,7 +701,7 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  const receiptSummary = `=== NFL GRIDIRON EXCHANGE OFFICIAL RECEIPT ===\nReceipt No: REC-${booking.id.slice(-8).toUpperCase()}\nDate: ${sessionDate}\nAttendee: ${attendeeName} (${attendeeEmail})\nItem: ${eventTitle} [${passTier}]\nPass Code: ${currentTicketCode}\nPayment: ${paymentChannel} (Ref: ${referenceCode})\nTotal Paid: $${grandTotal.toLocaleString()}\nStatus: CONFIRMED & ISSUED`;
+                  const receiptSummary = `=== NFL GRIDIRON EXCHANGE OFFICIAL RECEIPT ===\nReceipt No: REC-${bookingIdStr.slice(-8).toUpperCase()}\nDate: ${sessionDate}\nAttendee: ${attendeeName} (${attendeeEmail})\nItem: ${eventTitle} [${passTier}]\nPass Code: ${currentTicketCode}\nPayment: ${paymentChannel} (Ref: ${referenceCode})\nTotal Paid: $${grandTotal.toLocaleString()}\nStatus: CONFIRMED & ISSUED`;
                   handleCopy(receiptSummary, "Official Receipt Text");
                 }}
                 className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all"

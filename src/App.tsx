@@ -2288,7 +2288,8 @@ const AdminPortal = ({ user }: { user: any }) => {
         setIsOrderReviewOpen(false);
       }
       setOrders(prev => prev.filter(o => o.id !== id));
-      setOrderActionFeedback({ text: `Order #${id.slice(-6)} deleted successfully from database.`, type: 'info' });
+      const idStr = String(id || "ORDER");
+      setOrderActionFeedback({ text: `Order #${idStr.slice(-6)} deleted successfully from database.`, type: 'info' });
       setTimeout(() => setOrderActionFeedback(null), 3500);
     } catch (err: any) {
       console.error("Delete Order Error:", err);
@@ -2302,7 +2303,8 @@ const AdminPortal = ({ user }: { user: any }) => {
     try {
       setAdminLoading(true);
       const target = orders.find(o => o.id === orderId) || {};
-      const finalCode = customCode || target.ticketCode || target.qrCode || `NFL-PASS-${orderId.slice(-6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const orderIdStr = String(orderId || target.id || "ORD");
+      const finalCode = customCode || target.ticketCode || target.qrCode || `NFL-PASS-${orderIdStr.slice(-6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
       
       const payload = {
         status: "approved",
@@ -2321,7 +2323,7 @@ const AdminPortal = ({ user }: { user: any }) => {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...payload } : o));
 
       setOrderActionFeedback({
-        text: `Order #${orderId.slice(-6)} Approved! Pass Code Issued: ${finalCode}`,
+        text: `Order #${orderIdStr.slice(-6)} Approved! Pass Code Issued: ${finalCode}`,
         type: 'success'
       });
       setTimeout(() => setOrderActionFeedback(null), 4000);
@@ -3084,7 +3086,7 @@ const AdminPortal = ({ user }: { user: any }) => {
                             <p className="text-[10px] font-mono text-zinc-400">{formattedDate}</p>
                             <div className="flex items-center gap-1.5 mt-1">
                               <span className="text-xs font-mono font-black text-white bg-zinc-800/80 px-2 py-0.5 rounded border border-white/5">
-                                #{item.id.slice(-8).toUpperCase()}
+                                #{String(item.id || item.orderId || "ITEM").slice(-8).toUpperCase()}
                               </span>
                             </div>
                           </td>
@@ -5095,7 +5097,7 @@ export default function App() {
                      </button>
                    </div>
                    <div className="grid grid-cols-2 gap-4 w-full sm:w-auto">
-                      {SHOP_ITEMS.tickets.slice(0, 2).map((item, i) => (
+                      {(SHOP_ITEMS?.tickets || []).slice(0, 2).map((item, i) => (
                         <div key={item.id} className={cn("flex-1 aspect-[3/4] w-full sm:w-48 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5", i === 1 && "mt-8 sm:mt-12")}>
                           <NFLImage item={item} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700" />
                         </div>

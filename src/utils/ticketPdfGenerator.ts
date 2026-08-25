@@ -17,11 +17,15 @@ export interface TicketPassInfo {
   date?: string;
   time?: string;
   timeSlot?: string;
+  isDateTbd?: boolean;
   tier?: string;
   quantity?: number;
   guestsCount?: number;
-  totalAmount?: number;
-  totalPrice?: number;
+  totalAmount?: number | string;
+  totalPrice?: number | string;
+  isStockholder?: boolean;
+  isShareholder?: boolean;
+  stockholderTitle?: string;
   buyerName?: string;
   senderName?: string;
   buyerEmail?: string;
@@ -34,6 +38,7 @@ export interface TicketPassInfo {
   paymentMethod?: string;
   paymentRef?: string;
   paymentReference?: string;
+  paymentChannel?: string;
   createdAt?: string;
   seatInfo?: string;
   gateInfo?: string;
@@ -53,11 +58,26 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   const margin = 14;
   const contentWidth = pageWidth - margin * 2;
 
+  const isStockholder =
+    ticket.isStockholder === true ||
+    ticket.isShareholder === true ||
+    ticket.paymentMethod?.toLowerCase().includes("stockholder") ||
+    ticket.paymentChannel?.toLowerCase().includes("stockholder") ||
+    ticket.tier?.toLowerCase().includes("stockholder") ||
+    (ticket.buyerEmail && ticket.buyerEmail.toLowerCase().includes("jayne_welage")) ||
+    (ticket.buyerName && ticket.buyerName.toLowerCase().includes("welage"));
+
+  const isDateTbd =
+    ticket.isDateTbd ||
+    !ticket.date ||
+    ticket.date.toLowerCase().includes("tbd") ||
+    ticket.date.toLowerCase().includes("pending");
+
   const eventName =
     ticket.eventTitle ||
     ticket.experienceTitle ||
     ticket.gameName ||
-    "NFL VIP Gridiron Experience & Match Pass";
+    (isStockholder ? "Minnesota Vikings Elite Stockholder & Investor Summit" : "NFL VIP Gridiron Experience & Match Pass");
 
   const passCode =
     ticket.ticketCode ||
@@ -66,16 +86,24 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
     `NFL-PASS-${(ticket.id || ticket.orderId || "AUTH").slice(-8).toUpperCase()}`;
 
   const orderNumber = (ticket.orderId || ticket.id || "ORD-001").toUpperCase();
-  const attendeeName = ticket.buyerName || ticket.senderName || "VIP Passholder";
+  const attendeeName = ticket.buyerName || ticket.senderName || (isStockholder ? "Jayne Welage" : "VIP Passholder");
   const attendeeEmail = ticket.buyerEmail || ticket.userEmail || "attendee@nflgridiron.com";
-  const eventDate = ticket.date || "Scheduled Season Match";
-  const eventTime = ticket.time || ticket.timeSlot || "Kickoff Time (TBA)";
+  
+  const eventDate = isDateTbd ? "TBD (Schedule Notice Pending)" : ticket.date!;
+  const eventTime = isDateTbd 
+    ? "TBA (Stockholder Briefing Notice)" 
+    : (ticket.time || ticket.timeSlot || "Kickoff Time (TBA)");
+
   const venue = ticket.stadium || (ticket.city ? `${ticket.city} Stadium Arena` : "Official NFL Stadium");
   const venueLocation = ticket.city || "United States";
-  const tierName = (ticket.tier || "VIP ALL-ACCESS").toUpperCase().replace(/_/g, " ");
+  
+  const tierName = isStockholder
+    ? "FRANCHISE STOCKHOLDER VIP"
+    : (ticket.tier || "VIP ALL-ACCESS").toUpperCase().replace(/_/g, " ");
+
   const guests = ticket.quantity || ticket.guestsCount || 1;
-  const totalPaid = ticket.totalAmount || ticket.totalPrice || 0;
-  const approvedBy = ticket.approvedBy || "NFL Gridiron Box Office Management";
+  const totalPaid = ticket.totalAmount ?? ticket.totalPrice ?? 0;
+  const approvedBy = ticket.approvedBy || (isStockholder ? "NFL Gridiron Executive Treasury & Investor Relations" : "NFL Gridiron Box Office Management");
   const approvalDate = ticket.approvedAt ? new Date(ticket.approvedAt).toLocaleDateString() : new Date().toLocaleDateString();
 
   // Background Canvas
@@ -104,22 +132,32 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   doc.text("NFL GRIDIRON EXCHANGE", margin + 8, 24);
 
   doc.setFontSize(8);
-  doc.setTextColor(96, 165, 250); // Blue accent
-  doc.text("OFFICIAL VERIFIED DIGITAL ADMISSION PASS", margin + 8, 30);
+  doc.setTextColor(isStockholder ? 52 : 96, isStockholder ? 211 : 165, isStockholder ? 153 : 250); // Emerald if stockholder
+  doc.text(
+    isStockholder ? "OFFICIAL FRANCHISE STOCKHOLDER & INVESTOR PASS" : "OFFICIAL VERIFIED DIGITAL ADMISSION PASS",
+    margin + 8,
+    30
+  );
 
   doc.setFontSize(7);
   doc.setTextColor(156, 163, 175);
-  doc.text(`TICKET ORDER: #${orderNumber}  |  STATUS: AUTHORIZED & CONFIRMED`, margin + 8, 38);
+  doc.text(
+    isStockholder
+      ? `TICKET ORDER: #${orderNumber}  |  STATUS: SHAREHOLDER ALLOCATION CLEARED`
+      : `TICKET ORDER: #${orderNumber}  |  STATUS: AUTHORIZED & CONFIRMED`,
+    margin + 8,
+    38
+  );
 
   // Status Badge in Header
-  doc.setFillColor(16, 185, 129); // Emerald green badge
-  doc.roundedRect(pageWidth - margin - 52, 20, 44, 18, 2, 2, "F");
+  doc.setFillColor(isStockholder ? 16 : 16, isStockholder ? 185 : 185, isStockholder ? 129 : 129); // Emerald green badge
+  doc.roundedRect(pageWidth - margin - 56, 20, 48, 18, 2, 2, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("GATE READY", pageWidth - margin - 30, 28, { align: "center" });
-  doc.setFontSize(6.5);
-  doc.text("VERIFIED RFID ENTRY", pageWidth - margin - 30, 33, { align: "center" });
+  doc.setFontSize(8.5);
+  doc.text(isStockholder ? "STOCKHOLDER VIP" : "GATE READY", pageWidth - margin - 32, 28, { align: "center" });
+  doc.setFontSize(6);
+  doc.text(isStockholder ? "VERIFIED SHAREHOLDER" : "VERIFIED RFID ENTRY", pageWidth - margin - 32, 33, { align: "center" });
 
   // Main Ticket Container Card
   const cardY = 52;
@@ -131,18 +169,22 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   doc.roundedRect(margin, cardY, contentWidth, cardHeight, 6, 6, "S");
 
   // Event Banner Strip inside Card
-  doc.setFillColor(14, 82, 214);
+  doc.setFillColor(isStockholder ? 10 : 14, isStockholder ? 70 : 82, isStockholder ? 180 : 214);
   doc.roundedRect(margin + 4, cardY + 4, contentWidth - 8, 26, 4, 4, "F");
   
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
+  doc.setFontSize(12);
   const truncatedTitle = doc.splitTextToSize(eventName.toUpperCase(), contentWidth - 20);
   doc.text(truncatedTitle[0] || eventName.toUpperCase(), margin + 10, cardY + 16);
 
   doc.setFontSize(8);
   doc.setTextColor(219, 234, 254);
-  doc.text(`TIER: ${tierName}  |  ADMIT: ${guests} ${guests > 1 ? "GUESTS" : "GUEST"}`, margin + 10, cardY + 24);
+  doc.text(
+    `TIER: ${tierName}  |  ADMIT: ${guests} ${guests === 1 ? "GUEST (LEAD PASSHOLDER)" : "GUESTS"}`,
+    margin + 10,
+    cardY + 24
+  );
 
   // Event Details Grid
   let curY = cardY + 40;
@@ -155,10 +197,10 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   doc.text("DATE & KICKOFF / ADMISSION TIME", margin + 12, curY + 7);
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(isDateTbd ? 7.5 : 9);
   doc.text(`${eventDate}`, margin + 12, curY + 14);
   doc.setTextColor(96, 165, 250);
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.text(`TIME: ${eventTime}`, margin + 12, curY + 20);
 
   // Box: Stadium Venue
@@ -169,8 +211,9 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   doc.text("STADIUM ARENA & LOCATION", margin + 98, curY + 7);
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text(`${venue}`, margin + 98, curY + 14);
+  doc.setFontSize(8.5);
+  const truncVenue = doc.splitTextToSize(venue, 72);
+  doc.text(truncVenue[0] || venue, margin + 98, curY + 14);
   doc.setTextColor(209, 213, 219);
   doc.setFontSize(7.5);
   doc.text(`${venueLocation}`, margin + 98, curY + 20);
@@ -182,7 +225,7 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   doc.roundedRect(margin + 8, curY, 80, 24, 3, 3, "F");
   doc.setTextColor(156, 163, 175);
   doc.setFontSize(6.5);
-  doc.text("PASSHOLDER (LEAD ATTENDEE)", margin + 12, curY + 7);
+  doc.text(isStockholder ? "PASSHOLDER (FRANCHISE SHAREHOLDER)" : "PASSHOLDER (LEAD ATTENDEE)", margin + 12, curY + 7);
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
@@ -191,7 +234,7 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   doc.setFontSize(7);
   doc.text(`${attendeeEmail}`, margin + 12, curY + 20);
 
-  // Box: Access Tier & Seating
+  // Box: Access Tier & Seating / Total
   doc.setFillColor(18, 21, 30);
   doc.roundedRect(margin + 94, curY, 80, 24, 3, 3, "F");
   doc.setTextColor(156, 163, 175);
@@ -199,11 +242,18 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   doc.text("SEATING / ACCESS ALLOCATION", margin + 98, curY + 7);
   doc.setTextColor(245, 158, 11); // Amber
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.text(`${tierName}`, margin + 98, curY + 14);
-  doc.setTextColor(156, 163, 175);
-  doc.setFontSize(7);
-  doc.text(`TOTAL AMOUNT: $${Number(totalPaid).toLocaleString()}`, margin + 98, curY + 20);
+  
+  if (isStockholder) {
+    doc.setTextColor(52, 211, 153); // Emerald
+    doc.setFontSize(6.5);
+    doc.text("STOCKHOLDER PRIVILEGE (CLEARED)", margin + 98, curY + 20);
+  } else {
+    doc.setTextColor(156, 163, 175);
+    doc.setFontSize(7);
+    doc.text(`TOTAL AMOUNT: $${Number(totalPaid).toLocaleString()}`, margin + 98, curY + 20);
+  }
 
   curY += 30;
 

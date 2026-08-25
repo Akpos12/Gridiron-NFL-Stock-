@@ -30,7 +30,8 @@ import {
   Wallet,
   ChevronRight,
   Download,
-  Search
+  Search,
+  Percent
 } from "lucide-react";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
@@ -85,15 +86,24 @@ export const OFFICIAL_PAYMENT_CHANNELS = {
   },
   cashapp: {
     tag: "$Mickobabe32",
-    display: "$Mickobabe32"
+    display: "$Mickobabe32",
+    discountPercent: 5
+  },
+  paypal: {
+    email: "matthewgolom21@gmail.com",
+    name: "Matthew Golom",
+    display: "matthewgolom21@gmail.com",
+    discountPercent: 5
   },
   venmo: {
     handle: "@DomickoChopin",
-    display: "@DomickoChopin"
+    display: "@DomickoChopin",
+    discountPercent: 5
   },
   zelle: {
     email: "matthewgolom21@gmail.com",
-    name: "Matthew Golom"
+    name: "Matthew Golom",
+    discountPercent: 5
   },
   crypto: {
     btc: {
@@ -126,7 +136,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
 }) => {
   const [selectedTier, setSelectedTier] = useState<"general" | "lower_bowl" | "club" | "vip" | "season_pass">(initialTier);
   const [quantity, setQuantity] = useState(1);
-  const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "venmo" | "zelle" | "crypto">("bank");
+  const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "paypal" | "venmo" | "zelle" | "crypto">("cashapp");
   const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   
@@ -215,10 +225,17 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   
   const subtotal = currentPricePerTicket * quantity;
   const originalSubtotal = originalPricePerTicket * quantity;
-  const totalSavings = originalSubtotal - subtotal;
+  const promoSavings = originalSubtotal - subtotal;
   
   const facilityFee = Math.round(subtotal * 0.05);
-  const totalAmount = subtotal + facilityFee;
+  const baseGrossTotal = subtotal + facilityFee;
+
+  // Instant 5% Direct-Pay Discount for Cash App, PayPal, Venmo, and Zelle
+  const isDirectPayDiscount = ["cashapp", "paypal", "venmo", "zelle"].includes(paymentTab);
+  const directPayDiscountPercent = isDirectPayDiscount ? 5 : 0;
+  const directPaySavings = isDirectPayDiscount ? Math.round(baseGrossTotal * 0.05) : 0;
+  const totalAmount = baseGrossTotal - directPaySavings;
+  const totalSavings = promoSavings + directPaySavings;
 
   // Split Price Calculations
   const splitCalculations = {
@@ -1046,26 +1063,69 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   </span>
                 </div>
 
+                {/* Direct-Pay 5% Discount Callout */}
+                <div className="p-3.5 bg-gradient-to-r from-emerald-950/80 via-emerald-900/40 to-cyan-950/60 border border-emerald-500/40 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-lg shadow-emerald-950/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                      <Percent className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-black uppercase text-emerald-400 tracking-wide">
+                          Save 5% Instant Direct-Pay Discount
+                        </span>
+                        <span className="bg-emerald-500 text-black text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full">
+                          5% OFF
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-zinc-300 font-medium">
+                        Pay with <strong className="text-white">Cash App, PayPal, Venmo, or Zelle</strong> to automatically deduct <strong className="text-emerald-400">5% off your entire order</strong> instantly!
+                      </p>
+                    </div>
+                  </div>
+                  {isDirectPayDiscount ? (
+                    <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black uppercase tracking-wider rounded-xl self-start sm:self-auto flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5 text-emerald-400" /> 5% Saved (-${directPaySavings.toLocaleString()})
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPaymentTab("cashapp")}
+                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-wider rounded-xl self-start sm:self-auto transition-all cursor-pointer flex items-center gap-1 font-mono font-bold"
+                    >
+                      Select & Save 5%
+                    </button>
+                  )}
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2 },
-                    { id: "cashapp", label: "Cash App", icon: Smartphone },
-                    { id: "venmo", label: "Venmo", icon: Smartphone },
-                    { id: "zelle", label: "Zelle", icon: Smartphone },
-                    { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode }
+                    { id: "cashapp", label: "Cash App", discount: "SAVE 5%", icon: Smartphone, color: "text-emerald-400" },
+                    { id: "paypal", label: "PayPal", discount: "SAVE 5%", icon: CreditCard, color: "text-blue-400" },
+                    { id: "venmo", label: "Venmo", discount: "SAVE 5%", icon: Smartphone, color: "text-sky-400" },
+                    { id: "zelle", label: "Zelle", discount: "SAVE 5%", icon: Smartphone, color: "text-purple-400" },
+                    { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2, color: "text-zinc-400" },
+                    { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode, color: "text-amber-400" }
                   ].map(tab => (
                     <button
                       key={tab.id}
                       type="button"
                       onClick={() => setPaymentTab(tab.id as any)}
-                      className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all border ${
+                      className={`px-3.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all border relative ${
                         paymentTab === tab.id
                           ? "bg-white text-black border-white shadow-md"
                           : "bg-zinc-950 text-zinc-400 border-white/5 hover:border-white/20"
                       }`}
                     >
-                      <tab.icon className="w-3.5 h-3.5" />
+                      <tab.icon className={`w-3.5 h-3.5 ${paymentTab === tab.id ? "text-black" : tab.color}`} />
                       {tab.label}
+                      {tab.discount && (
+                        <span className={`text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-tighter ${
+                          paymentTab === tab.id ? "bg-emerald-600 text-white" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                        }`}>
+                          {tab.discount}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -1078,9 +1138,16 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       <span className="text-[8px] font-black uppercase text-zinc-500 block">
                         Amount to Send Now ({splitMode === "full" ? "Full Amount" : `Payment 1 of ${currentSplit.installmentsCount}`})
                       </span>
-                      <span className="text-lg font-mono font-black text-emerald-400">
-                        ${currentSplit.dueToday.toLocaleString()} USD
-                      </span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-lg font-mono font-black text-emerald-400">
+                          ${currentSplit.dueToday.toLocaleString()} USD
+                        </span>
+                        {isDirectPayDiscount && (
+                          <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                            (Includes 5% Direct-Pay Discount)
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span className="text-[9px] font-mono uppercase bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded font-bold">
                       {paymentTab.toUpperCase()} ACTIVE
@@ -1164,23 +1231,53 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                         <span className="text-xs font-black uppercase text-white flex items-center gap-2">
                           <Smartphone className="w-4 h-4 text-emerald-400" /> Cash App Mobile Pay
                         </span>
-                        <span className="text-[9px] font-mono uppercase bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-bold">
-                          Instant Clearing
+                        <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" /> 5% Discount Applied
                         </span>
                       </div>
 
-                      <div className="p-4 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
+                      <div className="p-4 bg-zinc-900 rounded-xl border border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                           <span className="text-[8px] font-black uppercase text-zinc-500 block">Official Cashtag</span>
                           <span className="text-lg font-mono font-black text-emerald-400">{OFFICIAL_PAYMENT_CHANNELS.cashapp.tag}</span>
+                          <span className="text-[10px] text-zinc-400 font-bold uppercase block mt-0.5">Instant Clearing & Verified</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.cashapp.tag, "cashapp")}
-                          className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all"
+                          className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
                         >
                           {copiedKey === "cashapp" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                           {copiedKey === "cashapp" ? "Copied!" : "Copy Cashtag"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentTab === "paypal" && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                        <span className="text-xs font-black uppercase text-white flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-blue-400" /> PayPal Instant Settlement
+                        </span>
+                        <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" /> 5% Discount Applied
+                        </span>
+                      </div>
+
+                      <div className="p-4 bg-zinc-900 rounded-xl border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <span className="text-[8px] font-black uppercase text-zinc-500 block">Official PayPal Email / Recipient</span>
+                          <span className="text-sm font-mono font-black text-blue-300 block">{OFFICIAL_PAYMENT_CHANNELS.paypal.email}</span>
+                          <span className="text-[10px] text-zinc-400 font-bold uppercase block mt-0.5">Name: {OFFICIAL_PAYMENT_CHANNELS.paypal.name}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.paypal.email, "paypal")}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
+                        >
+                          {copiedKey === "paypal" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          {copiedKey === "paypal" ? "Copied!" : "Copy PayPal Email"}
                         </button>
                       </div>
                     </div>
@@ -1190,22 +1287,23 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     <div className="space-y-3">
                       <div className="flex items-center justify-between border-b border-white/5 pb-2">
                         <span className="text-xs font-black uppercase text-white flex items-center gap-2">
-                          <Smartphone className="w-4 h-4 text-blue-400" /> Venmo Account
+                          <Smartphone className="w-4 h-4 text-sky-400" /> Venmo Account
                         </span>
-                        <span className="text-[9px] font-mono uppercase bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded font-bold">
-                          Instant Clearing
+                        <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" /> 5% Discount Applied
                         </span>
                       </div>
 
-                      <div className="p-4 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
+                      <div className="p-4 bg-zinc-900 rounded-xl border border-sky-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                           <span className="text-[8px] font-black uppercase text-zinc-500 block">Official Handle</span>
-                          <span className="text-lg font-mono font-black text-blue-400">{OFFICIAL_PAYMENT_CHANNELS.venmo.handle}</span>
+                          <span className="text-lg font-mono font-black text-sky-400">{OFFICIAL_PAYMENT_CHANNELS.venmo.handle}</span>
+                          <span className="text-[10px] text-zinc-400 font-bold uppercase block mt-0.5">Instant Clearing & Verified</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.venmo.handle, "venmo")}
-                          className="px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all"
+                          className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
                         >
                           {copiedKey === "venmo" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                           {copiedKey === "venmo" ? "Copied!" : "Copy Venmo"}
@@ -1220,21 +1318,21 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                         <span className="text-xs font-black uppercase text-white flex items-center gap-2">
                           <Smartphone className="w-4 h-4 text-purple-400" /> Zelle Direct Bank Transfer
                         </span>
-                        <span className="text-[9px] font-mono uppercase bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded font-bold">
-                          0% Transfer Fees
+                        <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" /> 5% Discount Applied
                         </span>
                       </div>
 
-                      <div className="p-4 bg-zinc-900 rounded-xl border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="p-4 bg-zinc-900 rounded-xl border border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                           <span className="text-[8px] font-black uppercase text-zinc-500 block">Zelle Recipient Email & Name</span>
                           <span className="text-sm font-mono font-black text-purple-300 block">{OFFICIAL_PAYMENT_CHANNELS.zelle.email}</span>
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase">Name: {OFFICIAL_PAYMENT_CHANNELS.zelle.name}</span>
+                          <span className="text-[10px] text-zinc-400 font-bold uppercase block mt-0.5">Name: {OFFICIAL_PAYMENT_CHANNELS.zelle.name}</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.zelle.email, "zelle")}
-                          className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto"
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
                         >
                           {copiedKey === "zelle" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                           {copiedKey === "zelle" ? "Copied!" : "Copy Zelle"}
@@ -1386,12 +1484,12 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     <span className="font-mono text-white font-bold">${subtotal.toLocaleString()}</span>
                   </div>
 
-                  {totalSavings > 0 && (
+                  {promoSavings > 0 && (
                     <div className="flex justify-between items-center text-emerald-400">
                       <span className="flex items-center gap-1 font-bold">
                         <Tag className="w-3.5 h-3.5" /> Bonus Code Discount ({appliedPromo})
                       </span>
-                      <span className="font-mono font-bold">-${totalSavings.toLocaleString()}</span>
+                      <span className="font-mono font-bold">-${promoSavings.toLocaleString()}</span>
                     </div>
                   )}
 
@@ -1399,6 +1497,16 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     <span>Digital Barcode & Gate Processing Fee</span>
                     <span className="font-mono text-zinc-300">${facilityFee.toLocaleString()}</span>
                   </div>
+
+                  {isDirectPayDiscount && directPaySavings > 0 && (
+                    <div className="flex justify-between items-center text-emerald-400 bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
+                      <span className="flex items-center gap-1.5 font-bold">
+                        <Percent className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Instant 5% Direct-Pay Discount ({paymentTab.toUpperCase()})</span>
+                      </span>
+                      <span className="font-mono font-bold text-emerald-400">-${directPaySavings.toLocaleString()}</span>
+                    </div>
+                  )}
 
                   <div className="pt-2 border-t border-white/10 flex justify-between items-center">
                     <div>
@@ -1424,7 +1532,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       </div>
                       {totalSavings > 0 && (
                         <span className="text-[10px] text-emerald-400 font-bold uppercase block">
-                          You save ${totalSavings.toLocaleString()} with code {appliedPromo}!
+                          You save ${totalSavings.toLocaleString()} total!
                         </span>
                       )}
                     </div>

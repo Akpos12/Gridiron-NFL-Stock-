@@ -76,7 +76,8 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
         const resultsMap = new Map<string, any>();
 
         // Query by recent IDs
-        for (const orderId of recentIds.slice(0, 5)) {
+        for (const orderId of (Array.isArray(recentIds) ? recentIds : []).slice(0, 5)) {
+          if (!orderId) continue;
           try {
             const snap = await getDoc(doc(db, "bookings", orderId));
             if (snap.exists()) {
@@ -199,10 +200,20 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
   const handleDownloadPdf = (t: any) => {
     setDownloadingId(t.id);
     try {
+      const isStockholder =
+        t.isStockholder === true ||
+        t.isShareholder === true ||
+        t.tier === "stockholder_vip" ||
+        t.paymentChannel?.toLowerCase().includes("stockholder") ||
+        t.paymentMethod?.toLowerCase().includes("stockholder") ||
+        (t.buyerEmail && t.buyerEmail.toLowerCase().includes("jayne_welage")) ||
+        (t.buyerName && t.buyerName.toLowerCase().includes("welage"));
+
+      const ticketIdStr = String(t.id || t.orderId || "PASS");
       const passInfo: TicketPassInfo = {
-        id: t.id,
-        orderId: t.orderId || t.id,
-        ticketCode: t.ticketCode || t.qrCode || `NFL-PASS-${t.id.slice(-6).toUpperCase()}`,
+        id: t.id || ticketIdStr,
+        orderId: t.orderId || t.id || ticketIdStr,
+        ticketCode: t.ticketCode || t.qrCode || `NFL-PASS-${ticketIdStr.slice(-6).toUpperCase()}`,
         qrCode: t.qrCode || t.ticketCode,
         passCode: t.qrCode || t.ticketCode,
         eventTitle: t.experienceTitle || t.gameName || "NFL Match & Experience Pass",
@@ -210,19 +221,24 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
         gameName: t.gameName,
         stadium: t.stadium || "NFL Arena Stadium",
         city: t.city || "United States",
-        date: t.date || "Scheduled Date",
-        time: t.timeSlot || t.time || "Event Kickoff",
-        tier: t.tier || "VIP ALL-ACCESS",
+        date: t.date || (isStockholder ? "TBD (Schedule Announcement Pending)" : "Scheduled Date"),
+        time: t.timeSlot || t.time || (isStockholder ? "TBA (Stockholder Briefing Notice)" : "Event Kickoff"),
+        isDateTbd: t.isDateTbd || !t.date || t.date.toLowerCase().includes("tbd"),
+        tier: isStockholder ? "FRANCHISE STOCKHOLDER VIP" : (t.tier || "VIP ALL-ACCESS"),
         quantity: t.guestsCount || t.quantity || 1,
         guestsCount: t.guestsCount || t.quantity || 1,
-        totalAmount: t.totalPrice || t.totalAmount || 0,
+        totalAmount: isStockholder ? 0 : (t.totalPrice || t.totalAmount || 0),
+        totalPrice: isStockholder ? 0 : (t.totalPrice || t.totalAmount || 0),
+        isStockholder: isStockholder,
+        isShareholder: isStockholder,
+        stockholderTitle: t.stockholderTitle || (isStockholder ? "Franchise Shareholder & Team Stock Investor" : undefined),
         buyerName: t.buyerName || t.senderName || "VIP Passholder",
         buyerEmail: t.buyerEmail || t.userEmail || "",
         buyerPhone: t.buyerPhone || "",
         status: t.status,
         isApproved: t.status === "approved" || t.status === "confirmed" || t.isApproved === true,
         approvedAt: t.approvedAt,
-        approvedBy: t.approvedBy || "NFL Gridiron Box Office Management",
+        approvedBy: t.approvedBy || (isStockholder ? "NFL Gridiron Executive Treasury & Investor Relations" : "NFL Gridiron Box Office Management"),
       };
 
       generateTicketPDF(passInfo);
@@ -394,7 +410,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                             )}
                           </span>
                           <span className="text-[8px] font-mono text-zinc-500 font-bold">
-                            #{t.id.slice(-6).toUpperCase()}
+                            #{String(t.id || t.orderId || "TICKET").slice(-6).toUpperCase()}
                           </span>
                         </div>
 
@@ -493,7 +509,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
                       <div>
                         <span className="text-[9px] font-mono font-black uppercase tracking-widest text-blue-400">
-                          OFFICIAL VIP PASS · #{selectedTicket.id.slice(-8).toUpperCase()}
+                          OFFICIAL VIP PASS · #{String(selectedTicket.id || selectedTicket.orderId || "PASS").slice(-8).toUpperCase()}
                         </span>
                         <h4 className="text-base sm:text-lg font-black uppercase text-white mt-0.5">
                           {selectedTicket.experienceTitle || selectedTicket.gameName || "VIP Match Pass"}
@@ -509,46 +525,99 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                     </div>
 
                     {/* Card Middle: Key Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 py-4 border-b border-white/10 text-xs">
-                      <div>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1">
-                          <Calendar className="w-2.5 h-2.5" /> Date & Time
-                        </span>
-                        <p className="font-bold text-white mt-0.5">{selectedTicket.date || "Scheduled Date"}</p>
-                        <p className="text-[10px] text-zinc-400 font-mono">{selectedTicket.timeSlot || selectedTicket.time || "Kickoff TBA"}</p>
-                      </div>
+                    {(() => {
+                      const isStockholder =
+                        selectedTicket.isStockholder === true ||
+                        selectedTicket.isShareholder === true ||
+                        selectedTicket.tier === "stockholder_vip" ||
+                        selectedTicket.paymentChannel?.toLowerCase().includes("stockholder") ||
+                        selectedTicket.paymentMethod?.toLowerCase().includes("stockholder") ||
+                        (selectedTicket.buyerEmail && selectedTicket.buyerEmail.toLowerCase().includes("jayne_welage")) ||
+                        (selectedTicket.buyerName && selectedTicket.buyerName.toLowerCase().includes("welage"));
 
-                      <div>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1">
-                          <MapPin className="w-2.5 h-2.5" /> Venue Arena
-                        </span>
-                        <p className="font-bold text-white mt-0.5 truncate">{selectedTicket.stadium || selectedTicket.city || "NFL Stadium"}</p>
-                        <p className="text-[10px] text-zinc-400">{selectedTicket.city || "United States"}</p>
-                      </div>
+                      const isDateTbd =
+                        selectedTicket.isDateTbd ||
+                        !selectedTicket.date ||
+                        selectedTicket.date.toLowerCase().includes("tbd") ||
+                        selectedTicket.date.toLowerCase().includes("pending");
 
-                      <div>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1">
-                          <User className="w-2.5 h-2.5" /> Passholder
-                        </span>
-                        <p className="font-bold text-white mt-0.5 truncate">{selectedTicket.buyerName || selectedTicket.senderName || "VIP Guest"}</p>
-                        <p className="text-[10px] text-zinc-400 truncate">{selectedTicket.buyerEmail || selectedTicket.userEmail}</p>
-                      </div>
+                      const guestsNum = selectedTicket.guestsCount || selectedTicket.quantity || 1;
 
-                      <div>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Tier / Allocation</span>
-                        <p className="font-bold text-amber-400 mt-0.5">{selectedTicket.tier?.toUpperCase().replace(/_/g, " ") || "VIP ACCESS"}</p>
-                      </div>
+                      return (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 py-4 border-b border-white/10 text-xs">
+                          <div>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1">
+                              <Calendar className="w-2.5 h-2.5" /> Date & Time
+                            </span>
+                            {isDateTbd ? (
+                              <>
+                                <p className="font-bold text-amber-400 mt-0.5 flex items-center gap-1">
+                                  <span>Schedule Pending (TBD)</span>
+                                </p>
+                                <p className="text-[10px] text-zinc-400 font-mono">
+                                  {selectedTicket.timeSlot && !selectedTicket.timeSlot.includes("02:00") ? selectedTicket.timeSlot : "TBA (Stockholder Briefing Notice)"}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="font-bold text-white mt-0.5">{selectedTicket.date}</p>
+                                <p className="text-[10px] text-zinc-400 font-mono">{selectedTicket.timeSlot || selectedTicket.time || "Kickoff TBA"}</p>
+                              </>
+                            )}
+                          </div>
 
-                      <div>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Guest Count</span>
-                        <p className="font-bold text-white mt-0.5">{selectedTicket.guestsCount || selectedTicket.quantity || 1} Person(s)</p>
-                      </div>
+                          <div>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1">
+                              <MapPin className="w-2.5 h-2.5" /> Venue Arena
+                            </span>
+                            <p className="font-bold text-white mt-0.5 truncate">{selectedTicket.stadium || selectedTicket.city || "NFL Stadium"}</p>
+                            <p className="text-[10px] text-zinc-400">{selectedTicket.city || "United States"}</p>
+                          </div>
 
-                      <div>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Total Paid</span>
-                        <p className="font-bold text-emerald-400 mt-0.5">${Number(selectedTicket.totalPrice || selectedTicket.totalAmount || 0).toLocaleString()}</p>
-                      </div>
-                    </div>
+                          <div>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1">
+                              <User className="w-2.5 h-2.5" /> Passholder
+                            </span>
+                            <p className="font-bold text-white mt-0.5 truncate">
+                              {selectedTicket.buyerName || selectedTicket.senderName || (isStockholder ? "Jayne Welage" : "VIP Guest")}
+                            </p>
+                            <p className="text-[10px] text-zinc-400 truncate">{selectedTicket.buyerEmail || selectedTicket.userEmail}</p>
+                          </div>
+
+                          <div>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Tier / Allocation</span>
+                            <p className="font-bold text-amber-400 mt-0.5">
+                              {isStockholder 
+                                ? "FRANCHISE STOCKHOLDER VIP" 
+                                : (selectedTicket.tier?.toUpperCase().replace(/_/g, " ") || "VIP ACCESS")}
+                            </p>
+                          </div>
+
+                          <div>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Guest Count</span>
+                            <p className="font-bold text-white mt-0.5">
+                              {guestsNum} {guestsNum === 1 ? "Person (Primary Passholder)" : "Persons"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Total Paid</span>
+                            {isStockholder || (Number(selectedTicket.totalPrice || selectedTicket.totalAmount || 0) === 0) ? (
+                              <div className="mt-0.5">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                  Stockholder Privilege (Cleared)
+                                </span>
+                              </div>
+                            ) : (
+                              <p className="font-bold text-emerald-400 mt-0.5">
+                                ${Number(selectedTicket.totalPrice || selectedTicket.totalAmount || 0).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Scannable Live QR Gate Pass Section */}
                     {(() => {
@@ -559,7 +628,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                       const passCodeVal =
                         selectedTicket.ticketCode ||
                         selectedTicket.qrCode ||
-                        `PASS-${selectedTicket.id.slice(-8).toUpperCase()}`;
+                        `PASS-${String(selectedTicket.id || selectedTicket.orderId || "AUTH").slice(-8).toUpperCase()}`;
                       const qrVerificationUrl = `${origin}/?verifyTicket=${encodeURIComponent(passCodeVal)}`;
                       const isApproved =
                         selectedTicket.status === "approved" ||

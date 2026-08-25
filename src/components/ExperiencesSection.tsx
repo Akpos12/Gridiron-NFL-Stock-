@@ -28,7 +28,8 @@ import {
   ShieldCheck,
   DollarSign,
   Wallet,
-  Download
+  Download,
+  Percent
 } from "lucide-react";
 import { collection, onSnapshot, getDocs, setDoc, doc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -265,6 +266,40 @@ const SEED_EXPERIENCES: Experience[] = [
     ],
     rating: 5.0,
     reviewsCount: 88
+  },
+  {
+    id: "exp-min-elite-investor",
+    title: "Minnesota Vikings Elite Meet & Greet & Investment Allocation Summit",
+    description: "An exclusive high-tier institutional symposium and player meet & greet for elite investors. Includes direct executive board access, presentation of official franchise investment cheques & equity allocation certificates, private VIP suite hospitality, and close-quarters photo & signing session with Minnesota Vikings leadership.",
+    type: "meet_greet",
+    category: "Elite Institutional Meet & Greet",
+    price: 2500,
+    vipPrice: 10000,
+    premiumPrice: 25000,
+    teamId: "MIN",
+    imageUrl: "https://i.postimg.cc/sDYSCSgk/4545d9b7b90ee7c1f34fbb83344efb2cbank.jpg",
+    player: "Justin Jefferson & Franchise Executives",
+    location: "U.S. Bank Stadium - Medtronic Club & Executive Boardroom, Minneapolis, MN",
+    dates: [
+      "2026-09-12",
+      "2026-09-19",
+      "2026-09-26",
+      "2026-10-03",
+      "2026-10-10",
+      "2026-10-17",
+      "2026-10-24"
+    ],
+    timeSlots: ["01:00 PM", "02:00 PM", "05:30 PM"],
+    features: [
+      "Official presentation of franchise investment cheques & institutional certificates",
+      "Executive Medtronic Club VIP suite & boardroom admission",
+      "Private meet & greet + 1-on-1 photo session with Vikings leadership & players",
+      "Signed official Wilson 'The Duke' football with commemorative hologram",
+      "Five-star gourmet banquet, premium champagne bar & concierge service",
+      "Priority VIP turnstile and RFID fast-track access credentials"
+    ],
+    rating: 5.0,
+    reviewsCount: 42
   }
 ];
 
@@ -300,7 +335,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const [completedBooking, setCompletedBooking] = useState<Booking | null>(null);
 
   // Official Payment Form State
-  const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "venmo" | "zelle" | "crypto">("bank");
+  const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "paypal" | "venmo" | "zelle" | "crypto">("cashapp");
   const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
   const [senderName, setSenderName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
@@ -351,6 +386,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         snap.forEach(d => {
           const item = { id: d.id, ...d.data() } as Experience;
           const seedMatch = SEED_EXPERIENCES.find(s => s.id === item.id);
+          item.features = Array.isArray(item.features) ? item.features : (seedMatch?.features || []);
+          item.dates = Array.isArray(item.dates) ? item.dates : (seedMatch?.dates || []);
 
           // If the Firestore document has outdated dates, refresh them with current upcoming dates
           const hasPastDates = item.dates && item.dates.some(dt => dt < TODAY_ISO);
@@ -477,7 +514,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         selectedExp.price;
 
       const guestsNum = Math.max(1, guestsCount);
-      const totalAmount = priceForTier * guestsNum;
+      const grossTotal = priceForTier * guestsNum;
+      const isDirectPayDiscount = ["cashapp", "paypal", "venmo", "zelle"].includes(paymentTab);
+      const directPaySavings = isDirectPayDiscount ? Math.round(grossTotal * 0.05) : 0;
+      const totalAmount = grossTotal - directPaySavings;
       
       const newBookingId = `bk-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       
@@ -724,7 +764,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
                   {/* Highlights Bullet List */}
                   <div className="bg-zinc-950/30 rounded-xl p-3 border border-white/[0.02] space-y-1.5">
-                    {exp.features.slice(0, 2).map((feat, idx) => (
+                    {(exp.features || []).slice(0, 2).map((feat, idx) => (
                       <div key={idx} className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-wide text-zinc-400">
                         <span className="w-1 h-1 rounded-full bg-blue-500 shrink-0" />
                         <span className="truncate">{feat}</span>
@@ -1150,7 +1190,18 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                 )}
 
                 {/* STEP 2: Checkout Form */}
-                {bookingStep === "checkout" && (
+                {bookingStep === "checkout" && (() => {
+                  const priceForTier = 
+                    tierSelection === "premium" && selectedExp.premiumPrice ? selectedExp.premiumPrice :
+                    tierSelection === "vip" && selectedExp.vipPrice ? selectedExp.vipPrice : 
+                    selectedExp.price;
+                  const guestsNum = Math.max(1, guestsCount);
+                  const grossTotal = priceForTier * guestsNum;
+                  const isDirectPay = ["cashapp", "paypal", "venmo", "zelle"].includes(paymentTab);
+                  const directSavings = isDirectPay ? Math.round(grossTotal * 0.05) : 0;
+                  const finalInvoiceTotal = grossTotal - directSavings;
+
+                  return (
                   <form onSubmit={handleExecutePayment} className="space-y-6 text-left">
                     <div className="bg-zinc-900/60 p-6 rounded-[2rem] border border-white/5 space-y-3">
                       <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2">Invoice Summary</h4>
@@ -1170,20 +1221,59 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         <span>Total Attendance</span>
                         <span className="text-white text-right font-mono">{guestsCount} GUEST(S)</span>
                       </div>
+                      
+                      {isDirectPay && directSavings > 0 && (
+                        <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+                          <span className="flex items-center gap-1.5">
+                            <Percent className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Direct-Pay Discount (5% OFF)</span>
+                          </span>
+                          <span className="font-mono font-black">-${directSavings.toLocaleString()} USD</span>
+                        </div>
+                      )}
+
                       <div className="flex justify-between text-sm font-black border-t border-white/5 pt-2.5">
-                        <span className="text-zinc-400 uppercase tracking-widest">Total Invoice</span>
-                        <span className="text-blue-400 font-mono text-lg font-black">
-                          {formatCurrency((
-                            tierSelection === "premium" ? (selectedExp.premiumPrice || selectedExp.price * 4) :
-                            tierSelection === "vip" ? (selectedExp.vipPrice || selectedExp.price * 2) :
-                            selectedExp.price
-                          ) * Math.max(1, guestsCount))}
-                        </span>
+                        <div>
+                          <span className="text-zinc-400 uppercase tracking-widest block">Total Invoice</span>
+                          {isDirectPay && (
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase block">
+                              5% Instant Discount Applied ({paymentTab.toUpperCase()})
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          {isDirectPay && directSavings > 0 && (
+                            <span className="text-xs font-mono text-zinc-500 line-through block">
+                              ${grossTotal.toLocaleString()} USD
+                            </span>
+                          )}
+                          <span className="text-emerald-400 font-mono text-xl font-black">
+                            ${finalInvoiceTotal.toLocaleString()} USD
+                          </span>
+                        </div>
                       </div>
                     </div>
 
                     {/* Official Payment Channels */}
                     <div className="space-y-4">
+                      {/* 5% Direct-Pay Promo Banner */}
+                      <div className="p-3 bg-gradient-to-r from-emerald-950/80 via-emerald-900/40 to-zinc-950 border border-emerald-500/30 rounded-2xl flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                            <Percent className="w-4 h-4 text-emerald-400" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-black uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+                              <span>SAVE 5% OFF YOUR ENTIRE ORDER</span>
+                              <span className="text-[9px] bg-emerald-500 text-black px-1.5 py-0.5 rounded font-black">INSTANT</span>
+                            </div>
+                            <p className="text-[10px] text-zinc-400 font-medium">
+                              Pay via <strong className="text-white">Cash App, PayPal, Venmo, or Zelle</strong> to instantly receive 5% off at checkout.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="flex items-center justify-between">
                         <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
                           <Building2 className="w-4 h-4 text-blue-500" />
@@ -1197,10 +1287,11 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       {/* Payment Method Selector Tabs */}
                       <div className="flex flex-wrap gap-2">
                         {[
+                          { id: "cashapp", label: "Cash App", badge: "SAVE 5%", icon: Smartphone, highlight: true },
+                          { id: "paypal", label: "PayPal", badge: "SAVE 5%", icon: Smartphone, highlight: true },
+                          { id: "venmo", label: "Venmo", badge: "SAVE 5%", icon: Smartphone, highlight: true },
+                          { id: "zelle", label: "Zelle", badge: "SAVE 5%", icon: Smartphone, highlight: true },
                           { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2 },
-                          { id: "cashapp", label: "Cash App", icon: Smartphone },
-                          { id: "venmo", label: "Venmo", icon: Smartphone },
-                          { id: "zelle", label: "Zelle", icon: Smartphone },
                           { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode }
                         ].map(method => {
                           const isSelected = paymentTab === method.id;
@@ -1209,14 +1300,21 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                               key={method.id}
                               type="button"
                               onClick={() => setPaymentTab(method.id as any)}
-                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all relative ${
                                 isSelected
                                   ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20 ring-1 ring-blue-400"
                                   : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
                               }`}
                             >
                               <method.icon className="w-3.5 h-3.5" />
-                              {method.label}
+                              <span>{method.label}</span>
+                              {method.badge && (
+                                <span className={`text-[8px] font-black px-1.5 py-0.2 rounded-full ${
+                                  isSelected ? "bg-emerald-400 text-black" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                }`}>
+                                  {method.badge}
+                                </span>
+                              )}
                             </button>
                           );
                         })}
@@ -1273,7 +1371,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           <div className="space-y-3">
                             <div className="flex items-center justify-between pb-2 border-b border-white/5">
                               <span className="text-[10px] font-black uppercase text-emerald-400">Direct Cash App Transfer</span>
-                              <span className="text-[9px] font-mono text-zinc-400">Instant Access</span>
+                              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
                             </div>
                             <div className="p-3 bg-zinc-900 rounded-xl border border-emerald-500/20 flex items-center justify-between">
                               <div>
@@ -1292,11 +1390,34 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           </div>
                         )}
 
+                        {paymentTab === "paypal" && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                              <span className="text-[10px] font-black uppercase text-blue-400">PayPal Direct Payment</span>
+                              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
+                            </div>
+                            <div className="p-3 bg-zinc-900 rounded-xl border border-blue-500/20 flex items-center justify-between">
+                              <div>
+                                <span className="text-[9px] text-zinc-500 uppercase font-black block">PayPal Email</span>
+                                <span className="text-base font-mono font-black text-blue-400">{OFFICIAL_PAYMENT_CHANNELS.paypal.email}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.paypal.email, "paypal")}
+                                className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1"
+                              >
+                                {copiedKey === "paypal" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                {copiedKey === "paypal" ? "Copied" : "Copy Email"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         {paymentTab === "venmo" && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between pb-2 border-b border-white/5">
                               <span className="text-[10px] font-black uppercase text-blue-400">Venmo Peer Transfer</span>
-                              <span className="text-[9px] font-mono text-zinc-400">Instant Access</span>
+                              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
                             </div>
                             <div className="p-3 bg-zinc-900 rounded-xl border border-blue-500/20 flex items-center justify-between">
                               <div>
@@ -1319,7 +1440,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           <div className="space-y-3">
                             <div className="flex items-center justify-between pb-2 border-b border-white/5">
                               <span className="text-[10px] font-black uppercase text-purple-400">Zelle Direct Banking</span>
-                              <span className="text-[9px] font-mono text-zinc-400">Zero Fees</span>
+                              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
                             </div>
                             <div className="p-3 bg-zinc-900 rounded-xl border border-purple-500/20 flex items-center justify-between">
                               <div>
@@ -1491,7 +1612,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       </button>
                     </div>
                   </form>
-                )}
+                  );
+                })()}
 
                 {/* STEP 3: Booking Success Ticket QR */}
                 {bookingStep === "success" && completedBooking && (
