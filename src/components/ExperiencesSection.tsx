@@ -874,7 +874,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                   {/* Pricing and Action */}
                   <div className="pt-2 flex items-center justify-between border-t border-white/5">
                     <div>
-                      <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none">Starting from</p>
+                      <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none">
+                        {exp.id === "exp-drake-maye-meet" || exp.title.toLowerCase().includes("drake maye") ? "Pass Price" : "Starting from"}
+                      </p>
                       <p className={cn(
                         "text-lg font-mono font-black mt-1",
                         exp.type === "private_tour" ? "text-amber-400" : "text-white"
@@ -1168,67 +1170,104 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                     </div>
 
                     {/* Pricing Tiers Selection */}
-                    <div className="space-y-3 pt-4 border-t border-white/5">
-                      <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Upgrade Priority Tier</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {/* Standard */}
-                        <button
-                          type="button"
-                          onClick={() => setTierSelection("standard")}
-                          className={cn(
-                            "p-4 rounded-2xl border text-left transition-all",
-                            tierSelection === "standard" 
-                              ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10"
-                              : "bg-zinc-900/30 border-white/5 hover:border-white/10"
-                          )}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[10px] font-black uppercase text-white tracking-wider">Standard</span>
-                            <span className="text-[11px] font-mono font-black text-blue-400">{formatCurrency(selectedExp.price)}</span>
+                    {isDrakeMayeSelected ? (
+                      <div className="space-y-2.5 pt-4 border-t border-white/5">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Experience Access Pass</h4>
+                          <span className="text-[9px] font-mono text-amber-400 uppercase font-black bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
+                            ALL-INCLUSIVE TIER
+                          </span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-zinc-900 border border-blue-500/30 shadow-lg shadow-blue-500/10 flex items-center justify-between">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black uppercase text-white tracking-wider flex items-center gap-1.5">
+                                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                All-Inclusive VIP Pass
+                              </span>
+                              <span className="text-[9px] font-mono font-black text-black bg-amber-400 px-1.5 py-0.2 rounded">
+                                GUARANTEED
+                              </span>
+                            </div>
+                            <p className="text-[9px] text-zinc-400 font-bold uppercase leading-normal">
+                              Private 1-on-1 Meet & Greet, Signed Memorabilia, Field Warmup Credentials & Putnam Club Access.
+                            </p>
                           </div>
-                          <p className="text-[8px] text-zinc-500 font-bold leading-normal uppercase">Standard admission itinerary guidelines.</p>
-                        </button>
-
-                        {/* VIP (Check if VIP exists) */}
-                        <button
-                          type="button"
-                          onClick={() => setTierSelection("vip")}
-                          className={cn(
-                            "p-4 rounded-2xl border text-left transition-all",
-                            tierSelection === "vip" 
-                              ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10"
-                              : "bg-zinc-900/30 border-white/5 hover:border-white/10"
-                          )}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[10px] font-black uppercase text-white tracking-wider flex items-center gap-1">
-                              VIP
-                              <Sparkles className="w-3 h-3 text-amber-400" />
-                            </span>
-                            <span className="text-[11px] font-mono font-black text-amber-400">{formatCurrency(selectedExp.vipPrice || selectedExp.price * 2)}</span>
+                          <div className="text-right pl-4 shrink-0">
+                            {appliedPromo ? (
+                              <div>
+                                <span className="text-xs font-mono text-zinc-500 line-through block leading-none">$2,000</span>
+                                <span className="text-base font-mono font-black text-emerald-400 leading-none mt-1 block">$750</span>
+                              </div>
+                            ) : (
+                              <span className="text-base font-mono font-black text-white leading-none">$2,000</span>
+                            )}
                           </div>
-                          <p className="text-[8px] text-zinc-500 font-bold leading-normal uppercase">Stitched memorabilia, premium buffet catering pass.</p>
-                        </button>
-
-                        {/* Backstage Premium */}
-                        <button
-                          type="button"
-                          onClick={() => setTierSelection("premium")}
-                          className={cn(
-                            "p-4 rounded-2xl border text-left transition-all",
-                            tierSelection === "premium" 
-                              ? "bg-zinc-900 border-ambient border-blue-500 shadow-lg"
-                              : "bg-zinc-900/30 border-white/5 hover:border-white/10"
-                          )}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[10px] font-black uppercase text-white tracking-wider">PLATINUM</span>
-                            <span className="text-[11px] font-mono font-black text-amber-500">{formatCurrency(selectedExp.premiumPrice || selectedExp.price * 4)}</span>
-                          </div>
-                          <p className="text-[8px] text-zinc-500 font-bold leading-normal uppercase">Elite signed locker item & personal 1-on-1 meet.</p>
-                        </button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="space-y-3 pt-4 border-t border-white/5">
+                        <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Upgrade Priority Tier</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          {/* Standard */}
+                          <button
+                            type="button"
+                            onClick={() => setTierSelection("standard")}
+                            className={cn(
+                              "p-4 rounded-2xl border text-left transition-all",
+                              tierSelection === "standard" 
+                                ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10"
+                                : "bg-zinc-900/30 border-white/5 hover:border-white/10"
+                            )}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-black uppercase text-white tracking-wider">Standard</span>
+                              <span className="text-[11px] font-mono font-black text-blue-400">{formatCurrency(selectedExp.price)}</span>
+                            </div>
+                            <p className="text-[8px] text-zinc-500 font-bold leading-normal uppercase">Standard admission itinerary guidelines.</p>
+                          </button>
+
+                          {/* VIP (Check if VIP exists) */}
+                          <button
+                            type="button"
+                            onClick={() => setTierSelection("vip")}
+                            className={cn(
+                              "p-4 rounded-2xl border text-left transition-all",
+                              tierSelection === "vip" 
+                                ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10"
+                                : "bg-zinc-900/30 border-white/5 hover:border-white/10"
+                            )}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-black uppercase text-white tracking-wider flex items-center gap-1">
+                                VIP
+                                <Sparkles className="w-3 h-3 text-amber-400" />
+                              </span>
+                              <span className="text-[11px] font-mono font-black text-amber-400">{formatCurrency(selectedExp.vipPrice || selectedExp.price * 2)}</span>
+                            </div>
+                            <p className="text-[8px] text-zinc-500 font-bold leading-normal uppercase">Stitched memorabilia, premium buffet catering pass.</p>
+                          </button>
+
+                          {/* Backstage Premium */}
+                          <button
+                            type="button"
+                            onClick={() => setTierSelection("premium")}
+                            className={cn(
+                              "p-4 rounded-2xl border text-left transition-all",
+                              tierSelection === "premium" 
+                                ? "bg-zinc-900 border-ambient border-blue-500 shadow-lg"
+                                : "bg-zinc-900/30 border-white/5 hover:border-white/10"
+                            )}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-black uppercase text-white tracking-wider">PLATINUM</span>
+                              <span className="text-[11px] font-mono font-black text-amber-500">{formatCurrency(selectedExp.premiumPrice || selectedExp.price * 4)}</span>
+                            </div>
+                            <p className="text-[8px] text-zinc-500 font-bold leading-normal uppercase">Elite signed locker item & personal 1-on-1 meet.</p>
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Guests selection */}
                     <div className="pt-4 border-t border-white/5 flex items-center justify-between">
@@ -1412,8 +1451,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         <span className="text-white truncate max-w-[200px]">{selectedExp.title}</span>
                       </div>
                       <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-zinc-500">
-                        <span>Priority Tier</span>
-                        <span className="text-white text-right">{tierSelection.toUpperCase()}</span>
+                        <span>{isDrakeMayeSelected ? "Pass Access" : "Priority Tier"}</span>
+                        <span className="text-white text-right font-black">
+                          {isDrakeMayeSelected ? "ALL-INCLUSIVE VIP PASS" : tierSelection.toUpperCase()}
+                        </span>
                       </div>
                       <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-zinc-500">
                         <span>Date & Slot</span>
