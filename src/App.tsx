@@ -886,7 +886,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
   const [ticketSort, setTicketSort] = useState<"cheapest" | "date">("date");
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [selectedTicketGame, setSelectedTicketGame] = useState<GameTicket | null>(null);
-  const [ticketInitialTier, setTicketInitialTier] = useState<"general" | "lower_bowl" | "club" | "vip" | "season_pass">("general");
+  const [ticketInitialTier, setTicketInitialTier] = useState<"general" | "lower_bowl" | "club" | "vip" | "season_pass" | "sideline_pass">("general");
   const [ticketPassName, setTicketPassName] = useState<string | undefined>(undefined);
 
   const handleOpenSeasonPassCheckout = (pass: any) => {
@@ -1330,13 +1330,13 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               awayTeam: "Patriots",
               stadium: "Lumen Field",
               city: "Seattle, WA",
-              date: "2026-09-10",
-              time: "01:20",
+              date: "2026-09-09",
+              time: "8:20 PM ET / 5:20 PM PT",
               competition: "NFL Regular Season · Primetime",
-              status: "Upcoming · 10 Sept 01:20 (WAT)",
+              status: "Wed, Sept 9 · 8:20 PM ET (5:20 PM PT)",
               location: "Lumen Field, Seattle",
               venue: "Lumen Field, Seattle",
-              timezone: "All times are in West Africa Time",
+              timezone: "8:20 PM Eastern Time (ET) · 5:20 PM Pacific Time (PT)",
               winProbability: {
                 home: "58.0%",
                 away: "42.0%",
@@ -1345,6 +1345,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               },
               cheapestPrice: 1000,
               vipPrice: 2500,
+              sidelinePassPrice: 1200,
               seasonPassPrice: 8000,
               url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
               image: "https://i.postimg.cc/J0DZvg87/IMG-0463.jpg",
@@ -2062,6 +2063,11 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                           {game.seasonPassPrice && (
                             <span className="text-[8px] font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
                               Season Pass: ${Number(game.seasonPassPrice).toLocaleString()}
+                            </span>
+                          )}
+                          {game.sidelinePassPrice && (
+                            <span className="text-[8px] font-black uppercase tracking-wider bg-blue-500/10 border border-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
+                              Sideline Pass: ${Number(game.sidelinePassPrice).toLocaleString()}
                             </span>
                           )}
                         </div>

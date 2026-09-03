@@ -34,7 +34,10 @@ import {
   Percent,
   Eye,
   Map,
-  ListFilter
+  ListFilter,
+  Shield,
+  Plus,
+  Minus
 } from "lucide-react";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
@@ -64,6 +67,7 @@ export interface GameTicket {
   cheapestPrice: number;
   vipPrice: number;
   seasonPassPrice?: number;
+  sidelinePassPrice?: number;
   url?: string;
   image?: string;
   venueMapImage?: string;
@@ -76,7 +80,7 @@ interface TicketCheckoutModalProps {
   onClose: () => void;
   onSuccess?: () => void;
   onOpenTicketCheck?: (query?: string) => void;
-  initialTier?: "general" | "lower_bowl" | "club" | "vip" | "season_pass";
+  initialTier?: "general" | "lower_bowl" | "club" | "vip" | "season_pass" | "sideline_pass";
   initialPromoCode?: string;
   passName?: string;
 }
@@ -146,8 +150,9 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
     (game?.name?.toLowerCase().includes("patriots") && game?.name?.toLowerCase().includes("seahawk"))
   );
 
-  const [selectedTier, setSelectedTier] = useState<"general" | "lower_bowl" | "club" | "vip" | "season_pass">(initialTier);
+  const [selectedTier, setSelectedTier] = useState<"general" | "lower_bowl" | "club" | "vip" | "season_pass" | "sideline_pass">(initialTier);
   const [quantity, setQuantity] = useState(1);
+  const [sidelinePassCount, setSidelinePassCount] = useState<number>(0);
   const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "paypal" | "venmo" | "zelle" | "crypto" | "giftcard">("cashapp");
   const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -265,12 +270,13 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   );
 
   // Standard full prices before discount
-  const originalTierRates: Record<"general" | "lower_bowl" | "club" | "vip" | "season_pass", number> = {
+  const originalTierRates: Record<"general" | "lower_bowl" | "club" | "vip" | "season_pass" | "sideline_pass", number> = {
     general: isDrakeMaye ? 2000 : (isPatriotsGame && selectedSeat ? selectedSeat.price : basePrice),
     lower_bowl: isDrakeMaye ? 2000 : (isPatriotsGame && selectedSeat ? Math.round(selectedSeat.price * 1.4) : (isSeahawksGame ? 2400 : Math.round(basePrice * 1.8))),
     club: isDrakeMaye ? 2000 : (isPatriotsGame && selectedSeat ? Math.round(selectedSeat.price * 1.9) : (isSeahawksGame ? 3600 : Math.round(basePrice * 3.0))),
     vip: isDrakeMaye ? 2000 : vipPrice,
-    season_pass: isDrakeMaye ? 2000 : seasonPassPrice
+    season_pass: isDrakeMaye ? 2000 : seasonPassPrice,
+    sideline_pass: 1200
   };
 
   // Check if promo code is applied (completely disabled for Patriots vs Seahawks per instructions)
@@ -281,19 +287,27 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   // Match tickets -> 50% off (e.g. $1000 -> $500, $1200 -> $600, $2400 -> $1200, $3600 -> $1800, $5000 -> $2500)
   // Season Pass -> $8k to $5k ($8,000 -> $5,000)
   // For Seahawks vs Patriots primetime game, discount is removed
-  const discountedTierRates: Record<"general" | "lower_bowl" | "club" | "vip" | "season_pass", number> = {
+  const discountedTierRates: Record<"general" | "lower_bowl" | "club" | "vip" | "season_pass" | "sideline_pass", number> = {
     general: is258025Applied ? (isDrakeMaye ? 750 : Math.round(originalTierRates.general * 0.5)) : originalTierRates.general,
     lower_bowl: is258025Applied ? (isDrakeMaye ? 750 : Math.round(originalTierRates.lower_bowl * 0.5)) : originalTierRates.lower_bowl,
     club: is258025Applied ? (isDrakeMaye ? 750 : Math.round(originalTierRates.club * 0.5)) : originalTierRates.club,
     vip: is258025Applied ? (isDrakeMaye ? 750 : Math.round(originalTierRates.vip * 0.5)) : originalTierRates.vip,
-    season_pass: is258025Applied ? (isDrakeMaye ? 750 : 5000) : originalTierRates.season_pass
+    season_pass: is258025Applied ? (isDrakeMaye ? 750 : 5000) : originalTierRates.season_pass,
+    sideline_pass: 1200
   };
 
   const currentPricePerTicket = discountedTierRates[selectedTier];
   const originalPricePerTicket = originalTierRates[selectedTier];
   
-  const subtotal = currentPricePerTicket * quantity;
-  const originalSubtotal = originalPricePerTicket * quantity;
+  // Sideline Pass Pricing ($1,200 each for New England Patriots vs Seahawks)
+  const SIDELINE_PASS_PRICE = 1200;
+  const sidelinePassTotal = isPatriotsGame ? sidelinePassCount * SIDELINE_PASS_PRICE : 0;
+
+  const ticketSubtotal = currentPricePerTicket * quantity;
+  const originalTicketSubtotal = originalPricePerTicket * quantity;
+
+  const subtotal = ticketSubtotal + sidelinePassTotal;
+  const originalSubtotal = originalTicketSubtotal + sidelinePassTotal;
   const promoSavings = isPatriotsGame ? 0 : (originalSubtotal - subtotal);
   
   // For Patriots vs Seahawks, discount is removed and price stays authentic face value
@@ -392,6 +406,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         quantity,
         originalPricePerTicket,
         pricePerTicket: currentPricePerTicket,
+        sidelinePassCount: isPatriotsGame ? sidelinePassCount : 0,
+        sidelinePassUnitPrice: isPatriotsGame && sidelinePassCount > 0 ? SIDELINE_PASS_PRICE : 0,
+        sidelinePassTotal: isPatriotsGame ? sidelinePassTotal : 0,
+        ticketSubtotal,
         originalTotal: originalSubtotal + Math.round(originalSubtotal * 0.05),
         totalAmount,
         dueToday: currentSplit.dueToday,
@@ -434,6 +452,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
       // Save to Firestore ticket_orders
       await setDoc(doc(db, "ticket_orders", orderId), ticketOrderData);
       
+      const sidelinePassDesc = isPatriotsGame && sidelinePassCount > 0
+        ? ` + ${sidelinePassCount}x Sideline Pass ($${sidelinePassTotal.toLocaleString()})`
+        : "";
+
       // Also write to bookings so it's queryable in portfolio and Control Room
       await setDoc(doc(db, "bookings", orderId), {
         id: orderId,
@@ -444,12 +466,14 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         buyerPhone: buyerPhone,
         experienceId: game.id,
         experienceTitle: isPatriotsGame && selectedSeat
-          ? `${passName || game.name} · ${selectedSeat.section} ${selectedSeat.row} (${quantity}x)${appliedPromo && !isPatriotsGame ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`
-          : `${passName || game.name} · ${selectedTier.toUpperCase().replace("_", " ")} (${quantity}x)${appliedPromo && !isPatriotsGame ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`,
+          ? `${passName || game.name} · ${selectedSeat.section} ${selectedSeat.row} (${quantity}x)${sidelinePassDesc}${appliedPromo && !isPatriotsGame ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`
+          : `${passName || game.name} · ${selectedTier.toUpperCase().replace("_", " ")} (${quantity}x)${sidelinePassDesc}${appliedPromo && !isPatriotsGame ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`,
         experienceType: selectedTier === "season_pass" ? "season_pass" : "match_ticket",
         date: game.date,
         timeSlot: game.time,
         guestsCount: quantity,
+        sidelinePassCount: isPatriotsGame ? sidelinePassCount : 0,
+        sidelinePassTotal: isPatriotsGame ? sidelinePassTotal : 0,
         totalPrice: totalAmount,
         dueToday: currentSplit.dueToday,
         tier: selectedTier,
@@ -492,6 +516,8 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         gameName: passName || game.name,
         tier: selectedTier,
         quantity,
+        sidelinePassCount: isPatriotsGame ? sidelinePassCount : 0,
+        sidelinePassTotal: isPatriotsGame ? sidelinePassTotal : 0,
         totalAmount,
         dueToday: currentSplit.dueToday,
         splitMode,
@@ -621,10 +647,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   </div>
                 )}
                 <p className="text-[10px] text-zinc-400 flex items-center gap-1.5">
-                  <MapPin className="w-3 h-3 text-red-400" /> {game?.location || `${game?.stadium || "NFL Arena"}, ${game?.city || "USA"}`}
+                  <MapPin className="w-3 h-3 text-red-400" /> {isPatriotsGame ? "Lumen Field, Seattle" : (game?.location || `${game?.stadium || "NFL Arena"}, ${game?.city || "USA"}`)}
                 </p>
                 <p className="text-[10px] text-zinc-400 flex items-center gap-1.5">
-                  <Clock className="w-3 h-3 text-blue-400" /> {game?.status || `${game?.date || "2025 Season"} @ ${game?.time || "TBD"}`}
+                  <Clock className="w-3 h-3 text-blue-400" /> {isPatriotsGame ? "Wednesday, Sept 9 · 8:20 PM ET (5:20 PM PT)" : (game?.status || `${game?.date || "2025 Season"} @ ${game?.time || "TBD"}`)}
                 </p>
               </div>
 
@@ -685,10 +711,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       orderId: confirmedTicket.orderId,
                       ticketCode: liveBookingState?.ticketCode || liveBookingState?.qrCode,
                       eventTitle: confirmedTicket.gameName,
-                      stadium: game?.stadium || "NFL Stadium",
-                      city: game?.city || "USA",
-                      date: game?.date || "2025-2026 Season",
-                      time: game?.time || "TBD",
+                      stadium: isPatriotsGame ? "Lumen Field" : (game?.stadium || "NFL Stadium"),
+                      city: isPatriotsGame ? "Seattle, WA" : (game?.city || "USA"),
+                      date: isPatriotsGame ? "Wednesday, September 9, 2026" : (game?.date || "2025-2026 Season"),
+                      time: isPatriotsGame ? "8:20 PM ET / 5:20 PM PT" : (game?.time || "TBD"),
                       tier: confirmedTicket.seatDetails || confirmedTicket.tier,
                       seatDetails: confirmedTicket.seatDetails,
                       quantity: confirmedTicket.quantity,
@@ -738,10 +764,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   <Ticket className="w-3 h-3" /> {game.competition || "Pre Season · NFL"}
                 </span>
                 <span className="px-3 py-1 bg-blue-600/20 border border-blue-500/30 text-blue-400 text-[9px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> {game.status || `${game.date} @ ${game.time}`}
+                  <Clock className="w-3 h-3" /> {isPatriotsGame ? "Wednesday, Sept 9 · 8:20 PM ET (5:20 PM PT)" : (game.status || `${game.date} @ ${game.time}`)}
                 </span>
                 <span className="px-3 py-1 bg-zinc-800 text-zinc-300 text-[9px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-emerald-400" /> {game.location || `${game.stadium}, ${game.city}`}
+                  <MapPin className="w-3 h-3 text-emerald-400" /> {isPatriotsGame ? "Lumen Field, Seattle" : (game.location || `${game.stadium}, ${game.city}`)}
                 </span>
               </div>
 
