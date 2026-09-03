@@ -19,6 +19,7 @@ export interface TicketPassInfo {
   timeSlot?: string;
   isDateTbd?: boolean;
   tier?: string;
+  seatDetails?: string;
   quantity?: number;
   guestsCount?: number;
   totalAmount?: number | string;

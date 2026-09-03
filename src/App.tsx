@@ -1343,12 +1343,13 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                 homeTeam: "Seahawks",
                 awayTeam: "Patriots"
               },
-              cheapestPrice: 600,
-              vipPrice: 1800,
-              seasonPassPrice: 4200,
+              cheapestPrice: 1000,
+              vipPrice: 2500,
+              seasonPassPrice: 8000,
               url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
-              image: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800",
-              isResale: false
+              image: "https://i.postimg.cc/J0DZvg87/IMG-0463.jpg",
+              venueMapImage: "https://i.postimg.cc/d0sdwDF2/IMG-0464.jpg",
+              isResale: true
             },
             {
               id: "tm-sea-sf-wk1",

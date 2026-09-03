@@ -585,11 +585,13 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                           </div>
 
                           <div>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Tier / Allocation</span>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Tier / Seat Allocation</span>
                             <p className="font-bold text-amber-400 mt-0.5">
-                              {isStockholder 
-                                ? "FRANCHISE STOCKHOLDER VIP" 
-                                : (selectedTicket.tier?.toUpperCase().replace(/_/g, " ") || "VIP ACCESS")}
+                              {selectedTicket.seatDetails
+                                ? selectedTicket.seatDetails
+                                : isStockholder 
+                                  ? "FRANCHISE STOCKHOLDER VIP" 
+                                  : (selectedTicket.tier?.toUpperCase().replace(/_/g, " ") || "VIP ACCESS")}
                             </p>
                           </div>
 

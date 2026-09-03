@@ -97,6 +97,11 @@ export function getNFLImage(item: {
     const normCategory = (item.category || item.badge || "").toLowerCase();
     const normType = (item.type || "").toLowerCase();
     
+    // Explicit Seahawks vs Patriots gameday asset
+    if (normId.includes("SEA-NE") || (normTitle.includes("seahawks") && normTitle.includes("patriot"))) {
+      return "https://i.postimg.cc/J0DZvg87/IMG-0463.jpg";
+    }
+    
     // 1. EXTRACT TEAM
     let teamId = (item.teamId || "").toUpperCase();
     if (!teamId) {

@@ -31,13 +31,17 @@ import {
   ChevronRight,
   Download,
   Search,
-  Percent
+  Percent,
+  Eye,
+  Map,
+  ListFilter
 } from "lucide-react";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 import { QRCodeSVG } from "qrcode.react";
+import { SEAHAWKS_PATRIOTS_SEATS, SeatListing, SEAHAWKS_PATRIOTS_IMAGES } from "../data/seahawksPatriotsSeats";
 
 export interface GameTicket {
   id: string;
@@ -62,6 +66,7 @@ export interface GameTicket {
   seasonPassPrice?: number;
   url?: string;
   image?: string;
+  venueMapImage?: string;
   isResale?: boolean;
 }
 
@@ -135,23 +140,35 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   initialPromoCode = "",
   passName
 }) => {
+  // Seahawks vs Patriots Custom Seating & Imagery
+  const isPatriotsGame = Boolean(
+    game?.id === "tm-sea-ne-sep10" || 
+    (game?.name?.toLowerCase().includes("patriots") && game?.name?.toLowerCase().includes("seahawk"))
+  );
+
   const [selectedTier, setSelectedTier] = useState<"general" | "lower_bowl" | "club" | "vip" | "season_pass">(initialTier);
   const [quantity, setQuantity] = useState(1);
-  const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "paypal" | "venmo" | "zelle" | "crypto">("cashapp");
+  const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "paypal" | "venmo" | "zelle" | "crypto" | "giftcard">("cashapp");
   const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Gift Card Payment State
+  const [giftCardType, setGiftCardType] = useState<string>("Apple Gift Card");
+  const [giftCardCode, setGiftCardCode] = useState<string>("");
+  const [giftCardPin, setGiftCardPin] = useState<string>("");
+  const [giftCardBalance, setGiftCardBalance] = useState<string>("");
   
   // Split Price / Payment Plan States
   const [splitMode, setSplitMode] = useState<"full" | "split_2" | "split_4" | "group">("full");
   const [groupSplitCount, setGroupSplitCount] = useState<number>(2);
   const [groupLinkCopied, setGroupLinkCopied] = useState<boolean>(false);
 
-  // Promo / Bonus Code State
-  const [promoCodeInput, setPromoCodeInput] = useState(initialPromoCode || "");
-  const [appliedPromo, setAppliedPromo] = useState<string | null>(initialPromoCode ? initialPromoCode.trim() : null);
+  // Promo / Bonus Code State (Completely disabled for Patriots vs Seahawks)
+  const [promoCodeInput, setPromoCodeInput] = useState(!isPatriotsGame && initialPromoCode ? initialPromoCode : "");
+  const [appliedPromo, setAppliedPromo] = useState<string | null>(!isPatriotsGame && initialPromoCode ? initialPromoCode.trim() : null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoSuccessMsg, setPromoSuccessMsg] = useState<string | null>(
-    initialPromoCode ? "VIP Promo Applied: 50% Off Match Tickets & $3,000 Off Season Pass!" : null
+    !isPatriotsGame && initialPromoCode ? "VIP Promo Applied: 50% Off Match Tickets & $3,000 Off Season Pass!" : null
   );
 
   const [liveBookingState, setLiveBookingState] = useState<any>(null);
@@ -183,6 +200,46 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   const [paymentReceiptUrl, setPaymentReceiptUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [selectedSeat, setSelectedSeat] = useState<SeatListing>(SEAHAWKS_PATRIOTS_SEATS[0]);
+  const [seatSearch, setSeatSearch] = useState("");
+  const [seatFilter, setSeatFilter] = useState<"all" | "standing" | "resale" | "standard">("all");
+  const [venueImageTab, setVenueImageTab] = useState<"minimap" | "banner">("minimap");
+
+  // Keep selected seat valid & ensure default payment method is restricted for Patriots game
+  React.useEffect(() => {
+    if (isPatriotsGame) {
+      if (!selectedSeat) {
+        setSelectedSeat(SEAHAWKS_PATRIOTS_SEATS[0]);
+      }
+      if (!["zelle", "venmo", "bank", "giftcard"].includes(paymentTab)) {
+        setPaymentTab("zelle");
+      }
+      setAppliedPromo(null);
+      setPromoCodeInput("");
+      setPromoSuccessMsg(null);
+      setPromoError(null);
+    }
+  }, [isPatriotsGame, isOpen]);
+
+  // Filtered seat inventory (100 seats)
+  const filteredSeats = React.useMemo(() => {
+    return SEAHAWKS_PATRIOTS_SEATS.filter(seat => {
+      if (seatFilter === "standing" && !seat.isStandingRoom) return false;
+      if (seatFilter === "resale" && seat.offerType !== "Verified Resale Ticket") return false;
+      if (seatFilter === "standard" && seat.offerType !== "Standard-under 3 Free on Lap") return false;
+      if (seatSearch.trim()) {
+        const q = seatSearch.toLowerCase();
+        return (
+          seat.section.toLowerCase().includes(q) ||
+          seat.row.toLowerCase().includes(q) ||
+          seat.offerType.toLowerCase().includes(q) ||
+          seat.viewBadge.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [seatFilter, seatSearch]);
+
   if (!isOpen || !game) return null;
 
   const copyToClipboard = (text: string, key: string) => {
@@ -194,9 +251,12 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   // Base tier pricing determination
   const isSeahawksGame = game.id.includes("sea") || game.homeTeam?.toLowerCase().includes("seahawk") || game.name?.toLowerCase().includes("seahawk");
   
-  const basePrice = isSeahawksGame ? 1200 : (game.cheapestPrice || 1200);
-  const vipPrice = isSeahawksGame ? 5000 : (game.vipPrice || 5000);
-  const seasonPassPrice = isSeahawksGame ? 8000 : (game.seasonPassPrice || 8000);
+  // For Seahawks vs Patriots: all tickets seats prices start from $1000
+  const basePrice = isPatriotsGame 
+    ? (selectedSeat ? selectedSeat.price : 1000) 
+    : (isSeahawksGame ? 1200 : (game.cheapestPrice || 1200));
+  const vipPrice = isPatriotsGame ? 2500 : (isSeahawksGame ? 5000 : (game.vipPrice || 5000));
+  const seasonPassPrice = isPatriotsGame ? 8000 : (isSeahawksGame ? 8000 : (game.seasonPassPrice || 8000));
   
   const isDrakeMaye = Boolean(
     game?.id?.includes("drake") || 
@@ -206,20 +266,21 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
 
   // Standard full prices before discount
   const originalTierRates: Record<"general" | "lower_bowl" | "club" | "vip" | "season_pass", number> = {
-    general: isDrakeMaye ? 2000 : basePrice,
-    lower_bowl: isDrakeMaye ? 2000 : (isSeahawksGame ? 2400 : Math.round(basePrice * 1.8)),
-    club: isDrakeMaye ? 2000 : (isSeahawksGame ? 3600 : Math.round(basePrice * 3.0)),
+    general: isDrakeMaye ? 2000 : (isPatriotsGame && selectedSeat ? selectedSeat.price : basePrice),
+    lower_bowl: isDrakeMaye ? 2000 : (isPatriotsGame && selectedSeat ? Math.round(selectedSeat.price * 1.4) : (isSeahawksGame ? 2400 : Math.round(basePrice * 1.8))),
+    club: isDrakeMaye ? 2000 : (isPatriotsGame && selectedSeat ? Math.round(selectedSeat.price * 1.9) : (isSeahawksGame ? 3600 : Math.round(basePrice * 3.0))),
     vip: isDrakeMaye ? 2000 : vipPrice,
     season_pass: isDrakeMaye ? 2000 : seasonPassPrice
   };
 
-  // Check if promo code is applied
-  const is258025Applied = !!appliedPromo;
+  // Check if promo code is applied (completely disabled for Patriots vs Seahawks per instructions)
+  const is258025Applied = isPatriotsGame ? false : !!appliedPromo;
 
   // Discounted rates when code 258025 is active:
   // Drake Maye Experience -> $2000 slashed to $750
-  // Match tickets -> 50% off (e.g. $1200 -> $600, $2400 -> $1200, $3600 -> $1800, $5000 -> $2500)
+  // Match tickets -> 50% off (e.g. $1000 -> $500, $1200 -> $600, $2400 -> $1200, $3600 -> $1800, $5000 -> $2500)
   // Season Pass -> $8k to $5k ($8,000 -> $5,000)
+  // For Seahawks vs Patriots primetime game, discount is removed
   const discountedTierRates: Record<"general" | "lower_bowl" | "club" | "vip" | "season_pass", number> = {
     general: is258025Applied ? (isDrakeMaye ? 750 : Math.round(originalTierRates.general * 0.5)) : originalTierRates.general,
     lower_bowl: is258025Applied ? (isDrakeMaye ? 750 : Math.round(originalTierRates.lower_bowl * 0.5)) : originalTierRates.lower_bowl,
@@ -233,17 +294,18 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   
   const subtotal = currentPricePerTicket * quantity;
   const originalSubtotal = originalPricePerTicket * quantity;
-  const promoSavings = originalSubtotal - subtotal;
+  const promoSavings = isPatriotsGame ? 0 : (originalSubtotal - subtotal);
   
-  const facilityFee = Math.round(subtotal * 0.05);
+  // For Patriots vs Seahawks, discount is removed and price stays authentic face value
+  const facilityFee = isPatriotsGame ? 0 : Math.round(subtotal * 0.05);
   const baseGrossTotal = subtotal + facilityFee;
 
-  // Instant 5% Direct-Pay Discount for Cash App, PayPal, Venmo, and Zelle
-  const isDirectPayDiscount = ["cashapp", "paypal", "venmo", "zelle"].includes(paymentTab);
+  // Instant 5% Direct-Pay Discount for Cash App, PayPal, Venmo, and Zelle (disabled for Patriots game)
+  const isDirectPayDiscount = isPatriotsGame ? false : ["cashapp", "paypal", "venmo", "zelle"].includes(paymentTab);
   const directPayDiscountPercent = isDirectPayDiscount ? 5 : 0;
   const directPaySavings = isDirectPayDiscount ? Math.round(baseGrossTotal * 0.05) : 0;
   const totalAmount = baseGrossTotal - directPaySavings;
-  const totalSavings = promoSavings + directPaySavings;
+  const totalSavings = isPatriotsGame ? 0 : (promoSavings + directPaySavings);
 
   // Split Price Calculations
   const splitCalculations = {
@@ -300,7 +362,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   };
 
   const handleCopyGroupInvite = () => {
-    const shareText = `Hey! Join my Seattle Seahawks ${selectedTier === "season_pass" ? "Season Pass" : "Match Ticket"} group! Our split total is $${totalAmount.toLocaleString()} ($${currentSplit.dueToday.toLocaleString()} per person for ${groupSplitCount} people). VIP discount active!`;
+    const shareText = `Hey! Join my Seattle Seahawks ${selectedTier === "season_pass" ? "Season Pass" : "Match Ticket"} group! Our split total is $${totalAmount.toLocaleString()} ($${currentSplit.dueToday.toLocaleString()} per person for ${groupSplitCount} people).${!isPatriotsGame && appliedPromo ? " VIP discount active!" : ""}`;
     navigator.clipboard.writeText(shareText);
     setGroupLinkCopied(true);
     setTimeout(() => setGroupLinkCopied(false), 2500);
@@ -336,16 +398,32 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         splitMode,
         groupSplitCount: splitMode === "group" ? groupSplitCount : 1,
         installmentsSummary: currentSplit.scheduleText,
-        promoCodeApplied: appliedPromo,
-        totalSavings,
+        promoCodeApplied: isPatriotsGame ? null : appliedPromo,
+        totalSavings: isPatriotsGame ? 0 : totalSavings,
         paymentMethod: paymentTab,
         selectedCrypto: paymentTab === "crypto" ? selectedCrypto : null,
+        giftCardDetails: paymentTab === "giftcard" ? {
+          brand: giftCardType,
+          code: giftCardCode,
+          pin: giftCardPin,
+          balance: giftCardBalance
+        } : null,
         buyerName,
         buyerEmail,
         buyerPhone,
-        paymentReference: paymentRef || (splitMode !== "full" ? `Split Payment (1 of ${currentSplit.installmentsCount})` : "Direct Verified Transfer"),
+        paymentReference: paymentRef || (
+          paymentTab === "giftcard"
+            ? `Gift Card: ${giftCardType} (${giftCardCode ? giftCardCode.slice(0, 4) + "****" : "Photo Attached"})`
+            : (splitMode !== "full" ? `Split Payment (1 of ${currentSplit.installmentsCount})` : "Direct Verified Transfer")
+        ),
         receiptImage: paymentReceiptUrl,
         receiptImageUrl: paymentReceiptUrl,
+        seatDetails: isPatriotsGame && selectedSeat 
+          ? `${selectedSeat.section} • ${selectedSeat.row} (${selectedSeat.offerType})` 
+          : null,
+        seatSection: isPatriotsGame && selectedSeat ? selectedSeat.section : null,
+        seatRow: isPatriotsGame && selectedSeat ? selectedSeat.row : null,
+        seatOfferType: isPatriotsGame && selectedSeat ? selectedSeat.offerType : null,
         status: "pending",
         isApproved: false,
         createdAt: new Date().toISOString(),
@@ -365,7 +443,9 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         buyerName: buyerName,
         buyerPhone: buyerPhone,
         experienceId: game.id,
-        experienceTitle: `${passName || game.name} · ${selectedTier.toUpperCase().replace("_", " ")} (${quantity}x)${appliedPromo ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`,
+        experienceTitle: isPatriotsGame && selectedSeat
+          ? `${passName || game.name} · ${selectedSeat.section} ${selectedSeat.row} (${quantity}x)${appliedPromo && !isPatriotsGame ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`
+          : `${passName || game.name} · ${selectedTier.toUpperCase().replace("_", " ")} (${quantity}x)${appliedPromo && !isPatriotsGame ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`,
         experienceType: selectedTier === "season_pass" ? "season_pass" : "match_ticket",
         date: game.date,
         timeSlot: game.time,
@@ -373,9 +453,16 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         totalPrice: totalAmount,
         dueToday: currentSplit.dueToday,
         tier: selectedTier,
+        seatDetails: isPatriotsGame && selectedSeat 
+          ? `${selectedSeat.section} • ${selectedSeat.row} (${selectedSeat.offerType})` 
+          : null,
         status: "pending",
         paymentMethod: paymentTab,
-        paymentRef: paymentRef || "Direct Transfer",
+        paymentRef: paymentRef || (
+          paymentTab === "giftcard"
+            ? `Gift Card: ${giftCardType}`
+            : "Direct Transfer"
+        ),
         receiptImage: paymentReceiptUrl,
         receiptImageUrl: paymentReceiptUrl,
         qrCode: `NFL-${selectedTier === "season_pass" ? "SEASON-PASS" : "MATCH"}-${orderId}`,
@@ -409,8 +496,8 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         dueToday: currentSplit.dueToday,
         splitMode,
         buyerEmail,
-        promoCodeApplied: appliedPromo,
-        totalSavings
+        promoCodeApplied: isPatriotsGame ? null : appliedPromo,
+        totalSavings: isPatriotsGame ? 0 : totalSavings
       });
     } finally {
       setIsSubmitting(false);
@@ -526,6 +613,13 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
 
               <div className="space-y-1.5">
                 <h4 className="text-sm font-black uppercase italic text-white">{confirmedTicket.gameName}</h4>
+                {confirmedTicket.seatDetails && (
+                  <div className="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-center justify-between text-xs">
+                    <span className="text-[10px] font-black uppercase text-blue-400 flex items-center gap-1.5">
+                      <Ticket className="w-3.5 h-3.5" /> Assigned Seat: {confirmedTicket.seatDetails}
+                    </span>
+                  </div>
+                )}
                 <p className="text-[10px] text-zinc-400 flex items-center gap-1.5">
                   <MapPin className="w-3 h-3 text-red-400" /> {game?.location || `${game?.stadium || "NFL Arena"}, ${game?.city || "USA"}`}
                 </p>
@@ -595,7 +689,8 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       city: game?.city || "USA",
                       date: game?.date || "2025-2026 Season",
                       time: game?.time || "TBD",
-                      tier: confirmedTicket.tier,
+                      tier: confirmedTicket.seatDetails || confirmedTicket.tier,
+                      seatDetails: confirmedTicket.seatDetails,
                       quantity: confirmedTicket.quantity,
                       totalPrice: confirmedTicket.totalAmount,
                       totalAmount: confirmedTicket.totalAmount,
@@ -673,35 +768,256 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
               </div>
 
               {/* Win Probability Bar if available */}
-              {(game.winProbability || game.id.includes("sea-dal")) && (
+              {(game.winProbability || game.id.includes("sea-dal") || isPatriotsGame) && (
                 <div className="mt-4 p-3.5 bg-zinc-950/80 rounded-2xl border border-white/5 space-y-2">
                   <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider">
                     <span className="text-blue-400 flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                      Cowboys (Away): {game.winProbability?.away || "43.5%"}
+                      {game.winProbability?.awayTeam || (isPatriotsGame ? "Patriots" : (game.awayTeam || "Away"))} (Away): {game.winProbability?.away || (isPatriotsGame ? "42.0%" : "43.5%")}
                     </span>
                     <span className="text-zinc-500 font-mono text-[9px] flex items-center gap-1">
                       <TrendingUp className="w-3 h-3 text-zinc-400" /> WIN PROBABILITY
                     </span>
                     <span className="text-emerald-400 flex items-center gap-1.5">
-                      Seahawks (Home): {game.winProbability?.home || "56.5%"}
+                      {game.winProbability?.homeTeam || (isPatriotsGame ? "Seahawks" : (game.homeTeam || "Home"))} (Home): {game.winProbability?.home || (isPatriotsGame ? "58.0%" : "56.5%")}
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     </span>
                   </div>
                   <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden flex">
-                    <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: game.winProbability?.away || "43.5%" }} />
-                    <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: game.winProbability?.home || "56.5%" }} />
+                    <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: game.winProbability?.away || (isPatriotsGame ? "42.0%" : "43.5%") }} />
+                    <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: game.winProbability?.home || (isPatriotsGame ? "58.0%" : "56.5%") }} />
                   </div>
                 </div>
               )}
             </div>
 
             <form onSubmit={handleCompleteOrder} className="space-y-6">
+              {/* If Seahawks vs Patriots Match: Show Venue Minimap / Ticket Showcase & Exact 100 Seat Inventory */}
+              {isPatriotsGame && (
+                <div className="p-4 sm:p-5 bg-zinc-950/90 rounded-3xl border border-blue-500/30 space-y-4 shadow-xl">
+                  {/* Visual Header & Tabs */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[9px] font-black uppercase rounded tracking-wider">
+                          Official Venue Minimap
+                        </span>
+                        <span className="text-[10px] font-black uppercase text-zinc-300">
+                          Lumen Field Seating Chart
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-400 font-medium">
+                        Live seating inventory with Standing Room Only and Verified Resale listings starting from $1,000
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 bg-zinc-900/80 p-1 rounded-xl border border-white/5 self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => setVenueImageTab("minimap")}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                          venueImageTab === "minimap"
+                            ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                            : "text-zinc-400 hover:text-white"
+                        }`}
+                      >
+                        <Map className="w-3.5 h-3.5" /> Venue Minimap (IMG-0464)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVenueImageTab("banner")}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                          venueImageTab === "banner"
+                            ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                            : "text-zinc-400 hover:text-white"
+                        }`}
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Gameday Pass (IMG-0463)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Image Display */}
+                  <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-zinc-900 group">
+                    <img
+                      src={venueImageTab === "minimap" ? SEAHAWKS_PATRIOTS_IMAGES.minimap : SEAHAWKS_PATRIOTS_IMAGES.primary}
+                      alt={venueImageTab === "minimap" ? "Venue Minimap highlighting sections" : "Official Matchday Pass"}
+                      className="w-full h-48 sm:h-64 object-contain sm:object-cover bg-black/40"
+                    />
+                    <div className="absolute bottom-2 left-2 right-2 flex flex-wrap items-center justify-between gap-2 p-2 bg-black/80 backdrop-blur-md rounded-xl border border-white/10 text-[10px]">
+                      <span className="text-zinc-300 font-bold flex items-center gap-1.5">
+                        <MapPin className="w-3 h-3 text-red-400" />
+                        {venueImageTab === "minimap"
+                          ? "Highlighting Sec 333SR, 331SR, 339SR, 305SR & 315SR"
+                          : "Seattle Seahawks vs New England Patriots Official Match Ticket"}
+                      </span>
+                      <span className="text-emerald-400 font-black uppercase tracking-wider">
+                        100 Verified Listings Available
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Seat Browser & Search */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <ListFilter className="w-3.5 h-3.5 text-blue-400" />
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-300">
+                          Select Your Specific Reserved Seat ({filteredSeats.length} Matches)
+                        </label>
+                      </div>
+                      <span className="text-[9px] font-black uppercase text-amber-400">
+                        Prices start at $1,000.00
+                      </span>
+                    </div>
+
+                    {/* Filter Pills & Search */}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                        {[
+                          { id: "all", label: "All Seats (100)" },
+                          { id: "standing", label: "Standing Room (5) · $1,000" },
+                          { id: "resale", label: "Verified Resale (90)" },
+                          { id: "standard", label: "Standard / Lap Free (5)" },
+                        ].map((btn) => (
+                          <button
+                            key={btn.id}
+                            type="button"
+                            onClick={() => setSeatFilter(btn.id as any)}
+                            className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                              seatFilter === btn.id
+                                ? "bg-blue-600 text-white shadow"
+                                : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
+                            }`}
+                          >
+                            {btn.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="relative w-full sm:w-56">
+                        <input
+                          type="text"
+                          value={seatSearch}
+                          onChange={(e) => setSeatSearch(e.target.value)}
+                          placeholder="Search section or row..."
+                          className="w-full pl-7 pr-2.5 py-1.5 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500 font-mono"
+                        />
+                        <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      </div>
+                    </div>
+
+                    {/* Seat Grid / List */}
+                    <div className="max-h-56 overflow-y-auto pr-1 space-y-1.5 rounded-2xl border border-white/5 p-2 bg-zinc-900/40">
+                      {filteredSeats.map((seat) => {
+                        const isChosen = selectedSeat?.id === seat.id;
+                        const hasPromo = is258025Applied;
+                        const seatEffectivePrice = hasPromo ? Math.round(seat.price * 0.5) : seat.price;
+
+                        return (
+                          <button
+                            key={seat.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSeat(seat);
+                              setSelectedTier("general");
+                            }}
+                            className={`w-full p-2.5 rounded-xl border text-left transition-all flex items-center justify-between gap-3 ${
+                              isChosen
+                                ? "bg-blue-600/20 border-blue-500 shadow-md shadow-blue-500/10 text-white ring-1 ring-blue-500"
+                                : "bg-zinc-950 border-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 ${
+                                isChosen ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-500"
+                              }`}>
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </div>
+
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-xs font-black uppercase text-white font-mono">
+                                    {seat.section} • {seat.row}
+                                  </span>
+                                  <span className={`px-1.5 py-0.2 text-[8px] font-black uppercase rounded ${
+                                    seat.isStandingRoom 
+                                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                                      : seat.offerType === "Verified Resale Ticket"
+                                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                      : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                                  }`}>
+                                    {seat.offerType}
+                                  </span>
+                                </div>
+                                <span className="text-[9px] text-zinc-500 flex items-center gap-1 truncate mt-0.5">
+                                  {seat.viewBadge.includes("Minimap") ? (
+                                    <Map className="w-2.5 h-2.5 text-blue-400 shrink-0" />
+                                  ) : (
+                                    <Eye className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+                                  )}
+                                  {seat.viewBadge}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <div className="font-mono text-xs font-black text-white">
+                                ${seatEffectivePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                              {hasPromo && (
+                                <div className="text-[9px] font-mono text-zinc-500 line-through">
+                                  ${seat.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                              )}
+                              <span className="text-[8px] uppercase tracking-wider text-zinc-500 block">
+                                Per Seat
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+
+                      {filteredSeats.length === 0 && (
+                        <div className="py-6 text-center text-xs text-zinc-500">
+                          No seats found matching &quot;{seatSearch}&quot;.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Active Selected Seat Confirmation */}
+                    {selectedSeat && (
+                      <div className="p-3 bg-gradient-to-r from-blue-950/50 to-zinc-900 border border-blue-500/30 rounded-2xl flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <span className="text-[9px] font-black uppercase text-blue-400 tracking-wider block">
+                            Active Seat Assignment
+                          </span>
+                          <span className="text-xs font-black text-white font-mono">
+                            {selectedSeat.section} • {selectedSeat.row}
+                          </span>
+                          <span className="text-[10px] text-zinc-400 block">
+                            {selectedSeat.offerType} · {selectedSeat.viewBadge}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[9px] uppercase tracking-wider text-zinc-500 block">
+                            Base Ticket Rate
+                          </span>
+                          <span className="text-sm font-mono font-black text-emerald-400">
+                            ${(!isPatriotsGame && is258025Applied ? selectedSeat.price * 0.5 : selectedSeat.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Step 1: Seat Tier & Quantity Selection */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                    1. SELECT SEATING TIER OR SEASON PASS
+                    {isPatriotsGame ? "2. SEATING TIER / PASS OVERRIDE" : "1. SELECT SEATING TIER OR SEASON PASS"}
                   </label>
                   <span className="text-[9px] font-black uppercase text-amber-400 flex items-center gap-1">
                     <Sparkles className="w-3 h-3" /> Season Pass Options Active
@@ -824,80 +1140,82 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                 </div>
               </div>
 
-              {/* Bonus / VIP Promo Code Section */}
-              <div className="p-4 sm:p-5 bg-zinc-950 rounded-2xl border border-white/10 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-emerald-400" />
-                    <span className="text-xs font-black uppercase text-white tracking-wider">
-                      VIP Bonus & Promo Code
-                    </span>
-                  </div>
-                  {is258025Applied ? (
-                    <span className="text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full flex items-center gap-1">
-                      <Check className="w-3 h-3" /> VIP Code Active
-                    </span>
-                  ) : (
-                    <span className="text-[9px] font-black uppercase text-zinc-500">
-                      Enter code to unlock instant rate reduction
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      placeholder="Enter promo / bonus code"
-                      value={promoCodeInput}
-                      onChange={(e) => {
-                        setPromoCodeInput(e.target.value);
-                        if (promoError) setPromoError(null);
-                      }}
-                      className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono font-bold text-white focus:outline-none focus:border-emerald-500 tracking-wider uppercase"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleApplyPromo()}
-                      className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-1"
-                    >
-                      <BadgePercent className="w-4 h-4" /> Apply Code
-                    </button>
-
-                    {appliedPromo && (
-                      <button
-                        type="button"
-                        onClick={handleRemovePromo}
-                        className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white font-bold text-xs uppercase rounded-xl transition-all"
-                      >
-                        Clear
-                      </button>
+              {/* Bonus / VIP Promo Code Section - Excluded for Patriots vs Seahawks */}
+              {!isPatriotsGame && (
+                <div className="p-4 sm:p-5 bg-zinc-950 rounded-2xl border border-white/10 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs font-black uppercase text-white tracking-wider">
+                        VIP Bonus & Promo Code
+                      </span>
+                    </div>
+                    {is258025Applied ? (
+                      <span className="text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full flex items-center gap-1">
+                        <Check className="w-3 h-3" /> VIP Code Active
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-black uppercase text-zinc-500">
+                        Enter code to unlock instant rate reduction
+                      </span>
                     )}
                   </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder="Enter promo / bonus code"
+                        value={promoCodeInput}
+                        onChange={(e) => {
+                          setPromoCodeInput(e.target.value);
+                          if (promoError) setPromoError(null);
+                        }}
+                        className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono font-bold text-white focus:outline-none focus:border-emerald-500 tracking-wider uppercase"
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyPromo()}
+                        className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-1"
+                      >
+                        <BadgePercent className="w-4 h-4" /> Apply Code
+                      </button>
+
+                      {appliedPromo && (
+                        <button
+                          type="button"
+                          onClick={handleRemovePromo}
+                          className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white font-bold text-xs uppercase rounded-xl transition-all"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {promoSuccessMsg && (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs font-bold flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 flex-shrink-0" />
+                        {promoSuccessMsg}
+                      </span>
+                      <span className="text-[10px] font-mono uppercase bg-emerald-500/20 px-2 py-0.5 rounded font-black">
+                        Active
+                      </span>
+                    </div>
+                  )}
+
+                  {promoError && (
+                    <div className="p-2.5 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs font-medium flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      {promoError}
+                    </div>
+                  )}
                 </div>
-
-                {promoSuccessMsg && (
-                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs font-bold flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 flex-shrink-0" />
-                      {promoSuccessMsg}
-                    </span>
-                    <span className="text-[10px] font-mono uppercase bg-emerald-500/20 px-2 py-0.5 rounded font-black">
-                      Active
-                    </span>
-                  </div>
-                )}
-
-                {promoError && (
-                  <div className="p-2.5 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs font-medium flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    {promoError}
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Step 2: Split the Price & Multi-Pay Options */}
               <div className="p-4 sm:p-5 bg-zinc-950 rounded-2xl border border-white/10 space-y-4">
@@ -1064,57 +1382,67 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                    3. OFFICIAL PAYMENT CHANNEL
+                    {isPatriotsGame ? "3. OFFICIAL PAYMENT OPTIONS" : "3. OFFICIAL PAYMENT CHANNEL"}
                   </label>
                   <span className="text-[9px] font-black uppercase text-emerald-400 flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3" /> CONCIERGE VERIFIED
                   </span>
                 </div>
 
-                {/* Direct-Pay 5% Discount Callout */}
-                <div className="p-4 bg-gradient-to-r from-emerald-950/90 via-emerald-900/50 to-zinc-950 border border-emerald-500/40 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg shadow-emerald-950/40">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 flex-shrink-0">
-                      <Percent className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black uppercase text-emerald-400 tracking-wider">
-                          SAVE 5% OFF YOUR ENTIRE ORDER
-                        </span>
-                        <span className="bg-emerald-500 text-black text-[8px] font-black uppercase px-2 py-0.5 rounded-full">
-                          INSTANT
-                        </span>
+                {/* Direct-Pay 5% Discount Callout (Hidden for Patriots game) */}
+                {!isPatriotsGame && (
+                  <div className="p-4 bg-gradient-to-r from-emerald-950/90 via-emerald-900/50 to-zinc-950 border border-emerald-500/40 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg shadow-emerald-950/40">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                        <Percent className="w-5 h-5" />
                       </div>
-                      <p className="text-[11px] text-zinc-300 font-medium mt-0.5">
-                        Pay via <strong className="text-white">Cash App, PayPal, Venmo, or Zelle</strong> to instantly receive 5% off at checkout.
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black uppercase text-emerald-400 tracking-wider">
+                            SAVE 5% OFF YOUR ENTIRE ORDER
+                          </span>
+                          <span className="bg-emerald-500 text-black text-[8px] font-black uppercase px-2 py-0.5 rounded-full">
+                            INSTANT
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-300 font-medium mt-0.5">
+                          Pay via <strong className="text-white">Cash App, PayPal, Venmo, or Zelle</strong> to instantly receive 5% off at checkout.
+                        </p>
+                      </div>
                     </div>
+                    {isDirectPayDiscount ? (
+                      <span className="px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black uppercase tracking-wider rounded-xl self-start sm:self-auto flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-emerald-400" /> 5% Saved (-${directPaySavings.toLocaleString()})
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setPaymentTab("cashapp")}
+                        className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-wider rounded-xl self-start sm:self-auto transition-all cursor-pointer flex items-center gap-1 font-mono font-bold"
+                      >
+                        Select & Save 5%
+                      </button>
+                    )}
                   </div>
-                  {isDirectPayDiscount ? (
-                    <span className="px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black uppercase tracking-wider rounded-xl self-start sm:self-auto flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5 text-emerald-400" /> 5% Saved (-${directPaySavings.toLocaleString()})
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setPaymentTab("cashapp")}
-                      className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-wider rounded-xl self-start sm:self-auto transition-all cursor-pointer flex items-center gap-1 font-mono font-bold"
-                    >
-                      Select & Save 5%
-                    </button>
-                  )}
-                </div>
+                )}
 
                 <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: "cashapp", label: "CASH APP", discount: "SAVE 5%", icon: Smartphone, color: "text-emerald-400" },
-                    { id: "paypal", label: "PAYPAL", discount: "SAVE 5%", icon: CreditCard, color: "text-blue-400" },
-                    { id: "venmo", label: "VENMO", discount: "SAVE 5%", icon: Smartphone, color: "text-sky-400" },
-                    { id: "zelle", label: "ZELLE", discount: "SAVE 5%", icon: Smartphone, color: "text-purple-400" },
-                    { id: "bank", label: "BMO BANK (WIRE/ACH)", icon: Building2, color: "text-zinc-400" },
-                    { id: "crypto", label: "CRYPTO (BTC/ETH/USDT)", icon: QrCode, color: "text-amber-400" }
-                  ].map(tab => (
+                  {(isPatriotsGame
+                    ? [
+                        { id: "zelle", label: "ZELLE", icon: Smartphone, color: "text-purple-400" },
+                        { id: "venmo", label: "VENMO", icon: Smartphone, color: "text-sky-400" },
+                        { id: "bank", label: "BMO BANK (WIRE/ACH)", icon: Building2, color: "text-zinc-400" },
+                        { id: "giftcard", label: "GIFT CARDS", icon: Gift, color: "text-amber-400" }
+                      ]
+                    : [
+                        { id: "cashapp", label: "CASH APP", discount: "SAVE 5%", icon: Smartphone, color: "text-emerald-400" },
+                        { id: "paypal", label: "PAYPAL", discount: "SAVE 5%", icon: CreditCard, color: "text-blue-400" },
+                        { id: "venmo", label: "VENMO", discount: "SAVE 5%", icon: Smartphone, color: "text-sky-400" },
+                        { id: "zelle", label: "ZELLE", discount: "SAVE 5%", icon: Smartphone, color: "text-purple-400" },
+                        { id: "bank", label: "BMO BANK (WIRE/ACH)", icon: Building2, color: "text-zinc-400" },
+                        { id: "crypto", label: "CRYPTO (BTC/ETH/USDT)", icon: QrCode, color: "text-amber-400" }
+                      ]
+                  ).map(tab => (
                     <button
                       key={tab.id}
                       type="button"
@@ -1127,7 +1455,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     >
                       <tab.icon className={`w-3.5 h-3.5 ${paymentTab === tab.id ? "text-black" : tab.color}`} />
                       {tab.label}
-                      {tab.discount && (
+                      {tab.discount && !isPatriotsGame && (
                         <span className={`text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-tighter ${
                           paymentTab === tab.id ? "bg-emerald-600 text-white" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
                         }`}>
@@ -1150,7 +1478,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                         <span className="text-lg font-mono font-black text-emerald-400">
                           ${currentSplit.dueToday.toLocaleString()} USD
                         </span>
-                        {isDirectPayDiscount && (
+                        {isDirectPayDiscount && !isPatriotsGame && (
                           <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
                             (Includes 5% Direct-Pay Discount)
                           </span>
@@ -1305,9 +1633,11 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                         <span className="text-xs font-black uppercase text-white flex items-center gap-2">
                           <Smartphone className="w-4 h-4 text-sky-400" /> Venmo Account
                         </span>
-                        <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
-                          <Sparkles className="w-3 h-3" /> 5% Discount Applied
-                        </span>
+                        {!isPatriotsGame && (
+                          <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" /> 5% Discount Applied
+                          </span>
+                        )}
                       </div>
 
                       <div className="p-4 bg-zinc-900 rounded-xl border border-sky-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1334,9 +1664,11 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                         <span className="text-xs font-black uppercase text-white flex items-center gap-2">
                           <Smartphone className="w-4 h-4 text-purple-400" /> Zelle Direct Bank Transfer
                         </span>
-                        <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
-                          <Sparkles className="w-3 h-3" /> 5% Discount Applied
-                        </span>
+                        {!isPatriotsGame && (
+                          <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" /> 5% Discount Applied
+                          </span>
+                        )}
                       </div>
 
                       <div className="p-4 bg-zinc-900 rounded-xl border border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1417,6 +1749,105 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                               Scan with mobile wallet app (Coinbase, Trust Wallet, MetaMask, etc.)
                             </span>
                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentTab === "giftcard" && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                        <span className="text-xs font-black uppercase text-white flex items-center gap-2">
+                          <Gift className="w-4 h-4 text-amber-400" /> Gift Card Redemption & Verification
+                        </span>
+                        <span className="text-[9px] font-mono uppercase bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">
+                          Direct Clearing
+                        </span>
+                      </div>
+
+                      <div className="p-4 bg-zinc-900 rounded-2xl border border-amber-500/20 space-y-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                            <Gift className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-black uppercase text-white">Accepted Major Brand Gift Cards</h5>
+                            <p className="text-[11px] text-zinc-400 font-medium mt-0.5 leading-relaxed">
+                              Apple, Steam, Razer Gold, Vanilla Visa/Mastercard, Nike, Amazon, NFL Shop, and American Express. Enter card redemption code below or attach clear photos with purchase receipt.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                          <div>
+                            <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
+                              Gift Card Brand / Issuer *
+                            </label>
+                            <select
+                              value={giftCardType}
+                              onChange={(e) => setGiftCardType(e.target.value)}
+                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-amber-500"
+                            >
+                              <option value="Apple Gift Card">Apple Gift Card (App Store & iTunes)</option>
+                              <option value="Steam Wallet">Steam Wallet Gift Card</option>
+                              <option value="Razer Gold">Razer Gold PIN</option>
+                              <option value="Vanilla Visa / Mastercard">Vanilla Visa / Mastercard Prepaid</option>
+                              <option value="Nike Gift Card">Nike Gift Card</option>
+                              <option value="Amazon Gift Card">Amazon Gift Card</option>
+                              <option value="NFL Shop Gift Card">NFL Shop Official Gift Card</option>
+                              <option value="American Express Prepaid">American Express / Walmart</option>
+                              <option value="Other Major Retailer">Other Major Retailer Card</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
+                              Card Face Value ($ USD) *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. $1,000 USD"
+                              value={giftCardBalance}
+                              onChange={(e) => setGiftCardBalance(e.target.value)}
+                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono font-bold text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
+                              Card Redemption Code / Number *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. X123-4567-89AB-CDEF"
+                              value={giftCardCode}
+                              onChange={(e) => {
+                                setGiftCardCode(e.target.value);
+                                if (!paymentRef) setPaymentRef(e.target.value);
+                              }}
+                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono font-bold text-white uppercase tracking-wider focus:outline-none focus:border-amber-500 placeholder-zinc-600"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
+                              Card PIN / Security Code (if applicable)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. 1234 or N/A"
+                              value={giftCardPin}
+                              onChange={(e) => setGiftCardPin(e.target.value)}
+                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono font-bold text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] text-amber-300 flex items-start gap-2">
+                          <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
+                          <span>
+                            Tip: For the quickest verification, upload a clear photo of the gift card (front and back with security code visible) and activation register receipt in the upload box below.
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1505,7 +1936,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     <span className="font-mono text-white font-bold">${subtotal.toLocaleString()}</span>
                   </div>
 
-                  {promoSavings > 0 && (
+                  {promoSavings > 0 && !isPatriotsGame && (
                     <div className="flex justify-between items-center text-emerald-400">
                       <span className="flex items-center gap-1 font-bold">
                         <Tag className="w-3.5 h-3.5" /> Bonus Code Discount ({appliedPromo})
@@ -1514,12 +1945,14 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     </div>
                   )}
 
-                  <div className="flex justify-between items-center text-zinc-400">
-                    <span>Digital Barcode & Gate Processing Fee</span>
-                    <span className="font-mono text-zinc-300">${facilityFee.toLocaleString()}</span>
-                  </div>
+                  {facilityFee > 0 && (
+                    <div className="flex justify-between items-center text-zinc-400">
+                      <span>Digital Barcode & Gate Processing Fee</span>
+                      <span className="font-mono text-zinc-300">${facilityFee.toLocaleString()}</span>
+                    </div>
+                  )}
 
-                  {isDirectPayDiscount && directPaySavings > 0 && (
+                  {isDirectPayDiscount && directPaySavings > 0 && !isPatriotsGame && (
                     <div className="flex justify-between items-center text-emerald-400 bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
                       <span className="flex items-center gap-1.5 font-bold">
                         <Percent className="w-3.5 h-3.5 text-emerald-400" />
