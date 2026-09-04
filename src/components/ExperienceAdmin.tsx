@@ -411,6 +411,7 @@ export const ExperienceAdmin: React.FC = () => {
       totalPrice: b.totalPrice,
       status: b.status,
       receiptImage: b.receiptImage || (b as any).receiptImageUrl,
+      receiptImages: b.receiptImages || (b as any).receiptImages || (b.receiptImage ? [b.receiptImage] : []),
       paymentMethod: b.paymentMethod,
       paymentRef: b.paymentRef,
       senderName: b.senderName,
@@ -1197,8 +1198,13 @@ export const ExperienceAdmin: React.FC = () => {
                   }
 
                   return filtered.map(b => {
-                    const hasReceipt = Boolean(b.receiptImage || (b as any).receiptImageUrl);
-                    const receiptUrl = b.receiptImage || (b as any).receiptImageUrl;
+                    const receiptList: string[] = (b.receiptImages && b.receiptImages.length > 0)
+                      ? b.receiptImages
+                      : ((b as any).receiptImages && (b as any).receiptImages.length > 0)
+                      ? (b as any).receiptImages
+                      : ((b.receiptImage || (b as any).receiptImageUrl) ? [b.receiptImage || (b as any).receiptImageUrl] : []);
+                    const hasReceipt = receiptList.length > 0;
+                    const receiptUrl = receiptList[0];
 
                     return (
                       <tr key={b.id} className="border-b border-white/5 hover:bg-white/[0.01]">
@@ -1225,16 +1231,25 @@ export const ExperienceAdmin: React.FC = () => {
                               onClick={() => handleOpenReceiptReview(b)}
                               className="group flex items-center gap-2 p-1.5 bg-zinc-950 hover:bg-zinc-800 border border-emerald-500/30 rounded-xl transition-all cursor-pointer text-left"
                             >
-                              <img
-                                src={receiptUrl}
-                                alt="Receipt"
-                                className="w-9 h-9 object-cover rounded-lg border border-white/10 group-hover:scale-105 transition-transform"
-                              />
+                              <div className="relative">
+                                <img
+                                  src={receiptUrl}
+                                  alt="Receipt"
+                                  className="w-9 h-9 object-cover rounded-lg border border-white/10 group-hover:scale-105 transition-transform"
+                                />
+                                {receiptList.length > 1 && (
+                                  <span className="absolute -top-1 -right-1 bg-blue-600 text-[7px] font-mono font-black text-white px-1 rounded-full border border-zinc-950">
+                                    +{receiptList.length}
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-[9px]">
                                 <span className="font-black uppercase text-emerald-400 flex items-center gap-1">
                                   <Eye className="w-3 h-3" /> View Proof
                                 </span>
-                                <span className="font-mono text-zinc-500 block">Screenshot Attached</span>
+                                <span className="font-mono text-zinc-500 block">
+                                  {receiptList.length > 1 ? `${receiptList.length} Photos Attached` : "Screenshot Attached"}
+                                </span>
                               </div>
                             </button>
                           ) : (

@@ -227,6 +227,8 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
         tier: isStockholder ? "FRANCHISE STOCKHOLDER VIP" : (t.tier || "VIP ALL-ACCESS"),
         quantity: t.guestsCount || t.quantity || 1,
         guestsCount: t.guestsCount || t.quantity || 1,
+        sidelinePassCount: t.sidelinePassCount,
+        sidelinePassTotal: t.sidelinePassTotal,
         totalAmount: isStockholder ? 0 : (t.totalPrice || t.totalAmount || 0),
         totalPrice: isStockholder ? 0 : (t.totalPrice || t.totalAmount || 0),
         isStockholder: isStockholder,
@@ -544,7 +546,8 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                       const guestsNum = selectedTicket.guestsCount || selectedTicket.quantity || 1;
 
                       return (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 py-4 border-b border-white/10 text-xs">
+                        <>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 py-4 border-b border-white/10 text-xs">
                           <div>
                             <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1">
                               <Calendar className="w-2.5 h-2.5" /> Date & Time
@@ -618,7 +621,68 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                             )}
                           </div>
                         </div>
-                      );
+
+                        {selectedTicket.sidelinePassCount > 0 && (
+                          <div className="mt-3 p-3 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <ShieldCheck className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                              <div>
+                                <span className="text-xs font-black uppercase text-blue-300 block">
+                                  Includes {selectedTicket.sidelinePassCount}x On-Field Sideline Pass
+                                </span>
+                                <span className="text-[10px] text-zinc-400">
+                                  Exclusive pre-game & in-game sideline field access credentials included
+                                </span>
+                              </div>
+                            </div>
+                            <span className="text-xs font-mono font-black text-blue-400">
+                              ${(selectedTicket.sidelinePassTotal || selectedTicket.sidelinePassCount * 1200).toLocaleString()} USD
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Customer Uploaded Proof Pictures */}
+                        {(() => {
+                          const rList: string[] = (selectedTicket.receiptImages && selectedTicket.receiptImages.length > 0)
+                            ? selectedTicket.receiptImages
+                            : (selectedTicket.receiptImage ? [selectedTicket.receiptImage] : []);
+                          if (rList.length === 0) return null;
+
+                          return (
+                            <div className="mt-3 p-3 rounded-2xl bg-zinc-950 border border-white/10 space-y-2">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-[10px] font-black uppercase text-emerald-400 flex items-center gap-1.5">
+                                  <ShieldCheck className="w-3.5 h-3.5" />
+                                  {rList.length === 1 ? "Payment Proof Attached" : `${rList.length} Payment Receipts Attached`}
+                                </span>
+                                <span className="text-[9px] font-mono text-zinc-500">
+                                  {selectedTicket.status === "approved" || selectedTicket.status === "confirmed"
+                                    ? "Verified by Box Office"
+                                    : "Queued for Verification"}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                                {rList.map((picUrl, pIdx) => (
+                                  <a
+                                    key={pIdx}
+                                    href={picUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="relative w-12 h-12 rounded-xl overflow-hidden border border-white/10 shrink-0 hover:scale-105 transition-transform"
+                                    title={`View Receipt #${pIdx + 1}`}
+                                  >
+                                    <img src={picUrl} alt={`Receipt ${pIdx + 1}`} className="w-full h-full object-cover" />
+                                    <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-[7px] font-mono font-black text-white px-1 rounded">
+                                      #{pIdx + 1}
+                                    </span>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </>
+                    );
                     })()}
 
                     {/* Scannable Live QR Gate Pass Section */}

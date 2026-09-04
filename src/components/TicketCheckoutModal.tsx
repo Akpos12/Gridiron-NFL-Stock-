@@ -40,7 +40,7 @@ import {
   Minus
 } from "lucide-react";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
-import { db, auth } from "../lib/firebase";
+import { db, auth, safeSetDoc } from "../lib/firebase";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 import { QRCodeSVG } from "qrcode.react";
@@ -203,6 +203,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   const [buyerPhone, setBuyerPhone] = useState("");
   const [paymentRef, setPaymentRef] = useState("");
   const [paymentReceiptUrl, setPaymentReceiptUrl] = useState("");
+  const [paymentReceiptUrls, setPaymentReceiptUrls] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [selectedSeat, setSelectedSeat] = useState<SeatListing>(SEAHAWKS_PATRIOTS_SEATS[0]);
@@ -434,8 +435,8 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
             ? `Gift Card: ${giftCardType} (${giftCardCode ? giftCardCode.slice(0, 4) + "****" : "Photo Attached"})`
             : (splitMode !== "full" ? `Split Payment (1 of ${currentSplit.installmentsCount})` : "Direct Verified Transfer")
         ),
-        receiptImage: paymentReceiptUrl,
-        receiptImageUrl: paymentReceiptUrl,
+        receiptImage: paymentReceiptUrls[0] || paymentReceiptUrl || "",
+        receiptImages: paymentReceiptUrls.length > 0 ? paymentReceiptUrls : (paymentReceiptUrl ? [paymentReceiptUrl] : []),
         seatDetails: isPatriotsGame && selectedSeat 
           ? `${selectedSeat.section} • ${selectedSeat.row} (${selectedSeat.offerType})` 
           : null,
@@ -449,15 +450,15 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         userEmail: auth.currentUser?.email || buyerEmail
       };
 
-      // Save to Firestore ticket_orders
-      await setDoc(doc(db, "ticket_orders", orderId), ticketOrderData);
+      // Save to Firestore ticket_orders using safeSetDoc (guards against Firestore 1MB document limit)
+      await safeSetDoc(doc(db, "ticket_orders", orderId), ticketOrderData);
       
       const sidelinePassDesc = isPatriotsGame && sidelinePassCount > 0
         ? ` + ${sidelinePassCount}x Sideline Pass ($${sidelinePassTotal.toLocaleString()})`
         : "";
 
       // Also write to bookings so it's queryable in portfolio and Control Room
-      await setDoc(doc(db, "bookings", orderId), {
+      await safeSetDoc(doc(db, "bookings", orderId), {
         id: orderId,
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail,
@@ -487,8 +488,8 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
             ? `Gift Card: ${giftCardType}`
             : "Direct Transfer"
         ),
-        receiptImage: paymentReceiptUrl,
-        receiptImageUrl: paymentReceiptUrl,
+        receiptImage: paymentReceiptUrls[0] || paymentReceiptUrl || "",
+        receiptImages: paymentReceiptUrls.length > 0 ? paymentReceiptUrls : (paymentReceiptUrl ? [paymentReceiptUrl] : []),
         qrCode: `NFL-${selectedTier === "season_pass" ? "SEASON-PASS" : "MATCH"}-${orderId}`,
         createdAt: new Date().toISOString(),
         imageUrl: game.image
@@ -522,6 +523,9 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         dueToday: currentSplit.dueToday,
         splitMode,
         buyerEmail,
+        receiptImage: paymentReceiptUrls[0] || paymentReceiptUrl || "",
+        receiptImageUrl: paymentReceiptUrls[0] || paymentReceiptUrl || "",
+        receiptImages: paymentReceiptUrls.length > 0 ? paymentReceiptUrls : (paymentReceiptUrl ? [paymentReceiptUrl] : []),
         promoCodeApplied: isPatriotsGame ? null : appliedPromo,
         totalSavings: isPatriotsGame ? 0 : totalSavings
       });
@@ -619,23 +623,46 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                 </div>
               )}
 
-              {confirmedTicket.receiptImage && (
-                <div className="p-2.5 bg-zinc-900 rounded-2xl border border-white/10 flex items-center gap-3">
-                  <img
-                    src={confirmedTicket.receiptImage}
-                    alt="Uploaded Receipt"
-                    className="w-12 h-12 object-cover rounded-xl border border-white/10 shrink-0"
-                  />
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase text-emerald-400 flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" /> Receipt Screenshot Attached
-                    </p>
-                    <p className="text-[9px] text-zinc-400 truncate">
-                      {liveBookingState?.status === "approved" ? "Verified by Box Office" : "Queued for manager verification"}
-                    </p>
+              {(confirmedTicket.receiptImages?.length > 0 || confirmedTicket.receiptImage) && (() => {
+                const rImages: string[] = confirmedTicket.receiptImages?.length > 0
+                  ? confirmedTicket.receiptImages
+                  : (confirmedTicket.receiptImage ? [confirmedTicket.receiptImage] : []);
+
+                return (
+                  <div className="p-3 bg-zinc-900 rounded-2xl border border-white/10 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-black uppercase text-emerald-400 flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3" /> {rImages.length === 1 ? "Receipt Screenshot Attached" : `${rImages.length} Receipt Pictures Attached`}
+                      </p>
+                      <span className="text-[9px] font-mono text-zinc-400">
+                        {liveBookingState?.status === "approved" ? "Verified by Box Office" : "Queued for verification"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                      {rImages.map((imgSrc: string, rIdx: number) => (
+                        <a 
+                          key={rIdx} 
+                          href={imgSrc} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="relative w-12 h-12 rounded-xl overflow-hidden border border-white/10 shrink-0 hover:scale-105 transition-transform group/receipt"
+                          title={`Receipt #${rIdx + 1} - Click to view original`}
+                        >
+                          <img
+                            src={imgSrc}
+                            alt={`Uploaded Receipt ${rIdx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-[7px] font-mono font-black text-white px-1 rounded">
+                            #{rIdx + 1}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               <div className="space-y-1.5">
                 <h4 className="text-sm font-black uppercase italic text-white">{confirmedTicket.gameName}</h4>
@@ -643,6 +670,16 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   <div className="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-center justify-between text-xs">
                     <span className="text-[10px] font-black uppercase text-blue-400 flex items-center gap-1.5">
                       <Ticket className="w-3.5 h-3.5" /> Assigned Seat: {confirmedTicket.seatDetails}
+                    </span>
+                  </div>
+                )}
+                {confirmedTicket.sidelinePassCount && confirmedTicket.sidelinePassCount > 0 && (
+                  <div className="p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-center justify-between text-xs">
+                    <span className="text-[10px] font-black uppercase text-blue-400 flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5" /> Sideline Pass Included ({confirmedTicket.sidelinePassCount}x)
+                    </span>
+                    <span className="font-mono font-bold text-blue-300">
+                      +${(confirmedTicket.sidelinePassTotal || confirmedTicket.sidelinePassCount * 1200).toLocaleString()} USD
                     </span>
                   </div>
                 )}
@@ -718,6 +755,8 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       tier: confirmedTicket.seatDetails || confirmedTicket.tier,
                       seatDetails: confirmedTicket.seatDetails,
                       quantity: confirmedTicket.quantity,
+                      sidelinePassCount: confirmedTicket.sidelinePassCount,
+                      sidelinePassTotal: confirmedTicket.sidelinePassTotal,
                       totalPrice: confirmedTicket.totalAmount,
                       totalAmount: confirmedTicket.totalAmount,
                       buyerName: confirmedTicket.buyerName,
@@ -1050,7 +1089,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                <div className={`grid grid-cols-1 sm:grid-cols-2 ${(isPatriotsGame || game?.sidelinePassPrice) ? "lg:grid-cols-6" : "lg:grid-cols-5"} gap-2.5`}>
                   {[
                     { 
                       id: "general", 
@@ -1080,6 +1119,15 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       currPrice: discountedTierRates.vip,
                       desc: "Tunnel + Food Included" 
                     },
+                    ...((isPatriotsGame || game?.sidelinePassPrice) ? [{
+                      id: "sideline_pass",
+                      label: "Sideline Pass",
+                      origPrice: originalTierRates.sideline_pass,
+                      currPrice: discountedTierRates.sideline_pass,
+                      desc: "On-Field Sideline Access",
+                      isFeatured: false,
+                      isSideline: true
+                    }] : []),
                     { 
                       id: "season_pass", 
                       label: "Season Pass", 
@@ -1101,9 +1149,13 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                           isSelected 
                             ? tier.isFeatured
                               ? "bg-amber-500/15 border-amber-400 text-white shadow-lg shadow-amber-500/20"
+                              : (tier as any).isSideline
+                              ? "bg-blue-600/20 border-blue-400 text-white shadow-lg shadow-blue-600/20"
                               : "bg-blue-600/15 border-blue-500 text-white shadow-lg shadow-blue-600/10" 
                             : tier.isFeatured
                               ? "bg-zinc-950 border-amber-500/30 text-zinc-300 hover:border-amber-500/50"
+                              : (tier as any).isSideline
+                              ? "bg-zinc-950 border-blue-500/30 text-blue-300 hover:border-blue-500/50"
                               : "bg-zinc-950 border-white/5 text-zinc-400 hover:border-white/20"
                         }`}
                       >
@@ -1112,16 +1164,21 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                             Full Year Access
                           </div>
                         )}
+                        {(tier as any).isSideline && (
+                          <div className="absolute top-0 right-0 bg-gradient-to-l from-blue-500 to-indigo-600 text-white text-[7px] font-black uppercase px-2 py-0.5 rounded-bl-lg tracking-wider">
+                            Field Access
+                          </div>
+                        )}
 
                         <div className="flex justify-between items-start mb-1">
-                          <span className={`text-[10px] font-black uppercase ${tier.isFeatured ? "text-amber-400" : ""}`}>
+                          <span className={`text-[10px] font-black uppercase ${tier.isFeatured ? "text-amber-400" : (tier as any).isSideline ? "text-blue-400" : ""}`}>
                             {tier.label}
                           </span>
                           {isSelected && <Check className={`w-3.5 h-3.5 ${tier.isFeatured ? "text-amber-400" : "text-blue-400"}`} />}
                         </div>
 
                         <div className="flex items-baseline gap-1.5">
-                          <span className={`text-base font-mono font-black ${tier.isFeatured ? "text-amber-300" : "text-white"}`}>
+                          <span className={`text-base font-mono font-black ${tier.isFeatured ? "text-amber-300" : (tier as any).isSideline ? "text-blue-300" : "text-white"}`}>
                             ${tier.currPrice.toLocaleString()}
                           </span>
                           {hasDiscount && (
@@ -1145,7 +1202,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
 
                 <div className="flex items-center justify-between bg-zinc-950 p-3.5 rounded-2xl border border-white/5">
                   <span className="text-xs font-black uppercase text-zinc-400">
-                    {selectedTier === "season_pass" ? "Passes / Holders Count:" : "Quantity of Tickets:"}
+                    {selectedTier === "season_pass" ? "Passes / Holders Count:" : selectedTier === "sideline_pass" ? "Sideline Passes Count:" : "Quantity of Tickets:"}
                   </span>
                   <div className="flex items-center gap-2 sm:gap-3">
                     {[1, 2, 3, 4, 6, 8].map(qty => (
@@ -1164,6 +1221,96 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     ))}
                   </div>
                 </div>
+
+                {/* Sideline Pass Add-on for New England Patriots vs Seahawks */}
+                {(isPatriotsGame || game?.sidelinePassPrice) && selectedTier !== "sideline_pass" && (
+                  <div className="p-4 sm:p-5 bg-gradient-to-br from-blue-950/40 via-zinc-950 to-zinc-950 rounded-2xl border border-blue-500/30 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 flex-shrink-0">
+                          <Shield className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black uppercase text-white tracking-wider">
+                              Add Sideline Pass — $1,200 each
+                            </span>
+                            <span className="text-[8px] font-black uppercase bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">
+                              Field Access
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-zinc-400 mt-0.5">
+                            Purchase any number of sideline passes for pre-game & in-game field access. Select & pay everything together!
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {sidelinePassCount > 0 && (
+                        <div className="text-right flex-shrink-0">
+                          <span className="text-[9px] font-mono text-zinc-400 uppercase block">Sideline Subtotal</span>
+                          <span className="text-base font-mono font-black text-blue-400">
+                            +${sidelinePassTotal.toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-zinc-300 uppercase">
+                          Passes Count:
+                        </span>
+                        <div className="flex items-center bg-zinc-900 border border-white/10 rounded-xl p-1">
+                          <button
+                            type="button"
+                            onClick={() => setSidelinePassCount(Math.max(0, sidelinePassCount - 1))}
+                            disabled={sidelinePassCount === 0}
+                            className="w-7 h-7 rounded-lg bg-zinc-800 text-zinc-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            value={sidelinePassCount}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              setSidelinePassCount(isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                            className="w-12 bg-transparent text-center font-mono font-black text-sm text-white focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setSidelinePassCount(sidelinePassCount + 1)}
+                            className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center transition-all"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Quick Select Quantity Buttons */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-black uppercase text-zinc-500 mr-1">Quick Select:</span>
+                        {[0, 1, 2, 3, 4, 6, 8].map(qty => (
+                          <button
+                            key={qty}
+                            type="button"
+                            onClick={() => setSidelinePassCount(qty)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-black transition-all ${
+                              sidelinePassCount === qty
+                                ? "bg-blue-600 text-white shadow-sm"
+                                : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
+                            }`}
+                          >
+                            {qty === 0 ? "0 (None)" : `${qty}x`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Bonus / VIP Promo Code Section - Excluded for Patriots vs Seahawks */}
@@ -1939,9 +2086,17 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                 <div className="pt-2">
                   <PaymentReceiptUploader
                     value={paymentReceiptUrl}
-                    onChange={setPaymentReceiptUrl}
+                    values={paymentReceiptUrls}
+                    onChange={(dataUrl) => {
+                      setPaymentReceiptUrl(dataUrl);
+                      if (!dataUrl) setPaymentReceiptUrls([]);
+                    }}
+                    onValuesChange={(dataUrls) => {
+                      setPaymentReceiptUrls(dataUrls);
+                      setPaymentReceiptUrl(dataUrls[0] || "");
+                    }}
                     label="DROP SCREENSHOT OF PAYMENT OR RECEIPT (OPTIONAL BUT RECOMMENDED)"
-                    description="Upload or drop screenshot of payment confirmation or receipt for expedited Control Room clearance."
+                    description="Select multiple pictures from gallery or drop screenshots of payment confirmation for expedited Control Room clearance."
                     required={false}
                   />
                 </div>
@@ -1957,10 +2112,20 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between items-center text-zinc-400">
                     <span>
-                      {selectedTier === "season_pass" ? "Season Pass" : "Match Ticket"} ({quantity}x @ ${currentPricePerTicket.toLocaleString()})
+                      {selectedTier === "season_pass" ? "Season Pass" : selectedTier === "sideline_pass" ? "Sideline Pass" : "Match Ticket"} ({quantity}x @ ${currentPricePerTicket.toLocaleString()})
                     </span>
-                    <span className="font-mono text-white font-bold">${subtotal.toLocaleString()}</span>
+                    <span className="font-mono text-white font-bold">${ticketSubtotal.toLocaleString()}</span>
                   </div>
+
+                  {sidelinePassCount > 0 && selectedTier !== "sideline_pass" && (
+                    <div className="flex justify-between items-center text-blue-400 bg-blue-500/10 p-2 rounded-xl border border-blue-500/20">
+                      <span className="font-bold flex items-center gap-1.5">
+                        <Shield className="w-3.5 h-3.5 text-blue-400" />
+                        <span>On-Field Sideline Pass Add-on ({sidelinePassCount}x @ $1,200)</span>
+                      </span>
+                      <span className="font-mono font-bold text-white">+${sidelinePassTotal.toLocaleString()}</span>
+                    </div>
+                  )}
 
                   {promoSavings > 0 && !isPatriotsGame && (
                     <div className="flex justify-between items-center text-emerald-400">

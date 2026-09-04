@@ -22,6 +22,8 @@ export interface TicketPassInfo {
   seatDetails?: string;
   quantity?: number;
   guestsCount?: number;
+  sidelinePassCount?: number;
+  sidelinePassTotal?: number;
   totalAmount?: number | string;
   totalPrice?: number | string;
   isStockholder?: boolean;
@@ -98,9 +100,13 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   const venue = ticket.stadium || (ticket.city ? `${ticket.city} Stadium Arena` : "Official NFL Stadium");
   const venueLocation = ticket.city || "United States";
   
-  const tierName = isStockholder
+  const baseTierName = isStockholder
     ? "FRANCHISE STOCKHOLDER VIP"
     : (ticket.tier || "VIP ALL-ACCESS").toUpperCase().replace(/_/g, " ");
+  
+  const tierName = ticket.sidelinePassCount && ticket.sidelinePassCount > 0
+    ? `${baseTierName} + ${ticket.sidelinePassCount}x SIDELINE PASS`
+    : baseTierName;
 
   const guests = ticket.quantity || ticket.guestsCount || 1;
   const totalPaid = ticket.totalAmount ?? ticket.totalPrice ?? 0;

@@ -26,7 +26,9 @@ import {
   Sparkles,
   RefreshCw,
   Hash,
-  Send
+  Send,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { doc, updateDoc, setDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
@@ -64,6 +66,7 @@ export interface BookingAuditItem {
   paymentReference?: string;
   receiptImage?: string;
   receiptImageUrl?: string;
+  receiptImages?: string[];
   status?: string;
   createdAt?: string;
   timestamp?: any;
@@ -112,6 +115,11 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
   const paymentChannel = booking.paymentMethod || "Direct Settlement";
   const referenceCode = booking.paymentRef || booking.paymentReference || "PENDING_VERIFICATION";
   const receiptImg = booking.receiptImage || booking.receiptImageUrl || "";
+  const allReceiptImages: string[] = (booking.receiptImages && booking.receiptImages.length > 0)
+    ? booking.receiptImages
+    : (receiptImg ? [receiptImg] : []);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const currentReceiptImg = allReceiptImages[activeImageIdx] || receiptImg;
   const bookingIdStr = String(booking.id || booking.orderId || "BOOKING");
   
   // Deterministic or stored ticket code
@@ -296,35 +304,86 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
               <div className="flex items-center justify-between">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-300 flex items-center gap-1.5">
                   <FileCheck className="w-4 h-4 text-emerald-400" />
-                  Customer Payment Proof / Screenshot
+                  Customer Payment Proof {allReceiptImages.length > 1 && `(${activeImageIdx + 1} of ${allReceiptImages.length})`}
                 </h4>
-                {receiptImg && (
-                  <button
-                    type="button"
-                    onClick={() => setIsZoomed(!isZoomed)}
-                    className="text-[9px] font-black uppercase text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer"
-                  >
-                    <ZoomIn className="w-3 h-3" /> {isZoomed ? "Reset Zoom" : "Enlarge Image"}
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {allReceiptImages.length > 1 && (
+                    <div className="flex items-center gap-1 bg-zinc-900 border border-white/10 rounded-lg p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setActiveImageIdx((activeImageIdx - 1 + allReceiptImages.length) % allReceiptImages.length)}
+                        className="p-1 text-zinc-400 hover:text-white rounded cursor-pointer"
+                        title="Previous receipt"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-[9px] font-mono font-bold text-zinc-300 px-1">
+                        {activeImageIdx + 1}/{allReceiptImages.length}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveImageIdx((activeImageIdx + 1) % allReceiptImages.length)}
+                        className="p-1 text-zinc-400 hover:text-white rounded cursor-pointer"
+                        title="Next receipt"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  {currentReceiptImg && (
+                    <button
+                      type="button"
+                      onClick={() => setIsZoomed(!isZoomed)}
+                      className="text-[9px] font-black uppercase text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer"
+                    >
+                      <ZoomIn className="w-3 h-3" /> {isZoomed ? "Reset Zoom" : "Enlarge Image"}
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {receiptImg ? (
-                <div 
-                  className={cn(
-                    "relative rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 p-2 flex items-center justify-center transition-all cursor-zoom-in group",
-                    isZoomed ? "max-h-[70vh] overflow-auto" : "max-h-96"
-                  )}
-                  onClick={() => setIsZoomed(!isZoomed)}
-                >
-                  <img
-                    src={receiptImg}
-                    alt="Payment Receipt Screenshot"
+              {currentReceiptImg ? (
+                <div className="space-y-2">
+                  <div 
                     className={cn(
-                      "rounded-xl object-contain shadow-md transition-transform",
-                      isZoomed ? "scale-125 my-8" : "w-full max-h-88"
+                      "relative rounded-2xl overflow-hidden bg-zinc-950 border border-white/10 p-2 flex items-center justify-center transition-all cursor-zoom-in group",
+                      isZoomed ? "max-h-[70vh] overflow-auto" : "max-h-96"
                     )}
-                  />
+                    onClick={() => setIsZoomed(!isZoomed)}
+                  >
+                    <img
+                      src={currentReceiptImg}
+                      alt={`Payment Receipt Screenshot ${activeImageIdx + 1}`}
+                      className={cn(
+                        "rounded-xl object-contain shadow-md transition-transform",
+                        isZoomed ? "scale-125 my-8" : "w-full max-h-88"
+                      )}
+                    />
+                  </div>
+
+                  {allReceiptImages.length > 1 && (
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1">
+                      {allReceiptImages.map((tImg, tIdx) => (
+                        <button
+                          key={tIdx}
+                          type="button"
+                          onClick={() => {
+                            setActiveImageIdx(tIdx);
+                            setIsZoomed(false);
+                          }}
+                          className={cn(
+                            "w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer relative",
+                            activeImageIdx === tIdx ? "border-blue-500 scale-105" : "border-white/10 opacity-60 hover:opacity-100"
+                          )}
+                        >
+                          <img src={tImg} alt="" className="w-full h-full object-cover" />
+                          <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-[7px] font-mono text-white px-1 rounded">
+                            #{tIdx + 1}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-10 rounded-2xl bg-zinc-950/80 border border-dashed border-white/10 text-center space-y-2">

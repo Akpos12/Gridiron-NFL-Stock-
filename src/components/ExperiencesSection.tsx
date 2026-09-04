@@ -33,7 +33,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { collection, onSnapshot, getDocs, setDoc, doc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
-import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
+import { db, auth, safeSetDoc, handleFirestoreError, OperationType } from "../lib/firebase";
 import { NFL_TEAMS, getLogoUrl } from "../constants";
 import { cn, formatCurrency } from "../lib/utils";
 import { NFLImage } from "../utils/nflImages";
@@ -85,6 +85,7 @@ export interface Booking {
   paymentRef?: string;
   receiptImage?: string;
   receiptImageUrl?: string;
+  receiptImages?: string[];
   senderName?: string;
   buyerPhone?: string;
 }
@@ -382,6 +383,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const [buyerPhone, setBuyerPhone] = useState("");
   const [paymentRef, setPaymentRef] = useState("");
   const [receiptImageUrl, setReceiptImageUrl] = useState("");
+  const [receiptImageUrls, setReceiptImageUrls] = useState<string[]>([]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const handleCopy = (text: string, key: string) => {
@@ -634,18 +636,18 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         imageUrl: selectedExp.imageUrl,
         paymentMethod: paymentTab,
         paymentRef: paymentRef || "PENDING_CONTROL_ROOM_VERIFICATION",
-        receiptImage: receiptImageUrl,
-        receiptImageUrl: receiptImageUrl,
+        receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
+        receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
         senderName: senderName.trim(),
         buyerPhone: buyerPhone.trim()
       };
 
-      // Add to Firestore database
-      await setDoc(doc(db, "bookings", newBookingId), bookingData);
+      // Add to Firestore database using safeSetDoc (guards against Firestore 1MB document limit)
+      await safeSetDoc(doc(db, "bookings", newBookingId), bookingData);
 
       // Create a store order transaction automatically to catalog revenue in audit channels!
       const storeOrderId = `order-${Date.now()}`;
-      await setDoc(doc(db, "store_orders", storeOrderId), {
+      await safeSetDoc(doc(db, "store_orders", storeOrderId), {
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail.trim(),
         itemType: "ticket",
@@ -654,8 +656,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         teamId: selectedExp.teamId,
         paymentMethod: paymentTab,
         paymentRef: paymentRef || "PENDING_CONTROL_ROOM_VERIFICATION",
-        receiptImage: receiptImageUrl,
-        receiptImageUrl: receiptImageUrl,
+        receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
         senderName: senderName.trim(),
         buyerPhone: buyerPhone.trim(),
         status: "pending_approval",
@@ -665,7 +666,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       // Also record in ticket_orders so the admin control room and user passes sync identically
       try {
         const ticketOrderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-        await setDoc(doc(db, "ticket_orders", ticketOrderId), {
+        await safeSetDoc(doc(db, "ticket_orders", ticketOrderId), {
           id: ticketOrderId,
           userId: auth.currentUser?.uid || "guest",
           userEmail: buyerEmail.trim(),
@@ -680,8 +681,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           paymentMethod: paymentTab,
           senderName: senderName.trim(),
           paymentRef: paymentRef || "SUBMITTED_FOR_APPROVAL",
-          receiptImage: receiptImageUrl,
-          receiptImageUrl: receiptImageUrl,
+          receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
+          receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
           status: "pending_approval",
           qrCode: `RFID-VIP-${ticketOrderId.toUpperCase()}`,
           timestamp: serverTimestamp()
@@ -1855,9 +1856,17 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         <div className="pt-1">
                           <PaymentReceiptUploader
                             value={receiptImageUrl}
-                            onChange={setReceiptImageUrl}
+                            values={receiptImageUrls}
+                            onChange={(dataUrl) => {
+                              setReceiptImageUrl(dataUrl);
+                              if (!dataUrl) setReceiptImageUrls([]);
+                            }}
+                            onValuesChange={(dataUrls) => {
+                              setReceiptImageUrls(dataUrls);
+                              setReceiptImageUrl(dataUrls[0] || "");
+                            }}
                             label="Drop Screenshot of Payment or Receipt (Optional but Recommended)"
-                            description="Attach your payment screenshot or receipt so management can quickly verify and approve your booking."
+                            description="Select multiple pictures from your gallery or drop screenshots of payment confirmation for fast review."
                           />
                         </div>
 
@@ -1974,21 +1983,44 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           <span className="text-xs font-mono font-bold text-white uppercase">{completedBooking.paymentMethod}</span>
                         </div>
 
-                        {completedBooking.receiptImage && (
-                          <div className="p-3 bg-zinc-950 rounded-xl border border-emerald-500/20 flex items-center gap-3">
-                            <img
-                              src={completedBooking.receiptImage}
-                              alt="Attached Receipt"
-                              className="w-12 h-12 rounded-lg object-cover border border-white/10 shrink-0"
-                            />
-                            <div className="text-left min-w-0">
-                              <p className="text-[10px] font-black text-emerald-400 uppercase flex items-center gap-1">
-                                <ShieldCheck className="w-3.5 h-3.5" /> Payment Receipt Attached
-                              </p>
-                              <p className="text-[9px] text-zinc-400 truncate">Screenshot forwarded for review</p>
+                        {Boolean((completedBooking as any).receiptImages?.length > 0 || completedBooking.receiptImage) && (() => {
+                          const expReceipts: string[] = (completedBooking as any).receiptImages?.length > 0
+                            ? (completedBooking as any).receiptImages
+                            : (completedBooking.receiptImage ? [completedBooking.receiptImage] : []);
+
+                          return (
+                            <div className="p-3 bg-zinc-950 rounded-xl border border-emerald-500/20 space-y-2">
+                              <div className="flex items-center justify-between text-left">
+                                <p className="text-[10px] font-black text-emerald-400 uppercase flex items-center gap-1">
+                                  <ShieldCheck className="w-3.5 h-3.5" /> {expReceipts.length === 1 ? "Payment Receipt Attached" : `${expReceipts.length} Receipt Pictures Attached`}
+                                </p>
+                                <span className="text-[9px] text-zinc-400 font-mono">Forwarded for review</span>
+                              </div>
+
+                              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                                {expReceipts.map((rSrc, rIdx) => (
+                                  <a
+                                    key={rIdx}
+                                    href={rSrc}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/10 shrink-0 hover:scale-105 transition-transform"
+                                    title={`Receipt #${rIdx + 1}`}
+                                  >
+                                    <img
+                                      src={rSrc}
+                                      alt={`Receipt ${rIdx + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-[7px] font-mono font-black text-white px-1 rounded">
+                                      #{rIdx + 1}
+                                    </span>
+                                  </a>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {/* Ticket Footer / Real Scannable QR Code Pass */}
                         {(() => {
