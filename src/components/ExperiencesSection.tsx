@@ -30,7 +30,8 @@ import {
   Wallet,
   Download,
   Percent,
-  AlertTriangle
+  AlertTriangle,
+  Gift
 } from "lucide-react";
 import { collection, onSnapshot, getDocs, setDoc, doc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { db, auth, safeSetDoc, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -46,13 +47,14 @@ export interface Experience {
   id: string;
   title: string;
   description: string;
-  type: "stadium_tour" | "meet_greet" | "private_tour";
+  type: "stadium_tour" | "meet_greet" | "private_tour" | "memorabilia";
   category: string;
   price: number;
   vipPrice?: number;
   premiumPrice?: number;
   teamId: string;
   imageUrl: string;
+  images?: string[];
   player?: string;
   location: string;
   dates: string[];
@@ -88,6 +90,19 @@ export interface Booking {
   receiptImages?: string[];
   senderName?: string;
   buyerPhone?: string;
+  shippingAddress?: {
+    fullName?: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+  };
+  giftCardDetails?: {
+    brand?: string;
+    cardNumber?: string;
+    pin?: string;
+    amount?: string;
+  };
 }
 
 const TODAY_ISO = "2026-08-18";
@@ -376,11 +391,24 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const [completedBooking, setCompletedBooking] = useState<Booking | null>(null);
 
   // Official Payment Form State
-  const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "paypal" | "venmo" | "zelle" | "crypto">("cashapp");
+  const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "paypal" | "venmo" | "zelle" | "crypto" | "giftcard">("cashapp");
   const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
   const [senderName, setSenderName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
+  const [shippingAddress, setShippingAddress] = useState({
+    fullName: "",
+    street: "",
+    city: "",
+    state: "",
+    zipCode: ""
+  });
+  const [giftCardDetails, setGiftCardDetails] = useState({
+    brand: "Apple",
+    cardNumber: "",
+    pin: "",
+    amount: ""
+  });
   const [paymentRef, setPaymentRef] = useState("");
   const [receiptImageUrl, setReceiptImageUrl] = useState("");
   const [receiptImageUrls, setReceiptImageUrls] = useState<string[]>([]);
@@ -518,9 +546,12 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   }, [initialTargetExperience, experiences]);
 
   const isDrakeMayeSelected = selectedExp?.id === "exp-drake-maye-meet" || selectedExp?.title?.toLowerCase().includes("drake maye");
+  const isPatriotsMerchSelected = selectedExp?.id === "exp-patriots-signed-merch" || (selectedExp?.teamId === "NE" && (selectedExp?.category?.toLowerCase().includes("signed") || selectedExp?.title?.toLowerCase().includes("signed")));
+  const isPatriotsTeamSelected = selectedExp?.teamId === "NE" || isDrakeMayeSelected || isPatriotsMerchSelected;
 
   const getOriginalRate = () => {
     if (!selectedExp) return 0;
+    if (isPatriotsMerchSelected) return 3500;
     if (isDrakeMayeSelected) return 2000;
     return tierSelection === "premium" && selectedExp.premiumPrice ? selectedExp.premiumPrice :
            tierSelection === "vip" && selectedExp.vipPrice ? selectedExp.vipPrice :
@@ -529,6 +560,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
   const getEffectiveRate = () => {
     if (!selectedExp) return 0;
+    if (isPatriotsMerchSelected) {
+      return appliedPromo === "258025" ? 1000 : 3500;
+    }
     if (isDrakeMayeSelected) {
       return appliedPromo ? 750 : 2000;
     }
@@ -546,8 +580,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     if (code === "258025" || code === "SPLIT50" || code === "DRAKE258025" || code === "VIP_258025" || code === "12THMAN") {
       setAppliedPromo(code === "258025" ? "258025" : code);
       setPromoError(null);
-      if (isDrakeMayeSelected) {
-        setPromoSuccessMsg("VIP Promo 258025 Applied: Drake Maye Experience slashed from $2,000 to $750!");
+      if (isPatriotsMerchSelected) {
+        setPromoSuccessMsg("VIP Promo Applied: Slashed from $3,500 to $1,000!");
+      } else if (isDrakeMayeSelected) {
+        setPromoSuccessMsg("VIP Promo Applied: Drake Maye Experience slashed from $2,000 to $750!");
       } else {
         setPromoSuccessMsg(`VIP Promo Code ${code} Applied: Instant rate reduction active!`);
       }
@@ -575,7 +611,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     setTierSelection("standard");
     setBookingStep("details");
     setBookingError("");
-    setPaymentTab("cashapp");
+    const isPatriots = exp.id === "exp-patriots-signed-merch" || (exp.teamId === "NE" && (exp.category?.toLowerCase().includes("signed") || exp.title?.toLowerCase().includes("signed")));
+    setPaymentTab(isPatriots ? "paypal" : "cashapp");
     setPromoCodeInput("");
     setAppliedPromo(null);
     setPromoError(null);
@@ -605,6 +642,13 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       return;
     }
 
+    if (isPatriotsMerchSelected) {
+      if (!shippingAddress.street.trim() || !shippingAddress.city.trim() || !shippingAddress.zipCode.trim()) {
+        setBookingError("Please provide your delivery address (Street, City, and ZIP) for insured merchandise shipment.");
+        return;
+      }
+    }
+
     setIsSubmittingBooking(true);
     setBookingError("");
 
@@ -612,7 +656,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       const pricePerGuest = getEffectiveRate();
       const guestsNum = Math.max(1, guestsCount);
       const grossTotal = pricePerGuest * guestsNum;
-      const isDirectPayDiscount = ["cashapp", "paypal", "venmo", "zelle"].includes(paymentTab);
+      const isDirectPayDiscount = ["cashapp", "paypal", "venmo", "zelle", "giftcard"].includes(paymentTab);
       const directPaySavings = isDirectPayDiscount ? Math.round(grossTotal * 0.05) : 0;
       const totalAmount = grossTotal - directPaySavings;
       
@@ -635,11 +679,13 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         createdAt: new Date().toISOString(),
         imageUrl: selectedExp.imageUrl,
         paymentMethod: paymentTab,
-        paymentRef: paymentRef || "PENDING_CONTROL_ROOM_VERIFICATION",
+        paymentRef: paymentRef || (paymentTab === "giftcard" ? `GIFTCARD-${giftCardDetails.brand}-${giftCardDetails.cardNumber.slice(-4)}` : "PENDING_CONTROL_ROOM_VERIFICATION"),
         receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
         receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
         senderName: senderName.trim(),
-        buyerPhone: buyerPhone.trim()
+        buyerPhone: buyerPhone.trim(),
+        shippingAddress: isPatriotsMerchSelected || shippingAddress.street ? shippingAddress : undefined,
+        giftCardDetails: paymentTab === "giftcard" ? giftCardDetails : undefined
       };
 
       // Add to Firestore database using safeSetDoc (guards against Firestore 1MB document limit)
@@ -650,15 +696,17 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       await safeSetDoc(doc(db, "store_orders", storeOrderId), {
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail.trim(),
-        itemType: "ticket",
-        itemName: `Experience: ${selectedExp.title} (${tierSelection.toUpperCase()})${appliedPromo ? ` [PROMO ${appliedPromo}]` : ""}`,
+        itemType: isPatriotsMerchSelected ? "merchandise" : "ticket",
+        itemName: `${selectedExp.title} (${tierSelection.toUpperCase()})${appliedPromo ? ` [PROMO ${appliedPromo}]` : ""}`,
         price: totalAmount,
         teamId: selectedExp.teamId,
         paymentMethod: paymentTab,
-        paymentRef: paymentRef || "PENDING_CONTROL_ROOM_VERIFICATION",
+        paymentRef: paymentRef || (paymentTab === "giftcard" ? `GIFTCARD-${giftCardDetails.brand}` : "PENDING_CONTROL_ROOM_VERIFICATION"),
         receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
         senderName: senderName.trim(),
         buyerPhone: buyerPhone.trim(),
+        shippingAddress: isPatriotsMerchSelected || shippingAddress.street ? shippingAddress : undefined,
+        giftCardDetails: paymentTab === "giftcard" ? giftCardDetails : undefined,
         status: "pending_approval",
         timestamp: new Date().toISOString()
       });
@@ -1342,7 +1390,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         <div className="flex gap-2">
                           <input
                             type="text"
-                            placeholder="Enter VIP promo code (e.g. 258025)"
+                            placeholder="Enter VIP promo code"
                             value={promoCodeInput}
                             onChange={(e) => {
                               setPromoCodeInput(e.target.value);
@@ -1520,7 +1568,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       <div className="p-3 bg-zinc-950 border border-white/5 rounded-2xl flex items-center gap-2">
                         <input
                           type="text"
-                          placeholder="Have a VIP promo code? (e.g. 258025)"
+                          placeholder="Have a VIP promo code?"
                           value={promoCodeInput}
                           onChange={(e) => {
                             setPromoCodeInput(e.target.value);
@@ -1570,14 +1618,18 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
                       {/* Payment Method Selector Tabs */}
                       <div className="flex flex-wrap gap-2">
-                        {[
+                        {(isPatriotsMerchSelected ? [
+                          { id: "paypal", label: "PayPal", badge: "SAVE 5%", icon: Smartphone, highlight: true },
+                          { id: "giftcard", label: "Gift Card", badge: "SAVE 5%", icon: Gift, highlight: true }
+                        ] : [
                           { id: "cashapp", label: "Cash App", badge: "SAVE 5%", icon: Smartphone, highlight: true },
                           { id: "paypal", label: "PayPal", badge: "SAVE 5%", icon: Smartphone, highlight: true },
                           { id: "venmo", label: "Venmo", badge: "SAVE 5%", icon: Smartphone, highlight: true },
                           { id: "zelle", label: "Zelle", badge: "SAVE 5%", icon: Smartphone, highlight: true },
                           { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2 },
-                          { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode }
-                        ].map(method => {
+                          { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode },
+                          { id: "giftcard", label: "Gift Card", badge: "SAVE 5%", icon: Gift }
+                        ]).map(method => {
                           const isSelected = paymentTab === method.id;
                           return (
                             <button
@@ -1629,7 +1681,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.bank.accountNumber, "acc")}
-                                  className="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white"
+                                  className="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
                                 >
                                   {copiedKey === "acc" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                                 </button>
@@ -1642,7 +1694,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.bank.routingNumber, "rout")}
-                                  className="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white"
+                                  className="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
                                 >
                                   {copiedKey === "rout" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                                 </button>
@@ -1665,7 +1717,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.cashapp.tag, "cashapp")}
-                                className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1"
+                                className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1 cursor-pointer"
                               >
                                 {copiedKey === "cashapp" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                                 {copiedKey === "cashapp" ? "Copied" : "Copy Tag"}
@@ -1680,7 +1732,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                               <span className="text-[10px] font-black uppercase text-blue-400">PayPal Direct Payment</span>
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[9px] font-mono text-blue-300 bg-blue-500/20 border border-blue-500/30 px-2 py-0.5 rounded font-black">
-                                  FRIENDS & FAMILY
+                                  {isPatriotsTeamSelected ? "FAMILY AND FRIENDS" : "FRIENDS & FAMILY"}
                                 </span>
                                 <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
                               </div>
@@ -1688,18 +1740,87 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                             <div className="p-3 bg-zinc-900 rounded-xl border border-blue-500/20 flex items-center justify-between">
                               <div className="space-y-0.5">
                                 <span className="text-[9px] text-zinc-500 uppercase font-black block">PAYPAL RECIPIENT DETAILS</span>
-                                <div className="text-xs font-bold text-white">Anna williams</div>
-                                <span className="text-sm font-mono font-black text-blue-400 block">{OFFICIAL_PAYMENT_CHANNELS.paypal.email}</span>
-                                <span className="text-[9px] text-blue-300 font-bold uppercase block">Mode: Friends & Family</span>
+                                <div className="text-xs font-bold text-white">
+                                  {isPatriotsTeamSelected ? "Regenia Pappas" : "Anna williams"}
+                                </div>
+                                <span className="text-sm font-mono font-black text-blue-400 block">
+                                  {isPatriotsTeamSelected ? "rpappas289@gmail.com" : OFFICIAL_PAYMENT_CHANNELS.paypal.email}
+                                </span>
+                                <span className="text-[9px] text-blue-300 font-bold uppercase block">
+                                  Mode: {isPatriotsTeamSelected ? "FAMILY AND FRIENDS" : "Friends & Family"}
+                                </span>
                               </div>
                               <button
                                 type="button"
-                                onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.paypal.email, "paypal")}
-                                className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1"
+                                onClick={() => handleCopy(isPatriotsTeamSelected ? "rpappas289@gmail.com" : OFFICIAL_PAYMENT_CHANNELS.paypal.email, "paypal")}
+                                className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1 cursor-pointer"
                               >
                                 {copiedKey === "paypal" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                                 {copiedKey === "paypal" ? "Copied" : "Copy Email"}
                               </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {paymentTab === "giftcard" && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                              <span className="text-[10px] font-black uppercase text-amber-400">Prepaid / Digital Gift Card Payment</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
+                              </div>
+                            </div>
+                            <div className="p-3 bg-zinc-900 rounded-xl border border-amber-500/20 space-y-2.5">
+                              <p className="text-[11px] text-zinc-300">
+                                Accepted cards: Apple, Google Play, Steam, Amazon, Visa / Amex Prepaid. You also get an instant <strong>5% discount</strong>!
+                              </p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Gift Card Brand</label>
+                                  <select
+                                    value={giftCardDetails.brand}
+                                    onChange={(e) => setGiftCardDetails(prev => ({ ...prev, brand: e.target.value }))}
+                                    className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                                  >
+                                    <option value="Apple">Apple / App Store</option>
+                                    <option value="Google Play">Google Play</option>
+                                    <option value="Amazon">Amazon</option>
+                                    <option value="Steam">Steam</option>
+                                    <option value="Visa">Visa / Mastercard Prepaid</option>
+                                    <option value="Amex">American Express Gift Card</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Card Face Value ($)</label>
+                                  <input
+                                    type="text"
+                                    placeholder="$1,000"
+                                    value={giftCardDetails.amount}
+                                    onChange={(e) => setGiftCardDetails(prev => ({ ...prev, amount: e.target.value }))}
+                                    className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Card Number / Claim Code</label>
+                                  <input
+                                    type="text"
+                                    placeholder="XXXX-XXXX-XXXX-XXXX"
+                                    value={giftCardDetails.cardNumber}
+                                    onChange={(e) => setGiftCardDetails(prev => ({ ...prev, cardNumber: e.target.value }))}
+                                    className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">PIN / Security Code</label>
+                                  <input
+                                    type="text"
+                                    placeholder="4-8 digit PIN"
+                                    value={giftCardDetails.pin}
+                                    onChange={(e) => setGiftCardDetails(prev => ({ ...prev, pin: e.target.value }))}
+                                    className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
                         )}
@@ -1849,6 +1970,53 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                               onChange={(e) => setPaymentRef(e.target.value)}
                               className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
                             />
+                          </div>
+                        </div>
+
+                        {/* Customer Delivery & Shipping Address Form */}
+                        <div className="p-3.5 bg-zinc-900/60 rounded-xl border border-white/10 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300 flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-blue-400" />
+                              Customer Delivery & Shipping Address {isPatriotsMerchSelected && <span className="text-red-400">*</span>}
+                            </span>
+                            <span className="text-[9px] font-mono text-zinc-500 uppercase">Insured Direct Courier</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            <div className="sm:col-span-2">
+                              <input
+                                type="text"
+                                placeholder="Street Address (e.g. 1 Patriot Place, Apt 4B)"
+                                value={shippingAddress.street}
+                                onChange={(e) => setShippingAddress(prev => ({ ...prev, street: e.target.value }))}
+                                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                              />
+                            </div>
+                            <div>
+                              <input
+                                type="text"
+                                placeholder="City (e.g. Foxborough)"
+                                value={shippingAddress.city}
+                                onChange={(e) => setShippingAddress(prev => ({ ...prev, city: e.target.value }))}
+                                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input
+                                type="text"
+                                placeholder="State (e.g. MA)"
+                                value={shippingAddress.state}
+                                onChange={(e) => setShippingAddress(prev => ({ ...prev, state: e.target.value }))}
+                                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white uppercase"
+                              />
+                              <input
+                                type="text"
+                                placeholder="ZIP Code (e.g. 02035)"
+                                value={shippingAddress.zipCode}
+                                onChange={(e) => setShippingAddress(prev => ({ ...prev, zipCode: e.target.value }))}
+                                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono"
+                              />
+                            </div>
                           </div>
                         </div>
 

@@ -1,9 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { 
-  getFirestore, 
-  doc, 
-  getDocFromServer, 
+  initializeFirestore,
   setLogLevel, 
   setDoc, 
   DocumentReference, 
@@ -13,7 +11,16 @@ import firebaseConfig from "../../firebase-applet-config.json";
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Initialize Firestore with robust long-polling transport for container & iframe proxy environments.
+// experimentalForceLongPolling prevents streaming WebChannel buffering delays and the 10-second backend timeout warning.
+export const db = initializeFirestore(
+  app,
+  {
+    experimentalForceLongPolling: true,
+  },
+  firebaseConfig.firestoreDatabaseId
+);
 
 // Initialize persistence safely at boot
 if (typeof window !== "undefined") {
@@ -24,18 +31,6 @@ if (typeof window !== "undefined") {
 
 // Suppress verbose SDK connection warnings
 setLogLevel("error");
-
-// Test Connection
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, "test", "connection"));
-  } catch (error) {
-    if (error instanceof Error && (error.message.includes("offline") || error.message.includes("unreachable") || error.message.includes("failed"))) {
-      console.warn("Firebase status: operating in localized/offline cache mode. Check configuration if live syncing is needed.");
-    }
-  }
-}
-testConnection();
 
 export enum OperationType {
   CREATE = "create",

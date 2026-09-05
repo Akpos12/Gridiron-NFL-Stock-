@@ -58,7 +58,7 @@ export const ExperienceAdmin: React.FC = () => {
   // Form fields for Experience creation
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [type, setType] = useState<"stadium_tour" | "meet_greet" | "private_tour">("stadium_tour");
+  const [type, setType] = useState<"stadium_tour" | "meet_greet" | "private_tour" | "memorabilia">("stadium_tour");
   const [category, setCategory] = useState("Standard Stadium Tour");
   const [price, setPrice] = useState(45);
   const [vipPrice, setVipPrice] = useState(120);

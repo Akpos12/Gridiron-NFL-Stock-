@@ -253,22 +253,38 @@ async function startServer() {
         },
         {
           id: `m-${team.id}-memorabilia`,
-          name: team.id === "SEA"
-            ? `DK Metcalf Autographed Seahawks Official Football`
-            : `${star.player} Autographed Duke Official NFL Wilson Football`,
-          description: team.id === "SEA"
-            ? `Certified authentic autographed official Wilson NFL leather football signed personally by star athlete DK Metcalf. Includes tamper-evident hologram.`
-            : `Certified authentic autographed official leather Wilson football signed personally by star athlete ${star.player}. Includes certificate.`,
-          basePrice: 599,
+          name: team.id === "NE"
+            ? `New England Patriots Official Signed Merchandise Collection`
+            : (team.id === "SEA"
+              ? `DK Metcalf Autographed Seahawks Official Football`
+              : `${star.player} Autographed Duke Official NFL Wilson Football`),
+          description: team.id === "NE"
+            ? `Certified authentic autographed official New England Patriots collector's vault piece with tamper-evident hologram, certificate of authenticity (COA), and presentation display.`
+            : (team.id === "SEA"
+              ? `Certified authentic autographed official Wilson NFL leather football signed personally by star athlete DK Metcalf. Includes tamper-evident hologram.`
+              : `Certified authentic autographed official leather Wilson football signed personally by star athlete ${star.player}. Includes certificate.`),
+          basePrice: team.id === "NE" ? 3500 : 599,
           category: "memorabilia",
           discount: 0,
-          image: team.id === "SEA"
-            ? "https://i.postimg.cc/2yBxX8J2/DK-Metcalf-Autographed-Seahawks-Football.jpg"
-            : "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
+          image: team.id === "NE"
+            ? "https://i.postimg.cc/N0jGvCMj/460844974351086634.jpg"
+            : (team.id === "SEA"
+              ? "https://i.postimg.cc/2yBxX8J2/DK-Metcalf-Autographed-Seahawks-Football.jpg"
+              : "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg"),
+          images: team.id === "NE" ? [
+            "https://i.postimg.cc/N0jGvCMj/460844974351086634.jpg",
+            "https://i.postimg.cc/mrgZWpD2/New-England-Patriots.jpg",
+            "https://i.postimg.cc/65tDP2Tq/H8897-L411218893-original.jpg",
+            "https://i.postimg.cc/zGf4JsnP/59049311-1.jpg",
+            "https://i.postimg.cc/L8sGHczb/s-l1600.jpg",
+            "https://i.postimg.cc/HLqN9jfm/original.jpg",
+            "https://i.postimg.cc/x8YFBhf3/2545198.jpg"
+          ] : undefined,
+          isPatriotsSignedMerch: team.id === "NE",
           inStock: true,
           trending: true,
           rating: 5.0,
-          reviewsCount: 12
+          reviewsCount: team.id === "NE" ? 64 : 12
         },
         {
           id: `m-${team.id}-signed-photo`,
@@ -374,10 +390,20 @@ async function startServer() {
       const ratio = currentPrice / 100;
 
       const resolvedProducts = baseProducts.map(p => {
-        const livePrice = Number((p.basePrice * ratio).toFixed(2));
-        const finalPrice = p.discount > 0 ? Number((livePrice * (1 - p.discount / 100)).toFixed(2)) : livePrice;
         const searchStr = encodeURIComponent(`${team.city} ${team.name} ${p.category}`);
         const purchaseUrl = `https://www.nflshop.com/?query=${searchStr}`;
+
+        if (p.isPatriotsSignedMerch) {
+          return {
+            ...p,
+            price: 3500.00,
+            originalPrice: 3500.00,
+            purchaseUrl
+          };
+        }
+
+        const livePrice = Number((p.basePrice * ratio).toFixed(2));
+        const finalPrice = p.discount > 0 ? Number((livePrice * (1 - p.discount / 100)).toFixed(2)) : livePrice;
 
         return {
           ...p,

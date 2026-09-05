@@ -52,7 +52,8 @@ import {
   RotateCcw,
   AlertTriangle,
   Download,
-  Zap
+  Zap,
+  Sparkles
 } from "lucide-react";
 import { 
   XAxis, 
@@ -100,6 +101,8 @@ import { PlayerGiveawaySection } from "./components/giveaway/PlayerGiveawaySecti
 import { GiveawayControlRoom } from "./components/giveaway/GiveawayControlRoom";
 import { WinnerTicker } from "./components/giveaway/WinnerTicker";
 import { TicketCheckoutModal, GameTicket } from "./components/TicketCheckoutModal";
+import { MerchandiseCheckoutModal, PATRIOTS_SIGNED_MERCH_IMAGES } from "./components/MerchandiseCheckoutModal";
+import { MerchandiseVaultSection } from "./components/MerchandiseVaultSection";
 import { CustomerCareWidget } from "./components/CustomerCareWidget";
 import { ReceiptReviewModal, BookingAuditItem } from "./components/common/ReceiptReviewModal";
 import { TicketCheckModal } from "./components/TicketCheckModal";
@@ -847,12 +850,12 @@ const WalletModal = ({
 
 // --- Arena Shop View ---
 const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCardForm, setShowInquiryStatus, activeTicket }: any) => {
-  const [shopView, setShopView] = useState<"jerseys" | "passes" | "tickets" | "cards">(() => {
+  const [shopView, setShopView] = useState<"merchandise" | "jerseys" | "passes" | "tickets" | "cards">(() => {
     const saved = localStorage.getItem("shop_view");
-    if (saved && ["jerseys", "passes", "tickets", "cards"].includes(saved)) {
+    if (saved && ["merchandise", "jerseys", "passes", "tickets", "cards"].includes(saved)) {
       return saved as any;
     }
-    return "jerseys";
+    return "merchandise";
   });
 
   useEffect(() => {
@@ -868,6 +871,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
   const [products, setProducts] = useState<any[]>([]);
   const [merchLoading, setMerchLoading] = useState<boolean>(true);
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [selectedPatriotsMerch, setSelectedPatriotsMerch] = useState<any | null>(null);
 
   // Sync selected team from parent
   useEffect(() => {
@@ -1054,23 +1058,31 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' beanies')}`
             },
             {
-              id: `m-${team.id}-memorabilia`,
+              id: team.id === "NE" ? `m-NE-signed-merchandise` : `m-${team.id}-memorabilia`,
               name: team.id === "SEA"
                 ? `DK Metcalf Autographed Seahawks Official Football`
+                : team.id === "NE"
+                ? `New England Patriots Signed Authentic Merchandise Collection`
                 : `${team.name} Autographed Duke Official NFL Wilson Football`,
               description: team.id === "SEA"
                 ? `Certified authentic autographed official Wilson NFL leather football signed personally by star athlete DK Metcalf. Includes tamper-evident hologram.`
+                : team.id === "NE"
+                ? `Authentic New England Patriots team signed merchandise collection with tamper-proof certificates of authenticity, official holograms, and verified player signatures.`
                 : `Certified authentic autographed official leather Wilson football signed personally by star athlete. Includes certificate.`,
-              price: 599.00,
-              originalPrice: 599.00,
+              price: team.id === "NE" ? 3500.00 : 599.00,
+              originalPrice: team.id === "NE" ? 3500.00 : 599.00,
               category: "memorabilia",
               rating: 5.0,
-              reviewsCount: 12,
+              reviewsCount: team.id === "NE" ? 48 : 12,
               inStock: true,
               trending: true,
               image: team.id === "SEA"
                 ? "https://i.postimg.cc/2yBxX8J2/DK-Metcalf-Autographed-Seahawks-Football.jpg"
+                : team.id === "NE"
+                ? "https://i.postimg.cc/N0jGvCMj/460844974351086634.jpg"
                 : "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
+              images: team.id === "NE" ? PATRIOTS_SIGNED_MERCH_IMAGES : undefined,
+              isPatriotsSignedMerch: team.id === "NE",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' memorabilia')}`
             },
             {
@@ -1498,6 +1510,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
         {/* Shop Navigation Selector */}
         <div className="flex flex-wrap justify-center gap-3 md:gap-4 mb-4 sm:mb-8">
           {[
+            { id: "merchandise", label: "Signed Merchandise" },
             { id: "jerseys", label: "Elite Gear" },
             { id: "passes", label: "Season Passes" },
             { id: "tickets", label: "Match Tickets" },
@@ -1524,6 +1537,32 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
           Track Existing Inquiry
         </button>
       </div>
+
+      {/* 0. DEDICATED SIGNED MERCHANDISE PLACE IN SHOP */}
+      {shopView === "merchandise" && (
+        <MerchandiseVaultSection
+          onOpenPatriotsCheckout={(prod) => {
+            const p = prod || {
+              id: "m-NE-signed-merchandise",
+              name: "New England Patriots Official Signed Merchandise Collection",
+              description: "Exclusive certified authentic New England Patriots official autographed collector's vault piece with tamper-evident hologram, certificate of authenticity (COA), and luxury presentation display.",
+              basePrice: 3500,
+              price: 3500,
+              category: "memorabilia",
+              teamId: "NE",
+              image: PATRIOTS_SIGNED_MERCH_IMAGES[0],
+              images: PATRIOTS_SIGNED_MERCH_IMAGES,
+              isPatriotsSignedMerch: true,
+              rating: 5.0,
+              reviewsCount: 68
+            };
+            setSelectedPatriotsMerch(p);
+          }}
+          products={products}
+          selectedTeamId={selectedShopTeam}
+          onSelectTeam={(teamId) => setSelectedShopTeam(teamId)}
+        />
+      )}
 
       {/* 1. ELITE NFL MERCHANDISE SECTION */}
       {shopView === "jerseys" && (
@@ -1616,7 +1655,14 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                           )}
                         </div>
                         <button 
-                          onClick={() => setSelectedProduct(p)}
+                          onClick={() => {
+                            const isPatriotsSigned = p.isPatriotsSignedMerch || p.id === "m-NE-signed-merchandise" || p.id === "m-NE-memorabilia" || (p.teamId === "NE" && p.category === "memorabilia") || (p.name && p.name.toLowerCase().includes("patriots") && p.name.toLowerCase().includes("signed"));
+                            if (isPatriotsSigned) {
+                              setSelectedPatriotsMerch(p);
+                            } else {
+                              setSelectedProduct(p);
+                            }
+                          }}
                           className="px-4 py-2 bg-blue-600 text-white font-black text-[9px] rounded-lg tracking-wider uppercase hover:bg-blue-500 transition-colors"
                         >
                           Checkout Details
@@ -1685,7 +1731,14 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                       </div>
 
                       <button 
-                        onClick={() => setSelectedProduct(item)}
+                        onClick={() => {
+                          const isPatriotsSigned = item.isPatriotsSignedMerch || item.id === "m-NE-signed-merchandise" || item.id === "m-NE-memorabilia" || (item.teamId === "NE" && item.category === "memorabilia") || (item.name && item.name.toLowerCase().includes("patriots") && item.name.toLowerCase().includes("signed"));
+                          if (isPatriotsSigned) {
+                            setSelectedPatriotsMerch(item);
+                          } else {
+                            setSelectedProduct(item);
+                          }
+                        }}
                         className="px-5 py-3 bg-blue-600 rounded-xl text-[9px] text-white font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/10"
                       >
                         Acquire Options
@@ -2191,7 +2244,32 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              {/* Direct VIP Team Vendor Checkout for Patriots Signed Merch */}
+              {Boolean(
+                selectedProduct.isPatriotsSignedMerch || 
+                selectedProduct.id === "m-NE-signed-merchandise" ||
+                selectedProduct.id === "m-NE-memorabilia" ||
+                (selectedProduct.teamId === "NE" && selectedProduct.category === "memorabilia") ||
+                (selectedProduct.name && selectedProduct.name.toLowerCase().includes("patriots") && selectedProduct.name.toLowerCase().includes("signed"))
+              ) && (
+                <div className="pt-2">
+                  <button 
+                    onClick={() => {
+                      setSelectedPatriotsMerch(selectedProduct);
+                      setSelectedProduct(null);
+                    }}
+                    className="w-full py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 transition-all text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2 border border-blue-400/30"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                    DIRECT TEAM VENDOR ACQUISITION (PAYPAL / GIFT CARD)
+                  </button>
+                  <p className="text-[9px] text-center text-emerald-400 font-bold uppercase tracking-wider mt-1.5">
+                    Official Team Vendor • PayPal & Gift Card • 5% Extra Savings
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
                 {/* 1. Official NFL External Store Redirect */}
                 <a 
                   href={selectedProduct.purchaseUrl}
@@ -2217,6 +2295,14 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
           </div>
         </div>
       )}
+
+      {/* Dedicated Team Signed Merchandise Checkout Modal */}
+      <MerchandiseCheckoutModal
+        product={selectedPatriotsMerch}
+        isOpen={!!selectedPatriotsMerch}
+        onClose={() => setSelectedPatriotsMerch(null)}
+        initialPromoCode=""
+      />
 
       {/* Box Office Ticket Purchase Modal with Official Payment Channels & Split Options */}
       <TicketCheckoutModal
