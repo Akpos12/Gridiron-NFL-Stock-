@@ -178,6 +178,7 @@ export const MerchandiseVaultSection: React.FC<MerchandiseVaultSectionProps> = (
               <img
                 src={PATRIOTS_SIGNED_MERCH_IMAGES[activePhotoIdx]}
                 alt={`New England Patriots Signed Merchandise Photo ${activePhotoIdx + 1}`}
+                referrerPolicy="no-referrer"
                 className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105 cursor-pointer"
                 onClick={() => setLightboxOpen(true)}
               />
@@ -245,6 +246,7 @@ export const MerchandiseVaultSection: React.FC<MerchandiseVaultSectionProps> = (
                     <img 
                       src={imgUrl} 
                       alt={`Thumbnail ${idx + 1}`} 
+                      referrerPolicy="no-referrer"
                       className="w-full h-full object-cover" 
                     />
                     <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -451,6 +453,7 @@ export const MerchandiseVaultSection: React.FC<MerchandiseVaultSectionProps> = (
               <img
                 src={PATRIOTS_SIGNED_MERCH_IMAGES[activePhotoIdx]}
                 alt={`Photo ${activePhotoIdx + 1}`}
+                referrerPolicy="no-referrer"
                 className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl"
               />
 
@@ -483,7 +486,7 @@ export const MerchandiseVaultSection: React.FC<MerchandiseVaultSectionProps> = (
                     activePhotoIdx === idx ? "border-blue-500 scale-110 ring-2 ring-blue-500/40" : "border-white/10 opacity-60 hover:opacity-100"
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img src={img} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>

@@ -23,12 +23,12 @@ export const NFL_IMAGES = {
   },
 
   merchandise: {
-    jerseyGreen: "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg", // Replica Nike style jerseys
-    apparelFlatlay: "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg", // Training gear, sneakers, and sports wear
-    hoodie: "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg", // Official fan hoodie product
-    helmet: "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg", // Authentic helmets and equipment
-    football: "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg", // Real leather game ball "The Duke"
-    jacket: "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg", // Sideline coaches varsity jacket
+    jerseyGreen: "https://images.unsplash.com/photo-1577471488278-16eec37ffcc2?auto=format&fit=crop&q=80&w=1200", // Replica NFL style jerseys
+    apparelFlatlay: "https://images.unsplash.com/photo-1556906781-9a412961c28c?auto=format&fit=crop&q=80&w=1200", // Training gear, sneakers, and sports wear
+    hoodie: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&q=80&w=1200", // Official fan hoodie product
+    helmet: "/images/patriots-signed-helmet-2.jpg", // Authentic helmets and equipment
+    football: "/images/seahawks-autograph-gear.jpg", // Real leather game ball
+    jacket: "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80&w=1200", // Sideline coaches varsity jacket
   },
 
   matchDay: {
@@ -99,7 +99,7 @@ export function getNFLImage(item: {
     
     // Explicit Seahawks vs Patriots gameday asset
     if (normId.includes("SEA-NE") || (normTitle.includes("seahawks") && normTitle.includes("patriot"))) {
-      return "https://i.postimg.cc/J0DZvg87/IMG-0463.jpg";
+      return "/postimages/IMG-0463.jpg";
     }
     
     // 1. EXTRACT TEAM
@@ -138,42 +138,42 @@ export function getNFLImage(item: {
     // 3. MAP TEAM-SPECIFIC HIGH VALUE TARGETS
     if (isJersey) {
       if (teamId === "SEA") {
-        baseSrc = "https://i.postimg.cc/D02xmKMV/Seattle-Seahawks-Dk-Metcalf-14-Nfl-Jersey-Grosse-L-Neu-Mit-Etikett.jpg";
+        baseSrc = "/postimages/Seattle-Seahawks-Dk-Metcalf-14-Nfl-Jersey-Grosse-L-Neu-Mit-Etikett.jpg";
       } else {
-        baseSrc = "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg";
+        baseSrc = "/postimages/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg";
       }
     } else if (isHoodieOrJacket) {
       if (teamId === "SEA" && (normCategory.includes("limited") || normId.includes("limited") || normTitle.includes("jacket") || normTitle.includes("varsity"))) {
-        baseSrc = "https://i.postimg.cc/cC8c54jB/Pro-Standard-NFL-SEATTLE-SEAHAWKS-OLD-ENGLISH-MEN-S-RIB-WOOL-VARSITY-JACKET-(MIDNIGHT-NAVY-WHITE)-M.jpg";
+        baseSrc = "/postimages/Pro-Standard-NFL-SEATTLE-SEAHAWKS-OLD-ENGLISH-MEN-S-RIB-WOOL-VARSITY-JACKET-(MIDNIGHT-NAVY-WHITE)-M.jpg";
       } else if (teamId === "SEA") {
-        baseSrc = "https://i.postimg.cc/GtcX91SV/Seattle-Seahawks-Initial-Home-Sideline-Men-s-Nike-Dri-FIT-NFL-Pullover-Hoodie.jpg";
+        baseSrc = "/postimages/Seattle-Seahawks-Initial-Home-Sideline-Men-s-Nike-Dri-FIT-NFL-Pullover-Hoodie.jpg";
       } else if (normCategory.includes("limited") || normId.includes("limited") || normTitle.includes("heritage") || normTitle.includes("jacket") || normTitle.includes("varsity")) {
-        baseSrc = "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg";
+        baseSrc = "/postimages/4bbf77eabd2406831269772d206b3186.jpg";
       } else {
-        baseSrc = "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg";
+        baseSrc = "/postimages/5252ceda2d79871dfbdb18431d89a468hoodie.jpg";
       }
     } else if (isHelmet) {
       if (teamId === "SEA") {
-        baseSrc = "https://i.postimg.cc/T1WcHYSq/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg";
+        baseSrc = "/postimages/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg";
       } else {
-        baseSrc = "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg";
+        baseSrc = "/postimages/535f637d8a827845da41c33e6f994795helmet.jpg";
       }
     } else if (isCap) {
       if (teamId === "SEA") {
-        baseSrc = "https://i.postimg.cc/6qGh15SM/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg";
+        baseSrc = "/postimages/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg";
       } else {
-        baseSrc = "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg";
+        baseSrc = "/postimages/1528e7dd107557d7b35d48f4a8564c99cap.jpg";
       }
     } else if (isMemorabilia) {
       if (teamId === "SEA" && (normTitle.includes("canvas") || normTitle.includes("photo") || normTitle.includes("signed-photo"))) {
-        baseSrc = "https://i.postimg.cc/QCWqnxPm/DK-Metcalf-Signed-Seattle-Seahawks-Framed-16x20-Stretched-Canvas-Beckett-W-Holo.jpg";
+        baseSrc = "/postimages/DK-Metcalf-Signed-Seattle-Seahawks-Framed-16x20-Stretched-Canvas-Beckett-W-Holo.jpg";
       } else if (teamId === "SEA") {
-        baseSrc = "https://i.postimg.cc/2yBxX8J2/DK-Metcalf-Autographed-Seahawks-Football.jpg";
+        baseSrc = "/postimages/DK-Metcalf-Autographed-Seahawks-Football.jpg";
       } else {
-        baseSrc = "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg";
+        baseSrc = "/postimages/d970707799e1f952db7ea1ea6ddf218bmemo.jpg";
       }
     } else if (isStadiumTour || normCategory.includes("training") || normTitle.includes("training")) {
-      if (teamId === "SEA" || normTitle.includes("seahawks")) baseSrc = "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg";
+      if (teamId === "SEA" || normTitle.includes("seahawks")) baseSrc = "/postimages/341007003061882166.jpg";
       else if (teamId === "DAL") baseSrc = NFL_IMAGES.stadiums.DAL;
       else if (teamId === "MIN") baseSrc = NFL_IMAGES.stadiums.MIN;
       else if (teamId === "KC") baseSrc = NFL_IMAGES.stadiums.KC;
@@ -202,20 +202,23 @@ export function getNFLImage(item: {
     }
   }
 
-  // 4. ADD CACHE-BUSTING TIMESTAMP OR VERSION TO FORCE IMAGE REFRESH
-  const version = item.v || item.updatedAt || Date.now();
+  // 4. TRANSFORM EXPIRED / BLOCKED HOSTS TO LOCAL VERIFIED ASSETS
   let finalUrl = baseSrc;
-  if (finalUrl && !finalUrl.startsWith("data:")) {
-    const separator = finalUrl.includes("?") ? "&" : "?";
-    finalUrl = `${finalUrl}${separator}cb=${version}`;
-  }
 
-  // 5. DEBUGGING & LOGGING COMPLIANCE
-  const itemName = item.id || item.title || item.name || item.experienceTitle || "Unknown Asset";
-  if (!finalUrl || finalUrl.trim() === "" || !finalUrl.startsWith("http")) {
-    console.warn(`[NFLImage Debug] Warning: Image URL for item "${itemName}" is missing or invalid:`, finalUrl);
-  } else {
-    console.log(`[NFLImage Debug] Rendering card "${itemName}" using URL: ${finalUrl}`);
+  if (finalUrl) {
+    if (finalUrl.includes("postimg.cc") || finalUrl.includes("postimages.org")) {
+      const parts = finalUrl.split("/");
+      const rawFilename = parts[parts.length - 1].split("?")[0];
+      if (rawFilename) {
+        finalUrl = `/postimages/${rawFilename}`;
+      }
+    }
+
+    // Only apply cache buster when explicit version or updatedAt exists (prevent breaking CDN query caches)
+    if ((item.v || item.updatedAt) && !finalUrl.startsWith("data:") && !finalUrl.startsWith("/")) {
+      const separator = finalUrl.includes("?") ? "&" : "?";
+      finalUrl = `${finalUrl}${separator}cb=${item.v || item.updatedAt}`;
+    }
   }
 
   return finalUrl;
@@ -249,14 +252,14 @@ interface NFLImageProps {
 export const NFLImage: React.FC<NFLImageProps> = ({ item, className, style, alt }) => {
   const [currentSrc, setCurrentSrc] = useState<string>("");
   const [loaded, setLoaded] = useState<boolean>(false);
-  const [hasError, setHasError] = useState<boolean>(false);
+  const [attemptCount, setAttemptCount] = useState<number>(0);
 
   // Sync state if item changes
   useEffect(() => {
     const updatedSrc = getNFLImage(item);
     setCurrentSrc(updatedSrc);
     setLoaded(false);
-    setHasError(false);
+    setAttemptCount(0);
   }, [
     item?.id, 
     item?.imageUrl, 
@@ -265,37 +268,51 @@ export const NFLImage: React.FC<NFLImageProps> = ({ item, className, style, alt 
     item?.updatedAt, 
     item?.title, 
     item?.name, 
-    item?.experienceTitle
+    item?.experienceTitle,
+    item?.teamId
   ]);
 
   const handleError = () => {
-    if (!hasError) {
-      setHasError(true);
-      const fallbackUrl = "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800";
-      console.log(`[NFLImage Fallback] Image failed to load for "${item?.id || item?.title || item?.name}". Fallback URL: ${fallbackUrl}`);
-      setCurrentSrc(`${fallbackUrl}?cb=fallback-${Date.now()}`);
+    if (attemptCount === 0) {
+      setAttemptCount(1);
+      // Attempt 1: If it was a raw URL, try weserv.nl proxy
+      if (currentSrc && !currentSrc.includes("weserv.nl") && currentSrc.startsWith("http")) {
+        setCurrentSrc(`https://images.weserv.nl/?url=${encodeURIComponent(currentSrc)}`);
+        return;
+      }
+      // Or fallback to high-quality sports unsplash
+      const teamId = (item?.teamId || "").toUpperCase();
+      const fallbackUrl = (teamId && NFL_IMAGES.stadiums[teamId as keyof typeof NFL_IMAGES.stadiums]) 
+        || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800";
+      setCurrentSrc(fallbackUrl);
+    } else if (attemptCount === 1) {
+      setAttemptCount(2);
+      // Attempt 2: Team Logo or NFL logo fallback
+      const teamId = (item?.teamId || "").toLowerCase();
+      if (teamId) {
+        setCurrentSrc(`https://a.espncdn.com/i/teamlogos/nfl/500/${teamId}.png`);
+      } else {
+        setCurrentSrc("/nfl_logo.svg");
+      }
     }
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-zinc-950/40">
-      {/* Dynamic Placeholder Loading Shimmer */}
+    <div className="relative w-full h-full overflow-hidden bg-zinc-950/60 flex items-center justify-center">
+      {/* Loading Shimmer */}
       {!loaded && (
         <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900" />
       )}
       
       {currentSrc && (
-        <motion.img
+        <img
           src={currentSrc}
-          alt={alt || item?.title || item?.name || item?.experienceTitle || "NFL Experience"}
+          alt={alt || item?.title || item?.name || item?.experienceTitle || "NFL Asset"}
           loading="lazy"
           referrerPolicy="no-referrer"
           onLoad={() => setLoaded(true)}
           onError={handleError}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: loaded ? 1 : 0 }}
-          transition={{ duration: 0.4 }}
-          className={className}
+          className={`${className || ""} transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
           style={style}
         />
       )}

@@ -10,8 +10,8 @@ export interface SeatListing {
 }
 
 export const SEAHAWKS_PATRIOTS_IMAGES = {
-  primary: "https://i.postimg.cc/J0DZvg87/IMG-0463.jpg",
-  minimap: "https://i.postimg.cc/d0sdwDF2/IMG-0464.jpg"
+  primary: "/postimages/IMG-0463.jpg",
+  minimap: "/postimages/IMG-0464.jpg"
 };
 
 // Base offset so prices start from $1,000.00

@@ -83,6 +83,58 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  // Serve /postimages and /images statically with CORS & caching headers
+  app.use("/postimages", express.static(path.resolve(process.cwd(), "public/postimages"), {
+    maxAge: "7d",
+    setHeaders: (res) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    }
+  }));
+
+  app.use("/images", express.static(path.resolve(process.cwd(), "public/images"), {
+    maxAge: "7d",
+    setHeaders: (res) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    }
+  }));
+
+  // Resilient proxy endpoint to serve or fetch postimg images reliably
+  app.get("/api/image-proxy", async (req, res) => {
+    try {
+      const url = req.query.url as string;
+      if (!url) return res.status(400).send("Missing url parameter");
+
+      const filename = url.split("/").pop()?.split("?")[0];
+      const localPath = filename ? path.resolve(process.cwd(), "public/postimages", filename) : null;
+      const fs = await import("fs");
+
+      if (localPath && fs.existsSync(localPath) && fs.statSync(localPath).size > 1000) {
+        res.setHeader("Content-Type", "image/jpeg");
+        res.setHeader("Cache-Control", "public, max-age=604800");
+        return fs.createReadStream(localPath).pipe(res);
+      }
+
+      if (url.includes("postimg.cc") && filename && localPath) {
+        const { exec } = await import("child_process");
+        const cmd = `curl -s -k -m 8 --resolve i.postimg.cc:443:195.154.239.27 "${url}" -o "${localPath}"`;
+        exec(cmd, (err) => {
+          if (!err && fs.existsSync(localPath) && fs.statSync(localPath).size > 1000) {
+            res.setHeader("Content-Type", "image/jpeg");
+            res.setHeader("Cache-Control", "public, max-age=604800");
+            return fs.createReadStream(localPath).pipe(res);
+          }
+          return res.redirect(url);
+        });
+        return;
+      }
+      return res.redirect(url);
+    } catch {
+      return res.status(500).send("Proxy error");
+    }
+  });
+
   const TEAM_NAMES: Record<string, string> = {
     ARI: "Cardinals", ATL: "Falcons", BAL: "Ravens", BUF: "Bills",
     CAR: "Panthers", CHI: "Bears", CIN: "Bengals", CLE: "Browns",
@@ -161,8 +213,8 @@ async function startServer() {
           category: "jerseys",
           discount: 10,
           image: team.id === "SEA"
-            ? "https://i.postimg.cc/D02xmKMV/Seattle-Seahawks-Dk-Metcalf-14-Nfl-Jersey-Grosse-L-Neu-Mit-Etikett.jpg"
-            : "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg",
+            ? "/postimages/Seattle-Seahawks-Dk-Metcalf-14-Nfl-Jersey-Grosse-L-Neu-Mit-Etikett.jpg"
+            : "/postimages/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg",
           inStock: true,
           trending: true,
           rating: 4.9,
@@ -176,8 +228,8 @@ async function startServer() {
           category: "hoodies",
           discount: 15,
           image: team.id === "SEA"
-            ? "https://i.postimg.cc/GtcX91SV/Seattle-Seahawks-Initial-Home-Sideline-Men-s-Nike-Dri-FIT-NFL-Pullover-Hoodie.jpg"
-            : "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg",
+            ? "/postimages/Seattle-Seahawks-Initial-Home-Sideline-Men-s-Nike-Dri-FIT-NFL-Pullover-Hoodie.jpg"
+            : "/postimages/5252ceda2d79871dfbdb18431d89a468hoodie.jpg",
           inStock: true,
           trending: false,
           rating: 4.7,
@@ -191,8 +243,8 @@ async function startServer() {
           category: "helmets",
           discount: 0,
           image: team.id === "SEA"
-            ? "https://i.postimg.cc/T1WcHYSq/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg"
-            : "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg",
+            ? "/postimages/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg"
+            : "/postimages/535f637d8a827845da41c33e6f994795helmet.jpg",
           inStock: true,
           trending: false,
           rating: 4.8,
@@ -210,8 +262,8 @@ async function startServer() {
           category: "helmets",
           discount: 5,
           image: team.id === "SEA"
-            ? "https://i.postimg.cc/T1WcHYSq/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg"
-            : "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg",
+            ? "/postimages/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg"
+            : "/postimages/535f637d8a827845da41c33e6f994795helmet.jpg",
           inStock: true,
           trending: false,
           rating: 4.9,
@@ -229,8 +281,8 @@ async function startServer() {
           category: "hats",
           discount: 5,
           image: team.id === "SEA"
-            ? "https://i.postimg.cc/6qGh15SM/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg"
-            : "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
+            ? "/postimages/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg"
+            : "/postimages/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
           inStock: true,
           trending: true,
           rating: 4.8,
@@ -244,8 +296,8 @@ async function startServer() {
           category: "hats",
           discount: 0,
           image: team.id === "SEA"
-            ? "https://i.postimg.cc/6qGh15SM/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg"
-            : "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
+            ? "/postimages/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg"
+            : "/postimages/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
           inStock: true,
           trending: false,
           rating: 4.8,
@@ -267,18 +319,18 @@ async function startServer() {
           category: "memorabilia",
           discount: 0,
           image: team.id === "NE"
-            ? "https://i.postimg.cc/N0jGvCMj/460844974351086634.jpg"
+            ? "/postimages/460844974351086634.jpg"
             : (team.id === "SEA"
-              ? "https://i.postimg.cc/2yBxX8J2/DK-Metcalf-Autographed-Seahawks-Football.jpg"
-              : "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg"),
+              ? "/postimages/DK-Metcalf-Autographed-Seahawks-Football.jpg"
+              : "/postimages/d970707799e1f952db7ea1ea6ddf218bmemo.jpg"),
           images: team.id === "NE" ? [
-            "https://i.postimg.cc/N0jGvCMj/460844974351086634.jpg",
-            "https://i.postimg.cc/mrgZWpD2/New-England-Patriots.jpg",
-            "https://i.postimg.cc/65tDP2Tq/H8897-L411218893-original.jpg",
-            "https://i.postimg.cc/zGf4JsnP/59049311-1.jpg",
-            "https://i.postimg.cc/L8sGHczb/s-l1600.jpg",
-            "https://i.postimg.cc/HLqN9jfm/original.jpg",
-            "https://i.postimg.cc/x8YFBhf3/2545198.jpg"
+            "/postimages/460844974351086634.jpg",
+            "/postimages/New-England-Patriots.jpg",
+            "/postimages/H8897-L411218893-original.jpg",
+            "/postimages/59049311-1.jpg",
+            "/postimages/s-l1600.jpg",
+            "/postimages/original.jpg",
+            "/postimages/2545198.jpg"
           ] : undefined,
           isPatriotsSignedMerch: team.id === "NE",
           inStock: true,
@@ -298,8 +350,8 @@ async function startServer() {
           category: "memorabilia",
           discount: 10,
           image: team.id === "SEA"
-            ? "https://i.postimg.cc/QCWqnxPm/DK-Metcalf-Signed-Seattle-Seahawks-Framed-16x20-Stretched-Canvas-Beckett-W-Holo.jpg"
-            : "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
+            ? "/postimages/DK-Metcalf-Signed-Seattle-Seahawks-Framed-16x20-Stretched-Canvas-Beckett-W-Holo.jpg"
+            : "/postimages/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
           inStock: true,
           trending: false,
           rating: 4.9,
@@ -317,8 +369,8 @@ async function startServer() {
           category: "limited",
           discount: 20,
           image: team.id === "SEA"
-            ? "https://i.postimg.cc/cC8c54jB/Pro-Standard-NFL-SEATTLE-SEAHAWKS-OLD-ENGLISH-MEN-S-RIB-WOOL-VARSITY-JACKET-(MIDNIGHT-NAVY-WHITE)-M.jpg"
-            : "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg",
+            ? "/postimages/Pro-Standard-NFL-SEATTLE-SEAHAWKS-OLD-ENGLISH-MEN-S-RIB-WOOL-VARSITY-JACKET-(MIDNIGHT-NAVY-WHITE)-M.jpg"
+            : "/postimages/4bbf77eabd2406831269772d206b3186.jpg",
           inStock: true,
           trending: false,
           rating: 4.9,
@@ -332,7 +384,7 @@ async function startServer() {
           category: "season_pass",
           discount: 10,
           image: team.id === "SEA" 
-            ? "https://i.postimg.cc/rFLDDDhw/1417fbb0e328f1a5932e49913ac23af2sea.jpg" 
+            ? "/postimages/1417fbb0e328f1a5932e49913ac23af2sea.jpg" 
             : "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
           inStock: true,
           trending: true,
@@ -347,7 +399,7 @@ async function startServer() {
           category: "season_pass",
           discount: 5,
           image: team.id === "SEA" 
-            ? "https://i.postimg.cc/RVzWWWPh/146bf6266e6b98ad33cc56df4d0abeb3ssss.jpg" 
+            ? "/postimages/146bf6266e6b98ad33cc56df4d0abeb3ssss.jpg" 
             : "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
           inStock: true,
           trending: true,
@@ -362,7 +414,7 @@ async function startServer() {
           category: "season_pass",
           discount: 10,
           image: team.id === "SEA" 
-            ? "https://i.postimg.cc/vHd444PM/c94bbc7aac5de3ed9a567156e4dbffd8seahawks.jpg" 
+            ? "/postimages/c94bbc7aac5de3ed9a567156e4dbffd8seahawks.jpg" 
             : "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800",
           inStock: true,
           trending: true,
@@ -501,7 +553,7 @@ async function startServer() {
         vipPrice: 450,
         seasonPassPrice: 750,
         url: "https://www.seahawks.com/tickets/",
-        image: "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg",
+        image: "/postimages/341007003061882166.jpg",
         isResale: false
       },
       {
@@ -554,8 +606,8 @@ async function startServer() {
         sidelinePassPrice: 1200,
         seasonPassPrice: 8000,
         url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
-        image: "https://i.postimg.cc/J0DZvg87/IMG-0463.jpg",
-        venueMapImage: "https://i.postimg.cc/d0sdwDF2/IMG-0464.jpg",
+        image: "/postimages/IMG-0463.jpg",
+        venueMapImage: "/postimages/IMG-0464.jpg",
         isResale: true
       },
       {

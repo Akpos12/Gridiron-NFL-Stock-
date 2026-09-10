@@ -118,7 +118,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 120,
     premiumPrice: 250,
     teamId: "DAL",
-    imageUrl: "https://i.postimg.cc/90c8t280/a8367675b2fbcfe31970b081bfce176f.jpg",
+    imageUrl: "/postimages/a8367675b2fbcfe31970b081bfce176f.jpg",
     location: "Arlington, TX",
     dates: ["2026-08-22", "2026-08-25", "2026-08-29", "2026-09-05", "2026-09-12", "2026-09-19", "2026-09-26"],
     timeSlots: ["10:00 AM", "12:30 PM", "3:00 PM", "5:30 PM"],
@@ -141,7 +141,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 90,
     premiumPrice: 180,
     teamId: "MIN",
-    imageUrl: "https://i.postimg.cc/sDYSCSgk/4545d9b7b90ee7c1f34fbb83344efb2cbank.jpg",
+    imageUrl: "/postimages/4545d9b7b90ee7c1f34fbb83344efb2cbank.jpg",
     location: "Minneapolis, MN",
     dates: ["2026-08-24", "2026-08-28", "2026-09-02", "2026-09-09", "2026-09-16", "2026-09-23", "2026-09-30"],
     timeSlots: ["09:30 AM", "11:00 AM", "1:30 PM", "4:00 PM"],
@@ -164,7 +164,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 750,
     premiumPrice: 1499,
     teamId: "MIN",
-    imageUrl: "https://i.postimg.cc/jdm6RKH4/1ef0abb32f5e7cb84b338bbb020c200cjetas.jpg",
+    imageUrl: "/postimages/1ef0abb32f5e7cb84b338bbb020c200cjetas.jpg",
     player: "Justin Jefferson",
     location: "U.S. Bank Stadium Club Room",
     dates: ["2026-09-12", "2026-09-19", "2026-10-03", "2026-10-17", "2026-11-07"],
@@ -188,7 +188,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 1199,
     premiumPrice: 2499,
     teamId: "KC",
-    imageUrl: "https://i.postimg.cc/HLfFMf1n/f2318507a5fadb58268812cf8e9a3510.jpg",
+    imageUrl: "/postimages/f2318507a5fadb58268812cf8e9a3510.jpg",
     player: "Patrick Mahomes",
     location: "Arrowhead Elite Pavilion",
     dates: ["2026-09-15", "2026-09-22", "2026-10-06", "2026-10-20", "2026-11-10"],
@@ -212,7 +212,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 4999,
     premiumPrice: 9999,
     teamId: "SF",
-    imageUrl: "https://i.postimg.cc/tC3PGPgT/1c6b339a1ec6b4da401e9584074a5073lxi.jpg",
+    imageUrl: "/postimages/1c6b339a1ec6b4da401e9584074a5073lxi.jpg",
     location: "Host Stadium VIP Suite",
     dates: ["2027-02-11", "2027-02-12", "2027-02-13", "2027-02-14"],
     timeSlots: ["12:00 PM", "4:00 PM"],
@@ -235,7 +235,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 350,
     premiumPrice: 750,
     teamId: "GB",
-    imageUrl: "https://i.postimg.cc/mg9YDqVW/33923b662167a088aa30d29b4d062f9ate.jpg",
+    imageUrl: "/postimages/33923b662167a088aa30d29b4d062f9ate.jpg",
     location: "Lambeau Field complexes",
     dates: ["2026-08-26", "2026-08-30", "2026-09-06", "2026-09-13", "2026-09-20", "2026-09-27"],
     timeSlots: ["11:00 AM", "2:30 PM"],
@@ -258,7 +258,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 450,
     premiumPrice: 750,
     teamId: "SEA",
-    imageUrl: "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg",
+    imageUrl: "/postimages/341007003061882166.jpg",
     location: "Virginia Mason Athletic Center (VMAC), Renton, WA",
     dates: [
       "2026-08-18",
@@ -294,7 +294,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 10000,
     premiumPrice: 25000,
     teamId: "MIN",
-    imageUrl: "https://i.postimg.cc/sDYSCSgk/4545d9b7b90ee7c1f34fbb83344efb2cbank.jpg",
+    imageUrl: "/postimages/4545d9b7b90ee7c1f34fbb83344efb2cbank.jpg",
     player: "Justin Jefferson & Franchise Executives",
     location: "U.S. Bank Stadium - Medtronic Club & Executive Boardroom, Minneapolis, MN",
     dates: [
@@ -328,7 +328,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 2000,
     premiumPrice: 2000,
     teamId: "NE",
-    imageUrl: "https://i.postimg.cc/gjQMBrt6/IMG-0363.jpg",
+    imageUrl: "/postimages/IMG-0363.jpg",
     player: "Drake Maye",
     location: "Gillette Stadium - Putnam Club & VIP Sidelines, Foxborough, MA",
     dates: [
@@ -468,21 +468,21 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
             if (seedMatch) item.dates = seedMatch.dates;
           }
 
-          // Standardize image URLs & pricing to high-quality corresponding NFL graphics
-          if (item.id === "exp-dal-tour" && (!item.imageUrl || item.imageUrl.includes("photo-1540747913346") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
-            item.imageUrl = "https://i.postimg.cc/90c8t280/a8367675b2fbcfe31970b081bfce176f.jpg";
-          } else if (item.id === "exp-min-tour" && (!item.imageUrl || item.imageUrl.includes("photo-1508098682722") || item.imageUrl.includes("photo-1551244072") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
-            item.imageUrl = "https://i.postimg.cc/sDYSCSgk/4545d9b7b90ee7c1f34fbb83344efb2cbank.jpg";
-          } else if (item.id === "exp-jefferson-meet" && (!item.imageUrl || item.imageUrl.includes("photo-1510076857177") || item.imageUrl.includes("photo-1511512578047") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
-            item.imageUrl = "https://i.postimg.cc/jdm6RKH4/1ef0abb32f5e7cb84b338bbb020c200cjetas.jpg";
-          } else if (item.id === "exp-mahomes-meet" && (!item.imageUrl || item.imageUrl.includes("photo-1519766304817") || item.imageUrl.includes("photo-1517649763962") || item.imageUrl.includes("postimg.cc"))) {
-            item.imageUrl = "https://i.postimg.cc/HLfFMf1n/f2318507a5fadb58268812cf8e9a3510.jpg";
-          } else if (item.id === "exp-sb-premium" && (!item.imageUrl || item.imageUrl.includes("photo-1522158673370") || item.imageUrl.includes("photo-1629235483163") || item.imageUrl.includes("photo-1574629810360") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
-            item.imageUrl = "https://i.postimg.cc/tC3PGPgT/1c6b339a1ec6b4da401e9584074a5073lxi.jpg";
-          } else if (item.id === "exp-gb-facility" && (!item.imageUrl || item.imageUrl.includes("photo-1588850561407") || item.imageUrl.includes("photo-1581009146145") || item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("unsplash"))) {
-            item.imageUrl = "https://i.postimg.cc/mg9YDqVW/33923b662167a088aa30d29b4d062f9ate.jpg";
+          // Standardize image URLs & pricing to high-quality local verified assets
+          if (item.id === "exp-dal-tour") {
+            item.imageUrl = "/postimages/a8367675b2fbcfe31970b081bfce176f.jpg";
+          } else if (item.id === "exp-min-tour") {
+            item.imageUrl = "/postimages/4545d9b7b90ee7c1f34fbb83344efb2cbank.jpg";
+          } else if (item.id === "exp-jefferson-meet") {
+            item.imageUrl = "/postimages/1ef0abb32f5e7cb84b338bbb020c200cjetas.jpg";
+          } else if (item.id === "exp-mahomes-meet") {
+            item.imageUrl = "/postimages/f2318507a5fadb58268812cf8e9a3510.jpg";
+          } else if (item.id === "exp-sb-premium") {
+            item.imageUrl = "/postimages/1c6b339a1ec6b4da401e9584074a5073lxi.jpg";
+          } else if (item.id === "exp-gb-facility") {
+            item.imageUrl = "/postimages/33923b662167a088aa30d29b4d062f9ate.jpg";
           } else if (item.id === "exp-drake-maye-meet") {
-            item.imageUrl = "https://i.postimg.cc/gjQMBrt6/IMG-0363.jpg";
+            item.imageUrl = "/postimages/IMG-0363.jpg";
             item.price = 2000;
             item.vipPrice = 2000;
             item.premiumPrice = 2000;
@@ -490,7 +490,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
               item.dates = seedMatch.dates;
             }
           } else if (item.id === "exp-sea-training") {
-            item.imageUrl = "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg";
+            item.imageUrl = "/postimages/341007003061882166.jpg";
             item.price = (typeof item.price === "number" && !isNaN(item.price)) ? item.price : 250;
             if (seedMatch) {
               item.dates = seedMatch.dates;
@@ -499,6 +499,15 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
               if (JSON.stringify(currentDocDates) !== JSON.stringify(seedMatch.dates)) {
                 setDoc(doc(db, "experiences", item.id), { dates: seedMatch.dates }, { merge: true }).catch(console.error);
               }
+            }
+          }
+
+          // Catch any other postimg / postimages URLs on experiences and map to local /postimages/
+          if (item.imageUrl && (item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("postimages.org"))) {
+            const parts = item.imageUrl.split("/");
+            const rawFilename = parts[parts.length - 1].split("?")[0];
+            if (rawFilename) {
+              item.imageUrl = `/postimages/${rawFilename}`;
             }
           }
           loaded.push(item);

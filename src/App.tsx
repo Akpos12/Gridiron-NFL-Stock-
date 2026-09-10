@@ -965,8 +965,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: true,
               image: team.id === "SEA"
-                ? "https://i.postimg.cc/D02xmKMV/Seattle-Seahawks-Dk-Metcalf-14-Nfl-Jersey-Grosse-L-Neu-Mit-Etikett.jpg"
-                : "https://i.postimg.cc/LX9QjR0f/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg",
+                ? "/postimages/Seattle-Seahawks-Dk-Metcalf-14-Nfl-Jersey-Grosse-L-Neu-Mit-Etikett.jpg"
+                : "/postimages/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' jerseys')}`
             },
             {
@@ -981,8 +981,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: false,
               image: team.id === "SEA"
-                ? "https://i.postimg.cc/GtcX91SV/Seattle-Seahawks-Initial-Home-Sideline-Men-s-Nike-Dri-FIT-NFL-Pullover-Hoodie.jpg"
-                : "https://i.postimg.cc/wxb4RC5N/5252ceda2d79871dfbdb18431d89a468hoodie.jpg",
+                ? "/postimages/Seattle-Seahawks-Initial-Home-Sideline-Men-s-Nike-Dri-FIT-NFL-Pullover-Hoodie.jpg"
+                : "/postimages/5252ceda2d79871dfbdb18431d89a468hoodie.jpg",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' hoodies')}`
             },
             {
@@ -997,8 +997,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: false,
               image: team.id === "SEA"
-                ? "https://i.postimg.cc/T1WcHYSq/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg"
-                : "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg",
+                ? "/postimages/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg"
+                : "/postimages/535f637d8a827845da41c33e6f994795helmet.jpg",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' helmets')}`
             },
             {
@@ -1017,8 +1017,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: false,
               image: team.id === "SEA"
-                ? "https://i.postimg.cc/T1WcHYSq/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg"
-                : "https://i.postimg.cc/bY6WHDPJ/535f637d8a827845da41c33e6f994795helmet.jpg",
+                ? "/postimages/(Autographed)-Seahawks-Steve-Largent-HOF-1995-Signed-Lunar-Speed-Mini-Helmet-BAS-Witnessed.jpg"
+                : "/postimages/535f637d8a827845da41c33e6f994795helmet.jpg",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' mini helmets')}`
             },
             {
@@ -1037,8 +1037,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: true,
               image: team.id === "SEA"
-                ? "https://i.postimg.cc/6qGh15SM/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg"
-                : "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
+                ? "/postimages/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg"
+                : "/postimages/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' hats')}`
             },
             {
@@ -1053,8 +1053,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: false,
               image: team.id === "SEA"
-                ? "https://i.postimg.cc/6qGh15SM/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg"
-                : "https://i.postimg.cc/g2h7WgZ2/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
+                ? "/postimages/Seattle-Seahawks-NFL-Essentials-39THIRTY-Stretch-Fit-ML.jpg"
+                : "/postimages/1528e7dd107557d7b35d48f4a8564c99cap.jpg",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' beanies')}`
             },
             {
@@ -1077,10 +1077,10 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: true,
               image: team.id === "SEA"
-                ? "https://i.postimg.cc/2yBxX8J2/DK-Metcalf-Autographed-Seahawks-Football.jpg"
+                ? "/images/seahawks-autograph-gear.jpg"
                 : team.id === "NE"
-                ? "https://i.postimg.cc/N0jGvCMj/460844974351086634.jpg"
-                : "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
+                ? "/images/patriots-signed-merch-1.jpg"
+                : "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
               images: team.id === "NE" ? PATRIOTS_SIGNED_MERCH_IMAGES : undefined,
               isPatriotsSignedMerch: team.id === "NE",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' memorabilia')}`
@@ -1101,8 +1101,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: false,
               image: team.id === "SEA"
-                ? "https://i.postimg.cc/QCWqnxPm/DK-Metcalf-Signed-Seattle-Seahawks-Framed-16x20-Stretched-Canvas-Beckett-W-Holo.jpg"
-                : "https://i.postimg.cc/0Qn34rJ3/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
+                ? "/postimages/DK-Metcalf-Signed-Seattle-Seahawks-Framed-16x20-Stretched-Canvas-Beckett-W-Holo.jpg"
+                : "/postimages/d970707799e1f952db7ea1ea6ddf218bmemo.jpg",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' autographed photo')}`
             },
             {
@@ -1121,8 +1121,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: false,
               image: team.id === "SEA"
-                ? "https://i.postimg.cc/cC8c54jB/Pro-Standard-NFL-SEATTLE-SEAHAWKS-OLD-ENGLISH-MEN-S-RIB-WOOL-VARSITY-JACKET-(MIDNIGHT-NAVY-WHITE)-M.jpg"
-                : "https://i.postimg.cc/dtfMv7SK/4bbf77eabd2406831269772d206b3186.jpg",
+                ? "/postimages/Pro-Standard-NFL-SEATTLE-SEAHAWKS-OLD-ENGLISH-MEN-S-RIB-WOOL-VARSITY-JACKET-(MIDNIGHT-NAVY-WHITE)-M.jpg"
+                : "/postimages/4bbf77eabd2406831269772d206b3186.jpg",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' jackets')}`
             },
             {
@@ -1137,7 +1137,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: true,
               image: team.id === "SEA" 
-                ? "https://i.postimg.cc/rFLDDDhw/1417fbb0e328f1a5932e49913ac23af2sea.jpg" 
+                ? "/postimages/1417fbb0e328f1a5932e49913ac23af2sea.jpg" 
                 : "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
               purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' season tickets')}`
             },
@@ -1153,7 +1153,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: true,
               image: team.id === "SEA" 
-                ? "https://i.postimg.cc/RVzWWWPh/146bf6266e6b98ad33cc56df4d0abeb3ssss.jpg" 
+                ? "/postimages/146bf6266e6b98ad33cc56df4d0abeb3ssss.jpg" 
                 : "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
               purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' vip season tickets')}`
             },
@@ -1169,7 +1169,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               inStock: true,
               trending: true,
               image: team.id === "SEA" 
-                ? "https://i.postimg.cc/vHd444PM/c94bbc7aac5de3ed9a567156e4dbffd8seahawks.jpg" 
+                ? "/postimages/c94bbc7aac5de3ed9a567156e4dbffd8seahawks.jpg" 
                 : "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800",
               purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' club season tickets')}`
             },
@@ -1307,7 +1307,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               vipPrice: 450,
               seasonPassPrice: 750,
               url: "https://www.seahawks.com/tickets/",
-              image: "https://i.postimg.cc/gJd9nqzg/341007003061882166.jpg",
+              image: "/postimages/341007003061882166.jpg",
               isResale: false
             },
             {
@@ -1360,8 +1360,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               sidelinePassPrice: 1200,
               seasonPassPrice: 8000,
               url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
-              image: "https://i.postimg.cc/J0DZvg87/IMG-0463.jpg",
-              venueMapImage: "https://i.postimg.cc/d0sdwDF2/IMG-0464.jpg",
+              image: "/images/seahawks-patriots-pass.jpg",
+              venueMapImage: "/images/stadium-seating-minimap.jpg",
               isResale: true
             },
             {
@@ -1797,7 +1797,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                   badge: "BEST VALUE",
                   badgeColor: "bg-blue-600",
                   image: isSeahawks
-                    ? "https://i.postimg.cc/rFLDDDhw/1417fbb0e328f1a5932e49913ac23af2sea.jpg"
+                    ? "/postimages/1417fbb0e328f1a5932e49913ac23af2sea.jpg"
                     : "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
                   features: [
                     "Guaranteed Lower Bowl seating (Rows 1-20) for all 8 home games",
@@ -1814,7 +1814,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                   badge: "MOST POPULAR",
                   badgeColor: "bg-amber-500 text-black",
                   image: isSeahawks
-                    ? "https://i.postimg.cc/RVzWWWPh/146bf6266e6b98ad33cc56df4d0abeb3ssss.jpg"
+                    ? "/postimages/146bf6266e6b98ad33cc56df4d0abeb3ssss.jpg"
                     : "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
                   features: [
                     "Midfield Sideline Seating (Rows 1-10)",
@@ -1831,7 +1831,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                   badge: "EXECUTIVE CLASS",
                   badgeColor: "bg-purple-600",
                   image: isSeahawks
-                    ? "https://i.postimg.cc/vHd444PM/c94bbc7aac5de3ed9a567156e4dbffd8seahawks.jpg"
+                    ? "/postimages/c94bbc7aac5de3ed9a567156e4dbffd8seahawks.jpg"
                     : "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800",
                   features: [
                     "Climate-controlled Club Level access with leather recliners",

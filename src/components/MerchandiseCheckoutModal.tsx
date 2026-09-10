@@ -28,13 +28,13 @@ import { safeSetDoc, db, auth } from "../lib/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
 
 export const PATRIOTS_SIGNED_MERCH_IMAGES = [
-  "https://i.postimg.cc/N0jGvCMj/460844974351086634.jpg",
-  "https://i.postimg.cc/mrgZWpD2/New-England-Patriots.jpg",
-  "https://i.postimg.cc/65tDP2Tq/H8897-L411218893-original.jpg",
-  "https://i.postimg.cc/zGf4JsnP/59049311-1.jpg",
-  "https://i.postimg.cc/L8sGHczb/s-l1600.jpg",
-  "https://i.postimg.cc/HLqN9jfm/original.jpg",
-  "https://i.postimg.cc/x8YFBhf3/2545198.jpg"
+  "/postimages/460844974351086634.jpg",
+  "/postimages/New-England-Patriots.jpg",
+  "/postimages/H8897-L411218893-original.jpg",
+  "/postimages/59049311-1.jpg",
+  "/postimages/s-l1600.jpg",
+  "/postimages/original.jpg",
+  "/postimages/2545198.jpg"
 ];
 
 export const PATRIOTS_VENDOR_PAYPAL = {
