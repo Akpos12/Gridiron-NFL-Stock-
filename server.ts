@@ -65,7 +65,8 @@ async function startServer() {
 
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // Custom CORS middleware for API endpoints inside sandboxed environments and previews
   app.use((req, res, next) => {
@@ -78,9 +79,61 @@ async function startServer() {
     next();
   });
 
-// API Routes
+  // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Dedicated endpoint for Control Room Experience Image Upload
+  app.post("/api/upload-experience-image", async (req, res) => {
+    try {
+      const { image, filename } = req.body;
+      if (!image) {
+        return res.status(400).json({ error: "Missing image data" });
+      }
+
+      const fs = await import("fs");
+      const pathModule = await import("path");
+      const targetDir = pathModule.resolve(process.cwd(), "public/postimages");
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
+      let extension = "jpg";
+      let base64Data = image;
+
+      if (image.startsWith("data:")) {
+        const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const mime = matches[1];
+          if (mime.includes("png")) extension = "png";
+          else if (mime.includes("webp")) extension = "webp";
+          else if (mime.includes("gif")) extension = "gif";
+          else extension = "jpg";
+          base64Data = matches[2];
+        }
+      }
+
+      const cleanFilename = (filename || "experience-photo")
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .substring(0, 40);
+      const finalFileName = `ctrl-${Date.now()}-${cleanFilename}.${extension}`;
+      const destPath = pathModule.resolve(targetDir, finalFileName);
+
+      const buffer = Buffer.from(base64Data, "base64");
+      fs.writeFileSync(destPath, buffer);
+
+      console.log(`[Upload] Control room photo saved: ${finalFileName} (${buffer.length} bytes)`);
+      return res.json({
+        success: true,
+        url: `/postimages/${finalFileName}`,
+        filename: finalFileName,
+        size: buffer.length
+      });
+    } catch (err: any) {
+      console.error("[Upload] Failed to process experience image:", err);
+      return res.status(500).json({ error: "Failed to upload image: " + err.message });
+    }
   });
 
   // Serve /postimages and /images statically with CORS & caching headers

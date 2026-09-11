@@ -54,6 +54,7 @@ export function getNFLImage(item: {
   category?: string;
   badge?: string;
   type?: string;
+  player?: string;
   teamId?: string;
   imageUrl?: string;
   image?: string;
@@ -100,6 +101,11 @@ export function getNFLImage(item: {
     // Explicit Seahawks vs Patriots gameday asset
     if (normId.includes("SEA-NE") || (normTitle.includes("seahawks") && normTitle.includes("patriot"))) {
       return "/postimages/IMG-0463.jpg";
+    }
+
+    // Explicit Drew Lock Quarterback asset
+    if (normId.includes("DREW-LOCK") || normTitle.includes("drew lock") || (item.player && item.player.toLowerCase().includes("drew lock"))) {
+      return "/postimages/Drew-Lock.jpg";
     }
     
     // 1. EXTRACT TEAM

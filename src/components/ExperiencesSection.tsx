@@ -350,6 +350,40 @@ const SEED_EXPERIENCES: Experience[] = [
     ],
     rating: 5.0,
     reviewsCount: 56
+  },
+  {
+    id: "exp-drew-lock-meet",
+    title: "Drew Lock VIP Quarterback Encounter & Film Room Experience",
+    description: "Exclusive 1-on-1 VIP access with NFL quarterback Drew Lock. Dissect game footage in a private film room breakdown, watch quarterback throwing drills from the sideline, receive an authenticated autographed football or jersey, and enjoy premium club lounge hospitality.",
+    type: "meet_greet",
+    category: "Player Meet & Greet",
+    price: 1000,
+    vipPrice: 1750,
+    premiumPrice: 2500,
+    teamId: "SEA",
+    imageUrl: "/postimages/Drew-Lock.jpg",
+    player: "Drew Lock",
+    location: "Virginia Mason Athletic Center (VMAC) & Lumen Field VIP Suites, Seattle, WA",
+    dates: [
+      "2026-09-14",
+      "2026-09-21",
+      "2026-09-28",
+      "2026-10-05",
+      "2026-10-12",
+      "2026-10-19",
+      "2026-10-26"
+    ],
+    timeSlots: ["11:00 AM", "02:00 PM", "05:00 PM"],
+    features: [
+      "Private 1-on-1 meet & greet and photo session with Drew Lock",
+      "Personalized hand-signed official NFL 'The Duke' football or Seahawks jersey",
+      "Exclusive tactical film study session reviewing quarterback reads & audibles",
+      "Field-level sideline credential to observe warmups and throwing drills up close",
+      "All-inclusive VIP club lounge hospitality with premium catering service",
+      "Official holographic VIP laminate pass with Beckett authentication certification"
+    ],
+    rating: 5.0,
+    reviewsCount: 42
   }
 ];
 
@@ -488,6 +522,18 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
             item.premiumPrice = 2000;
             if (seedMatch) {
               item.dates = seedMatch.dates;
+            }
+          } else if (item.id === "exp-drew-lock-meet" || item.player?.toLowerCase().includes("drew lock") || item.title?.toLowerCase().includes("drew lock")) {
+            item.imageUrl = "/postimages/Drew-Lock.jpg";
+            item.price = (typeof item.price === "number" && !isNaN(item.price) && item.price >= 1000) ? item.price : 1000;
+            item.vipPrice = (typeof item.vipPrice === "number" && !isNaN(item.vipPrice)) ? item.vipPrice : 1750;
+            item.premiumPrice = (typeof item.premiumPrice === "number" && !isNaN(item.premiumPrice)) ? item.premiumPrice : 2500;
+            if (seedMatch) {
+              item.dates = seedMatch.dates;
+              const currentDocDates = d.data().dates || [];
+              if (JSON.stringify(currentDocDates) !== JSON.stringify(seedMatch.dates)) {
+                setDoc(doc(db, "experiences", item.id), { dates: seedMatch.dates }, { merge: true }).catch(console.error);
+              }
             }
           } else if (item.id === "exp-sea-training") {
             item.imageUrl = "/postimages/341007003061882166.jpg";

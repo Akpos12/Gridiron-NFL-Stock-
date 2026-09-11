@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { 
   Shield, 
   Plus, 
@@ -26,9 +26,16 @@ import {
   Search,
   Filter,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Upload,
+  X,
+  Check,
+  Loader2,
+  FolderPlus,
+  RefreshCw,
+  ExternalLink
 } from "lucide-react";
-import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, addDoc, serverTimestamp, query, orderBy, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { NFL_TEAMS } from "../constants";
 import { formatCurrency, cn } from "../lib/utils";
@@ -36,6 +43,19 @@ import { Experience, Booking } from "./ExperiencesSection";
 import { PromoBanner } from "./PromoSlider";
 import { NFLImage } from "../utils/nflImages";
 import { ReceiptReviewModal, BookingAuditItem } from "./common/ReceiptReviewModal";
+
+const PHOTO_PRESETS = [
+  { label: "Drew Lock (QB)", url: "/postimages/Drew-Lock.jpg", tag: "Drew Lock" },
+  { label: "Drake Maye (QB)", url: "/postimages/IMG-0363.jpg", tag: "Drake Maye" },
+  { label: "VMAC Seahawks Training", url: "/postimages/341007003061882166.jpg", tag: "Seattle Seahawks" },
+  { label: "Justin Jefferson (WR)", url: "/postimages/1ef0abb32f5e7cb84b338bbb020c200cjetas.jpg", tag: "Justin Jefferson" },
+  { label: "Patrick Mahomes (QB)", url: "/postimages/f2318507a5fadb58268812cf8e9a3510.jpg", tag: "Patrick Mahomes" },
+  { label: "AT&T Stadium (Dallas)", url: "/postimages/a8367675b2fbcfe31970b081bfce176f.jpg", tag: "Dallas Cowboys" },
+  { label: "U.S. Bank Stadium", url: "/postimages/4545d9b7b90ee7c1f34fbb83344efb2cbank.jpg", tag: "MN Vikings" },
+  { label: "Super Bowl LXI (SoFi)", url: "/postimages/1c6b339a1ec6b4da401e9584074a5073lxi.jpg", tag: "Super Bowl" },
+  { label: "Lambeau Field Tundra", url: "/postimages/33923b662167a088aa30d29b4d062f9ate.jpg", tag: "GB Packers" },
+  { label: "Seahawks vs Patriots", url: "/postimages/IMG-0463.jpg", tag: "Matchday" }
+];
 
 export const ExperienceAdmin: React.FC = () => {
   const [experiences, setExperiences] = useState<Experience[]>([]);
@@ -71,6 +91,22 @@ export const ExperienceAdmin: React.FC = () => {
   const [datesInput, setDatesInput] = useState("");
   const [timeSlotsInput, setTimeSlotsInput] = useState("");
 
+  // Image upload and studio states
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadStatusMsg, setUploadStatusMsg] = useState<string | null>(null);
+  const [showManualUrlInput, setShowManualUrlInput] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Quick photo editor modal for any experience in roster list
+  const [quickPhotoExp, setQuickPhotoExp] = useState<Experience | null>(null);
+  const [quickPhotoUrl, setQuickPhotoUrl] = useState("");
+  const [isSavingQuickPhoto, setIsSavingQuickPhoto] = useState(false);
+  const [quickModalUploading, setQuickModalUploading] = useState(false);
+  const [quickModalStatus, setQuickModalStatus] = useState<string | null>(null);
+  const [quickModalShowUrl, setQuickModalShowUrl] = useState(false);
+  const quickFileInputRef = useRef<HTMLInputElement>(null);
+
   // Banner creator forms
   const [bannerTitle, setBannerTitle] = useState("");
   const [bannerSubtitle, setBannerSubtitle] = useState("");
@@ -78,6 +114,195 @@ export const ExperienceAdmin: React.FC = () => {
   const [bannerImage, setBannerImage] = useState("");
   const [bannerBadge, setBannerBadge] = useState("");
   const [bannerLink, setBannerLink] = useState("");
+
+  // Handler for uploading pictures from control room
+  const handleUploadImageFile = async (file: File, target: "form" | "modal") => {
+    if (!file) return;
+
+    if (target === "form") {
+      setIsUploadingImage(true);
+      setUploadStatusMsg("Processing image preview...");
+    } else {
+      setQuickModalUploading(true);
+      setQuickModalStatus("Processing image preview...");
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Data = e.target?.result as string;
+      if (target === "form") {
+        setImageUrl(base64Data);
+      } else {
+        setQuickPhotoUrl(base64Data);
+      }
+
+      try {
+        if (target === "form") setUploadStatusMsg("Uploading to control room storage...");
+        else setQuickModalStatus("Uploading to control room storage...");
+
+        const res = await fetch("/api/upload-experience-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image: base64Data,
+            filename: file.name
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) {
+            if (target === "form") {
+              setImageUrl(data.url);
+              setUploadStatusMsg("✓ Photo saved & cached to control room assets!");
+            } else {
+              setQuickPhotoUrl(data.url);
+              setQuickModalStatus("✓ Photo saved & cached to control room assets!");
+            }
+            setTimeout(() => {
+              if (target === "form") setUploadStatusMsg(null);
+              else setQuickModalStatus(null);
+            }, 3000);
+          }
+        } else {
+          if (target === "form") setUploadStatusMsg("✓ Active with direct image data");
+          else setQuickModalStatus("✓ Active with direct image data");
+          setTimeout(() => {
+            if (target === "form") setUploadStatusMsg(null);
+            else setQuickModalStatus(null);
+          }, 3000);
+        }
+      } catch (err: any) {
+        console.warn("Server upload fallback:", err);
+        if (target === "form") setUploadStatusMsg("✓ Image data attached");
+        else setQuickModalStatus("✓ Image data attached");
+        setTimeout(() => {
+          if (target === "form") setUploadStatusMsg(null);
+          else setQuickModalStatus(null);
+        }, 3000);
+      } finally {
+        if (target === "form") setIsUploadingImage(false);
+        else setQuickModalUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Quick Photo Save Handler for existing experiences
+  const handleSaveQuickPhoto = async () => {
+    if (!quickPhotoExp || !quickPhotoUrl) return;
+    try {
+      setIsSavingQuickPhoto(true);
+      await updateDoc(doc(db, "experiences", quickPhotoExp.id), {
+        imageUrl: quickPhotoUrl,
+        updatedAt: Date.now(),
+        v: Date.now()
+      });
+      setQuickPhotoExp(null);
+      setQuickPhotoUrl("");
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to update photo: " + err.message);
+    } finally {
+      setIsSavingQuickPhoto(false);
+    }
+  };
+
+  // One-click function to ensure Drew Lock is verified in database
+  const handleSeedDrewLock = async () => {
+    try {
+      await setDoc(doc(db, "experiences", "exp-drew-lock-meet"), {
+        id: "exp-drew-lock-meet",
+        title: "Drew Lock VIP Quarterback Encounter & Film Room Experience",
+        description: "Exclusive 1-on-1 VIP access with NFL quarterback Drew Lock. Dissect game footage in a private film room breakdown, watch quarterback throwing drills from the sideline, receive an authenticated autographed football or jersey, and enjoy premium club lounge hospitality.",
+        type: "meet_greet",
+        category: "Player Meet & Greet",
+        price: 1000,
+        vipPrice: 1750,
+        premiumPrice: 2500,
+        teamId: "SEA",
+        imageUrl: "/postimages/Drew-Lock.jpg",
+        player: "Drew Lock",
+        location: "Virginia Mason Athletic Center (VMAC) & Lumen Field VIP Suites, Seattle, WA",
+        dates: [
+          "2026-09-14",
+          "2026-09-21",
+          "2026-09-28",
+          "2026-10-05",
+          "2026-10-12",
+          "2026-10-19",
+          "2026-10-26"
+        ],
+        timeSlots: ["11:00 AM", "02:00 PM", "05:00 PM"],
+        features: [
+          "Private 1-on-1 meet & greet and photo session with Drew Lock",
+          "Personalized hand-signed official NFL 'The Duke' football or Seahawks jersey",
+          "Exclusive tactical film study session reviewing quarterback reads & audibles",
+          "Field-level sideline credential to observe warmups and throwing drills up close",
+          "All-inclusive VIP club lounge hospitality with premium catering service",
+          "Official holographic VIP laminate pass with Beckett authentication certification"
+        ],
+        rating: 5.0,
+        reviewsCount: 42,
+        v: Date.now(),
+        updatedAt: Date.now()
+      }, { merge: true });
+      alert("✅ Drew Lock Experience successfully verified and saved with starting price $1,000!");
+    } catch (err: any) {
+      console.error(err);
+      alert("Error adding Drew Lock experience: " + err.message);
+    }
+  };
+
+  useEffect(() => {
+    // Auto-verify Drew Lock presence on mount
+    const verifyDrewLock = async () => {
+      try {
+        const snap = await getDoc(doc(db, "experiences", "exp-drew-lock-meet"));
+        if (!snap.exists()) {
+          await setDoc(doc(db, "experiences", "exp-drew-lock-meet"), {
+            id: "exp-drew-lock-meet",
+            title: "Drew Lock VIP Quarterback Encounter & Film Room Experience",
+            description: "Exclusive 1-on-1 VIP access with NFL quarterback Drew Lock. Dissect game footage in a private film room breakdown, watch quarterback throwing drills from the sideline, receive an authenticated autographed football or jersey, and enjoy premium club lounge hospitality.",
+            type: "meet_greet",
+            category: "Player Meet & Greet",
+            price: 1000,
+            vipPrice: 1750,
+            premiumPrice: 2500,
+            teamId: "SEA",
+            imageUrl: "/postimages/Drew-Lock.jpg",
+            player: "Drew Lock",
+            location: "Virginia Mason Athletic Center (VMAC) & Lumen Field VIP Suites, Seattle, WA",
+            dates: [
+              "2026-09-14",
+              "2026-09-21",
+              "2026-09-28",
+              "2026-10-05",
+              "2026-10-12",
+              "2026-10-19",
+              "2026-10-26"
+            ],
+            timeSlots: ["11:00 AM", "02:00 PM", "05:00 PM"],
+            features: [
+              "Private 1-on-1 meet & greet and photo session with Drew Lock",
+              "Personalized hand-signed official NFL 'The Duke' football or Seahawks jersey",
+              "Exclusive tactical film study session reviewing quarterback reads & audibles",
+              "Field-level sideline credential to observe warmups and throwing drills up close",
+              "All-inclusive VIP club lounge hospitality with premium catering service",
+              "Official holographic VIP laminate pass with Beckett authentication certification"
+            ],
+            rating: 5.0,
+            reviewsCount: 42,
+            v: Date.now(),
+            updatedAt: Date.now()
+          });
+        }
+      } catch (e) {
+        console.warn("Drew Lock auto-verification:", e);
+      }
+    };
+    verifyDrewLock();
+  }, []);
 
   useEffect(() => {
     // 1. Listen to experiences
@@ -363,6 +588,65 @@ export const ExperienceAdmin: React.FC = () => {
           features: ["Training labs & equipment", "Hall of Fame galleries", "Dining Lounge lunch"],
           rating: 4.9,
           reviewsCount: 95
+        },
+        {
+          id: "exp-drake-maye-meet",
+          title: "Drake Maye Exclusive VIP Meet & Greet & Field Access",
+          description: "Experience an unprecedented private meet & greet with New England Patriots franchise quarterback Drake Maye. Enjoy VIP sideline pass access, private 1-on-1 photo session, personalized autographed jersey or official 'The Duke' football, and exclusive pre-game warmup viewing.",
+          type: "meet_greet",
+          category: "Player Meet & Greet",
+          price: 2000,
+          vipPrice: 2000,
+          premiumPrice: 2000,
+          teamId: "NE",
+          imageUrl: "/postimages/IMG-0363.jpg",
+          player: "Drake Maye",
+          location: "Gillette Stadium - Putnam Club & VIP Sidelines, Foxborough, MA",
+          dates: ["2026-09-13", "2026-09-20", "2026-09-27", "2026-10-04", "2026-10-11", "2026-10-18", "2026-10-25"],
+          timeSlots: ["10:30 AM", "01:30 PM", "04:30 PM"],
+          features: [
+            "Private 1-on-1 meet & greet and photo op with Drake Maye",
+            "Personalized hand-signed official game jersey or football",
+            "Exclusive Putnam Club VIP hospitality lounge & gourmet bar",
+            "Pre-game sideline credential to watch QB drills from field level",
+            "Commemorative VIP laminate pass & hologram verification"
+          ],
+          rating: 5.0,
+          reviewsCount: 56
+        },
+        {
+          id: "exp-drew-lock-meet",
+          title: "Drew Lock VIP Quarterback Encounter & Film Room Experience",
+          description: "Exclusive 1-on-1 VIP access with NFL quarterback Drew Lock. Dissect game footage in a private film room breakdown, watch quarterback throwing drills from the sideline, receive an authenticated autographed football or jersey, and enjoy premium club lounge hospitality.",
+          type: "meet_greet",
+          category: "Player Meet & Greet",
+          price: 1000,
+          vipPrice: 1750,
+          premiumPrice: 2500,
+          teamId: "SEA",
+          imageUrl: "/postimages/Drew-Lock.jpg",
+          player: "Drew Lock",
+          location: "Virginia Mason Athletic Center (VMAC) & Lumen Field VIP Suites, Seattle, WA",
+          dates: [
+            "2026-09-14",
+            "2026-09-21",
+            "2026-09-28",
+            "2026-10-05",
+            "2026-10-12",
+            "2026-10-19",
+            "2026-10-26"
+          ],
+          timeSlots: ["11:00 AM", "02:00 PM", "05:00 PM"],
+          features: [
+            "Private 1-on-1 meet & greet and photo session with Drew Lock",
+            "Personalized hand-signed official NFL 'The Duke' football or Seahawks jersey",
+            "Exclusive tactical film study session reviewing quarterback reads & audibles",
+            "Field-level sideline credential to observe warmups and throwing drills up close",
+            "All-inclusive VIP club lounge hospitality with premium catering service",
+            "Official holographic VIP laminate pass with Beckett authentication certification"
+          ],
+          rating: 5.0,
+          reviewsCount: 42
         }
       ];
 
@@ -844,7 +1128,7 @@ export const ExperienceAdmin: React.FC = () => {
                 </div>
               </div>
 
-              {/* Location and image url */}
+              {/* Location Details */}
               <div className="space-y-1.5">
                 <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Location Details</label>
                 <input
@@ -857,15 +1141,180 @@ export const ExperienceAdmin: React.FC = () => {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Experience Unsplash Photo URL</label>
-                <input
-                  type="text"
-                  placeholder="https://images.unsplash.com/photo-..."
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-2 text-xs text-white focus:outline-none"
-                />
+              {/* Advanced Photography & Visual Asset Studio */}
+              <div className="space-y-3 p-4 bg-zinc-950/80 rounded-2xl border border-white/5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-blue-400" />
+                    Experience Picture & Media Asset
+                  </span>
+                  <span className="text-[8px] font-mono text-zinc-500">Device Upload · Presets · URL</span>
+                </div>
+
+                {/* Upload Zone & Drag and Drop Area */}
+                <div 
+                  onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
+                  onDragLeave={() => setIsDraggingOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingOver(false);
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      handleUploadImageFile(e.dataTransfer.files[0], "form");
+                    }
+                  }}
+                  className={cn(
+                    "relative border-2 border-dashed rounded-xl p-4 transition-all text-center",
+                    isDraggingOver 
+                      ? "border-blue-500 bg-blue-500/10" 
+                      : "border-white/10 hover:border-white/20 bg-zinc-900/40"
+                  )}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleUploadImageFile(e.target.files[0], "form");
+                      }
+                    }}
+                  />
+
+                  {imageUrl ? (
+                    <div className="space-y-3">
+                      <div className="relative w-full h-32 rounded-lg overflow-hidden border border-white/10 mx-auto max-w-xs bg-black">
+                        <img 
+                          src={imageUrl} 
+                          alt="Experience Preview" 
+                          className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute top-2 right-2 flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setImageUrl("")}
+                            className="p-1 rounded-full bg-black/70 hover:bg-rose-600 text-white transition-colors"
+                            title="Remove picture"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/80 backdrop-blur-sm text-[8px] font-mono font-bold text-emerald-400 flex items-center gap-1 border border-emerald-500/30">
+                          <Check className="w-2.5 h-2.5" />
+                          <span>Photo Attached</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploadingImage}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <Upload className="w-3 h-3" />
+                          Change Picture
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowManualUrlInput(!showManualUrlInput)}
+                          className="px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          {showManualUrlInput ? "Hide URL" : "Edit URL"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-2 space-y-2">
+                      <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mx-auto">
+                        {isUploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wide text-white">Drag & drop experience picture here</p>
+                        <p className="text-[9px] text-zinc-500 mt-0.5">or choose a picture file directly from your computer / phone</p>
+                      </div>
+                      <div className="flex items-center justify-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploadingImage}
+                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                        >
+                          <Upload className="w-3 h-3" />
+                          Browse Device Files
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowManualUrlInput(!showManualUrlInput)}
+                          className="px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border border-white/5"
+                        >
+                          Paste URL
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {uploadStatusMsg && (
+                    <div className="mt-2 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 py-1 px-2 rounded-md border border-emerald-500/20 flex items-center justify-center gap-1">
+                      <Check className="w-3 h-3" />
+                      <span>{uploadStatusMsg}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Optional Manual URL Input */}
+                {showManualUrlInput && (
+                  <div className="space-y-1 pt-1 border-t border-white/5">
+                    <label className="text-[8px] font-black uppercase tracking-wider text-zinc-400">Direct Web Image URL</label>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="https://... or /postimages/..."
+                        value={imageUrl}
+                        onChange={(e) => setImageUrl(e.target.value)}
+                        className="flex-1 bg-zinc-900 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
+                      />
+                      {imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setImageUrl("")}
+                          className="px-2 py-1 bg-zinc-900 text-zinc-400 hover:text-white rounded-lg text-[9px]"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick Pick Presets */}
+                <div className="space-y-1.5 pt-2 border-t border-white/5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[8px] font-black uppercase tracking-wider text-zinc-500">Verified Photo Library Presets</span>
+                    <span className="text-[8px] text-zinc-600">1-click attach</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto no-scrollbar">
+                    {PHOTO_PRESETS.map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setImageUrl(preset.url)}
+                        className={cn(
+                          "px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all border cursor-pointer",
+                          imageUrl === preset.url
+                            ? "bg-blue-600 border-blue-400 text-white shadow-sm"
+                            : preset.label.includes("Drew Lock")
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+                            : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-white hover:border-white/20"
+                        )}
+                      >
+                        <ImageIcon className="w-2.5 h-2.5 shrink-0" />
+                        <span>{preset.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Lists separated by commas */}
@@ -930,16 +1379,27 @@ export const ExperienceAdmin: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 gap-3">
               <div>
                 <h4 className="text-xs font-black uppercase tracking-widest text-white">OFFICIAL STADIUM & LEGENDS ROSTER ({experiences.length})</h4>
-                <p className="text-[9px] text-zinc-400 font-bold">Use 1-click price steppers to adjust live pricing instantly</p>
+                <p className="text-[9px] text-zinc-400 font-bold">Use 1-click price steppers or upload custom photos directly</p>
               </div>
-              <button
-                type="button"
-                onClick={handleSeedDefaultExperiences}
-                className="px-3.5 py-1.5 bg-blue-600/10 hover:bg-blue-600 border border-blue-500/20 text-blue-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Seed / Reset Official Experiences
-              </button>
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={handleSeedDrewLock}
+                  className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+                  title="Verify or seed Drew Lock experience starting from $1,000"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  + Drew Lock ($1,000)
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSeedDefaultExperiences}
+                  className="px-3 py-1.5 bg-blue-600/10 hover:bg-blue-600 border border-blue-500/20 text-blue-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Seed / Reset All
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4 overflow-y-auto max-h-[70vh] no-scrollbar pr-1">
@@ -947,16 +1407,45 @@ export const ExperienceAdmin: React.FC = () => {
                 <div key={exp.id} className="p-4 bg-zinc-950/80 border border-white/5 rounded-2xl space-y-3 hover:border-white/10 transition-colors">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-white/5">
+                      <div 
+                        onClick={() => {
+                          setQuickPhotoExp(exp);
+                          setQuickPhotoUrl(exp.imageUrl || "");
+                        }}
+                        className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-white/5 relative group cursor-pointer"
+                        title="Click to change or upload photo"
+                      >
                         <NFLImage item={exp} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <Camera className="w-4 h-4 text-white" />
+                        </div>
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-xs font-black uppercase tracking-tight text-white line-clamp-1">{exp.title}</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-black uppercase tracking-tight text-white line-clamp-1">{exp.title}</h4>
+                          {exp.id.includes("drew-lock") && (
+                            <span className="px-1.5 py-0.2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded text-[7px] font-black uppercase tracking-wider">
+                              $1,000
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[9px] font-black text-zinc-500 uppercase font-mono mt-0.5">{exp.category} · {exp.teamId} · {exp.location}</p>
                       </div>
                     </div>
 
                     <div className="flex gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuickPhotoExp(exp);
+                          setQuickPhotoUrl(exp.imageUrl || "");
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-blue-600/10 border border-blue-500/20 hover:bg-blue-600 hover:text-white text-blue-400 text-[9px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
+                        title="Upload or Change Photo"
+                      >
+                        <Camera className="w-3 h-3" />
+                        <span className="hidden sm:inline">Photo</span>
+                      </button>
                       <button
                         type="button"
                         onClick={() => startEdit(exp)}
@@ -1437,6 +1926,230 @@ export const ExperienceAdmin: React.FC = () => {
         onApprove={handleApproveBookingFromModal}
         onReject={handleRejectBookingFromModal}
       />
+
+      {/* QUICK PHOTO UPLOADER & ASSET MODAL FOR ROSTER ITEMS */}
+      <AnimatePresence>
+        {quickPhotoExp && (
+          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="p-5 border-b border-white/5 flex items-center justify-between bg-zinc-950/60">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase text-white tracking-wide">Update Experience Photo</h3>
+                    <p className="text-[10px] text-zinc-400 font-bold truncate max-w-xs">{quickPhotoExp.title}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickPhotoExp(null);
+                    setQuickPhotoUrl("");
+                  }}
+                  className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 space-y-4 overflow-y-auto">
+                <input
+                  ref={quickFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleUploadImageFile(e.target.files[0], "modal");
+                    }
+                  }}
+                />
+
+                {/* Upload & Preview Drop Zone */}
+                <div 
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      handleUploadImageFile(e.dataTransfer.files[0], "modal");
+                    }
+                  }}
+                  className="border-2 border-dashed border-white/10 rounded-2xl p-4 text-center bg-zinc-950/60 hover:border-white/20 transition-all"
+                >
+                  {quickPhotoUrl ? (
+                    <div className="space-y-3">
+                      <div className="relative w-full h-44 rounded-xl overflow-hidden border border-white/10 bg-black">
+                        <img
+                          src={quickPhotoUrl}
+                          alt="Staged Experience"
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute top-2 right-2">
+                          <button
+                            type="button"
+                            onClick={() => setQuickPhotoUrl("")}
+                            className="p-1.5 rounded-full bg-black/70 hover:bg-rose-600 text-white transition-colors"
+                            title="Clear image"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-md bg-black/80 backdrop-blur-sm text-[9px] font-mono font-bold text-emerald-400 flex items-center gap-1.5 border border-emerald-500/30">
+                          <Check className="w-3 h-3" />
+                          <span>Photo Staged for Save</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => quickFileInputRef.current?.click()}
+                          disabled={quickModalUploading}
+                          className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          Upload Different Image
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setQuickModalShowUrl(!quickModalShowUrl)}
+                          className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          {quickModalShowUrl ? "Hide URL" : "Edit URL"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-6 space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mx-auto">
+                        {quickModalUploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Camera className="w-6 h-6" />}
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wide text-white">Drag & drop photo from device</p>
+                        <p className="text-[10px] text-zinc-500 mt-0.5">Supports high-res PNG, JPG, and WEBP files</p>
+                      </div>
+                      <div className="flex items-center justify-center gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => quickFileInputRef.current?.click()}
+                          disabled={quickModalUploading}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          Browse Files
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setQuickModalShowUrl(!quickModalShowUrl)}
+                          className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          Paste URL
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {quickModalStatus && (
+                    <div className="mt-3 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 py-1.5 px-3 rounded-lg border border-emerald-500/20 flex items-center justify-center gap-1.5">
+                      <Check className="w-3 h-3" />
+                      <span>{quickModalStatus}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Direct Image URL input */}
+                {quickModalShowUrl && (
+                  <div className="space-y-1.5 p-3 bg-zinc-950/60 rounded-xl border border-white/5">
+                    <label className="text-[8px] font-black uppercase tracking-wider text-zinc-400">Direct Web Image URL</label>
+                    <input
+                      type="text"
+                      placeholder="https://... or /postimages/..."
+                      value={quickPhotoUrl}
+                      onChange={(e) => setQuickPhotoUrl(e.target.value)}
+                      className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none font-mono"
+                    />
+                  </div>
+                )}
+
+                {/* Preset Picker */}
+                <div className="space-y-2 pt-2 border-t border-white/5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-zinc-400">Verified Photo Library Presets</span>
+                    <span className="text-[8px] text-zinc-500">1-click attach</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto no-scrollbar pr-1">
+                    {PHOTO_PRESETS.map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setQuickPhotoUrl(preset.url)}
+                        className={cn(
+                          "p-2 rounded-xl text-left border flex items-center gap-2 transition-all cursor-pointer",
+                          quickPhotoUrl === preset.url
+                            ? "bg-blue-600/20 border-blue-500 text-white"
+                            : preset.label.includes("Drew Lock")
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+                            : "bg-zinc-950/80 border-white/5 text-zinc-400 hover:text-white hover:border-white/15"
+                        )}
+                      >
+                        <div className="w-8 h-8 rounded-lg overflow-hidden bg-black shrink-0 border border-white/5">
+                          <img src={preset.url} alt={preset.label} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[9px] font-black uppercase truncate">{preset.label}</p>
+                          <p className="text-[7px] text-zinc-500 uppercase">{preset.tag}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-5 border-t border-white/5 bg-zinc-950/60 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickPhotoExp(null);
+                    setQuickPhotoUrl("");
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveQuickPhoto}
+                  disabled={!quickPhotoUrl || isSavingQuickPhoto}
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-blue-600/20"
+                >
+                  {isSavingQuickPhoto ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Saving Photo...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      Save & Publish Photo
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
