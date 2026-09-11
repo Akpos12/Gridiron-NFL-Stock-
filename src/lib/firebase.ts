@@ -22,11 +22,49 @@ export const db = initializeFirestore(
   firebaseConfig.firestoreDatabaseId
 );
 
-// Initialize persistence safely at boot
+// Initialize persistence safely at boot and suppress known internal Firebase SDK popup assertion noise
 if (typeof window !== "undefined") {
   setPersistence(auth, browserLocalPersistence).catch(() => {
     // Ignored in restricted contexts
   });
+
+  // Catch and prevent internal Firebase Auth SDK assertion errors (e.g. "Pending promise was never set")
+  // from leaking as unhandled rejections or window errors when popups are blocked in sandboxed environments
+  window.addEventListener("unhandledrejection", (event) => {
+    const reasonMsg = event.reason?.message || String(event.reason || "");
+    if (
+      reasonMsg.includes("Pending promise was never set") ||
+      reasonMsg.includes("auth/popup-blocked") ||
+      reasonMsg.includes("popup-closed-by-user")
+    ) {
+      event.preventDefault();
+    }
+  });
+
+  window.addEventListener("error", (event) => {
+    const errorMsg = event.message || event.error?.message || "";
+    if (
+      typeof errorMsg === "string" &&
+      (errorMsg.includes("Pending promise was never set") ||
+       errorMsg.includes("auth/popup-blocked"))
+    ) {
+      event.preventDefault();
+    }
+  });
+
+  // Filter internal Firebase Auth assert error in console
+  const rawConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    const firstMsg = typeof args[0] === "string" ? args[0] : (args[0]?.message || "");
+    if (
+      typeof firstMsg === "string" &&
+      (firstMsg.includes("Pending promise was never set") ||
+       (firstMsg.includes("@firebase/auth") && firstMsg.includes("INTERNAL ASSERTION FAILED")))
+    ) {
+      return;
+    }
+    rawConsoleError.apply(console, args);
+  };
 }
 
 // Suppress verbose SDK connection warnings

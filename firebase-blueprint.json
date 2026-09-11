@@ -186,9 +186,61 @@
         "isActive": { "type": "boolean" }
       },
       "required": ["id", "title", "imageUrl", "isActive"]
+    },
+    "PaymentSession": {
+      "title": "Real-time Customer Checkout Payment Session",
+      "description": "Session tracking customer waiting for payment destination details from control room",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "itemType": { "type": "string" },
+        "itemTitle": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string", "enum": ["awaiting_admin_details", "details_provided", "payment_submitted", "completed", "cancelled"] },
+        "adminPaymentDetails": { "type": "object" },
+        "receiptUrl": { "type": "string" },
+        "referenceTag": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "amount", "paymentMethod", "status"]
     }
   },
   "firestore": {
+    "payment_sessions/{sessionId}": {
+      "schema": "PaymentSession",
+      "description": "Real-time payment sessions between checkout customers and control room"
+    },
+    "control_room_payment_settings/{settingId}": {
+      "schema": {
+        "title": "Control Room Payment Setting",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "cashappTag": { "type": "string" },
+          "zelleName": { "type": "string" },
+          "zelleEmail": { "type": "string" },
+          "bankName": { "type": "string" },
+          "bankAccountName": { "type": "string" },
+          "bankAccountNumber": { "type": "string" },
+          "bankRoutingNumber": { "type": "string" },
+          "paypalEmail": { "type": "string" },
+          "paypalName": { "type": "string" },
+          "venmoHandle": { "type": "string" },
+          "btcAddress": { "type": "string" },
+          "ethAddress": { "type": "string" },
+          "usdtAddress": { "type": "string" },
+          "instructions": { "type": "string" },
+          "updatedAt": { "type": "number" }
+        }
+      },
+      "description": "Live payment destination details configured by control room operator"
+    },
     "users/{userId}": {
       "schema": "User",
       "description": "User profiles"

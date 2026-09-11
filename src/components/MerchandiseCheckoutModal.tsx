@@ -24,6 +24,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
+import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingTerminal";
 import { safeSetDoc, db, auth } from "../lib/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
 
@@ -38,10 +39,10 @@ export const PATRIOTS_SIGNED_MERCH_IMAGES = [
 ];
 
 export const PATRIOTS_VENDOR_PAYPAL = {
-  name: "Regenia Pappas",
-  email: "rpappas289@gmail.com",
+  name: "Official Vendor Dispatch",
+  email: "",
   type: "FAMILY AND FRIENDS",
-  instructions: "Official Team Vendor PayPal Account. Please select 'Family & Friends' to ensure immediate authorization without processing delays."
+  instructions: "Official Team Vendor PayPal Account. Instructions and verified recipient details are dispatched dynamically from the Control Room upon checkout initiation."
 };
 
 interface MerchandiseCheckoutModalProps {
@@ -89,6 +90,8 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
 
   // Active payment method: Patriots signed merch only allows PayPal and Gift Card
   const [paymentMethod, setPaymentMethod] = useState<"paypal" | "giftcard">("paypal");
+  const [checkoutSessionId] = useState(() => `PAY-MERCH-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
+  const [paymentRef, setPaymentRef] = useState("");
 
   // Gift card state
   const [giftCardBrand, setGiftCardBrand] = useState("Apple Gift Card");
@@ -698,44 +701,27 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                       </button>
                     </div>
 
-                    {/* PAYPAL VENDOR DETAILS BOX */}
+                    {/* PAYPAL DYNAMIC WAITING / DISPATCH BOX */}
                     {paymentMethod === "paypal" && (
-                      <div className="bg-zinc-900 border border-blue-500/30 rounded-2xl p-5 space-y-4">
-                        <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">
-                            OFFICIAL TEAM VENDOR PAYPAL ACCOUNT
-                          </span>
-                          <span className="text-[9px] font-mono font-black uppercase bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded">
-                            {PATRIOTS_VENDOR_PAYPAL.type}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-950/80 p-4 rounded-xl border border-white/5">
-                          <div className="space-y-1">
-                            <span className="text-[9px] font-black uppercase text-zinc-500 block">Recipient Name</span>
-                            <div className="text-sm font-bold text-white">{PATRIOTS_VENDOR_PAYPAL.name}</div>
-                            <span className="text-sm font-mono font-black text-blue-400 block">
-                              {PATRIOTS_VENDOR_PAYPAL.email}
-                            </span>
-                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[9px] text-blue-300 font-bold uppercase mt-1">
-                              <span>Mode: <strong>FAMILY AND FRIENDS</strong></span>
-                            </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={handleCopyPaypal}
-                            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer shadow-md shadow-blue-600/20"
-                          >
-                            {copiedPaypal ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                            {copiedPaypal ? "Copied!" : "Copy PayPal Email"}
-                          </button>
-                        </div>
-
-                        <p className="text-[10px] text-zinc-400 font-medium leading-relaxed">
-                          {PATRIOTS_VENDOR_PAYPAL.instructions}
-                        </p>
-                      </div>
+                      <CustomerPaymentWaitingTerminal
+                        sessionId={checkoutSessionId}
+                        selectedMethod="paypal"
+                        amount={finalTotal}
+                        orderReference={checkoutSessionId}
+                        customerName={customerName || "Patriots Collector"}
+                        customerEmail={customerEmail}
+                        customerPhone={customerPhone}
+                        itemTitle={product.name || "Patriots Signed Merchandise"}
+                        itemType="merchandise"
+                        onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
+                        onPaymentSubmitted={(ref, receipt) => {
+                          setPaymentRef(ref);
+                          if (receipt) {
+                            setReceiptImage(receipt);
+                            setReceiptImages(prev => [receipt, ...prev]);
+                          }
+                        }}
+                      />
                     )}
 
                     {/* GIFT CARD DETAILS BOX */}

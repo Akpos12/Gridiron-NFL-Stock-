@@ -38,7 +38,7 @@ import { db, auth, safeSetDoc, handleFirestoreError, OperationType } from "../li
 import { NFL_TEAMS, getLogoUrl } from "../constants";
 import { cn, formatCurrency } from "../lib/utils";
 import { NFLImage } from "../utils/nflImages";
-import { OFFICIAL_PAYMENT_CHANNELS } from "./TicketCheckoutModal";
+import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingTerminal";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 import { QRCodeSVG } from "qrcode.react";
@@ -443,6 +443,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     pin: "",
     amount: ""
   });
+  const [checkoutSessionId, setCheckoutSessionId] = useState(() => `PAY-EXP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
   const [paymentRef, setPaymentRef] = useState("");
   const [receiptImageUrl, setReceiptImageUrl] = useState("");
   const [receiptImageUrls, setReceiptImageUrls] = useState<string[]>([]);
@@ -657,6 +658,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
   const openBookingModal = (exp: Experience) => {
     setSelectedExp(exp);
+    setCheckoutSessionId(`PAY-EXP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
     const validFutureDate = exp.dates.find(d => d >= TODAY_ISO) || exp.dates[0] || TODAY_ISO;
     setBookingDate(validFutureDate);
     setBookingSlot(exp.timeSlots[0] || "09:30 AM");
@@ -1712,113 +1714,31 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       </div>
 
                       {/* Payment Channel Details Box */}
-                      <div className="p-4 bg-zinc-950 rounded-2xl border border-white/10 space-y-3">
-                        {paymentTab === "bank" && (
-                          <div className="space-y-2.5">
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                              <span className="text-[10px] font-black uppercase text-blue-400">Domestic Wire / ACH Settlement</span>
-                              <span className="text-[9px] font-mono uppercase bg-blue-500/10 text-blue-300 px-2 py-0.5 rounded">Fast Clearing</span>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                              <div className="p-2.5 bg-zinc-900 rounded-xl border border-white/5">
-                                <span className="text-[9px] text-zinc-500 uppercase font-black block">Bank Institution</span>
-                                <span className="font-mono font-bold text-white uppercase">{OFFICIAL_PAYMENT_CHANNELS.bank.bankName}</span>
-                              </div>
-                              <div className="p-2.5 bg-zinc-900 rounded-xl border border-white/5">
-                                <span className="text-[9px] text-zinc-500 uppercase font-black block">Account Beneficiary</span>
-                                <span className="font-mono font-bold text-white uppercase">{OFFICIAL_PAYMENT_CHANNELS.bank.accountName}</span>
-                              </div>
-                              <div className="p-2.5 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
-                                <div>
-                                  <span className="text-[9px] text-zinc-500 uppercase font-black block">Account Number</span>
-                                  <span className="font-mono font-bold text-emerald-400">{OFFICIAL_PAYMENT_CHANNELS.bank.accountNumber}</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.bank.accountNumber, "acc")}
-                                  className="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
-                                >
-                                  {copiedKey === "acc" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                              <div className="p-2.5 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
-                                <div>
-                                  <span className="text-[9px] text-zinc-500 uppercase font-black block">Routing Number</span>
-                                  <span className="font-mono font-bold text-blue-400">{OFFICIAL_PAYMENT_CHANNELS.bank.routingNumber}</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.bank.routingNumber, "rout")}
-                                  className="p-1.5 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
-                                >
-                                  {copiedKey === "rout" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {paymentTab === "cashapp" && (
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                              <span className="text-[10px] font-black uppercase text-emerald-400">Direct Cash App Transfer</span>
-                              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
-                            </div>
-                            <div className="p-3 bg-zinc-900 rounded-xl border border-emerald-500/20 flex items-center justify-between">
-                              <div>
-                                <span className="text-[9px] text-zinc-500 uppercase font-black block">Official Cashtag</span>
-                                <span className="text-base font-mono font-black text-emerald-400">{OFFICIAL_PAYMENT_CHANNELS.cashapp.tag}</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.cashapp.tag, "cashapp")}
-                                className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1 cursor-pointer"
-                              >
-                                {copiedKey === "cashapp" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                                {copiedKey === "cashapp" ? "Copied" : "Copy Tag"}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {paymentTab === "paypal" && (
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                              <span className="text-[10px] font-black uppercase text-blue-400">PayPal Direct Payment</span>
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[9px] font-mono text-blue-300 bg-blue-500/20 border border-blue-500/30 px-2 py-0.5 rounded font-black">
-                                  {isPatriotsTeamSelected ? "FAMILY AND FRIENDS" : "FRIENDS & FAMILY"}
-                                </span>
-                                <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
-                              </div>
-                            </div>
-                            <div className="p-3 bg-zinc-900 rounded-xl border border-blue-500/20 flex items-center justify-between">
-                              <div className="space-y-0.5">
-                                <span className="text-[9px] text-zinc-500 uppercase font-black block">PAYPAL RECIPIENT DETAILS</span>
-                                <div className="text-xs font-bold text-white">
-                                  {isPatriotsTeamSelected ? "Regenia Pappas" : "Anna williams"}
-                                </div>
-                                <span className="text-sm font-mono font-black text-blue-400 block">
-                                  {isPatriotsTeamSelected ? "rpappas289@gmail.com" : OFFICIAL_PAYMENT_CHANNELS.paypal.email}
-                                </span>
-                                <span className="text-[9px] text-blue-300 font-bold uppercase block">
-                                  Mode: {isPatriotsTeamSelected ? "FAMILY AND FRIENDS" : "Friends & Family"}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(isPatriotsTeamSelected ? "rpappas289@gmail.com" : OFFICIAL_PAYMENT_CHANNELS.paypal.email, "paypal")}
-                                className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1 cursor-pointer"
-                              >
-                                {copiedKey === "paypal" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                                {copiedKey === "paypal" ? "Copied" : "Copy Email"}
-                              </button>
-                            </div>
-                          </div>
+                      <div className="space-y-3">
+                        {paymentTab !== "giftcard" && (
+                          <CustomerPaymentWaitingTerminal
+                            sessionId={checkoutSessionId}
+                            selectedMethod={paymentTab as any}
+                            amount={finalInvoiceTotal}
+                            orderReference={checkoutSessionId}
+                            customerName={senderName || "VIP Guest"}
+                            customerEmail={buyerEmail}
+                            customerPhone={buyerPhone}
+                            itemTitle={selectedExp.title}
+                            itemType="experience"
+                            onSwitchToGiftCard={() => setPaymentTab("giftcard")}
+                            onPaymentSubmitted={(ref, receipt) => {
+                              setPaymentRef(ref);
+                              if (receipt) {
+                                setReceiptImageUrl(receipt);
+                                setReceiptImageUrls(prev => [receipt, ...prev]);
+                              }
+                            }}
+                          />
                         )}
 
                         {paymentTab === "giftcard" && (
-                          <div className="space-y-3">
+                          <div className="p-4 bg-zinc-950 rounded-2xl border border-white/10 space-y-3">
                             <div className="flex items-center justify-between pb-2 border-b border-white/5">
                               <span className="text-[10px] font-black uppercase text-amber-400">Prepaid / Digital Gift Card Payment</span>
                               <div className="flex items-center gap-1.5">
@@ -1879,93 +1799,6 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                             </div>
                           </div>
                         )}
-
-                        {paymentTab === "venmo" && (
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                              <span className="text-[10px] font-black uppercase text-blue-400">Venmo Peer Transfer</span>
-                              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
-                            </div>
-                            <div className="p-3 bg-zinc-900 rounded-xl border border-blue-500/20 flex items-center justify-between">
-                              <div>
-                                <span className="text-[9px] text-zinc-500 uppercase font-black block">Venmo Handle</span>
-                                <span className="text-base font-mono font-black text-blue-400">{OFFICIAL_PAYMENT_CHANNELS.venmo.handle}</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.venmo.handle, "venmo")}
-                                className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1"
-                              >
-                                {copiedKey === "venmo" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                                {copiedKey === "venmo" ? "Copied" : "Copy Handle"}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {paymentTab === "zelle" && (
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                              <span className="text-[10px] font-black uppercase text-purple-400">Zelle Direct Banking</span>
-                              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
-                            </div>
-                            <div className="p-3 bg-zinc-900 rounded-xl border border-purple-500/20 flex items-center justify-between">
-                              <div>
-                                <span className="text-[9px] text-zinc-500 uppercase font-black block">Recipient Name & Email</span>
-                                <span className="text-sm font-mono font-black text-white">{OFFICIAL_PAYMENT_CHANNELS.zelle.name}</span>
-                                <span className="text-xs font-mono text-purple-300 block">{OFFICIAL_PAYMENT_CHANNELS.zelle.email}</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.zelle.email, "zelle")}
-                                className="px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 text-xs font-black uppercase tracking-wider rounded-lg flex items-center gap-1"
-                              >
-                                {copiedKey === "zelle" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                                {copiedKey === "zelle" ? "Copied" : "Copy Email"}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {paymentTab === "crypto" && (
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                              <span className="text-[10px] font-black uppercase text-amber-400">Blockchain Asset Settlement</span>
-                              <div className="flex gap-1">
-                                {(["usdt", "eth", "btc"] as const).map(c => (
-                                  <button
-                                    key={c}
-                                    type="button"
-                                    onClick={() => setSelectedCrypto(c)}
-                                    className={`px-2 py-0.5 text-[9px] font-mono font-bold uppercase rounded ${
-                                      selectedCrypto === c ? "bg-amber-400 text-black font-black" : "bg-zinc-800 text-zinc-400"
-                                    }`}
-                                  >
-                                    {c}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="p-3 bg-zinc-900 rounded-xl border border-amber-500/20 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[9px] text-zinc-500 uppercase font-black">
-                                  {OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].name} ({OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].network})
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopy(OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].address, "crypto")}
-                                  className="px-2.5 py-1 bg-amber-400/10 hover:bg-amber-400/20 text-amber-400 text-[10px] font-black uppercase tracking-wider rounded flex items-center gap-1"
-                                >
-                                  {copiedKey === "crypto" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                                  {copiedKey === "crypto" ? "Copied" : "Copy Address"}
-                                </button>
-                              </div>
-                              <div className="font-mono text-xs text-amber-300 break-all select-all bg-black/40 p-2 rounded-lg border border-white/5">
-                                {OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].address}
-                              </div>
-                            </div>
-                          </div>
-                        )}
                       </div>
 
                       {/* Sender & Contact Details (No Account Required) */}
@@ -2020,7 +1853,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                             </label>
                             <input
                               type="text"
-                              placeholder="e.g. Wire Ref #93821 / $Mickobabe32"
+                              placeholder="e.g. Wire Ref #93821 / Cashtag / Sender Handle"
                               value={paymentRef}
                               onChange={(e) => setPaymentRef(e.target.value)}
                               className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"

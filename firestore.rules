@@ -132,6 +132,16 @@ service cloud.firestore {
       allow read, list: if true;
       allow write: if true;
     }
+
+    match /payment_sessions/{sessionId} {
+      allow read, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    match /control_room_payment_settings/{settingId} {
+      allow read, list: if true;
+      allow create, update, delete: if true;
+    }
   }
 }
 

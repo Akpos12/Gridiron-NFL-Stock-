@@ -43,6 +43,7 @@ import { Experience, Booking } from "./ExperiencesSection";
 import { PromoBanner } from "./PromoSlider";
 import { NFLImage } from "../utils/nflImages";
 import { ReceiptReviewModal, BookingAuditItem } from "./common/ReceiptReviewModal";
+import { ControlRoomPaymentDispatcher } from "./common/ControlRoomPaymentDispatcher";
 
 const PHOTO_PRESETS = [
   { label: "Drew Lock (QB)", url: "/postimages/Drew-Lock.jpg", tag: "Drew Lock" },
@@ -63,7 +64,7 @@ export const ExperienceAdmin: React.FC = () => {
   const [banners, setBanners] = useState<PromoBanner[]>([]);
   
   // Tab states
-  const [adminTab, setAdminTab] = useState<"experiences" | "bookings" | "banners" | "analytics">("experiences");
+  const [adminTab, setAdminTab] = useState<"experiences" | "bookings" | "banners" | "analytics" | "payments">("experiences");
 
   // Booking Receipt Review modal state
   const [selectedBookingForReview, setSelectedBookingForReview] = useState<BookingAuditItem | null>(null);
@@ -804,10 +805,11 @@ export const ExperienceAdmin: React.FC = () => {
         </div>
 
         {/* Tab triggers */}
-        <div className="flex bg-zinc-900/40 border border-white/5 p-1 rounded-2xl">
+        <div className="flex bg-zinc-900/40 border border-white/5 p-1 rounded-2xl overflow-x-auto no-scrollbar">
           {([
             { id: "experiences", label: "Experiences" },
             { id: "bookings", label: "Audits" },
+            { id: "payments", label: "Payment Dispatcher" },
             { id: "banners", label: "Promo Sliders" },
             { id: "analytics", label: "Analytics" }
           ] as const).map(tab => (
@@ -1913,6 +1915,11 @@ export const ExperienceAdmin: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* RENDER CONTROL ROOM PAYMENT DISPATCHER TAB */}
+      {adminTab === "payments" && (
+        <ControlRoomPaymentDispatcher />
       )}
 
       {/* RECEIPT REVIEW & MANAGEMENT APPROVAL MODAL */}

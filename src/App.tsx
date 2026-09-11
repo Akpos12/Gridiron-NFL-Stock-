@@ -102,6 +102,7 @@ import { GiveawayControlRoom } from "./components/giveaway/GiveawayControlRoom";
 import { WinnerTicker } from "./components/giveaway/WinnerTicker";
 import { TicketCheckoutModal, GameTicket } from "./components/TicketCheckoutModal";
 import { MerchandiseCheckoutModal, PATRIOTS_SIGNED_MERCH_IMAGES } from "./components/MerchandiseCheckoutModal";
+import { CustomerPaymentWaitingTerminal } from "./components/common/CustomerPaymentWaitingTerminal";
 import { MerchandiseVaultSection } from "./components/MerchandiseVaultSection";
 import { CustomerCareWidget } from "./components/CustomerCareWidget";
 import { ReceiptReviewModal, BookingAuditItem } from "./components/common/ReceiptReviewModal";
@@ -243,6 +244,7 @@ const WalletModal = ({
   const [txHash, setTxHash] = useState<string | null>(null);
 
   // Deposit Notification state
+  const [depositSessionId, setDepositSessionId] = useState(() => `DEP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
   const [depositAmount, setDepositAmount] = useState("");
   const [depositReference, setDepositReference] = useState("");
   const [depositNotes, setDepositNotes] = useState("");
@@ -463,217 +465,24 @@ const WalletModal = ({
               ))}
             </div>
 
-            {depositMethod === "bank" && (
-              <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 space-y-3">
-                <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                  <span className="text-xs font-black uppercase text-white flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-blue-400" /> BMO Bank Wire & Direct ACH
-                  </span>
-                  <span className="text-[9px] font-mono bg-blue-600/10 text-blue-400 px-2 py-0.5 rounded font-black uppercase">
-                    Domestic ACH / Wire
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex justify-between items-center">
-                    <div>
-                      <span className="text-[8px] font-black uppercase text-zinc-500 block">Bank Name</span>
-                      <span className="font-bold text-white">BMO bank</span>
-                    </div>
-                    <button onClick={() => copyToClipboard("BMO bank", "depBank")}>
-                      {copied === "depBank" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
-                    </button>
-                  </div>
-                  <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex justify-between items-center">
-                    <div>
-                      <span className="text-[8px] font-black uppercase text-zinc-500 block">Account Name</span>
-                      <span className="font-bold text-white">Matthew Golom</span>
-                    </div>
-                    <button onClick={() => copyToClipboard("Matthew Golom", "depName")}>
-                      {copied === "depName" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
-                    </button>
-                  </div>
-                  <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex justify-between items-center">
-                    <div>
-                      <span className="text-[8px] font-black uppercase text-zinc-500 block">Account Number</span>
-                      <span className="font-mono font-black text-cyan-300">4859176529</span>
-                    </div>
-                    <button onClick={() => copyToClipboard("4859176529", "depAcc")}>
-                      {copied === "depAcc" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
-                    </button>
-                  </div>
-                  <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex justify-between items-center">
-                    <div>
-                      <span className="text-[8px] font-black uppercase text-zinc-500 block">Routing / Routine Number</span>
-                      <span className="font-mono font-black text-amber-300">071025661</span>
-                    </div>
-                    <button onClick={() => copyToClipboard("071025661", "depRout")}>
-                      {copied === "depRout" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {depositMethod === "cashapp" && (
-              <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 space-y-3">
-                <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                  <span className="text-xs font-black uppercase text-white flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-emerald-400" /> Cash App Instant Deposit
-                  </span>
-                  <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-black uppercase">
-                    Zero Fees
-                  </span>
-                </div>
-                <div className="p-4 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
-                  <div>
-                    <span className="text-[8px] font-black uppercase text-zinc-500 block">Official Cashtag</span>
-                    <span className="text-lg font-mono font-black text-emerald-400">$Mickobabe32</span>
-                  </div>
-                  <button
-                    onClick={() => copyToClipboard("$Mickobabe32", "depCashapp")}
-                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all"
-                  >
-                    {copied === "depCashapp" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copied === "depCashapp" ? "Copied" : "Copy Cashtag"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {depositMethod === "venmo" && (
-              <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 space-y-3">
-                <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                  <span className="text-xs font-black uppercase text-white flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-blue-400" /> Venmo Instant Deposit
-                  </span>
-                </div>
-                <div className="p-4 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
-                  <div>
-                    <span className="text-[8px] font-black uppercase text-zinc-500 block">Official Venmo Handle</span>
-                    <span className="text-lg font-mono font-black text-blue-400">@DomickoChopin</span>
-                  </div>
-                  <button
-                    onClick={() => copyToClipboard("@DomickoChopin", "depVenmo")}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all"
-                  >
-                    {copied === "depVenmo" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copied === "depVenmo" ? "Copied" : "Copy Venmo"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {depositMethod === "zelle" && (
-              <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 space-y-3">
-                <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                  <span className="text-xs font-black uppercase text-white flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-purple-400" /> Zelle Bank Transfer
-                  </span>
-                </div>
-                <div className="p-4 bg-zinc-900 rounded-xl border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <span className="text-[8px] font-black uppercase text-zinc-500 block">Zelle Recipient Email & Name</span>
-                    <span className="text-sm font-mono font-black text-purple-300 block">matthewgolom21@gmail.com</span>
-                    <span className="text-[10px] text-zinc-400 font-bold uppercase">Name: Matthew Golom</span>
-                  </div>
-                  <button
-                    onClick={() => copyToClipboard("matthewgolom21@gmail.com", "depZelle")}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto"
-                  >
-                    {copied === "depZelle" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copied === "depZelle" ? "Copied" : "Copy Zelle"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {depositMethod === "crypto" && (
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  {[
-                    { id: "usdt", label: "USDT (ERC-20)" },
-                    { id: "btc", label: "BTC (Bitcoin)" },
-                    { id: "eth", label: "ETH (Ethereum)" }
-                  ].map(c => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setSelectedDepositCrypto(c.id as any)}
-                      className={cn(
-                        "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
-                        selectedDepositCrypto === c.id 
-                          ? "bg-blue-600 text-white" 
-                          : "bg-zinc-950 text-zinc-400 hover:text-white border border-white/5"
-                      )}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 space-y-3">
-                  {selectedDepositCrypto === "btc" && (
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Bitcoin (BTC Mainnet) Address</span>
-                        <button onClick={() => copyToClipboard("16246wmdY6kGfFkWevPKCQrTKH8CRJ62yJ", "btcDep")}>
-                          {copied === "btcDep" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
-                        </button>
-                      </div>
-                      <div className="flex flex-col sm:flex-row items-center gap-3 bg-zinc-900 p-3 rounded-xl">
-                        <div className="p-1.5 bg-white rounded-lg shrink-0 shadow">
-                          <QRCodeSVG value="16246wmdY6kGfFkWevPKCQrTKH8CRJ62yJ" size={72} level="M" />
-                        </div>
-                        <div className="min-w-0 flex-1 text-center sm:text-left">
-                          <p className="text-[10px] font-mono break-all text-emerald-400 select-all font-bold">16246wmdY6kGfFkWevPKCQrTKH8CRJ62yJ</p>
-                          <span className="text-[8px] text-zinc-500 block mt-1">Scannable BTC Deposit Address</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedDepositCrypto === "eth" && (
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ethereum (ETH ERC-20) Address</span>
-                        <button onClick={() => copyToClipboard("0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf", "ethDep")}>
-                          {copied === "ethDep" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
-                        </button>
-                      </div>
-                      <div className="flex flex-col sm:flex-row items-center gap-3 bg-zinc-900 p-3 rounded-xl">
-                        <div className="p-1.5 bg-white rounded-lg shrink-0 shadow">
-                          <QRCodeSVG value="0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf" size={72} level="M" />
-                        </div>
-                        <div className="min-w-0 flex-1 text-center sm:text-left">
-                          <p className="text-[10px] font-mono break-all text-emerald-400 select-all font-bold">0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf</p>
-                          <span className="text-[8px] text-zinc-500 block mt-1">Scannable ETH ERC-20 Address</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedDepositCrypto === "usdt" && (
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">USDT (Ethereum ERC-20) Address</span>
-                        <button onClick={() => copyToClipboard("0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf", "usdtDep")}>
-                          {copied === "usdtDep" ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-500 hover:text-white" />}
-                        </button>
-                      </div>
-                      <div className="flex flex-col sm:flex-row items-center gap-3 bg-zinc-900 p-3 rounded-xl">
-                        <div className="p-1.5 bg-white rounded-lg shrink-0 shadow">
-                          <QRCodeSVG value="0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf" size={72} level="M" />
-                        </div>
-                        <div className="min-w-0 flex-1 text-center sm:text-left">
-                          <p className="text-[10px] font-mono break-all text-emerald-400 select-all font-bold">0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf</p>
-                          <span className="text-[8px] text-zinc-500 block mt-1">Scannable USDT ERC-20 Address</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Dynamic Real-Time Payment Terminal for Deposits */}
+            <CustomerPaymentWaitingTerminal
+              sessionId={depositSessionId}
+              selectedMethod={depositMethod as any}
+              amount={parseFloat(depositAmount) || 100}
+              orderReference={depositSessionId}
+              customerName={auth.currentUser?.displayName || "VIP Member"}
+              customerEmail={auth.currentUser?.email || ""}
+              customerPhone=""
+              itemTitle="Account Balance Deposit"
+              itemType="deposit"
+              onPaymentSubmitted={(ref, receipt) => {
+                setDepositReference(ref);
+                if (receipt) {
+                  setDepositNotes(prev => prev ? `${prev} | Receipt: ${receipt}` : `Receipt: ${receipt}`);
+                }
+              }}
+            />
 
             {/* Deposit Verification & Proof Form */}
             <form onSubmit={handleInitiateDeposit} className="p-5 bg-zinc-950 rounded-2xl border border-white/10 space-y-4">
@@ -3964,25 +3773,44 @@ export default function App() {
     try {
       if (typeof e === "string") {
         if (e === "google") {
+          const isInIframe = typeof window !== "undefined" && window.self !== window.top;
+          if (isInIframe) {
+            setAuthError("POPUP_BLOCKED");
+            setAuthLoading(false);
+            return;
+          }
+
           const provider = new GoogleAuthProvider();
           provider.setCustomParameters({ prompt: "select_account" });
 
           let cred;
           try {
-            // Directly trigger signInWithPopup synchronously within user gesture context
             cred = await signInWithPopup(auth, provider);
           } catch (innerErr: any) {
-            console.error("Popup Error Detail:", innerErr);
+            console.warn("Google Sign-In caught response:", innerErr?.code || innerErr?.message);
+            if (
+              innerErr.code === "auth/popup-blocked" || 
+              innerErr.message?.includes("popup-blocked") ||
+              innerErr.message?.includes("Pending promise was never set") ||
+              innerErr.message?.includes("missing initial state") || 
+              innerErr.code === "auth/internal-error" || 
+              innerErr.code === "auth/cancelled-popup-request"
+            ) {
+              setAuthError("POPUP_BLOCKED");
+              return;
+            }
             if (innerErr.code === "auth/popup-closed-by-user") {
-              throw new Error("The sign-in popup was closed before completion. Please try again.");
+              setAuthError("Sign-in popup was closed before completion. Please try again or open the app in a new tab.");
+              return;
             }
-            if (innerErr.code === "auth/popup-blocked" || innerErr.message?.includes("popup-blocked")) {
-              throw new Error("Sign-in popup was blocked by your browser. Please allow popups or open the app in a new tab.");
+            if (innerErr.code === "auth/unauthorized-domain") {
+              const domain = window.location.hostname;
+              setAuthError(`DOMAIN RESTRICTION: "${domain}" is not whitelisted in Firebase Auth Authorized Domains.\n` + 
+                (isInIframe ? `Open the app in a new tab to bypass iframe security blocks.` : ""));
+              return;
             }
-            if (innerErr.message?.includes("missing initial state") || innerErr.code === "auth/internal-error" || innerErr.code === "auth/cancelled-popup-request") {
-              throw new Error("Popup was blocked or restricted in this window. Try opening the app in a new tab.");
-            }
-            throw innerErr;
+            setAuthError(innerErr.message || "Failed to sign in with Google. Please use Email or open in a new tab.");
+            return;
           }
 
           const userRef = doc(db, "users", cred.user.uid);
@@ -4065,7 +3893,7 @@ export default function App() {
           uid: cred.user.uid,
           displayName: rawIdentifier.split("@")[0],
           email,
-          balance: 0,
+          balance: 10000,
           createdAt: serverTimestamp()
         });
       } else {
@@ -4073,29 +3901,33 @@ export default function App() {
       }
       setShowLogin(false);
     } catch (err: any) {
-      console.error("Auth Error:", err);
-      let friendlyMessage = err.message;
-      if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found") {
-        friendlyMessage = isSignUp 
-          ? "Unable to create account with these credentials. Please check your email format or use a stronger password."
-          : "Invalid access key or password. If you haven't registered, please switch to 'Sign Up' below.";
-      } else if (err.code === "auth/unauthorized-domain") {
-        const domain = window.location.hostname;
-        const isInIframe = window.self !== window.top;
-        console.error("FIREBASE UNAUTHORIZED DOMAIN ERROR:", domain);
-        friendlyMessage = `DOMAIN RESTRICTION: "${domain}" is not whitelisted.\n\n` + 
-          `1. Go to Firebase Console > Authentication > Settings > Authorized Domains and add "${domain}".\n` +
-          `2. Go to Google Cloud Console > APIs & Services > OAuth consent screen and add "${domain}" to 'Authorized domains'.\n` +
-          `3. Wait ~5-10 minutes for propagation.\n` +
-          (isInIframe ? `4. IMPORTANT: You are in an iframe. Use the "Open in new tab" button to avoid security blocks.` : "");
-      } else if (err.code === "auth/invalid-email") {
-        friendlyMessage = "Standard formatting required (e.g., name@domain.com).";
-      } else if (err.code === "auth/weak-password") {
-        friendlyMessage = "Security requirement: Password must be at least 6 characters.";
-      } else if (err.code === "auth/email-already-in-use") {
-        friendlyMessage = "This identity is already registered in our terminal. Please sign in instead.";
+      if (err.code === "auth/popup-blocked" || err.code === "auth/popup-closed-by-user" || err.message?.includes("popup-blocked")) {
+        console.warn("Popup blocked/closed notice:", err.message);
+        setAuthError("POPUP_BLOCKED");
+      } else {
+        console.error("Auth Error:", err);
+        let friendlyMessage = err.message;
+        if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found") {
+          friendlyMessage = isSignUp 
+            ? "Unable to create account with these credentials. Please check your email format or use a stronger password."
+            : "Invalid access key or password. If you haven't registered, please switch to 'Sign Up' below.";
+        } else if (err.code === "auth/unauthorized-domain") {
+          const domain = window.location.hostname;
+          const isInIframe = typeof window !== "undefined" && window.self !== window.top;
+          friendlyMessage = `DOMAIN RESTRICTION: "${domain}" is not whitelisted.\n\n` + 
+            `1. Go to Firebase Console > Authentication > Settings > Authorized Domains and add "${domain}".\n` +
+            `2. Go to Google Cloud Console > APIs & Services > OAuth consent screen and add "${domain}" to 'Authorized domains'.\n` +
+            `3. Wait ~5-10 minutes for propagation.\n` +
+            (isInIframe ? `4. IMPORTANT: You are in an iframe. Use the "Open in new tab" button to avoid security blocks.` : "");
+        } else if (err.code === "auth/invalid-email") {
+          friendlyMessage = "Standard formatting required (e.g., name@domain.com).";
+        } else if (err.code === "auth/weak-password") {
+          friendlyMessage = "Security requirement: Password must be at least 6 characters.";
+        } else if (err.code === "auth/email-already-in-use") {
+          friendlyMessage = "This identity is already registered in our terminal. Please sign in instead.";
+        }
+        setAuthError(friendlyMessage);
       }
-      setAuthError(friendlyMessage);
     } finally {
       setAuthLoading(false);
     }
@@ -6148,7 +5980,33 @@ export default function App() {
               </div>
 
               <form onSubmit={handleAuth} className="space-y-6">
-                {authError && (
+                {authError === "POPUP_BLOCKED" ? (
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl space-y-3 text-left">
+                    <div className="flex gap-2.5 items-start text-amber-300">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                      <div className="space-y-1">
+                        <span className="text-[11px] font-black uppercase tracking-wider block">
+                          Browser Blocked Google Sign-In Popup
+                        </span>
+                        <p className="text-[10px] text-zinc-400 normal-case leading-relaxed font-medium">
+                          Because this terminal is running in a sandboxed preview iframe, your browser prevented Google's authentication window from opening. Choose a quick option below:
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-1">
+                      <a 
+                        href={window.location.href} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-600/20 cursor-pointer"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Open App in New Tab (Bypasses Popup Blocker)
+                      </a>
+                    </div>
+                  </div>
+                ) : authError ? (
                   <div className="flex flex-col gap-3 p-4 bg-rose-500/10 border border-rose-500/25 rounded-2xl">
                     <div className="flex gap-3 text-[10px] font-black uppercase text-rose-300 tracking-wider items-start leading-relaxed">
                       <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
@@ -6168,7 +6026,7 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                )}
+                ) : null}
                 
                 <div className="space-y-4">
                   <div>
@@ -6226,11 +6084,11 @@ export default function App() {
               <div className="mt-6 space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="flex-1 h-px bg-white/5" />
-                  <span className="text-[8px] font-black uppercase tracking-[0.4em] text-zinc-600">Quick Access & SSO</span>
+                  <span className="text-[8px] font-black uppercase tracking-[0.4em] text-zinc-600">Institutional SSO</span>
                   <div className="flex-1 h-px bg-white/5" />
                 </div>
                 
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   <button 
                     onClick={() => handleAuth("google")}
                     disabled={authLoading}
@@ -6247,6 +6105,20 @@ export default function App() {
                       </>
                     )}
                   </button>
+
+                  {typeof window !== "undefined" && window.self !== window.top && (
+                    <div className="flex items-center justify-between text-[9px] text-zinc-500 pt-1 px-1">
+                      <span className="text-zinc-500">Iframe preview mode</span>
+                      <a 
+                        href={window.location.href} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-bold"
+                      >
+                        Open in New Tab <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
 

