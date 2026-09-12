@@ -107,6 +107,11 @@ export function getNFLImage(item: {
     if (normId.includes("DREW-LOCK") || normTitle.includes("drew lock") || (item.player && item.player.toLowerCase().includes("drew lock"))) {
       return "/postimages/Drew-Lock.jpg";
     }
+
+    // Explicit Jalen Pitre Safety asset
+    if (normId.includes("JALEN-PITRE") || normTitle.includes("jalen pitre") || (item.player && item.player.toLowerCase().includes("jalen pitre"))) {
+      return "https://i.postimg.cc/BZd3zjw3/tank-dell.jpg";
+    }
     
     // 1. EXTRACT TEAM
     let teamId = (item.teamId || "").toUpperCase();
@@ -281,6 +286,11 @@ export const NFLImage: React.FC<NFLImageProps> = ({ item, className, style, alt 
   const handleError = () => {
     if (attemptCount === 0) {
       setAttemptCount(1);
+      // Local mirror fallback for tank-dell / Jalen Pitre asset
+      if (currentSrc && currentSrc.includes("tank-dell.jpg") && !currentSrc.startsWith("/postimages/")) {
+        setCurrentSrc("/postimages/tank-dell.jpg");
+        return;
+      }
       // Attempt 1: If it was a raw URL, try weserv.nl proxy
       if (currentSrc && !currentSrc.includes("weserv.nl") && currentSrc.startsWith("http")) {
         setCurrentSrc(`https://images.weserv.nl/?url=${encodeURIComponent(currentSrc)}`);

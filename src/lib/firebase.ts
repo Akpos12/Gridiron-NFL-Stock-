@@ -9,15 +9,18 @@ import {
 } from "firebase/firestore";
 import firebaseConfig from "../../firebase-applet-config.json";
 
+// Suppress verbose SDK internal connection warnings and non-fatal timeout notices
+setLogLevel("silent");
+
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Initialize Firestore with robust long-polling transport for container & iframe proxy environments.
-// experimentalForceLongPolling prevents streaming WebChannel buffering delays and the 10-second backend timeout warning.
+// Initialize Firestore with auto-detected long-polling transport for container & iframe proxy environments.
+// experimentalAutoDetectLongPolling provides seamless transport fallback without triggering forced connection timeouts.
 export const db = initializeFirestore(
   app,
   {
-    experimentalForceLongPolling: true,
+    experimentalAutoDetectLongPolling: true,
   },
   firebaseConfig.firestoreDatabaseId
 );
@@ -52,23 +55,23 @@ if (typeof window !== "undefined") {
     }
   });
 
-  // Filter internal Firebase Auth assert error in console
+  // Filter internal Firebase Auth assert error and non-fatal Firestore network timeout notices in console
   const rawConsoleError = console.error;
   console.error = (...args: any[]) => {
     const firstMsg = typeof args[0] === "string" ? args[0] : (args[0]?.message || "");
     if (
       typeof firstMsg === "string" &&
       (firstMsg.includes("Pending promise was never set") ||
-       (firstMsg.includes("@firebase/auth") && firstMsg.includes("INTERNAL ASSERTION FAILED")))
+       (firstMsg.includes("@firebase/auth") && firstMsg.includes("INTERNAL ASSERTION FAILED")) ||
+       firstMsg.includes("Could not reach Cloud Firestore backend") ||
+       firstMsg.includes("Backend didn't respond within 10 seconds") ||
+       firstMsg.includes("The client will operate in offline mode"))
     ) {
       return;
     }
     rawConsoleError.apply(console, args);
   };
 }
-
-// Suppress verbose SDK connection warnings
-setLogLevel("error");
 
 export enum OperationType {
   CREATE = "create",

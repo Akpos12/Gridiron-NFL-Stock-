@@ -46,6 +46,9 @@ export interface TicketPassInfo {
   seatInfo?: string;
   gateInfo?: string;
   sectionInfo?: string;
+  installmentPlan?: string;
+  installmentTerms?: string;
+  installmentDueToday?: number | string;
 }
 
 export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
@@ -92,10 +95,13 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   const attendeeName = ticket.buyerName || ticket.senderName || (isStockholder ? "Jayne Welage" : "VIP Passholder");
   const attendeeEmail = ticket.buyerEmail || ticket.userEmail || "attendee@nflgridiron.com";
   
-  const eventDate = isDateTbd ? "TBD (Schedule Notice Pending)" : ticket.date!;
-  const eventTime = isDateTbd 
-    ? "TBA (Stockholder Briefing Notice)" 
-    : (ticket.time || ticket.timeSlot || "Kickoff Time (TBA)");
+  const isAwaitingPlayer = ticket.date && (ticket.date.toLowerCase().includes("awaiting player") || ticket.date.toLowerCase().includes("player-coordinated"));
+  const eventDate = isAwaitingPlayer
+    ? "COORDINATED BY PLAYER (TBA)"
+    : (isDateTbd ? "TBD (Schedule Notice Pending)" : ticket.date!);
+  const eventTime = isAwaitingPlayer
+    ? "PLAYER DESIGNATED WINDOW"
+    : (isDateTbd ? "TBA (Stockholder Briefing Notice)" : (ticket.time || ticket.timeSlot || "Kickoff Time (TBA)"));
 
   const venue = ticket.stadium || (ticket.city ? `${ticket.city} Stadium Arena` : "Official NFL Stadium");
   const venueLocation = ticket.city || "United States";
@@ -256,6 +262,10 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
     doc.setTextColor(52, 211, 153); // Emerald
     doc.setFontSize(6.5);
     doc.text("STOCKHOLDER PRIVILEGE (CLEARED)", margin + 98, curY + 20);
+  } else if (ticket.installmentPlan && ticket.installmentPlan !== "full") {
+    doc.setTextColor(245, 158, 11); // Amber
+    doc.setFontSize(6.5);
+    doc.text(`${ticket.installmentPlan === "2x" ? "2-PART" : "3-PART"} INSTALLMENT (PAID: $${Number(totalPaid).toLocaleString()})`, margin + 98, curY + 20);
   } else {
     doc.setTextColor(156, 163, 175);
     doc.setFontSize(7);

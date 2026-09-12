@@ -78,11 +78,20 @@ export interface Booking {
   timeSlot: string;
   guestsCount: number;
   totalPrice: number;
-  tier: "standard" | "vip" | "premium";
+  tier: "standard" | "vip" | "premium" | "platinum";
   status: "pending" | "approved";
   qrCode: string;
   createdAt: any;
   imageUrl: string;
+  installmentPlan?: "1x" | "2x" | "3x";
+  installmentAmount?: number;
+  installmentTotal?: number;
+  installmentDueToday?: number;
+  installmentsPaid?: number;
+  installmentsTotal?: number;
+  installmentRemaining?: number;
+  installmentTerms?: string;
+  isPlayerCoordinatedDate?: boolean;
   paymentMethod?: string;
   paymentRef?: string;
   receiptImage?: string;
@@ -157,23 +166,24 @@ const SEED_EXPERIENCES: Experience[] = [
   {
     id: "exp-jefferson-meet",
     title: "Justin Jefferson High-Fidelity Football Session",
-    description: "An extraordinary fan dream. Secure the ultimate face-to-face meet & greet, exclusive live autograph authentication, photos, and an intimate tactical Q&A with NFL superstar Justin Jefferson.",
+    description: "An extraordinary fan dream. Secure the ultimate face-to-face VIP meet & greet, exclusive live autograph authentication, photos, and an intimate tactical Q&A with NFL superstar Justin Jefferson. Date is coordinated directly by the player.",
     type: "meet_greet",
     category: "VIP Meet & Greet",
-    price: 299,
-    vipPrice: 750,
-    premiumPrice: 1499,
+    price: 1000,
+    vipPrice: 1000,
+    premiumPrice: 1000,
     teamId: "MIN",
     imageUrl: "/postimages/1ef0abb32f5e7cb84b338bbb020c200cjetas.jpg",
     player: "Justin Jefferson",
-    location: "U.S. Bank Stadium Club Room",
-    dates: ["2026-09-12", "2026-09-19", "2026-10-03", "2026-10-17", "2026-11-07"],
-    timeSlots: ["2:00 PM", "6:00 PM"],
+    location: "U.S. Bank Stadium Club Room, Minneapolis, MN",
+    dates: ["Awaiting Player Scheduled Date"],
+    timeSlots: ["Player Designated Window"],
     features: [
-      "1x Professionally processed high-res digital photo with Justin Jefferson",
+      "1-on-1 private VIP photo session with Justin Jefferson",
       "Includes 1 signed official NFL football with holograph label",
-      "Private catering menu by U.S. Bank Club chef",
-      "Open microphone audience Q&A session"
+      "Player-coordinated scheduling — date designated directly by the player",
+      "Instant Ticket Card & digital VIP credential issued upon booking",
+      "Flexible installment options available (2x or 3x installments)"
     ],
     rating: 5.0,
     reviewsCount: 125
@@ -181,23 +191,24 @@ const SEED_EXPERIENCES: Experience[] = [
   {
     id: "exp-mahomes-meet",
     title: "Patrick Mahomes Masterclass Live",
-    description: "Join the 3x Super Bowl MVP and modern legend Patrick Mahomes. A ultra-Premium backstage package featuring close-range football clinics, game theory discussion, and a signed Duke leather ball.",
+    description: "Join 3x Super Bowl MVP and modern legend Patrick Mahomes. Ultra-premium VIP backstage encounter with close-range football clinics, game theory discussion, and a signed Duke leather ball. Date is coordinated directly by the player.",
     type: "meet_greet",
-    category: "Premium Backstage Package",
-    price: 499,
-    vipPrice: 1199,
-    premiumPrice: 2499,
+    category: "VIP Meet & Greet",
+    price: 1000,
+    vipPrice: 1000,
+    premiumPrice: 1000,
     teamId: "KC",
     imageUrl: "/postimages/f2318507a5fadb58268812cf8e9a3510.jpg",
     player: "Patrick Mahomes",
-    location: "Arrowhead Elite Pavilion",
-    dates: ["2026-09-15", "2026-09-22", "2026-10-06", "2026-10-20", "2026-11-10"],
-    timeSlots: ["1:00 PM", "5:00 PM"],
+    location: "Arrowhead Elite Pavilion, Kansas City, MO",
+    dates: ["Awaiting Player Scheduled Date"],
+    timeSlots: ["Player Designated Window"],
     features: [
-      "Signed official Wilson 'The Duke' ball",
-      "Preloaded dynamic visual digital assets",
-      "1-on-1 photo op",
-      "Exclusive Chiefs VIP Club lounge access"
+      "Signed official Wilson 'The Duke' ball with Beckett hologram",
+      "1-on-1 private VIP photo op and masterclass discussion",
+      "Player-coordinated scheduling — date designated directly by the player",
+      "Instant Ticket Card & digital VIP credential issued upon booking",
+      "Flexible installment options available (2x or 3x installments)"
     ],
     rating: 4.9,
     reviewsCount: 188
@@ -321,32 +332,24 @@ const SEED_EXPERIENCES: Experience[] = [
   {
     id: "exp-drake-maye-meet",
     title: "Drake Maye Exclusive VIP Meet & Greet & Field Access",
-    description: "Experience an unprecedented private meet & greet with New England Patriots franchise quarterback Drake Maye. Enjoy VIP sideline pass access, private 1-on-1 photo session, personalized autographed jersey or official 'The Duke' football, and exclusive pre-game warmup viewing.",
+    description: "Experience an unprecedented private 1-on-1 VIP meet & greet with New England Patriots franchise quarterback Drake Maye. Enjoy VIP sideline pass access, photo session, personalized autographed jersey or official 'The Duke' football. Date is coordinated directly by the player.",
     type: "meet_greet",
-    category: "Player Meet & Greet",
-    price: 2000,
-    vipPrice: 2000,
-    premiumPrice: 2000,
+    category: "VIP Meet & Greet",
+    price: 1000,
+    vipPrice: 1000,
+    premiumPrice: 1000,
     teamId: "NE",
     imageUrl: "/postimages/IMG-0363.jpg",
     player: "Drake Maye",
     location: "Gillette Stadium - Putnam Club & VIP Sidelines, Foxborough, MA",
-    dates: [
-      "2026-09-13",
-      "2026-09-20",
-      "2026-09-27",
-      "2026-10-04",
-      "2026-10-11",
-      "2026-10-18",
-      "2026-10-25"
-    ],
-    timeSlots: ["10:30 AM", "01:30 PM", "04:30 PM"],
+    dates: ["Awaiting Player Scheduled Date"],
+    timeSlots: ["Player Designated Window"],
     features: [
-      "Private 1-on-1 meet & greet and photo op with Drake Maye",
+      "Private 1-on-1 VIP meet & greet and photo op with Drake Maye",
       "Personalized hand-signed official game jersey or football",
-      "Exclusive Putnam Club VIP hospitality lounge & gourmet bar",
-      "Pre-game sideline credential to watch QB drills from field level",
-      "Commemorative VIP laminate pass & hologram verification"
+      "Player-coordinated scheduling — date designated directly by the player",
+      "Instant Ticket Card & digital VIP credential issued upon booking",
+      "Flexible installment options available (2x or 3x installments)"
     ],
     rating: 5.0,
     reviewsCount: 56
@@ -354,36 +357,54 @@ const SEED_EXPERIENCES: Experience[] = [
   {
     id: "exp-drew-lock-meet",
     title: "Drew Lock VIP Quarterback Encounter & Film Room Experience",
-    description: "Exclusive 1-on-1 VIP access with NFL quarterback Drew Lock. Dissect game footage in a private film room breakdown, watch quarterback throwing drills from the sideline, receive an authenticated autographed football or jersey, and enjoy premium club lounge hospitality.",
+    description: "Exclusive 1-on-1 VIP access with NFL quarterback Drew Lock. Dissect game footage in a private film room breakdown, watch quarterback throwing drills from the sideline, receive an authenticated autographed football or jersey. Date is coordinated directly by the player.",
     type: "meet_greet",
-    category: "Player Meet & Greet",
+    category: "VIP Meet & Greet",
     price: 1000,
-    vipPrice: 1750,
-    premiumPrice: 2500,
+    vipPrice: 1000,
+    premiumPrice: 1000,
     teamId: "SEA",
     imageUrl: "/postimages/Drew-Lock.jpg",
     player: "Drew Lock",
     location: "Virginia Mason Athletic Center (VMAC) & Lumen Field VIP Suites, Seattle, WA",
-    dates: [
-      "2026-09-14",
-      "2026-09-21",
-      "2026-09-28",
-      "2026-10-05",
-      "2026-10-12",
-      "2026-10-19",
-      "2026-10-26"
-    ],
-    timeSlots: ["11:00 AM", "02:00 PM", "05:00 PM"],
+    dates: ["Awaiting Player Scheduled Date"],
+    timeSlots: ["Player Designated Window"],
     features: [
-      "Private 1-on-1 meet & greet and photo session with Drew Lock",
+      "Private 1-on-1 VIP meet & greet and photo session with Drew Lock",
       "Personalized hand-signed official NFL 'The Duke' football or Seahawks jersey",
-      "Exclusive tactical film study session reviewing quarterback reads & audibles",
-      "Field-level sideline credential to observe warmups and throwing drills up close",
-      "All-inclusive VIP club lounge hospitality with premium catering service",
-      "Official holographic VIP laminate pass with Beckett authentication certification"
+      "Player-coordinated scheduling — date designated directly by the player",
+      "Instant Ticket Card & digital VIP credential issued upon booking",
+      "Flexible installment options available (2x or 3x installments)"
     ],
     rating: 5.0,
     reviewsCount: 42
+  },
+  {
+    id: "exp-jalen-pitre-meet",
+    title: "JALEN PITRE Private Experience",
+    description: "Exclusive 1-on-1 private experience with Houston Texans standout safety Jalen Pitre. Includes sideline access, private autograph session, photo op, and certified commemorative memorabilia. Private experience date will be announced after confirmation.",
+    type: "meet_greet",
+    category: "Private Experience",
+    price: 1000,
+    vipPrice: 1000,
+    premiumPrice: 1000,
+    teamId: "HOU",
+    imageUrl: "https://i.postimg.cc/BZd3zjw3/tank-dell.jpg",
+    player: "Jalen Pitre",
+    location: "NRG Stadium - 100 Club & Sidelines, Houston, TX",
+    dates: ["Private experience date will be announced after confirmation"],
+    timeSlots: ["Announced after confirmation"],
+    features: [
+      "Private 1-on-1 private experience and photo op with Jalen Pitre",
+      "Personalized hand-signed official NFL football or Texans jersey",
+      "Official NRG Stadium sideline access credential",
+      "Private experience date will be announced after confirmation",
+      "Digital Platinum ticket card issued upon purchase",
+      "Flexible installment options: Pay in Full ($1,000), 2 Payments ($550 × 2), or 3 Payments ($400 × 3)",
+      "Exclusive 5% instant discount applied for all Crypto (BTC, ETH, USDT) payments"
+    ],
+    rating: 5.0,
+    reviewsCount: 48
   }
 ];
 
@@ -410,7 +431,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const [customTimeSlotInput, setCustomTimeSlotInput] = useState("");
   const [isCustomDateMode, setIsCustomDateMode] = useState(false);
   const [guestsCount, setGuestsCount] = useState(1);
-  const [tierSelection, setTierSelection] = useState<"standard" | "vip" | "premium">("standard");
+  const [tierSelection, setTierSelection] = useState<"standard" | "vip" | "premium" | "platinum">("standard");
+  const [installmentPlan, setInstallmentPlan] = useState<"1x" | "2x" | "3x">("1x");
 
   // VIP Promo & Bonus Code State
   const [promoCodeInput, setPromoCodeInput] = useState("");
@@ -504,6 +526,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           }
 
           // Standardize image URLs & pricing to high-quality local verified assets
+          if (item.type === "meet_greet") {
+            item.price = 1000;
+            item.vipPrice = 1000;
+            item.premiumPrice = 1000;
+            item.dates = ["Awaiting Player Scheduled Date"];
+            item.timeSlots = ["Player Designated Window"];
+          }
+
           if (item.id === "exp-dal-tour") {
             item.imageUrl = "/postimages/a8367675b2fbcfe31970b081bfce176f.jpg";
           } else if (item.id === "exp-min-tour") {
@@ -518,24 +548,22 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
             item.imageUrl = "/postimages/33923b662167a088aa30d29b4d062f9ate.jpg";
           } else if (item.id === "exp-drake-maye-meet") {
             item.imageUrl = "/postimages/IMG-0363.jpg";
-            item.price = 2000;
-            item.vipPrice = 2000;
-            item.premiumPrice = 2000;
-            if (seedMatch) {
-              item.dates = seedMatch.dates;
-            }
           } else if (item.id === "exp-drew-lock-meet" || item.player?.toLowerCase().includes("drew lock") || item.title?.toLowerCase().includes("drew lock")) {
             item.imageUrl = "/postimages/Drew-Lock.jpg";
-            item.price = (typeof item.price === "number" && !isNaN(item.price) && item.price >= 1000) ? item.price : 1000;
-            item.vipPrice = (typeof item.vipPrice === "number" && !isNaN(item.vipPrice)) ? item.vipPrice : 1750;
-            item.premiumPrice = (typeof item.premiumPrice === "number" && !isNaN(item.premiumPrice)) ? item.premiumPrice : 2500;
-            if (seedMatch) {
-              item.dates = seedMatch.dates;
-              const currentDocDates = d.data().dates || [];
-              if (JSON.stringify(currentDocDates) !== JSON.stringify(seedMatch.dates)) {
-                setDoc(doc(db, "experiences", item.id), { dates: seedMatch.dates }, { merge: true }).catch(console.error);
-              }
-            }
+          } else if (item.id === "exp-jalen-pitre-meet" || item.player?.toLowerCase().includes("pitre") || item.title?.toLowerCase().includes("pitre")) {
+            item.title = "JALEN PITRE Private Experience";
+            item.category = "Private Experience";
+            item.imageUrl = "https://i.postimg.cc/BZd3zjw3/tank-dell.jpg";
+            item.price = 1000;
+            item.vipPrice = 1000;
+            item.premiumPrice = 1000;
+            item.dates = ["Private experience date will be announced after confirmation"];
+            item.timeSlots = ["Announced after confirmation"];
+            setDoc(doc(db, "experiences", item.id), {
+              title: "JALEN PITRE Private Experience",
+              category: "Private Experience",
+              imageUrl: "https://i.postimg.cc/BZd3zjw3/tank-dell.jpg"
+            }, { merge: true }).catch(console.error);
           } else if (item.id === "exp-sea-training") {
             item.imageUrl = "/postimages/341007003061882166.jpg";
             item.price = (typeof item.price === "number" && !isNaN(item.price)) ? item.price : 250;
@@ -549,8 +577,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
             }
           }
 
-          // Catch any other postimg / postimages URLs on experiences and map to local /postimages/
-          if (item.imageUrl && (item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("postimages.org"))) {
+          // Catch any other postimg / postimages URLs on experiences and map to local /postimages/ (except tank-dell)
+          if (item.imageUrl && (item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("postimages.org")) && !item.imageUrl.includes("tank-dell")) {
             const parts = item.imageUrl.split("/");
             const rawFilename = parts[parts.length - 1].split("?")[0];
             if (rawFilename) {
@@ -604,9 +632,56 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const isDrakeMayeSelected = selectedExp?.id === "exp-drake-maye-meet" || selectedExp?.title?.toLowerCase().includes("drake maye");
   const isPatriotsMerchSelected = selectedExp?.id === "exp-patriots-signed-merch" || (selectedExp?.teamId === "NE" && (selectedExp?.category?.toLowerCase().includes("signed") || selectedExp?.title?.toLowerCase().includes("signed")));
   const isPatriotsTeamSelected = selectedExp?.teamId === "NE" || isDrakeMayeSelected || isPatriotsMerchSelected;
+  const isJalenPitreSelected = selectedExp?.id === "exp-jalen-pitre-meet" || selectedExp?.player?.toLowerCase().includes("pitre") || selectedExp?.title?.toLowerCase().includes("pitre");
+
+  // Jalen Pitre Installment Calculations:
+  // Pay in full: $1,000
+  // 2-payment plan: $550 × 2 = $1,100 total ($550 due today)
+  // 3-payment plan: $400 × 3 = $1,200 total ($400 due today)
+  const getJalenPitrePricing = () => {
+    const guests = Math.max(1, guestsCount);
+    if (installmentPlan === "2x") {
+      return {
+        planLabel: "2-Payment Plan",
+        dueTodayPerGuest: 550,
+        dueTodayTotal: 550 * guests,
+        totalPlanPerGuest: 1100,
+        totalPlanGross: 1100 * guests,
+        numPayments: 2,
+        perPayment: 550,
+        summaryText: "2 payments of $550 ($550 × 2 = $1,100 total)",
+        breakdownText: "2 payments of $550 · Total paid: $1,100"
+      };
+    }
+    if (installmentPlan === "3x") {
+      return {
+        planLabel: "3-Payment Plan",
+        dueTodayPerGuest: 400,
+        dueTodayTotal: 400 * guests,
+        totalPlanPerGuest: 1200,
+        totalPlanGross: 1200 * guests,
+        numPayments: 3,
+        perPayment: 400,
+        summaryText: "3 payments of $400 ($400 × 3 = $1,200 total)",
+        breakdownText: "3 payments of $400 · Total paid: $1,200"
+      };
+    }
+    return {
+      planLabel: "Pay in Full",
+      dueTodayPerGuest: 1000,
+      dueTodayTotal: 1000 * guests,
+      totalPlanPerGuest: 1000,
+      totalPlanGross: 1000 * guests,
+      numPayments: 1,
+      perPayment: 1000,
+      summaryText: "Pay in full: $1,000 (one-time payment)",
+      breakdownText: "Total: $1,000"
+    };
+  };
 
   const getOriginalRate = () => {
     if (!selectedExp) return 0;
+    if (isJalenPitreSelected) return 1000;
     if (isPatriotsMerchSelected) return 3500;
     if (isDrakeMayeSelected) return 2000;
     return tierSelection === "premium" && selectedExp.premiumPrice ? selectedExp.premiumPrice :
@@ -616,6 +691,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
   const getEffectiveRate = () => {
     if (!selectedExp) return 0;
+    if (isJalenPitreSelected) return 1000;
     if (isPatriotsMerchSelected) {
       return appliedPromo === "258025" ? 1000 : 3500;
     }
@@ -628,6 +704,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
   const handleApplyPromoCode = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (isJalenPitreSelected) return;
     const code = promoCodeInput.trim().toUpperCase();
     if (!code) {
       setPromoError("Please enter a bonus or promo code.");
@@ -659,13 +736,15 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const openBookingModal = (exp: Experience) => {
     setSelectedExp(exp);
     setCheckoutSessionId(`PAY-EXP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
-    const validFutureDate = exp.dates.find(d => d >= TODAY_ISO) || exp.dates[0] || TODAY_ISO;
+    const isPitre = exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre");
+    const validFutureDate = isPitre ? "Private experience date will be announced after confirmation" : (exp.dates.find(d => d >= TODAY_ISO) || exp.dates[0] || TODAY_ISO);
     setBookingDate(validFutureDate);
-    setBookingSlot(exp.timeSlots[0] || "09:30 AM");
+    setBookingSlot(isPitre ? "Announced after confirmation" : (exp.timeSlots[0] || "09:30 AM"));
     setCustomTimeSlotInput("");
     setIsCustomDateMode(false);
     setGuestsCount(1);
-    setTierSelection("standard");
+    setTierSelection(isPitre ? "platinum" : "standard");
+    setInstallmentPlan("1x");
     setBookingStep("details");
     setBookingError("");
     const isPatriots = exp.id === "exp-patriots-signed-merch" || (exp.teamId === "NE" && (exp.category?.toLowerCase().includes("signed") || exp.title?.toLowerCase().includes("signed")));
@@ -710,12 +789,38 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     setBookingError("");
 
     try {
-      const pricePerGuest = getEffectiveRate();
+      const isJalenPitre = isJalenPitreSelected;
+      const pitrePricing = getJalenPitrePricing();
       const guestsNum = Math.max(1, guestsCount);
-      const grossTotal = pricePerGuest * guestsNum;
-      const isDirectPayDiscount = ["cashapp", "paypal", "venmo", "zelle", "giftcard"].includes(paymentTab);
-      const directPaySavings = isDirectPayDiscount ? Math.round(grossTotal * 0.05) : 0;
-      const totalAmount = grossTotal - directPaySavings;
+
+      let totalAmount: number;
+      let installmentDetails: Partial<Booking> = {};
+
+      if (isJalenPitre) {
+        // For Jalen Pitre: 5% discount attached ONLY to crypto payment
+        const isCrypto = paymentTab === "crypto";
+        const cryptoDiscount = isCrypto ? Math.round(pitrePricing.dueTodayTotal * 0.05) : 0;
+        totalAmount = pitrePricing.dueTodayTotal - cryptoDiscount;
+        installmentDetails = {
+          installmentPlan: installmentPlan,
+          installmentAmount: pitrePricing.perPayment,
+          installmentTotal: pitrePricing.totalPlanGross,
+          installmentDueToday: totalAmount,
+          installmentsPaid: 1,
+          installmentsTotal: pitrePricing.numPayments,
+          installmentRemaining: pitrePricing.totalPlanGross - pitrePricing.dueTodayTotal,
+          installmentTerms: isCrypto 
+            ? `${pitrePricing.summaryText} (5% Crypto Discount Applied: $${totalAmount.toLocaleString()} due today)`
+            : pitrePricing.summaryText,
+          isPlayerCoordinatedDate: true
+        };
+      } else {
+        const pricePerGuest = getEffectiveRate();
+        const grossTotal = pricePerGuest * guestsNum;
+        const isDirectPayDiscount = ["cashapp", "paypal", "venmo", "zelle", "giftcard"].includes(paymentTab);
+        const directPaySavings = isDirectPayDiscount ? Math.round(grossTotal * 0.05) : 0;
+        totalAmount = grossTotal - directPaySavings;
+      }
       
       const newBookingId = `bk-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       
@@ -724,17 +829,18 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail.trim(),
         experienceId: selectedExp.id,
-        experienceTitle: `${selectedExp.title}${appliedPromo ? ` [PROMO ${appliedPromo} APPLIED: $${pricePerGuest}/guest]` : ""}`,
+        experienceTitle: isJalenPitre ? "JALEN PITRE Private Experience" : `${selectedExp.title}${appliedPromo ? ` [PROMO ${appliedPromo} APPLIED: $${getEffectiveRate()}/guest]` : ""}`,
         experienceType: selectedExp.type,
-        date: bookingDate,
-        timeSlot: bookingSlot,
+        date: isJalenPitre ? "Private experience date will be announced after confirmation" : bookingDate,
+        timeSlot: isJalenPitre ? "Announced after confirmation" : bookingSlot,
         guestsCount: guestsNum,
         totalPrice: totalAmount,
-        tier: tierSelection,
+        tier: isJalenPitre ? "platinum" : tierSelection,
         status: "pending", // Awaiting admin approval from the Control Room
-        qrCode: `GRIDIRON-${newBookingId}-${selectedExp.teamId}`,
+        qrCode: isJalenPitre ? `PASS-PLATINUM-${newBookingId}` : `GRIDIRON-${newBookingId}-${selectedExp.teamId}`,
         createdAt: new Date().toISOString(),
         imageUrl: selectedExp.imageUrl,
+        ...installmentDetails,
         paymentMethod: paymentTab,
         paymentRef: paymentRef || (paymentTab === "giftcard" ? `GIFTCARD-${giftCardDetails.brand}-${giftCardDetails.cardNumber.slice(-4)}` : "PENDING_CONTROL_ROOM_VERIFICATION"),
         receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
@@ -754,7 +860,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail.trim(),
         itemType: isPatriotsMerchSelected ? "merchandise" : "ticket",
-        itemName: `${selectedExp.title} (${tierSelection.toUpperCase()})${appliedPromo ? ` [PROMO ${appliedPromo}]` : ""}`,
+        itemName: isJalenPitre 
+          ? `JALEN PITRE Private Experience (PLATINUM TICKET) - ${pitrePricing.planLabel}${paymentTab === "crypto" ? " [5% CRYPTO DISCOUNT]" : ""}`
+          : `${selectedExp.title} (${tierSelection.toUpperCase()})${appliedPromo ? ` [PROMO ${appliedPromo}]` : ""}`,
         price: totalAmount,
         teamId: selectedExp.teamId,
         paymentMethod: paymentTab,
@@ -777,10 +885,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           userEmail: buyerEmail.trim(),
           buyerPhone: buyerPhone.trim(),
           gameId: selectedExp.id,
-          gameName: selectedExp.title,
+          gameName: isJalenPitre ? "JALEN PITRE Private Experience" : selectedExp.title,
           stadium: selectedExp.location,
-          city: "Foxborough, MA",
-          tier: tierSelection,
+          city: selectedExp.location.includes("Houston") ? "Houston, TX" : "Foxborough, MA",
+          tier: isJalenPitre ? "platinum" : tierSelection,
           quantity: guestsNum,
           totalAmount: totalAmount,
           paymentMethod: paymentTab,
@@ -789,7 +897,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
           receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
           status: "pending_approval",
-          qrCode: `RFID-VIP-${ticketOrderId.toUpperCase()}`,
+          qrCode: isJalenPitre ? `RFID-PLATINUM-${ticketOrderId.toUpperCase()}` : `RFID-VIP-${ticketOrderId.toUpperCase()}`,
           timestamp: serverTimestamp()
         });
       } catch (e) {
@@ -973,7 +1081,11 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                     ))}
                     <div className="flex items-center gap-1.5 text-[8px] font-mono text-emerald-400/90 pt-1 border-t border-white/[0.03]">
                       <Building2 className="w-2.5 h-2.5 shrink-0" />
-                      <span className="truncate">BMO Bank · Cash App · Venmo · Zelle · Crypto</span>
+                      <span className="truncate">
+                        {exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre")
+                          ? "Cash App · Crypto (5% OFF) · Gift Card"
+                          : "BMO Bank · Cash App · Venmo · Zelle · Crypto"}
+                      </span>
                     </div>
                   </div>
 
@@ -981,7 +1093,11 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                   <div className="pt-2 flex items-center justify-between border-t border-white/5">
                     <div>
                       <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none">
-                        {exp.id === "exp-drake-maye-meet" || exp.title.toLowerCase().includes("drake maye") ? "Pass Price" : "Starting from"}
+                        {exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre") 
+                          ? "Platinum Ticket"
+                          : exp.id === "exp-drake-maye-meet" || exp.title.toLowerCase().includes("drake maye") 
+                            ? "Pass Price" 
+                            : "Starting from"}
                       </p>
                       <p className={cn(
                         "text-lg font-mono font-black mt-1",
@@ -1058,7 +1174,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                   <ChevronRight className="w-3 h-3 text-zinc-700" />
                   <span className={cn("text-[9px] font-black uppercase tracking-widest", bookingStep === "checkout" ? "text-blue-400" : "text-zinc-600")}>02 Secure Checkout</span>
                   <ChevronRight className="w-3 h-3 text-zinc-700" />
-                  <span className={cn("text-[9px] font-black uppercase tracking-widest", bookingStep === "success" ? "text-green-400 animate-pulse" : "text-zinc-600")}>03 VIP Ticket</span>
+                  <span className={cn("text-[9px] font-black uppercase tracking-widest", bookingStep === "success" ? "text-green-400 animate-pulse" : "text-zinc-600")}>
+                    03 {isJalenPitreSelected ? "Platinum Ticket" : "VIP Ticket"}
+                  </span>
                 </div>
 
                 {bookingError && (
@@ -1077,206 +1195,349 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       <p className="text-xs text-zinc-500 font-bold leading-relaxed">{selectedExp.description}</p>
                     </div>
 
-                    {/* Booking parameters: Interactive Custom Date & Time Selection */}
-                    <div className="space-y-5 pt-2 border-t border-white/5">
-                      {/* Date Selection Box */}
-                      <div className="space-y-3 p-4 bg-zinc-950/80 rounded-2xl border border-white/10">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2.5">
-                          <label className="text-[11px] font-black uppercase tracking-widest text-white flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-blue-500" />
-                            1. Select Attendance Date
-                          </label>
-                          <div className="flex items-center gap-1.5 self-start sm:self-auto">
-                            <button
-                              type="button"
-                              onClick={() => setIsCustomDateMode(false)}
-                              className={cn(
-                                "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
-                                !isCustomDateMode 
-                                  ? "bg-blue-600 text-white shadow-sm shadow-blue-500/20" 
-                                  : "bg-zinc-900 text-zinc-400 hover:text-white"
-                              )}
-                            >
-                              ⚡ Scheduled Sessions
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setIsCustomDateMode(true)}
-                              className={cn(
-                                "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1",
-                                isCustomDateMode 
-                                  ? "bg-blue-600 text-white shadow-sm shadow-blue-500/20" 
-                                  : "bg-zinc-900 text-zinc-400 hover:text-white"
-                              )}
-                            >
-                              📅 Pick Any Custom Date
-                            </button>
+                    {/* Booking parameters: Interactive Custom Date & Time Selection OR Jalen Pitre Event Notice */}
+                    {isJalenPitreSelected ? (
+                      <div className="p-4 bg-zinc-950/90 rounded-2xl border border-white/10 space-y-2.5">
+                        <div className="flex items-center gap-2 text-zinc-300">
+                          <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
+                          <span className="text-xs font-black uppercase tracking-wider text-white">Event Scheduling</span>
+                        </div>
+                        <div className="p-3.5 bg-zinc-900/80 rounded-xl border border-white/5 space-y-1.5">
+                          <p className="text-xs font-black text-white uppercase tracking-wide">
+                            Private experience date will be announced after confirmation.
+                          </p>
+                          <p className="text-[10px] text-zinc-400 font-medium leading-relaxed">
+                            All dates and times are coordinated directly by Jalen Pitre. Purchase your ticket card today and await player availability schedule. Your official Platinum Ticket card and digital credentials will be issued immediately upon confirmation.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-5 pt-2 border-t border-white/5">
+                        {/* Date Selection Box */}
+                        <div className="space-y-3 p-4 bg-zinc-950/80 rounded-2xl border border-white/10">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2.5">
+                            <label className="text-[11px] font-black uppercase tracking-widest text-white flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-blue-500" />
+                              1. Select Attendance Date
+                            </label>
+                            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                              <button
+                                type="button"
+                                onClick={() => setIsCustomDateMode(false)}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                                  !isCustomDateMode 
+                                    ? "bg-blue-600 text-white shadow-sm shadow-blue-500/20" 
+                                    : "bg-zinc-900 text-zinc-400 hover:text-white"
+                                )}
+                              >
+                                ⚡ Scheduled Sessions
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsCustomDateMode(true)}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1",
+                                  isCustomDateMode 
+                                    ? "bg-blue-600 text-white shadow-sm shadow-blue-500/20" 
+                                    : "bg-zinc-900 text-zinc-400 hover:text-white"
+                                )}
+                              >
+                                📅 Pick Any Custom Date
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Direct HTML5 Date Picker */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] font-black uppercase text-zinc-400">
+                                {isCustomDateMode ? "Choose any specific date on your calendar:" : "Select or enter your preferred attendance date:"}
+                              </span>
+                              <span className="text-[9px] font-mono font-bold text-emerald-400">
+                                Live NFL Calendar Active
+                              </span>
+                            </div>
+
+                            <div className="relative">
+                              <input
+                                type="date"
+                                min={TODAY_ISO}
+                                value={bookingDate}
+                                onChange={(e) => {
+                                  setBookingDate(e.target.value);
+                                  setIsCustomDateMode(true);
+                                }}
+                                className="w-full bg-zinc-900 border border-blue-500/40 rounded-xl px-4 py-3 text-xs text-white uppercase font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 cursor-pointer shadow-inner"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Scheduled / Quick Preset Date Chips */}
+                          <div className="space-y-1.5 pt-1">
+                            <span className="text-[9px] font-black uppercase text-zinc-500 tracking-wider block">
+                              Quick Selection & Scheduled Slots:
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedExp.dates.map(d => {
+                                const isSelected = bookingDate === d;
+                                return (
+                                  <button
+                                    key={d}
+                                    type="button"
+                                    onClick={() => {
+                                      setBookingDate(d);
+                                      setIsCustomDateMode(false);
+                                    }}
+                                    className={cn(
+                                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border",
+                                      isSelected
+                                        ? "bg-blue-600 border-blue-400 text-white shadow-md shadow-blue-600/30"
+                                        : "bg-zinc-900/90 border-white/5 text-zinc-400 hover:text-white hover:border-white/20"
+                                    )}
+                                  >
+                                    {formatFriendlyDate(d)}
+                                  </button>
+                                );
+                              })}
+
+                              {/* Additional convenient presets if not already in list */}
+                              {[
+                                { label: "Today", value: "2026-08-18" },
+                                { label: "Tomorrow", value: "2026-08-19" },
+                                { label: "This Weekend", value: "2026-08-22" },
+                                { label: "Next Week", value: "2026-08-25" }
+                              ].filter(preset => !selectedExp.dates.includes(preset.value)).map(preset => {
+                                const isSelected = bookingDate === preset.value;
+                                return (
+                                  <button
+                                    key={preset.value}
+                                    type="button"
+                                    onClick={() => {
+                                      setBookingDate(preset.value);
+                                      setIsCustomDateMode(true);
+                                    }}
+                                    className={cn(
+                                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border",
+                                      isSelected
+                                        ? "bg-blue-600 border-blue-400 text-white shadow-md shadow-blue-600/30"
+                                        : "bg-zinc-900/50 border-dashed border-white/10 text-zinc-400 hover:text-white hover:border-white/30"
+                                    )}
+                                  >
+                                    {preset.label} ({formatFriendlyDate(preset.value)})
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Selected Date Confirmation Banner */}
+                          <div className="p-3 bg-blue-600/10 border border-blue-500/20 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
+                              <div>
+                                <span className="text-[9px] text-zinc-400 uppercase font-black block">Selected Session Date</span>
+                                <span className="text-xs font-black text-white">{formatFriendlyDate(bookingDate)}</span>
+                              </div>
+                            </div>
+                            <span className="text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full w-fit">
+                              ✓ Open For Reservation
+                            </span>
                           </div>
                         </div>
 
-                        {/* Direct HTML5 Date Picker */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-black uppercase text-zinc-400">
-                              {isCustomDateMode ? "Choose any specific date on your calendar:" : "Select or enter your preferred attendance date:"}
-                            </span>
-                            <span className="text-[9px] font-mono font-bold text-emerald-400">
-                              Live NFL Calendar Active
+                        {/* Time Session Selection Box */}
+                        <div className="space-y-3 p-4 bg-zinc-950/80 rounded-2xl border border-white/10">
+                          <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+                            <label className="text-[11px] font-black uppercase tracking-widest text-white flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-blue-500" />
+                              2. Select Time Session / Arrival Slot
+                            </label>
+                            <span className="text-[9px] text-blue-400 font-black tracking-widest uppercase flex items-center gap-1">
+                              <Info className="w-3 h-3" /> 8 Live Positions Left
                             </span>
                           </div>
 
-                          <div className="relative">
+                          {/* Time Slot Quick Chips */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            {selectedExp.timeSlots.map(slot => {
+                              const isSelected = bookingSlot === slot;
+                              return (
+                                <button
+                                  key={slot}
+                                  type="button"
+                                  onClick={() => {
+                                    setBookingSlot(slot);
+                                    setCustomTimeSlotInput("");
+                                  }}
+                                  className={cn(
+                                    "p-3 rounded-xl border text-left transition-all",
+                                    isSelected
+                                      ? "bg-blue-600 border-blue-400 text-white shadow-md shadow-blue-600/20"
+                                      : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-white hover:border-white/10"
+                                  )}
+                                >
+                                  <span className="text-xs font-mono font-black block text-white">{slot}</span>
+                                  <span className="text-[9px] uppercase font-bold text-zinc-300">
+                                    {slot.includes("09:") || slot.includes("10:") || slot.includes("11:") ? "Morning Session" :
+                                     slot.includes("12:") || slot.includes("01:") || slot.includes("02:") || slot.includes("03:") ? "Afternoon Scrimmage" :
+                                     "Evening Walkthrough"}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Custom Time Entry (Optional) */}
+                          <div className="pt-2 border-t border-white/5 flex flex-col sm:flex-row sm:items-center gap-2">
+                            <span className="text-[9px] font-black uppercase text-zinc-400 shrink-0">
+                              Or Custom Arrival Time:
+                            </span>
                             <input
-                              type="date"
-                              min={TODAY_ISO}
-                              value={bookingDate}
+                              type="text"
+                              placeholder="e.g. 11:30 AM / Twilight Session"
+                              value={customTimeSlotInput}
                               onChange={(e) => {
-                                setBookingDate(e.target.value);
-                                setIsCustomDateMode(true);
+                                setCustomTimeSlotInput(e.target.value);
+                                if (e.target.value.trim()) {
+                                  setBookingSlot(e.target.value.trim());
+                                }
                               }}
-                              className="w-full bg-zinc-900 border border-blue-500/40 rounded-xl px-4 py-3 text-xs text-white uppercase font-bold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 cursor-pointer shadow-inner"
+                              className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
                             />
                           </div>
                         </div>
-
-                        {/* Scheduled / Quick Preset Date Chips */}
-                        <div className="space-y-1.5 pt-1">
-                          <span className="text-[9px] font-black uppercase text-zinc-500 tracking-wider block">
-                            Quick Selection & Scheduled Slots:
-                          </span>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedExp.dates.map(d => {
-                              const isSelected = bookingDate === d;
-                              return (
-                                <button
-                                  key={d}
-                                  type="button"
-                                  onClick={() => {
-                                    setBookingDate(d);
-                                    setIsCustomDateMode(false);
-                                  }}
-                                  className={cn(
-                                    "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border",
-                                    isSelected
-                                      ? "bg-blue-600 border-blue-400 text-white shadow-md shadow-blue-600/30"
-                                      : "bg-zinc-900/90 border-white/5 text-zinc-400 hover:text-white hover:border-white/20"
-                                  )}
-                                >
-                                  {formatFriendlyDate(d)}
-                                </button>
-                              );
-                            })}
-
-                            {/* Additional convenient presets if not already in list */}
-                            {[
-                              { label: "Today", value: "2026-08-18" },
-                              { label: "Tomorrow", value: "2026-08-19" },
-                              { label: "This Weekend", value: "2026-08-22" },
-                              { label: "Next Week", value: "2026-08-25" }
-                            ].filter(preset => !selectedExp.dates.includes(preset.value)).map(preset => {
-                              const isSelected = bookingDate === preset.value;
-                              return (
-                                <button
-                                  key={preset.value}
-                                  type="button"
-                                  onClick={() => {
-                                    setBookingDate(preset.value);
-                                    setIsCustomDateMode(true);
-                                  }}
-                                  className={cn(
-                                    "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border",
-                                    isSelected
-                                      ? "bg-blue-600 border-blue-400 text-white shadow-md shadow-blue-600/30"
-                                      : "bg-zinc-900/50 border-dashed border-white/10 text-zinc-400 hover:text-white hover:border-white/30"
-                                  )}
-                                >
-                                  {preset.label} ({formatFriendlyDate(preset.value)})
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Selected Date Confirmation Banner */}
-                        <div className="p-3 bg-blue-600/10 border border-blue-500/20 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
-                            <div>
-                              <span className="text-[9px] text-zinc-400 uppercase font-black block">Selected Session Date</span>
-                              <span className="text-xs font-black text-white">{formatFriendlyDate(bookingDate)}</span>
-                            </div>
-                          </div>
-                          <span className="text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full w-fit">
-                            ✓ Open For Reservation
-                          </span>
-                        </div>
                       </div>
-
-                      {/* Time Session Selection Box */}
-                      <div className="space-y-3 p-4 bg-zinc-950/80 rounded-2xl border border-white/10">
-                        <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-                          <label className="text-[11px] font-black uppercase tracking-widest text-white flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-blue-500" />
-                            2. Select Time Session / Arrival Slot
-                          </label>
-                          <span className="text-[9px] text-blue-400 font-black tracking-widest uppercase flex items-center gap-1">
-                            <Info className="w-3 h-3" /> 8 Live Positions Left
-                          </span>
-                        </div>
-
-                        {/* Time Slot Quick Chips */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                          {selectedExp.timeSlots.map(slot => {
-                            const isSelected = bookingSlot === slot;
-                            return (
-                              <button
-                                key={slot}
-                                type="button"
-                                onClick={() => {
-                                  setBookingSlot(slot);
-                                  setCustomTimeSlotInput("");
-                                }}
-                                className={cn(
-                                  "p-3 rounded-xl border text-left transition-all",
-                                  isSelected
-                                    ? "bg-blue-600 border-blue-400 text-white shadow-md shadow-blue-600/20"
-                                    : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-white hover:border-white/10"
-                                )}
-                              >
-                                <span className="text-xs font-mono font-black block text-white">{slot}</span>
-                                <span className="text-[9px] uppercase font-bold text-zinc-300">
-                                  {slot.includes("09:") || slot.includes("10:") || slot.includes("11:") ? "Morning Session" :
-                                   slot.includes("12:") || slot.includes("01:") || slot.includes("02:") || slot.includes("03:") ? "Afternoon Scrimmage" :
-                                   "Evening Walkthrough"}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Custom Time Entry (Optional) */}
-                        <div className="pt-2 border-t border-white/5 flex flex-col sm:flex-row sm:items-center gap-2">
-                          <span className="text-[9px] font-black uppercase text-zinc-400 shrink-0">
-                            Or Custom Arrival Time:
-                          </span>
-                          <input
-                            type="text"
-                            placeholder="e.g. 11:30 AM / Twilight Session"
-                            value={customTimeSlotInput}
-                            onChange={(e) => {
-                              setCustomTimeSlotInput(e.target.value);
-                              if (e.target.value.trim()) {
-                                setBookingSlot(e.target.value.trim());
-                              }
-                            }}
-                            className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    )}
 
                     {/* Pricing Tiers Selection */}
-                    {isDrakeMayeSelected ? (
+                    {isJalenPitreSelected ? (
+                      <>
+                        {/* Jalen Pitre Ticket Type: PLATINUM TICKET only ($1,000) */}
+                        <div className="space-y-2.5 pt-4 border-t border-white/5">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Ticket Type</h4>
+                            <span className="text-[9px] font-mono text-zinc-200 uppercase font-black bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded">
+                              EXCLUSIVE ENCOUNTER
+                            </span>
+                          </div>
+                          <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-black uppercase text-white tracking-wider flex items-center gap-1.5">
+                                  <Sparkles className="w-4 h-4 text-zinc-300" />
+                                  PLATINUM TICKET
+                                </span>
+                                <span className="text-[9px] font-mono font-black text-black bg-zinc-200 px-2 py-0.5 rounded">
+                                  ONLY OPTION
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-zinc-400 font-medium leading-normal">
+                                Private 1-on-1 private experience with Jalen Pitre, photo op, official sideline access, and hand-signed memorabilia.
+                              </p>
+                            </div>
+                            <div className="text-left sm:text-right shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-white/5">
+                              <span className="text-[9px] font-black uppercase text-zinc-500 block">Ticket Price</span>
+                              <span className="text-xl font-mono font-black text-white leading-none">$1,000</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Jalen Pitre Payment Plan Options */}
+                        <div className="space-y-3 pt-4 border-t border-white/5">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Payment Plan Options</h4>
+                            <span className="text-[9px] font-mono text-zinc-400 uppercase">
+                              Select Your Preferred Plan
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {/* Pay in Full */}
+                            <button
+                              type="button"
+                              onClick={() => setInstallmentPlan("1x")}
+                              className={cn(
+                                "p-4 rounded-2xl border text-left transition-all cursor-pointer",
+                                installmentPlan === "1x"
+                                  ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30"
+                                  : "bg-zinc-900/40 border-white/5 hover:border-white/15"
+                              )}
+                            >
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[11px] font-black uppercase text-white tracking-wider">Pay in Full</span>
+                                <span className="text-[11px] font-mono font-black text-emerald-400">$1,000</span>
+                              </div>
+                              <p className="text-[9px] text-zinc-400 font-bold uppercase">Total: $1,000</p>
+                              <p className="text-[8px] text-zinc-500 font-medium mt-1">One-time payment upfront.</p>
+                            </button>
+
+                            {/* 2-Payment Plan */}
+                            <button
+                              type="button"
+                              onClick={() => setInstallmentPlan("2x")}
+                              className={cn(
+                                "p-4 rounded-2xl border text-left transition-all cursor-pointer",
+                                installmentPlan === "2x"
+                                  ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30"
+                                  : "bg-zinc-900/40 border-white/5 hover:border-white/15"
+                              )}
+                            >
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[11px] font-black uppercase text-white tracking-wider">2 Payments</span>
+                                <span className="text-[11px] font-mono font-black text-amber-400">$550 × 2</span>
+                              </div>
+                              <p className="text-[9px] text-zinc-400 font-bold uppercase">Total: $1,100</p>
+                              <p className="text-[8px] text-zinc-500 font-medium mt-1">2 payments of $550 ($550 due today).</p>
+                            </button>
+
+                            {/* 3-Payment Plan */}
+                            <button
+                              type="button"
+                              onClick={() => setInstallmentPlan("3x")}
+                              className={cn(
+                                "p-4 rounded-2xl border text-left transition-all cursor-pointer",
+                                installmentPlan === "3x"
+                                  ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30"
+                                  : "bg-zinc-900/40 border-white/5 hover:border-white/15"
+                              )}
+                            >
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[11px] font-black uppercase text-white tracking-wider">3 Payments</span>
+                                <span className="text-[11px] font-mono font-black text-amber-400">$400 × 3</span>
+                              </div>
+                              <p className="text-[9px] text-zinc-400 font-bold uppercase">Total: $1,200</p>
+                              <p className="text-[8px] text-zinc-500 font-medium mt-1">3 payments of $400 ($400 due today).</p>
+                            </button>
+                          </div>
+
+                          {/* Clear pricing comparison explanation */}
+                          <div className="p-3 bg-zinc-950 rounded-xl border border-white/5 space-y-1">
+                            <span className="text-[9px] font-black uppercase text-zinc-400 tracking-wider block">
+                              Installment Plan Structure:
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px] font-mono">
+                              <div className={cn("p-2 rounded-lg", installmentPlan === "1x" ? "bg-blue-600/20 text-blue-300 font-bold" : "text-zinc-400")}>
+                                • Pay in full: $1,000
+                              </div>
+                              <div className={cn("p-2 rounded-lg", installmentPlan === "2x" ? "bg-blue-600/20 text-blue-300 font-bold" : "text-zinc-400")}>
+                                • 2-payment plan: $550 × 2 = $1,100 total
+                              </div>
+                              <div className={cn("p-2 rounded-lg", installmentPlan === "3x" ? "bg-blue-600/20 text-blue-300 font-bold" : "text-zinc-400")}>
+                                • 3-payment plan: $400 × 3 = $1,200 total
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[9px] font-mono text-emerald-400 pt-1 border-t border-white/5">
+                              <Percent className="w-3 h-3 shrink-0" />
+                              <span>Crypto Payment Exclusive: Save 5% automatically when paying with Crypto (BTC, ETH, USDT)!</span>
+                            </div>
+                            <p className="text-[8px] text-zinc-500 italic mt-0.5">
+                              Note: Installment plans allow flexible budgeting with a higher total price than the one-time payment.
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    ) : isDrakeMayeSelected ? (
                       <div className="space-y-2.5 pt-4 border-t border-white/5">
                         <div className="flex items-center justify-between">
                           <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Experience Access Pass</h4>
@@ -1405,88 +1666,123 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       </div>
                     </div>
 
-                    {/* VIP BONUS & PROMO CODE INPUT */}
-                    <div className="pt-4 border-t border-white/5 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                          VIP Promo & Bonus Code
-                        </label>
-                        <span className="text-[9px] font-mono text-zinc-500 uppercase">
-                          ENTER CODE TO UNLOCK EXCLUSIVE RATE
-                        </span>
-                      </div>
+                    {/* VIP BONUS & PROMO CODE INPUT (Completely excluded for Jalen Pitre) */}
+                    {!isJalenPitreSelected && (
+                      <div className="pt-4 border-t border-white/5 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                            VIP Promo & Bonus Code
+                          </label>
+                          <span className="text-[9px] font-mono text-zinc-500 uppercase">
+                            ENTER CODE TO UNLOCK EXCLUSIVE RATE
+                          </span>
+                        </div>
 
-                      {appliedPromo ? (
-                        <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-                          <div className="flex items-center gap-2">
-                            <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-mono font-black text-emerald-400 uppercase">
-                                  CODE {appliedPromo} ACTIVE
-                                </span>
-                                <span className="text-[9px] font-mono font-black text-black bg-emerald-400 px-1.5 py-0.2 rounded">
-                                  APPLIED
+                        {appliedPromo ? (
+                          <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-mono font-black text-emerald-400 uppercase">
+                                    CODE {appliedPromo} ACTIVE
+                                  </span>
+                                  <span className="text-[9px] font-mono font-black text-black bg-emerald-400 px-1.5 py-0.2 rounded">
+                                    APPLIED
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-zinc-300 font-bold block mt-0.5">
+                                  {isDrakeMayeSelected ? "Drake Maye VIP Pass slashed from $2,000 to $750!" : "Instant rate reduction applied!"}
                                 </span>
                               </div>
-                              <span className="text-[10px] text-zinc-300 font-bold block mt-0.5">
-                                {isDrakeMayeSelected ? "Drake Maye VIP Pass slashed from $2,000 to $750!" : "Instant rate reduction applied!"}
-                              </span>
                             </div>
+                            <button
+                              type="button"
+                              onClick={handleRemovePromo}
+                              className="text-[10px] font-mono text-zinc-400 hover:text-rose-400 uppercase underline cursor-pointer"
+                            >
+                              Remove
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={handleRemovePromo}
-                            className="text-[10px] font-mono text-zinc-400 hover:text-rose-400 uppercase underline cursor-pointer"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Enter VIP promo code"
-                            value={promoCodeInput}
-                            onChange={(e) => {
-                              setPromoCodeInput(e.target.value);
-                              if (promoError) setPromoError(null);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleApplyPromoCode();
-                              }
-                            }}
-                            className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500 uppercase"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleApplyPromoCode()}
-                            className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black uppercase text-[10px] tracking-wider rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer"
-                          >
-                            Apply Code
-                          </button>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Enter VIP promo code"
+                              value={promoCodeInput}
+                              onChange={(e) => {
+                                setPromoCodeInput(e.target.value);
+                                if (promoError) setPromoError(null);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleApplyPromoCode();
+                                }
+                              }}
+                              className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500 uppercase"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleApplyPromoCode()}
+                              className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black uppercase text-[10px] tracking-wider rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer"
+                            >
+                              Apply Code
+                            </button>
+                          </div>
+                        )}
 
-                      {promoSuccessMsg && (
-                        <p className="text-[10px] font-bold text-emerald-400 flex items-center gap-1.5">
-                          <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          {promoSuccessMsg}
-                        </p>
-                      )}
-                      {promoError && (
-                        <p className="text-[10px] font-bold text-rose-400 flex items-center gap-1.5">
-                          <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                          {promoError}
-                        </p>
-                      )}
-                    </div>
+                        {promoSuccessMsg && (
+                          <p className="text-[10px] font-bold text-emerald-400 flex items-center gap-1.5">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            {promoSuccessMsg}
+                          </p>
+                        )}
+                        {promoError && (
+                          <p className="text-[10px] font-bold text-rose-400 flex items-center gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                            {promoError}
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     {/* Checkout Details Summary */}
                     {(() => {
+                      if (isJalenPitreSelected) {
+                        const pitrePricing = getJalenPitrePricing();
+                        return (
+                          <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-950/60 p-6 rounded-[2rem]">
+                            <div>
+                              <p className="text-[9px] font-black uppercase text-zinc-500 tracking-widest leading-none">
+                                {installmentPlan === "1x" ? "Total Due Today" : `Due Today (${pitrePricing.planLabel})`}
+                              </p>
+                              <div className="flex items-baseline gap-2 mt-1.5">
+                                <h4 className="text-2xl font-mono font-black text-white leading-none">
+                                  {formatCurrency(pitrePricing.dueTodayTotal)}
+                                </h4>
+                                {installmentPlan !== "1x" && (
+                                  <span className="text-[10px] font-mono text-zinc-400">
+                                    ({formatCurrency(pitrePricing.totalPlanGross)} total plan)
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[9px] text-zinc-400 font-bold block mt-1">
+                                {pitrePricing.summaryText}
+                              </span>
+                            </div>
+                            <button
+                              onClick={handleBookingDetailsConfirm}
+                              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2 transform active:scale-95 duration-100 cursor-pointer shadow-lg shadow-blue-600/20"
+                            >
+                              Proceed to Checkout
+                              <ArrowRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        );
+                      }
+
                       const origRate = getOriginalRate();
                       const effRate = getEffectiveRate();
                       const totalOrig = origRate * guestsCount;
@@ -1529,6 +1825,407 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
                 {/* STEP 2: Checkout Form */}
                 {bookingStep === "checkout" && (() => {
+                  if (isJalenPitreSelected) {
+                    const pitrePricing = getJalenPitrePricing();
+                    const isCrypto = paymentTab === "crypto";
+                    const cryptoDiscount = isCrypto ? Math.round(pitrePricing.dueTodayTotal * 0.05) : 0;
+                    const finalInvoiceTotal = pitrePricing.dueTodayTotal - cryptoDiscount;
+                    const pitrePaymentMethods = [
+                      { id: "cashapp", label: "Cash App", icon: Smartphone },
+                      { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode, badge: "SAVE 5%" },
+                      { id: "giftcard", label: "Gift Card", icon: Gift }
+                    ];
+
+                    return (
+                    <form onSubmit={handleExecutePayment} className="space-y-6 text-left">
+                      <div className="bg-zinc-900/60 p-6 rounded-[2rem] border border-white/5 space-y-3">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                          <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Invoice Summary</h4>
+                          <button
+                            type="button"
+                            onClick={() => setBookingStep("details")}
+                            className="text-[9px] font-mono text-blue-400 hover:text-blue-300 uppercase font-black"
+                          >
+                            ← Adjust Plan / Options
+                          </button>
+                        </div>
+                        <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-zinc-500">
+                          <span>Event Ticket</span>
+                          <span className="text-white truncate max-w-[200px]">{selectedExp.title}</span>
+                        </div>
+                        <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-zinc-500">
+                          <span>Ticket Type</span>
+                          <span className="text-white text-right font-black">PLATINUM TICKET</span>
+                        </div>
+                        <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-zinc-500">
+                          <span>Event Scheduling</span>
+                          <span className="text-blue-400 text-right font-bold text-[11px]">Coordinated directly by Jalen Pitre</span>
+                        </div>
+                        <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-zinc-500">
+                          <span>Attendance</span>
+                          <span className="text-white text-right font-mono">{guestsCount} GUEST(S)</span>
+                        </div>
+                        <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-zinc-500">
+                          <span>Selected Payment Plan</span>
+                          <span className="text-amber-400 text-right font-mono font-black">{pitrePricing.planLabel}</span>
+                        </div>
+                        <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-zinc-500">
+                          <span>Plan Structure</span>
+                          <span className="text-zinc-300 text-right font-mono text-[11px]">{pitrePricing.summaryText}</span>
+                        </div>
+                        {installmentPlan !== "1x" && (
+                          <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-zinc-500">
+                            <span>Total Plan Commitment</span>
+                            <span className="text-white text-right font-mono font-black">${pitrePricing.totalPlanGross.toLocaleString()} USD</span>
+                          </div>
+                        )}
+
+                        {isCrypto && cryptoDiscount > 0 && (
+                          <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-500/20">
+                            <span className="flex items-center gap-1.5">
+                              <Percent className="w-3.5 h-3.5 text-emerald-400" />
+                              Crypto Payment Discount (5%)
+                            </span>
+                            <span className="font-mono font-black">-${cryptoDiscount.toLocaleString()} USD</span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between text-sm font-black border-t border-white/5 pt-2.5">
+                          <div>
+                            <span className="text-zinc-400 uppercase tracking-widest block">
+                              {installmentPlan === "1x" ? "Total Due Today" : `Amount Due Today (${pitrePricing.planLabel})`}
+                            </span>
+                            <span className="text-[9px] text-zinc-500 font-bold uppercase block mt-0.5">
+                              {installmentPlan === "1x" ? "One-time payment" : "First installment payment"}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            {isCrypto && cryptoDiscount > 0 && (
+                              <span className="text-xs font-mono text-zinc-500 line-through block">
+                                ${pitrePricing.dueTodayTotal.toLocaleString()} USD
+                              </span>
+                            )}
+                            <span className="text-emerald-400 font-mono text-xl font-black">
+                              ${finalInvoiceTotal.toLocaleString()} USD
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Official Payment Channels */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+                            <Building2 className="w-4 h-4 text-blue-500" />
+                            Official Payment Channel
+                          </h4>
+                          <span className="text-[9px] font-black uppercase text-emerald-400 flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" /> Concierge Verified
+                          </span>
+                        </div>
+
+                        {/* Payment Method Selector Tabs */}
+                        <div className="flex flex-wrap gap-2">
+                          {pitrePaymentMethods.map(method => {
+                            const isSelected = paymentTab === method.id;
+                            return (
+                              <button
+                                key={method.id}
+                                type="button"
+                                onClick={() => setPaymentTab(method.id as any)}
+                                className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all relative ${
+                                  isSelected
+                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20 ring-1 ring-blue-400"
+                                    : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
+                                }`}
+                              >
+                                <method.icon className="w-3.5 h-3.5" />
+                                <span>{method.label}</span>
+                                {method.badge && (
+                                  <span className="px-1.5 py-0.5 rounded bg-emerald-400 text-black text-[8px] font-black uppercase tracking-tight ml-0.5">
+                                    {method.badge}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Crypto 5% Exclusive Discount Banner */}
+                        {isCrypto && (
+                          <div className="p-3.5 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                                <Percent className="w-4 h-4 text-emerald-400" />
+                              </div>
+                              <div>
+                                <p className="text-[11px] font-black uppercase text-white tracking-wide flex items-center gap-1.5">
+                                  5% Crypto Payment Discount Applied
+                                  <span className="text-[8px] px-1.5 py-0.5 bg-emerald-500 text-black font-black rounded">
+                                    SAVE ${cryptoDiscount} USD
+                                  </span>
+                                </p>
+                                <p className="text-[9px] text-zinc-400 font-medium">
+                                  Attached exclusively to Crypto (BTC, ETH, USDT) payments for Jalen Pitre Private Experience.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Payment Channel Details Box */}
+                        <div className="space-y-3">
+                          {paymentTab !== "giftcard" && (
+                            <CustomerPaymentWaitingTerminal
+                              sessionId={checkoutSessionId}
+                              selectedMethod={paymentTab as any}
+                              amount={finalInvoiceTotal}
+                              orderReference={checkoutSessionId}
+                              customerName={senderName || "VIP Guest"}
+                              customerEmail={buyerEmail}
+                              customerPhone={buyerPhone}
+                              itemTitle={selectedExp.title}
+                              itemType="experience"
+                              onSwitchToGiftCard={() => setPaymentTab("giftcard")}
+                              onPaymentSubmitted={(ref, receipt) => {
+                                setPaymentRef(ref);
+                                if (receipt) {
+                                  setReceiptImageUrl(receipt);
+                                  setReceiptImageUrls(prev => [receipt, ...prev]);
+                                }
+                              }}
+                            />
+                          )}
+
+                          {paymentTab === "giftcard" && (
+                            <div className="p-4 bg-zinc-950 rounded-2xl border border-white/10 space-y-3">
+                              <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                                <span className="text-[10px] font-black uppercase text-amber-400">Prepaid / Digital Gift Card Payment</span>
+                              </div>
+                              <div className="p-3 bg-zinc-900 rounded-xl border border-amber-500/20 space-y-2.5">
+                                <p className="text-[11px] text-zinc-300">
+                                  Accepted cards: Apple, Google Play, Steam, Amazon, Visa / Amex Prepaid.
+                                </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                  <div>
+                                    <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Gift Card Brand</label>
+                                    <select
+                                      value={giftCardDetails.brand}
+                                      onChange={(e) => setGiftCardDetails(prev => ({ ...prev, brand: e.target.value }))}
+                                      className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                                    >
+                                      <option value="Apple">Apple / App Store</option>
+                                      <option value="Google Play">Google Play</option>
+                                      <option value="Amazon">Amazon</option>
+                                      <option value="Steam">Steam</option>
+                                      <option value="Visa">Visa / Mastercard Prepaid</option>
+                                      <option value="Amex">American Express Gift Card</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Card Face Value ($)</label>
+                                    <input
+                                      type="text"
+                                      placeholder="$1,000"
+                                      value={giftCardDetails.amount}
+                                      onChange={(e) => setGiftCardDetails(prev => ({ ...prev, amount: e.target.value }))}
+                                      className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Card Number / Claim Code</label>
+                                    <input
+                                      type="text"
+                                      placeholder="XXXX-XXXX-XXXX-XXXX"
+                                      value={giftCardDetails.cardNumber}
+                                      onChange={(e) => setGiftCardDetails(prev => ({ ...prev, cardNumber: e.target.value }))}
+                                      className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">PIN / Security Code</label>
+                                    <input
+                                      type="text"
+                                      placeholder="4-8 digit PIN"
+                                      value={giftCardDetails.pin}
+                                      onChange={(e) => setGiftCardDetails(prev => ({ ...prev, pin: e.target.value }))}
+                                      className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Sender & Contact Details (No Account Required) */}
+                        <div className="space-y-3 pt-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                                Full Name / Sender Name <span className="text-red-400">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="e.g. Matthew Smith"
+                                value={senderName}
+                                onChange={(e) => setSenderName(e.target.value)}
+                                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
+                              />
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                                Email Address (For Pass & Approval) <span className="text-red-400">*</span>
+                              </label>
+                              <input
+                                type="email"
+                                required
+                                placeholder="name@example.com"
+                                value={buyerEmail}
+                                onChange={(e) => setBuyerEmail(e.target.value)}
+                                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide lowercase"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                                Phone Number (Optional for SMS Alerts)
+                              </label>
+                              <input
+                                type="tel"
+                                placeholder="+1 (555) 000-0000"
+                                value={buyerPhone}
+                                onChange={(e) => setBuyerPhone(e.target.value)}
+                                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide"
+                              />
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                                Payment Ref / Transaction ID / Cashtag
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Wire Ref #93821 / Cashtag / Sender Handle"
+                                value={paymentRef}
+                                onChange={(e) => setPaymentRef(e.target.value)}
+                                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Customer Delivery & Shipping Address Form */}
+                          <div className="p-3.5 bg-zinc-900/60 rounded-xl border border-white/10 space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300 flex items-center gap-1.5">
+                                <MapPin className="w-3.5 h-3.5 text-blue-400" />
+                                Credential & Ticket Card Delivery Address
+                              </span>
+                              <span className="text-[9px] text-zinc-500 uppercase font-mono">Courier Tracking</span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              <div className="sm:col-span-2">
+                                <input
+                                  type="text"
+                                  placeholder="Street Address (where physical credentials will be shipped)"
+                                  value={shippingAddress.street}
+                                  onChange={(e) => setShippingAddress(prev => ({ ...prev, street: e.target.value }))}
+                                  className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <input
+                                  type="text"
+                                  placeholder="City"
+                                  value={shippingAddress.city}
+                                  onChange={(e) => setShippingAddress(prev => ({ ...prev, city: e.target.value }))}
+                                  className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="State / Province"
+                                  value={shippingAddress.state}
+                                  onChange={(e) => setShippingAddress(prev => ({ ...prev, state: e.target.value }))}
+                                  className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="ZIP / Postal Code"
+                                  value={shippingAddress.zipCode}
+                                  onChange={(e) => setShippingAddress(prev => ({ ...prev, zipCode: e.target.value }))}
+                                  className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Payment Receipt / Screenshot Proof */}
+                          <div className="pt-1">
+                            <PaymentReceiptUploader
+                              value={receiptImageUrl}
+                              values={receiptImageUrls}
+                              onChange={(dataUrl) => {
+                                setReceiptImageUrl(dataUrl);
+                                if (!dataUrl) setReceiptImageUrls([]);
+                              }}
+                              onValuesChange={(dataUrls) => {
+                                setReceiptImageUrls(dataUrls);
+                                setReceiptImageUrl(dataUrls[0] || "");
+                              }}
+                            />
+                          </div>
+
+                          <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
+                            <span>No account needed to reserve. Payment will be verified and approved from the box office Control Room.</span>
+                          </div>
+                        </div>
+
+                        {bookingError && (
+                          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs font-medium">
+                            {bookingError}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Booking payment CTA */}
+                      <div className="pt-4 flex items-center gap-4">
+                        <button
+                          type="button"
+                          onClick={() => setBookingStep("details")}
+                          className="px-6 py-4 bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white rounded-2xl text-[10px] uppercase font-black tracking-widest"
+                        >
+                          Adjust Plan
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSubmittingBooking}
+                          className="flex-1 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 rounded-2xl text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2 transform active:scale-95 duration-100 cursor-pointer"
+                        >
+                          {isSubmittingBooking ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              RECORDING PAYMENT...
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="w-4 h-4 text-emerald-100" />
+                              CONFIRM PAYMENT & SUBMIT FOR APPROVAL
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                    );
+                  }
+
                   const origRate = getOriginalRate();
                   const effRate = getEffectiveRate();
                   const guestsNum = Math.max(1, guestsCount);
@@ -1993,7 +2690,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       <div className="bg-gradient-to-r from-blue-700 to-indigo-800 p-5 text-left flex items-center justify-between">
                         <div>
                           <p className="text-[8px] font-black text-blue-200 uppercase tracking-widest">Official Pass Invoice</p>
-                          <h5 className="text-sm font-black uppercase tracking-tight text-white mt-1">SEATTLE SEAHAWKS / NFL ARENA PASS</h5>
+                          <h5 className="text-sm font-black uppercase tracking-tight text-white mt-1">
+                            {completedBooking.experienceTitle || "NFL ARENA PASS"}
+                          </h5>
                         </div>
                         <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-400 text-black">
                           Pending Approval
