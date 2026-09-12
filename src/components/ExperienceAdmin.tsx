@@ -214,24 +214,24 @@ export const ExperienceAdmin: React.FC = () => {
     try {
       await setDoc(doc(db, "experiences", "exp-jalen-pitre-meet"), {
         id: "exp-jalen-pitre-meet",
-        title: "Jalen Pitre Exclusive VIP Meet & Greet Experience",
-        description: "Exclusive 1-on-1 VIP encounter with Houston Texans standout safety Jalen Pitre. Includes VIP sideline access, private autograph session, photo op, and certified commemorative memorabilia. Date is coordinated directly by the player based on NFL schedule.",
+        title: "JALEN PITRE Private Experience",
+        description: "Exclusive 1-on-1 private experience with Houston Texans standout safety Jalen Pitre. Includes sideline access, private autograph session, photo op, and certified commemorative memorabilia. Private experience date will be announced after confirmation.",
         type: "meet_greet",
-        category: "Player Meet & Greet",
+        category: "Private Experience",
         price: 1000,
         vipPrice: 1000,
         premiumPrice: 1000,
         teamId: "HOU",
-        imageUrl: "https://i.postimg.cc/BZd3zjw3/tank-dell.jpg",
+        imageUrl: "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg",
         player: "Jalen Pitre",
-        location: "NRG Stadium - 100 Club & VIP Sidelines, Houston, TX",
-        dates: ["Awaiting Player Scheduled Date"],
-        timeSlots: ["Player Designated Window"],
+        location: "NRG Stadium - 100 Club & Sidelines, Houston, TX",
+        dates: ["Private experience date will be announced after confirmation"],
+        timeSlots: ["Announced after confirmation"],
         features: [
-          "Private 1-on-1 VIP meet & greet and photo op with Jalen Pitre",
+          "Private 1-on-1 private experience and photo op with Jalen Pitre",
           "Personalized hand-signed official NFL football or Texans jersey",
-          "Official NRG Stadium VIP field access credential",
-          "Player-coordinated scheduling — date chosen directly by the player",
+          "Official NRG Stadium sideline access credential",
+          "Private experience date will be announced after confirmation",
           "Instant Ticket Card & digital credential issued upon purchase"
         ],
         rating: 5.0,
@@ -239,7 +239,7 @@ export const ExperienceAdmin: React.FC = () => {
         v: Date.now(),
         updatedAt: Date.now()
       }, { merge: true });
-      alert("✅ Jalen Pitre Meet & Greet Experience successfully verified and saved with VIP price $1,000!");
+      alert("✅ JALEN PITRE Private Experience successfully verified and saved with VIP price $1,000!");
     } catch (err: any) {
       console.error(err);
       alert("Error adding Jalen Pitre experience: " + err.message);
@@ -343,27 +343,27 @@ export const ExperienceAdmin: React.FC = () => {
     const verifyJalenPitre = async () => {
       try {
         const snap = await getDoc(doc(db, "experiences", "exp-jalen-pitre-meet"));
-        if (!snap.exists() || snap.data()?.price !== 1000 || snap.data()?.imageUrl !== "https://i.postimg.cc/BZd3zjw3/tank-dell.jpg") {
+        if (!snap.exists() || snap.data()?.price !== 1000 || snap.data()?.imageUrl !== "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg" || snap.data()?.title !== "JALEN PITRE Private Experience") {
           await setDoc(doc(db, "experiences", "exp-jalen-pitre-meet"), {
             id: "exp-jalen-pitre-meet",
-            title: "Jalen Pitre Exclusive VIP Meet & Greet Experience",
-            description: "Exclusive 1-on-1 VIP encounter with Houston Texans standout safety Jalen Pitre. Includes VIP sideline access, private autograph session, photo op, and certified commemorative memorabilia. Date is coordinated directly by the player based on NFL schedule.",
+            title: "JALEN PITRE Private Experience",
+            description: "Exclusive 1-on-1 private experience with Houston Texans standout safety Jalen Pitre. Includes sideline access, private autograph session, photo op, and certified commemorative memorabilia. Private experience date will be announced after confirmation.",
             type: "meet_greet",
-            category: "Player Meet & Greet",
+            category: "Private Experience",
             price: 1000,
             vipPrice: 1000,
             premiumPrice: 1000,
             teamId: "HOU",
-            imageUrl: "https://i.postimg.cc/BZd3zjw3/tank-dell.jpg",
+            imageUrl: "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg",
             player: "Jalen Pitre",
-            location: "NRG Stadium - 100 Club & VIP Sidelines, Houston, TX",
-            dates: ["Awaiting Player Scheduled Date"],
-            timeSlots: ["Player Designated Window"],
+            location: "NRG Stadium - 100 Club & Sidelines, Houston, TX",
+            dates: ["Private experience date will be announced after confirmation"],
+            timeSlots: ["Announced after confirmation"],
             features: [
-              "Private 1-on-1 VIP meet & greet and photo op with Jalen Pitre",
+              "Private 1-on-1 private experience and photo op with Jalen Pitre",
               "Personalized hand-signed official NFL football or Texans jersey",
-              "Official NRG Stadium VIP field access credential",
-              "Player-coordinated scheduling — date chosen directly by the player",
+              "Official NRG Stadium sideline access credential",
+              "Private experience date will be announced after confirmation",
               "Instant Ticket Card & digital credential issued upon purchase"
             ],
             rating: 5.0,
@@ -727,24 +727,24 @@ export const ExperienceAdmin: React.FC = () => {
         },
         {
           id: "exp-jalen-pitre-meet",
-          title: "Jalen Pitre Exclusive VIP Meet & Greet Experience",
-          description: "Exclusive 1-on-1 VIP encounter with Houston Texans standout safety Jalen Pitre. Includes VIP sideline access, private autograph session, photo op, and certified commemorative memorabilia. Date is coordinated directly by the player based on NFL schedule.",
+          title: "JALEN PITRE Private Experience",
+          description: "Exclusive 1-on-1 private experience with Houston Texans standout safety Jalen Pitre. Includes sideline access, private autograph session, photo op, and certified commemorative memorabilia. Private experience date will be announced after confirmation.",
           type: "meet_greet",
-          category: "Player Meet & Greet",
+          category: "Private Experience",
           price: 1000,
           vipPrice: 1000,
           premiumPrice: 1000,
           teamId: "HOU",
-          imageUrl: "https://i.postimg.cc/BZd3zjw3/tank-dell.jpg",
+          imageUrl: "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg",
           player: "Jalen Pitre",
-          location: "NRG Stadium - 100 Club & VIP Sidelines, Houston, TX",
-          dates: ["Awaiting Player Scheduled Date"],
-          timeSlots: ["Player Designated Window"],
+          location: "NRG Stadium - 100 Club & Sidelines, Houston, TX",
+          dates: ["Private experience date will be announced after confirmation"],
+          timeSlots: ["Announced after confirmation"],
           features: [
-            "Private 1-on-1 VIP meet & greet and photo op with Jalen Pitre",
+            "Private 1-on-1 private experience and photo op with Jalen Pitre",
             "Personalized hand-signed official NFL football or Texans jersey",
-            "Official NRG Stadium VIP field access credential",
-            "Player-coordinated scheduling — date chosen directly by the player",
+            "Official NRG Stadium sideline access credential",
+            "Private experience date will be announced after confirmation",
             "Instant Ticket Card & digital credential issued upon purchase"
           ],
           rating: 5.0,

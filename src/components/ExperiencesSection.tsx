@@ -389,7 +389,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 1000,
     premiumPrice: 1000,
     teamId: "HOU",
-    imageUrl: "https://i.postimg.cc/BZd3zjw3/tank-dell.jpg",
+    imageUrl: "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg",
     player: "Jalen Pitre",
     location: "NRG Stadium - 100 Club & Sidelines, Houston, TX",
     dates: ["Private experience date will be announced after confirmation"],
@@ -553,7 +553,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           } else if (item.id === "exp-jalen-pitre-meet" || item.player?.toLowerCase().includes("pitre") || item.title?.toLowerCase().includes("pitre")) {
             item.title = "JALEN PITRE Private Experience";
             item.category = "Private Experience";
-            item.imageUrl = "https://i.postimg.cc/BZd3zjw3/tank-dell.jpg";
+            item.imageUrl = "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg";
             item.price = 1000;
             item.vipPrice = 1000;
             item.premiumPrice = 1000;
@@ -562,7 +562,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
             setDoc(doc(db, "experiences", item.id), {
               title: "JALEN PITRE Private Experience",
               category: "Private Experience",
-              imageUrl: "https://i.postimg.cc/BZd3zjw3/tank-dell.jpg"
+              imageUrl: "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg"
             }, { merge: true }).catch(console.error);
           } else if (item.id === "exp-sea-training") {
             item.imageUrl = "/postimages/341007003061882166.jpg";
@@ -577,8 +577,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
             }
           }
 
-          // Catch any other postimg / postimages URLs on experiences and map to local /postimages/ (except tank-dell)
-          if (item.imageUrl && (item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("postimages.org")) && !item.imageUrl.includes("tank-dell")) {
+          // Catch any other postimg / postimages URLs on experiences and map to local /postimages/ (except tank-dell and Houston-Texans)
+          if (item.imageUrl && (item.imageUrl.includes("postimg.cc") || item.imageUrl.includes("postimages.org")) && !item.imageUrl.includes("tank-dell") && !item.imageUrl.includes("Houston-Texans")) {
             const parts = item.imageUrl.split("/");
             const rawFilename = parts[parts.length - 1].split("?")[0];
             if (rawFilename) {

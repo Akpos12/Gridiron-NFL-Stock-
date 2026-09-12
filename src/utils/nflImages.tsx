@@ -110,7 +110,7 @@ export function getNFLImage(item: {
 
     // Explicit Jalen Pitre Safety asset
     if (normId.includes("JALEN-PITRE") || normTitle.includes("jalen pitre") || (item.player && item.player.toLowerCase().includes("jalen pitre"))) {
-      return "https://i.postimg.cc/BZd3zjw3/tank-dell.jpg";
+      return "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg";
     }
     
     // 1. EXTRACT TEAM
@@ -217,7 +217,7 @@ export function getNFLImage(item: {
   let finalUrl = baseSrc;
 
   if (finalUrl) {
-    if (finalUrl.includes("postimg.cc") || finalUrl.includes("postimages.org")) {
+    if ((finalUrl.includes("postimg.cc") || finalUrl.includes("postimages.org")) && !finalUrl.includes("Houston-Texans")) {
       const parts = finalUrl.split("/");
       const rawFilename = parts[parts.length - 1].split("?")[0];
       if (rawFilename) {
@@ -286,8 +286,8 @@ export const NFLImage: React.FC<NFLImageProps> = ({ item, className, style, alt 
   const handleError = () => {
     if (attemptCount === 0) {
       setAttemptCount(1);
-      // Local mirror fallback for tank-dell / Jalen Pitre asset
-      if (currentSrc && currentSrc.includes("tank-dell.jpg") && !currentSrc.startsWith("/postimages/")) {
+      // Local mirror fallback for Houston-Texans / tank-dell / Jalen Pitre asset
+      if (currentSrc && (currentSrc.includes("Houston-Texans") || currentSrc.includes("tank-dell.jpg")) && !currentSrc.startsWith("/postimages/")) {
         setCurrentSrc("/postimages/tank-dell.jpg");
         return;
       }

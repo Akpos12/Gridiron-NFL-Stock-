@@ -2,6 +2,7 @@ import express from "express";
 import http from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 
@@ -958,44 +959,41 @@ async function startServer() {
   setInterval(updateMarketPrices, 2000);
 
   // Determine if we should serve static files from dist or use Vite middleware
-  const distPath = path.resolve(process.cwd(), "dist");
   const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
-  
-  // Checking for dist folder existence is a better indicator for production-like serving
-  import("fs").then(fs => {
-    const hasDist = fs.existsSync(distPath);
 
-    if (isProduction || hasDist) {
-      console.log(`Serving static files from: ${distPath}`);
-      app.use(express.static(distPath));
-      app.get("*", (req, res) => {
-        // Prioritize API routes
-        if (req.path.startsWith('/api')) return res.status(404).json({ error: 'API route not found' });
-        
-        const indexPath = path.join(distPath, "index.html");
-        res.sendFile(indexPath, (err) => {
-          if (err) {
-            console.error(`Error sending index.html:`, err);
-            res.status(500).send("Build artifacts missing or server misconfiguration.");
-          }
-        });
+  if (!isProduction) {
+    // Vite middleware for development
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
       });
-    } else {
-      // Vite middleware for development
-      console.log("Starting Vite development middleware...");
-      import("vite").then(({ createServer: createViteServer }) => {
-        createViteServer({
-          server: { middlewareMode: true },
-          appType: "spa",
-        }).then(vite => {
-          app.use(vite.middlewares);
-        });
-      }).catch(e => {
-        console.error("Vite failed to load:", e);
-        app.get("*", (req, res) => res.status(500).send("Development server loading Error."));
-      });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.error("Vite failed to initialize:", e);
+      app.get("*", (req, res) => res.status(500).send("Development server initialization error."));
     }
-  });
+  } else {
+    const distPath = path.resolve(process.cwd(), "dist");
+    const indexPath = path.join(distPath, "index.html");
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      // Prioritize API routes
+      if (req.path.startsWith("/api")) return res.status(404).json({ error: "API route not found" });
+
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        const rootIndex = path.resolve(process.cwd(), "index.html");
+        if (fs.existsSync(rootIndex)) {
+          res.sendFile(rootIndex);
+        } else {
+          res.status(503).send("Application is starting up, please refresh momentarily.");
+        }
+      }
+    });
+  }
 
   server.listen(PORT, "0.0.0.0", () => {
     console.log(`NFL Exchange Gridiron Server running on http://localhost:${PORT}`);
