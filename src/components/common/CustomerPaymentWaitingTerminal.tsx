@@ -25,7 +25,9 @@ import {
   PaymentSession,
   createOrUpdatePaymentSession, 
   subscribeToPaymentSession,
-  submitCustomerPayment
+  submitCustomerPayment,
+  findRecentDispatchedSessionForCustomer,
+  subscribeToCustomerDispatchedSession
 } from "../../services/paymentControlService";
 import { PaymentReceiptUploader } from "./PaymentReceiptUploader";
 
@@ -57,35 +59,151 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
   onPaymentSubmitted
 }) => {
   const [session, setSession] = useState<PaymentSession | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string>(sessionId);
+  const [recoveredFromPrevious, setRecoveredFromPrevious] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [referenceTag, setReferenceTag] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  // Initialize or synchronize session with Firestore
+  // Sync activeSessionId if sessionId prop changes
   useEffect(() => {
-    if (!sessionId) return;
+    if (sessionId) {
+      setActiveSessionId(sessionId);
+    }
+  }, [sessionId]);
+
+  // Check for previous dispatched reply when customer name and payment method are selected
+  useEffect(() => {
+    let isMounted = true;
+    const normName = customerName?.trim().toLowerCase() || "";
+    const isGeneric = !normName || normName === "customer" || normName === "vip guest" || normName === "ticket guest" || normName === "guest";
+    const cacheKey = `nfl_dispatched_${selectedMethod}_${normName}`;
+
+    // 1. Instant cache check
+    if (!isGeneric && normName.length >= 2) {
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && (parsed.identifier || parsed.accountNumber || parsed.bankName)) {
+            setSession({
+              id: activeSessionId || sessionId,
+              orderId: orderReference || sessionId,
+              customerName: customerName || "Customer",
+              customerEmail: customerEmail || "",
+              customerPhone: customerPhone || "",
+              itemType,
+              itemTitle,
+              amount,
+              paymentMethod: selectedMethod,
+              status: "details_provided",
+              adminPaymentDetails: parsed,
+              createdAt: Date.now(),
+              updatedAt: Date.now()
+            });
+            setRecoveredFromPrevious(true);
+          }
+        }
+      } catch (e) {
+        // ignore cache parse error
+      }
+    }
+
+    // 2. Query Firestore for previously dispatched session
+    async function checkPreviousDispatchedSession() {
+      if (!normName || isGeneric || normName.length < 2) return;
+      try {
+        const previousSession = await findRecentDispatchedSessionForCustomer(
+          customerName!,
+          selectedMethod,
+          customerEmail
+        );
+        if (previousSession && isMounted) {
+          setSession(previousSession);
+          setActiveSessionId(previousSession.id);
+          setRecoveredFromPrevious(true);
+          if (previousSession.adminPaymentDetails) {
+            localStorage.setItem(cacheKey, JSON.stringify(previousSession.adminPaymentDetails));
+          }
+          // Also link current session ID in Firestore so both records reflect the dispatched details
+          if (sessionId && sessionId !== previousSession.id) {
+            createOrUpdatePaymentSession({
+              id: sessionId,
+              orderId: orderReference || sessionId,
+              customerName: customerName || "Customer",
+              customerEmail: customerEmail || "",
+              customerPhone: customerPhone || "",
+              itemType,
+              itemTitle,
+              amount,
+              paymentMethod: selectedMethod,
+              status: "details_provided",
+              adminPaymentDetails: previousSession.adminPaymentDetails
+            }).catch(err => console.warn("Sync existing details to new session error:", err));
+          }
+        }
+      } catch (err) {
+        console.warn("Error finding previous dispatched session:", err);
+      }
+    }
+
+    checkPreviousDispatchedSession();
+
+    // 3. Set up real-time listener for any dispatched sessions matching this customer and method
+    const unsubCustomer = subscribeToCustomerDispatchedSession(
+      customerName || "",
+      selectedMethod,
+      (dispatchedSession) => {
+        if (dispatchedSession && isMounted) {
+          setSession(dispatchedSession);
+          setActiveSessionId(dispatchedSession.id);
+          setRecoveredFromPrevious(true);
+          if (dispatchedSession.adminPaymentDetails) {
+            localStorage.setItem(cacheKey, JSON.stringify(dispatchedSession.adminPaymentDetails));
+          }
+        }
+      },
+      customerEmail
+    );
+
+    return () => {
+      isMounted = false;
+      unsubCustomer();
+    };
+  }, [customerName, selectedMethod, customerEmail, sessionId, activeSessionId, amount, itemTitle, itemType, orderReference]);
+
+  // Real-time listener for activeSessionId
+  useEffect(() => {
+    const targetSessionId = activeSessionId || sessionId;
+    if (!targetSessionId) return;
 
     createOrUpdatePaymentSession({
-      id: sessionId,
-      orderId: orderReference || sessionId,
+      id: targetSessionId,
+      orderId: orderReference || targetSessionId,
       customerName: customerName || "Customer",
       customerEmail: customerEmail || "",
       customerPhone: customerPhone || "",
       itemType,
       itemTitle,
       amount,
-      paymentMethod: selectedMethod,
-      status: "awaiting_admin_details"
+      paymentMethod: selectedMethod
     }).catch(err => console.warn("Init payment session failed:", err));
 
-    const unsubscribe = subscribeToPaymentSession(sessionId, (updatedSession) => {
-      setSession(updatedSession);
+    const unsubscribe = subscribeToPaymentSession(targetSessionId, (updatedSession) => {
+      if (updatedSession) {
+        setSession(updatedSession);
+        if (updatedSession.adminPaymentDetails && customerName) {
+          const normName = customerName.trim().toLowerCase();
+          const cacheKey = `nfl_dispatched_${selectedMethod}_${normName}`;
+          localStorage.setItem(cacheKey, JSON.stringify(updatedSession.adminPaymentDetails));
+        }
+      }
     });
 
     return () => unsubscribe();
-  }, [sessionId, selectedMethod, amount, customerName, customerEmail, customerPhone, itemTitle, itemType, orderReference]);
+  }, [activeSessionId, sessionId, selectedMethod, amount, customerName, customerEmail, customerPhone, itemTitle, itemType, orderReference]);
 
   // Elapsed timer for waiting experience
   useEffect(() => {
@@ -111,7 +229,8 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
 
     setIsSubmitting(true);
     try {
-      await submitCustomerPayment(sessionId, referenceTag.trim(), receiptUrl);
+      const targetSessionId = activeSessionId || sessionId;
+      await submitCustomerPayment(targetSessionId, referenceTag.trim(), receiptUrl);
       if (onPaymentSubmitted) {
         onPaymentSubmitted(referenceTag.trim(), receiptUrl);
       }
@@ -208,23 +327,37 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-4"
           >
-            {/* Green Success Banner */}
-            <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-between gap-3">
+            {/* Green / Blue Success Banner */}
+            <div className={`p-3.5 rounded-2xl flex items-center justify-between gap-3 border transition-all ${
+              recoveredFromPrevious
+                ? "bg-blue-500/10 border-blue-500/30 text-blue-300"
+                : "bg-emerald-500/10 border-emerald-500/30"
+            }`}>
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500 text-black flex items-center justify-center shrink-0">
-                  <Check className="w-4 h-4 stroke-[3]" />
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                  recoveredFromPrevious ? "bg-blue-500 text-white" : "bg-emerald-500 text-black"
+                }`}>
+                  {recoveredFromPrevious ? <Sparkles className="w-4 h-4" /> : <Check className="w-4 h-4 stroke-[3]" />}
                 </div>
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400">
-                    Payment Details Dispatched by Control Room
+                  <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                    {recoveredFromPrevious 
+                      ? "Dispatched Payment Details Restored" 
+                      : "Payment Details Dispatched by Control Room"}
                   </h4>
                   <p className="text-[10px] text-zinc-300 font-medium">
-                    Send exact payment using the details below, then enter your confirmation reference.
+                    {recoveredFromPrevious
+                      ? `Welcome back ${customerName || ""}! We restored the official ${selectedMethod.toUpperCase()} payment details previously provided by the operator for your request.`
+                      : "Send exact payment using the details below, then enter your confirmation reference."}
                   </p>
                 </div>
               </div>
-              <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded font-black uppercase">
-                Verified Ready
+              <span className={`text-[9px] font-mono px-2 py-0.5 rounded font-black uppercase ${
+                recoveredFromPrevious 
+                  ? "text-blue-400 bg-blue-500/20 border border-blue-500/30" 
+                  : "text-emerald-400 bg-emerald-500/20"
+              }`}>
+                {recoveredFromPrevious ? "Saved Reply Restored" : "Verified Ready"}
               </span>
             </div>
 

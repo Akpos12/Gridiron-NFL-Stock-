@@ -3,6 +3,8 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  getDocs,
+  deleteDoc,
   onSnapshot, 
   query, 
   where, 
@@ -86,7 +88,40 @@ const CONTROL_ROOM_SETTINGS_DOC = "master_payment_channels";
 export async function createOrUpdatePaymentSession(session: Partial<PaymentSession> & { id: string; amount: number; paymentMethod: PaymentMethodType }): Promise<string> {
   const sessionRef = doc(db, "payment_sessions", session.id);
   const now = Date.now();
+
+  let existingAdminDetails: AdminPaymentDetails | null = null;
+  let existingStatus: string | null = null;
+  let existingCreatedAt = now;
+
+  try {
+    const snap = await getDoc(sessionRef);
+    if (snap.exists()) {
+      const data = snap.data() as PaymentSession;
+      existingAdminDetails = data.adminPaymentDetails || null;
+      existingStatus = data.status || null;
+      if (data.createdAt) existingCreatedAt = data.createdAt;
+    }
+  } catch (err) {
+    console.warn("Could not check existing payment session:", err);
+  }
   
+  // Preserve admin payment details if already given by the operator
+  const resolvedAdminDetails = session.adminPaymentDetails || existingAdminDetails || null;
+  
+  // Resolve status: do not downgrade "details_provided" or "payment_submitted" back to awaiting if details already exist
+  let resolvedStatus = session.status;
+  if (!resolvedStatus) {
+    if (session.paymentMethod === "giftcard") {
+      resolvedStatus = "payment_submitted";
+    } else if (resolvedAdminDetails && (resolvedAdminDetails.identifier || resolvedAdminDetails.accountNumber || resolvedAdminDetails.bankName)) {
+      resolvedStatus = (existingStatus === "payment_submitted") ? "payment_submitted" : "details_provided";
+    } else {
+      resolvedStatus = (existingStatus && existingStatus !== "awaiting_admin_details") ? existingStatus as any : "awaiting_admin_details";
+    }
+  } else if (resolvedStatus === "awaiting_admin_details" && resolvedAdminDetails && (resolvedAdminDetails.identifier || resolvedAdminDetails.accountNumber || resolvedAdminDetails.bankName)) {
+    resolvedStatus = (existingStatus === "payment_submitted") ? "payment_submitted" : "details_provided";
+  }
+
   const payload: PaymentSession = {
     id: session.id,
     orderId: session.orderId || session.id,
@@ -97,11 +132,11 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
     itemTitle: session.itemTitle || "NFL Experience / Tickets",
     amount: session.amount,
     paymentMethod: session.paymentMethod,
-    status: session.status || (session.paymentMethod === "giftcard" ? "payment_submitted" : "awaiting_admin_details"),
-    adminPaymentDetails: session.adminPaymentDetails || null,
+    status: resolvedStatus,
+    adminPaymentDetails: resolvedAdminDetails,
     receiptUrl: session.receiptUrl || "",
     referenceTag: session.referenceTag || "",
-    createdAt: session.createdAt || now,
+    createdAt: session.createdAt || existingCreatedAt,
     updatedAt: now
   };
 
@@ -230,4 +265,147 @@ export async function saveControlRoomPaymentPresets(
     id: CONTROL_ROOM_SETTINGS_DOC,
     updatedAt: Date.now()
   }, { merge: true });
+}
+
+/**
+ * Control Room: Permanently delete a customer payment session/order
+ */
+export async function deletePaymentSession(sessionId: string): Promise<void> {
+  if (!sessionId) return;
+  const sessionRef = doc(db, "payment_sessions", sessionId);
+  await deleteDoc(sessionRef);
+}
+
+/**
+ * Control Room: Permanently delete multiple customer payment sessions/orders (bulk delete)
+ */
+export async function deletePaymentSessions(sessionIds: string[]): Promise<void> {
+  const validIds = sessionIds.filter(Boolean);
+  if (validIds.length === 0) return;
+  const promises = validIds.map(id => deleteDoc(doc(db, "payment_sessions", id)));
+  await Promise.all(promises);
+}
+
+/**
+ * Customer / Terminal: Look up previous reply details given by admin for this customer
+ * when they enter their name and choose the same payment method again.
+ */
+export async function findRecentDispatchedSessionForCustomer(
+  customerName: string,
+  paymentMethod: string,
+  customerEmail?: string
+): Promise<PaymentSession | null> {
+  const normName = customerName?.trim().toLowerCase() || "";
+  const normEmail = customerEmail?.trim().toLowerCase() || "";
+
+  // Need at least a recognizable name or email (skip empty/generic placeholders)
+  const isGeneric = !normName || normName === "customer" || normName === "vip guest" || normName === "ticket guest" || normName === "guest";
+  const hasSpecificName = !isGeneric && normName.length >= 2;
+  const hasEmail = normEmail.includes("@");
+
+  if (!hasSpecificName && !hasEmail) {
+    return null;
+  }
+
+  try {
+    const q = query(
+      collection(db, "payment_sessions"),
+      where("paymentMethod", "==", paymentMethod)
+    );
+    const snap = await getDocs(q);
+    const matches: PaymentSession[] = [];
+
+    snap.forEach((d) => {
+      const s = d.data() as PaymentSession;
+      const sName = s.customerName?.trim().toLowerCase() || "";
+      const sEmail = s.customerEmail?.trim().toLowerCase() || "";
+
+      const nameMatches = Boolean(
+        hasSpecificName && sName && (sName === normName || sName.includes(normName) || normName.includes(sName))
+      );
+      const emailMatches = Boolean(hasEmail && sEmail && sEmail === normEmail);
+
+      if (nameMatches || emailMatches) {
+        // Must have verified admin payment details dispatched
+        if (s.adminPaymentDetails && (s.adminPaymentDetails.identifier || s.adminPaymentDetails.accountNumber || s.adminPaymentDetails.bankName)) {
+          matches.push(s);
+        }
+      }
+    });
+
+    if (matches.length === 0) return null;
+
+    // Return the newest dispatched session
+    matches.sort((a, b) => {
+      const bTime = b.adminPaymentDetails?.updatedAt || b.updatedAt || b.createdAt || 0;
+      const aTime = a.adminPaymentDetails?.updatedAt || a.updatedAt || a.createdAt || 0;
+      return bTime - aTime;
+    });
+
+    return matches[0];
+  } catch (err) {
+    console.warn("Failed to find recent dispatched session for customer:", err);
+    return null;
+  }
+}
+
+/**
+ * Customer / Terminal: Real-time listener for any matching session for this customer and payment method
+ * that receives dispatched payment details from the operator.
+ */
+export function subscribeToCustomerDispatchedSession(
+  customerName: string,
+  paymentMethod: string,
+  onUpdate: (session: PaymentSession | null) => void,
+  customerEmail?: string
+): () => void {
+  const normName = customerName?.trim().toLowerCase() || "";
+  const normEmail = customerEmail?.trim().toLowerCase() || "";
+  const isGeneric = !normName || normName === "customer" || normName === "vip guest" || normName === "ticket guest" || normName === "guest";
+  const hasSpecificName = !isGeneric && normName.length >= 2;
+  const hasEmail = normEmail.includes("@");
+
+  if (!hasSpecificName && !hasEmail) {
+    return () => {};
+  }
+
+  const q = query(
+    collection(db, "payment_sessions"),
+    where("paymentMethod", "==", paymentMethod)
+  );
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const matches: PaymentSession[] = [];
+      snap.forEach((d) => {
+        const s = d.data() as PaymentSession;
+        const sName = s.customerName?.trim().toLowerCase() || "";
+        const sEmail = s.customerEmail?.trim().toLowerCase() || "";
+
+        const nameMatches = Boolean(
+          hasSpecificName && sName && (sName === normName || sName.includes(normName) || normName.includes(sName))
+        );
+        const emailMatches = Boolean(hasEmail && sEmail && sEmail === normEmail);
+
+        if (nameMatches || emailMatches) {
+          if (s.adminPaymentDetails && (s.adminPaymentDetails.identifier || s.adminPaymentDetails.accountNumber || s.adminPaymentDetails.bankName)) {
+            matches.push(s);
+          }
+        }
+      });
+
+      if (matches.length > 0) {
+        matches.sort((a, b) => {
+          const bTime = b.adminPaymentDetails?.updatedAt || b.updatedAt || b.createdAt || 0;
+          const aTime = a.adminPaymentDetails?.updatedAt || a.updatedAt || a.createdAt || 0;
+          return bTime - aTime;
+        });
+        onUpdate(matches[0]);
+      }
+    },
+    (err) => {
+      console.warn("Customer dispatched session subscription error:", err);
+    }
+  );
 }

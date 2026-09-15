@@ -449,9 +449,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   // Official Payment Form State
   const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "paypal" | "venmo" | "zelle" | "crypto" | "giftcard">("cashapp");
   const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
-  const [senderName, setSenderName] = useState("");
-  const [buyerEmail, setBuyerEmail] = useState("");
-  const [buyerPhone, setBuyerPhone] = useState("");
+  const [senderName, setSenderName] = useState(() => localStorage.getItem("nfl_guest_sender_name") || "");
+  const [buyerEmail, setBuyerEmail] = useState(() => localStorage.getItem("nfl_guest_buyer_email") || "");
+  const [buyerPhone, setBuyerPhone] = useState(() => localStorage.getItem("nfl_guest_buyer_phone") || "");
   const [shippingAddress, setShippingAddress] = useState({
     fullName: "",
     street: "",
@@ -2510,7 +2510,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                               required
                               placeholder="e.g. Matthew Smith"
                               value={senderName}
-                              onChange={(e) => setSenderName(e.target.value)}
+                              onChange={(e) => {
+                                setSenderName(e.target.value);
+                                if (e.target.value) localStorage.setItem("nfl_guest_sender_name", e.target.value);
+                              }}
                               className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
                             />
                           </div>
@@ -2524,7 +2527,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                               required
                               placeholder="name@example.com"
                               value={buyerEmail}
-                              onChange={(e) => setBuyerEmail(e.target.value)}
+                              onChange={(e) => {
+                                setBuyerEmail(e.target.value);
+                                if (e.target.value) localStorage.setItem("nfl_guest_buyer_email", e.target.value);
+                              }}
                               className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide lowercase"
                             />
                           </div>

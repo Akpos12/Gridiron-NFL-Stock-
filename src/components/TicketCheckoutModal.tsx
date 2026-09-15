@@ -200,9 +200,9 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
 
   // Buyer Details
   const [checkoutSessionId] = useState(() => `PAY-TKT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
-  const [buyerName, setBuyerName] = useState("");
-  const [buyerEmail, setBuyerEmail] = useState("");
-  const [buyerPhone, setBuyerPhone] = useState("");
+  const [buyerName, setBuyerName] = useState(() => localStorage.getItem("nfl_guest_sender_name") || "");
+  const [buyerEmail, setBuyerEmail] = useState(() => localStorage.getItem("nfl_guest_buyer_email") || "");
+  const [buyerPhone, setBuyerPhone] = useState(() => localStorage.getItem("nfl_guest_buyer_phone") || "");
   const [paymentRef, setPaymentRef] = useState("");
   const [paymentReceiptUrl, setPaymentReceiptUrl] = useState("");
   const [paymentReceiptUrls, setPaymentReceiptUrls] = useState<string[]>([]);
@@ -1803,7 +1803,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       required
                       placeholder="e.g. Jayne Welage"
                       value={buyerName}
-                      onChange={(e) => setBuyerName(e.target.value)}
+                      onChange={(e) => {
+                        setBuyerName(e.target.value);
+                        if (e.target.value) localStorage.setItem("nfl_guest_sender_name", e.target.value);
+                      }}
                       className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -1815,7 +1818,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       required
                       placeholder="e.g. jayne_welage@msn.com"
                       value={buyerEmail}
-                      onChange={(e) => setBuyerEmail(e.target.value)}
+                      onChange={(e) => {
+                        setBuyerEmail(e.target.value);
+                        if (e.target.value) localStorage.setItem("nfl_guest_buyer_email", e.target.value);
+                      }}
                       className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>

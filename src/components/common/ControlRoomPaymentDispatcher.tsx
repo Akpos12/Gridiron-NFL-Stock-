@@ -30,18 +30,25 @@ import {
   subscribeToAwaitingPaymentSessions,
   subscribeToControlRoomPaymentPresets,
   dispatchPaymentDetailsToSession,
-  saveControlRoomPaymentPresets
+  saveControlRoomPaymentPresets,
+  deletePaymentSession,
+  deletePaymentSessions
 } from "../../services/paymentControlService";
 
 export const ControlRoomPaymentDispatcher: React.FC = () => {
   const [sessions, setSessions] = useState<PaymentSession[]>([]);
   const [presets, setPresets] = useState<ControlRoomPaymentPresets | null>(null);
   const [selectedSession, setSelectedSession] = useState<PaymentSession | null>(null);
+  const [sessionToDelete, setSessionToDelete] = useState<PaymentSession | null>(null);
   const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
   const [presetsModalOpen, setPresetsModalOpen] = useState(false);
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
   const [isSavingPresets, setIsSavingPresets] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<"all" | "awaiting" | "unresponsive" | "submitted">("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Dispatch Form State
   const [method, setMethod] = useState<string>("cashapp");
@@ -208,7 +215,90 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
     }
   };
 
+  // Delete a single customer order/session
+  const handleConfirmDeleteSession = async () => {
+    if (!sessionToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deletePaymentSession(sessionToDelete.id);
+      showNotification(`Deleted order for ${sessionToDelete.customerName || "Customer"} (${sessionToDelete.id})`);
+      setSessionToDelete(null);
+    } catch (err: any) {
+      console.error("Delete session error:", err);
+      alert("Error deleting customer order: " + err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Bulk delete all orders where customer has not responded
+  const handleConfirmBulkDeleteUnresponsive = async () => {
+    if (unresponsiveSessions.length === 0) return;
+    setIsDeleting(true);
+    try {
+      const ids = unresponsiveSessions.map(s => s.id);
+      await deletePaymentSessions(ids);
+      showNotification(`Deleted ${ids.length} unresponsive customer orders.`);
+      setBulkDeleteModalOpen(false);
+    } catch (err: any) {
+      console.error("Bulk delete error:", err);
+      alert("Error deleting unresponsive orders: " + err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const getTimeAgo = (ts?: number) => {
+    if (!ts) return "Recently";
+    const diffMinutes = Math.floor((Date.now() - ts) / 60000);
+    if (diffMinutes < 1) return "Just now";
+    if (diffMinutes === 1) return "1 min ago";
+    if (diffMinutes < 60) return `${diffMinutes} mins ago`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours === 1) return "1 hr ago";
+    if (diffHours < 24) return `${diffHours} hrs ago`;
+    return `${Math.floor(diffHours / 24)}d ago`;
+  };
+
+  // Helper groupings
   const awaitingCount = sessions.filter(s => s.status === "awaiting_admin_details").length;
+  const unresponsiveSessions = sessions.filter(
+    s => s.status === "details_provided" && !s.referenceTag && !s.receiptUrl
+  );
+  const unresponsiveCount = unresponsiveSessions.length;
+  const submittedCount = sessions.filter(
+    s => s.status === "payment_submitted" || Boolean(s.referenceTag || s.receiptUrl)
+  ).length;
+
+  // Filtered session list
+  const filteredSessions = sessions.filter((s) => {
+    // Tab filter
+    if (activeFilter === "awaiting" && s.status !== "awaiting_admin_details") return false;
+    if (activeFilter === "unresponsive") {
+      const isUnresponsive = s.status === "details_provided" && !s.referenceTag && !s.receiptUrl;
+      if (!isUnresponsive) return false;
+    }
+    if (activeFilter === "submitted") {
+      const isSubmitted = s.status === "payment_submitted" || Boolean(s.referenceTag || s.receiptUrl);
+      if (!isSubmitted) return false;
+    }
+
+    // Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchName = s.customerName?.toLowerCase().includes(q);
+      const matchEmail = s.customerEmail?.toLowerCase().includes(q);
+      const matchId = s.id?.toLowerCase().includes(q);
+      const matchItem = s.itemTitle?.toLowerCase().includes(q);
+      const matchMethod = s.paymentMethod?.toLowerCase().includes(q);
+      const matchRef = s.referenceTag?.toLowerCase().includes(q);
+      if (!matchName && !matchEmail && !matchId && !matchItem && !matchMethod && !matchRef) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -220,10 +310,10 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
         </div>
       )}
 
-      {/* Header with Preset Settings Button */}
+      {/* Header with Preset Settings and Actions */}
       <div className="p-6 bg-zinc-950 border border-white/10 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
               <CreditCard className="w-4 h-4" />
             </div>
@@ -235,47 +325,144 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                 {awaitingCount} Awaiting Details
               </span>
             )}
+            {unresponsiveCount > 0 && (
+              <span className="px-2.5 py-0.5 rounded-full bg-zinc-800 border border-white/10 text-zinc-300 font-mono text-[10px] font-black uppercase">
+                {unresponsiveCount} No Response
+              </span>
+            )}
           </div>
           <p className="text-xs text-zinc-400 mt-1">
             Input verified payment destination details (Cashtag, Zelle, Bank, Wire, PayPal) directly to customers currently on the checkout screen in real-time.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setPresetsModalOpen(true)}
-          className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-white font-black text-xs uppercase tracking-wider rounded-2xl flex items-center gap-2 transition-all cursor-pointer self-start md:self-auto"
-        >
-          <Settings className="w-4 h-4 text-zinc-400" />
-          Configure Saved Presets
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {unresponsiveCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setBulkDeleteModalOpen(true)}
+              className="px-3.5 py-2.5 bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 font-black text-xs uppercase tracking-wider rounded-2xl flex items-center gap-2 transition-all cursor-pointer shadow-md"
+            >
+              <Trash2 className="w-4 h-4 text-red-400" />
+              Clear Non-Responding ({unresponsiveCount})
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setPresetsModalOpen(true)}
+            className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-white font-black text-xs uppercase tracking-wider rounded-2xl flex items-center gap-2 transition-all cursor-pointer self-start md:self-auto"
+          >
+            <Settings className="w-4 h-4 text-zinc-400" />
+            Configure Saved Presets
+          </button>
+        </div>
+      </div>
+
+      {/* Filter Tabs & Search Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-950/60 p-3 rounded-2xl border border-white/5">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          <button
+            type="button"
+            onClick={() => setActiveFilter("all")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+              activeFilter === "all"
+                ? "bg-white text-black shadow"
+                : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
+            }`}
+          >
+            All Orders ({sessions.length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("awaiting")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+              activeFilter === "awaiting"
+                ? "bg-amber-500 text-black shadow"
+                : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
+            }`}
+          >
+            Awaiting Details ({awaitingCount})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("unresponsive")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+              activeFilter === "unresponsive"
+                ? "bg-red-500 text-white shadow"
+                : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
+            }`}
+          >
+            Haven't Responded ({unresponsiveCount})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("submitted")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+              activeFilter === "submitted"
+                ? "bg-emerald-500 text-black shadow"
+                : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
+            }`}
+          >
+            Payment Submitted ({submittedCount})
+          </button>
+        </div>
+
+        <div className="relative min-w-[200px] max-w-xs w-full">
+          <input
+            type="text"
+            placeholder="Search by customer, order #..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-blue-500"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Real-time Customer Queue */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-black uppercase tracking-wider text-zinc-400">
-            Active Customer Checkout Sessions ({sessions.length})
+            {activeFilter === "unresponsive" ? "Customer Orders That Haven't Responded" : "Active Customer Checkout Sessions"} ({filteredSessions.length})
           </h4>
           <span className="text-[10px] text-zinc-500 font-mono">Real-time Firestore sync</span>
         </div>
 
-        {sessions.length === 0 ? (
+        {filteredSessions.length === 0 ? (
           <div className="p-10 bg-zinc-950 border border-white/5 rounded-2xl text-center space-y-2">
             <Clock className="w-8 h-8 text-zinc-600 mx-auto" />
             <p className="text-xs font-bold text-zinc-400 uppercase tracking-wide">
-              No Customers Currently in Payment Queue
+              {sessions.length === 0
+                ? "No Customers Currently in Payment Queue"
+                : activeFilter === "unresponsive"
+                ? "No Unresponsive Orders Found"
+                : "No Matching Orders for This Filter"}
             </p>
-            <p className="text-[10px] text-zinc-600">
-              When a customer selects a payment method during checkout, their session appears here instantly for you to input destination details.
+            <p className="text-[10px] text-zinc-600 max-w-md mx-auto">
+              {activeFilter === "unresponsive"
+                ? "Customers who were given payment details but have not yet submitted payment or responded will appear here."
+                : "When a customer selects a payment method during checkout, their session appears here instantly for you to input destination details."}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
-            {sessions.map((s) => {
+            {filteredSessions.map((s) => {
               const isAwaiting = s.status === "awaiting_admin_details";
               const isSubmitted = s.status === "payment_submitted";
               const isProvided = s.status === "details_provided";
+              const isUnresponsive = isProvided && !s.referenceTag && !s.receiptUrl;
 
               return (
                 <div
@@ -285,6 +472,8 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                       ? "bg-amber-500/5 border-amber-500/30 shadow-lg shadow-amber-500/5"
                       : isSubmitted
                       ? "bg-emerald-500/5 border-emerald-500/30"
+                      : isUnresponsive
+                      ? "bg-zinc-950 border-amber-500/20"
                       : "bg-zinc-950 border-white/5"
                   }`}
                 >
@@ -299,13 +488,26 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                           ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse"
                           : isSubmitted
                           ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                          : isUnresponsive
+                          ? "bg-red-500/20 text-red-300 border border-red-500/30"
                           : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
                       }`}>
-                        {isAwaiting ? "Awaiting Payment Details" : isSubmitted ? "Customer Submitted Payment" : "Details Dispatched"}
+                        {isAwaiting 
+                          ? "Awaiting Payment Details" 
+                          : isSubmitted 
+                          ? "Customer Submitted Payment" 
+                          : isUnresponsive 
+                          ? "No Customer Response Yet" 
+                          : "Details Dispatched"}
                       </span>
                       <span className="text-[9px] font-bold text-zinc-400 uppercase">
                         Method: <strong className="text-white">{s.paymentMethod}</strong>
                       </span>
+                      {s.createdAt && (
+                        <span className="text-[9px] text-zinc-500 font-mono">
+                          Created {getTimeAgo(s.createdAt)}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-baseline gap-2">
@@ -336,7 +538,7 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
 
                     {/* If details already provided, display preview */}
                     {s.adminPaymentDetails && (
-                      <div className="text-[10px] text-zinc-400 bg-zinc-900/80 p-2 rounded-xl border border-white/5 flex items-center gap-3 mt-2">
+                      <div className="text-[10px] text-zinc-400 bg-zinc-900/80 p-2 rounded-xl border border-white/5 flex items-center gap-3 mt-2 flex-wrap">
                         <span className="text-zinc-500 font-bold uppercase">Dispatched Destination:</span>
                         <span className="font-mono font-bold text-emerald-400">
                           {s.adminPaymentDetails.identifier || s.adminPaymentDetails.accountNumber || s.adminPaymentDetails.bankName}
@@ -344,6 +546,19 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                         {s.adminPaymentDetails.recipientName && (
                           <span className="text-zinc-400 font-semibold">({s.adminPaymentDetails.recipientName})</span>
                         )}
+                        {s.adminPaymentDetails.updatedAt && (
+                          <span className="text-zinc-500 text-[9px] font-mono ml-auto">
+                            Sent {getTimeAgo(s.adminPaymentDetails.updatedAt)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Unresponsive Alert Callout */}
+                    {isUnresponsive && (
+                      <div className="text-[10px] text-amber-300 bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 flex items-center gap-2 mt-1">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                        <span>Payment details were dispatched {getTimeAgo(s.updatedAt || s.createdAt)}, but customer has not responded or submitted proof.</span>
                       </div>
                     )}
 
@@ -366,7 +581,7 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Right Column: Actions */}
+                  {/* Right Column: Actions (Dispatch / Update + Delete) */}
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
@@ -380,6 +595,17 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                       <Edit3 className="w-3.5 h-3.5" />
                       {isAwaiting ? "Input & Dispatch Details" : "Update Details"}
                     </button>
+
+                    {/* Delete Customer Order Button */}
+                    <button
+                      type="button"
+                      onClick={() => setSessionToDelete(s)}
+                      title="Delete customer order"
+                      className="px-3 py-2.5 rounded-xl bg-red-950/40 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20 hover:border-red-600 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Delete</span>
+                    </button>
                   </div>
                 </div>
               );
@@ -387,6 +613,154 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* SINGLE SESSION DELETE CONFIRMATION MODAL */}
+      {sessionToDelete && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="bg-zinc-900 border border-red-500/30 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl space-y-4 p-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/30 text-red-400 flex items-center justify-center shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black uppercase text-white tracking-wide">
+                  Delete Customer Order?
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Permanently remove this order from the dispatch queue.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-zinc-500 font-bold uppercase text-[10px]">Customer:</span>
+                <span className="font-bold text-white">{sessionToDelete.customerName || "Customer"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500 font-bold uppercase text-[10px]">Item / Experience:</span>
+                <span className="font-bold text-white truncate max-w-[200px]">{sessionToDelete.itemTitle}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500 font-bold uppercase text-[10px]">Amount:</span>
+                <span className="font-mono font-black text-emerald-400">${sessionToDelete.amount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500 font-bold uppercase text-[10px]">Method:</span>
+                <span className="font-bold text-blue-400 uppercase">{sessionToDelete.paymentMethod}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500 font-bold uppercase text-[10px]">Order / Session ID:</span>
+                <span className="font-mono text-zinc-400">{sessionToDelete.id}</span>
+              </div>
+              {sessionToDelete.status === "details_provided" && !sessionToDelete.referenceTag && (
+                <div className="pt-2 border-t border-white/5 text-[11px] text-amber-400">
+                  ⚠️ This customer was given payment details but has not responded.
+                </div>
+              )}
+            </div>
+
+            <p className="text-[11px] text-zinc-400">
+              Are you sure you want to delete this customer's order? This action cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setSessionToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 hover:text-white text-xs font-bold uppercase transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteSession}
+                disabled={isDeleting}
+                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-red-600/30"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Permanently Delete Order
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BULK DELETE UNRESPONSIVE CONFIRMATION MODAL */}
+      {bulkDeleteModalOpen && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="bg-zinc-900 border border-red-500/30 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl space-y-4 p-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/30 text-red-400 flex items-center justify-center shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black uppercase text-white tracking-wide">
+                  Delete All Non-Responding Orders?
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Clear {unresponsiveCount} customer orders that have not responded.
+                </p>
+              </div>
+            </div>
+
+            <div className="max-h-48 overflow-y-auto space-y-2 p-3 bg-zinc-950 rounded-2xl border border-white/5">
+              {unresponsiveSessions.map(s => (
+                <div key={s.id} className="flex items-center justify-between text-xs py-1 border-b border-white/5 last:border-0">
+                  <div className="truncate pr-2">
+                    <span className="font-bold text-white block">{s.customerName || "Customer"}</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">{s.paymentMethod.toUpperCase()} · {s.id}</span>
+                  </div>
+                  <span className="font-mono font-bold text-emerald-400 shrink-0">${s.amount.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-[11px] text-zinc-400">
+              This will remove all {unresponsiveCount} customer checkout orders where payment details were dispatched but no customer reply or proof was submitted.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setBulkDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="px-4 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 hover:text-white text-xs font-bold uppercase transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBulkDeleteUnresponsive}
+                disabled={isDeleting}
+                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-red-600/30"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting All...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete {unresponsiveCount} Orders
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* DISPATCH INPUT MODAL */}
       {dispatchModalOpen && selectedSession && (
