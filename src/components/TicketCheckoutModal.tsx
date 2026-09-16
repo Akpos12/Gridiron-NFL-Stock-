@@ -1553,11 +1553,80 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                 </div>
               </div>
 
-              {/* Step 3: Payment Rails */}
+              {/* Step 3: Buyer & Pass Holder Details */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                    {isPatriotsGame ? "3. OFFICIAL PAYMENT OPTIONS" : "3. OFFICIAL PAYMENT CHANNEL"}
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-300 flex items-center gap-1.5">
+                    3. BUYER DETAILS & PASS DELIVERY
+                  </label>
+                  <span className="text-[9px] font-black uppercase text-blue-400 flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Step 1 Required
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <span className="block text-[8px] font-black uppercase text-zinc-400 mb-1">FULL NAME / SENDER NAME *</span>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. John Doe"
+                      value={buyerName}
+                      onChange={(e) => {
+                        setBuyerName(e.target.value);
+                        if (e.target.value) localStorage.setItem("nfl_guest_sender_name", e.target.value);
+                      }}
+                      className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500 uppercase tracking-wide"
+                    />
+                  </div>
+
+                  <div>
+                    <span className="block text-[8px] font-black uppercase text-zinc-400 mb-1">EMAIL ADDRESS (FOR PASS & APPROVAL) *</span>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. johndoe@example.com"
+                      value={buyerEmail}
+                      onChange={(e) => {
+                        setBuyerEmail(e.target.value);
+                        if (e.target.value) localStorage.setItem("nfl_guest_buyer_email", e.target.value);
+                      }}
+                      className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500 lowercase"
+                    />
+                  </div>
+
+                  <div>
+                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">PHONE NUMBER (OPTIONAL FOR SMS ALERTS)</span>
+                    <input
+                      type="tel"
+                      placeholder="e.g. +1 (555) 019-2834"
+                      value={buyerPhone}
+                      onChange={(e) => {
+                        setBuyerPhone(e.target.value);
+                        if (e.target.value) localStorage.setItem("nfl_guest_buyer_phone", e.target.value);
+                      }}
+                      className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">PAYMENT REF / TRANSACTION ID / CASHTAG</span>
+                    <input
+                      type="text"
+                      placeholder="e.g. Cashtag / PayPal ref / Tx hash"
+                      value={paymentRef}
+                      onChange={(e) => setPaymentRef(e.target.value)}
+                      className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono font-bold text-white focus:outline-none focus:border-blue-500 uppercase"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 4: Payment Rails */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-300">
+                    {isPatriotsGame ? "4. OFFICIAL PAYMENT OPTIONS" : "4. OFFICIAL PAYMENT CHANNEL"}
                   </label>
                   <span className="text-[9px] font-black uppercase text-emerald-400 flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3" /> CONCIERGE VERIFIED
@@ -1672,11 +1741,16 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       selectedMethod={paymentTab as any}
                       amount={currentSplit.dueToday}
                       orderReference={checkoutSessionId}
-                      customerName={buyerName || "Ticket Guest"}
+                      customerName={buyerName}
                       customerEmail={buyerEmail}
                       customerPhone={buyerPhone}
                       itemTitle={`${game.homeTeam} vs ${game.awayTeam} (${selectedTier.toUpperCase()} Ticket)`}
                       itemType="ticket"
+                      onCustomerDetailsChange={({ name, email, phone }) => {
+                        if (name) setBuyerName(name);
+                        if (email) setBuyerEmail(email);
+                        if (phone) setBuyerPhone(phone);
+                      }}
                       onSwitchToGiftCard={() => setPaymentTab("giftcard")}
                       onPaymentSubmitted={(ref, receipt) => {
                         setPaymentRef(ref);
@@ -1789,65 +1863,8 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                 </div>
               </div>
 
-              {/* Step 4: Contact & Order Details */}
+              {/* Step 5: Verification & Receipts */}
               <div className="space-y-3">
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                  4. PASS & APPROVAL DETAILS
-                </label>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">FULL NAME / SENDER NAME *</span>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Jayne Welage"
-                      value={buyerName}
-                      onChange={(e) => {
-                        setBuyerName(e.target.value);
-                        if (e.target.value) localStorage.setItem("nfl_guest_sender_name", e.target.value);
-                      }}
-                      className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">EMAIL ADDRESS (FOR PASS & APPROVAL) *</span>
-                    <input
-                      type="email"
-                      required
-                      placeholder="e.g. jayne_welage@msn.com"
-                      value={buyerEmail}
-                      onChange={(e) => {
-                        setBuyerEmail(e.target.value);
-                        if (e.target.value) localStorage.setItem("nfl_guest_buyer_email", e.target.value);
-                      }}
-                      className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">PHONE NUMBER (OPTIONAL FOR SMS ALERTS)</span>
-                    <input
-                      type="tel"
-                      placeholder="e.g. +1 (555) 019-2834"
-                      value={buyerPhone}
-                      onChange={(e) => setBuyerPhone(e.target.value)}
-                      className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">PAYMENT REF / TRANSACTION ID / CASHTAG</span>
-                    <input
-                      type="text"
-                      placeholder="e.g. Cashtag / PayPal ref / Tx hash"
-                      value={paymentRef}
-                      onChange={(e) => setPaymentRef(e.target.value)}
-                      className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                </div>
 
                 {/* Upload Payment Screenshot or Picture of Receipt */}
                 <div className="pt-2">
