@@ -112,6 +112,11 @@ export function getNFLImage(item: {
     if (normId.includes("JALEN-PITRE") || normTitle.includes("jalen pitre") || (item.player && item.player.toLowerCase().includes("jalen pitre"))) {
       return "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg";
     }
+
+    // Explicit Bo Nix Quarterback asset
+    if (normId.includes("BO-NIX") || normTitle.includes("bo nix") || (item.player && item.player.toLowerCase().includes("bo nix"))) {
+      return "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg";
+    }
     
     // 1. EXTRACT TEAM
     let teamId = (item.teamId || "").toUpperCase();
@@ -289,6 +294,11 @@ export const NFLImage: React.FC<NFLImageProps> = ({ item, className, style, alt 
       // Local mirror fallback for Houston-Texans / tank-dell / Jalen Pitre asset
       if (currentSrc && (currentSrc.includes("Houston-Texans") || currentSrc.includes("tank-dell.jpg")) && !currentSrc.startsWith("/postimages/")) {
         setCurrentSrc("/postimages/tank-dell.jpg");
+        return;
+      }
+      // Local mirror fallback for Bo Nix asset
+      if (currentSrc && currentSrc.includes("IMG-0622") && !currentSrc.startsWith("/postimages/")) {
+        setCurrentSrc("/postimages/IMG-0622.jpg");
         return;
       }
       // Attempt 1: If it was a raw URL, try weserv.nl proxy

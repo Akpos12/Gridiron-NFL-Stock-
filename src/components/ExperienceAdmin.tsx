@@ -246,6 +246,45 @@ export const ExperienceAdmin: React.FC = () => {
     }
   };
 
+  // One-click function to ensure Bo Nix is verified in database
+  const handleSeedBoNix = async () => {
+    try {
+      await setDoc(doc(db, "experiences", "exp-bo-nix-meet"), {
+        id: "exp-bo-nix-meet",
+        title: "BO NIX Private Experience",
+        description: "Exclusive 1-on-1 private experience with Denver Broncos standout quarterback Bo Nix. Includes sideline access, private autograph session, photo op, and certified commemorative memorabilia. Private experience date will be announced after confirmation.",
+        type: "meet_greet",
+        category: "Private Experience",
+        price: 2000,
+        vipPrice: 2000,
+        premiumPrice: 2000,
+        teamId: "DEN",
+        imageUrl: "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg",
+        player: "Bo Nix",
+        location: "Empower Field at Mile High & Centura Training Center, Denver, CO",
+        dates: ["Private experience date will be announced after confirmation"],
+        timeSlots: ["Announced after confirmation"],
+        features: [
+          "Private 1-on-1 private experience and photo op with Bo Nix",
+          "Personalized hand-signed official NFL football or Broncos jersey",
+          "Official Empower Field at Mile High sideline access credential",
+          "Private experience date will be announced after confirmation",
+          "Digital Platinum ticket card issued upon purchase",
+          "Flexible installment options: Pay in Full ($2,000), 2 Payments ($1,100 × 2), or 3 Payments ($800 × 3)",
+          "Exclusive 5% instant discount applied for all Crypto (BTC, ETH, USDT) payments"
+        ],
+        rating: 5.0,
+        reviewsCount: 39,
+        v: Date.now(),
+        updatedAt: Date.now()
+      }, { merge: true });
+      alert("✅ BO NIX Private Experience successfully verified and saved with price $2,000!");
+    } catch (err: any) {
+      console.error(err);
+      alert("Error adding Bo Nix experience: " + err.message);
+    }
+  };
+
   // One-click function to ensure Drew Lock is verified in database
   const handleSeedDrewLock = async () => {
     try {
@@ -377,8 +416,48 @@ export const ExperienceAdmin: React.FC = () => {
       }
     };
 
+    const verifyBoNix = async () => {
+      try {
+        const snap = await getDoc(doc(db, "experiences", "exp-bo-nix-meet"));
+        if (!snap.exists() || snap.data()?.price !== 2000 || snap.data()?.imageUrl !== "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg" || snap.data()?.title !== "BO NIX Private Experience") {
+          await setDoc(doc(db, "experiences", "exp-bo-nix-meet"), {
+            id: "exp-bo-nix-meet",
+            title: "BO NIX Private Experience",
+            description: "Exclusive 1-on-1 private experience with Denver Broncos standout quarterback Bo Nix. Includes sideline access, private autograph session, photo op, and certified commemorative memorabilia. Private experience date will be announced after confirmation.",
+            type: "meet_greet",
+            category: "Private Experience",
+            price: 2000,
+            vipPrice: 2000,
+            premiumPrice: 2000,
+            teamId: "DEN",
+            imageUrl: "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg",
+            player: "Bo Nix",
+            location: "Empower Field at Mile High & Centura Training Center, Denver, CO",
+            dates: ["Private experience date will be announced after confirmation"],
+            timeSlots: ["Announced after confirmation"],
+            features: [
+              "Private 1-on-1 private experience and photo op with Bo Nix",
+              "Personalized hand-signed official NFL football or Broncos jersey",
+              "Official Empower Field at Mile High sideline access credential",
+              "Private experience date will be announced after confirmation",
+              "Digital Platinum ticket card issued upon purchase",
+              "Flexible installment options: Pay in Full ($2,000), 2 Payments ($1,100 × 2), or 3 Payments ($800 × 3)",
+              "Exclusive 5% instant discount applied for all Crypto (BTC, ETH, USDT) payments"
+            ],
+            rating: 5.0,
+            reviewsCount: 39,
+            v: Date.now(),
+            updatedAt: Date.now()
+          }, { merge: true });
+        }
+      } catch (e) {
+        console.warn("Bo Nix auto-verification:", e);
+      }
+    };
+
     verifyDrewLock();
     verifyJalenPitre();
+    verifyBoNix();
   }, []);
 
   useEffect(() => {
@@ -749,6 +828,31 @@ export const ExperienceAdmin: React.FC = () => {
           ],
           rating: 5.0,
           reviewsCount: 48
+        },
+        {
+          id: "exp-bo-nix-meet",
+          title: "BO NIX Private Experience",
+          description: "Exclusive 1-on-1 private experience with Denver Broncos standout quarterback Bo Nix. Includes sideline access, private autograph session, photo op, and certified commemorative memorabilia. Private experience date will be announced after confirmation.",
+          type: "meet_greet",
+          category: "Private Experience",
+          price: 2000,
+          vipPrice: 2000,
+          premiumPrice: 2000,
+          teamId: "DEN",
+          imageUrl: "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg",
+          player: "Bo Nix",
+          location: "Empower Field at Mile High & Centura Training Center, Denver, CO",
+          dates: ["Private experience date will be announced after confirmation"],
+          timeSlots: ["Announced after confirmation"],
+          features: [
+            "Private 1-on-1 private experience and photo op with Bo Nix",
+            "Personalized hand-signed official NFL football or Broncos jersey",
+            "Official Empower Field at Mile High sideline access credential",
+            "Private experience date will be announced after confirmation",
+            "Instant Ticket Card & digital credential issued upon purchase"
+          ],
+          rating: 5.0,
+          reviewsCount: 39
         }
       ];
 

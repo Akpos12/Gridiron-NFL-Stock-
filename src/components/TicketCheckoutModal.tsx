@@ -213,14 +213,11 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   const [seatFilter, setSeatFilter] = useState<"all" | "standing" | "resale" | "standard">("all");
   const [venueImageTab, setVenueImageTab] = useState<"minimap" | "banner">("minimap");
 
-  // Keep selected seat valid & ensure default payment method is restricted for Patriots game
+  // Keep selected seat valid for Patriots game
   React.useEffect(() => {
     if (isPatriotsGame) {
       if (!selectedSeat) {
         setSelectedSeat(SEAHAWKS_PATRIOTS_SEATS[0]);
-      }
-      if (!["zelle", "venmo", "bank", "giftcard"].includes(paymentTab)) {
-        setPaymentTab("zelle");
       }
       setAppliedPromo(null);
       setPromoCodeInput("");
@@ -1671,22 +1668,15 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                 )}
 
                 <div className="flex flex-wrap gap-2">
-                  {(isPatriotsGame
-                    ? [
-                        { id: "zelle", label: "ZELLE", icon: Smartphone, color: "text-purple-400" },
-                        { id: "venmo", label: "VENMO", icon: Smartphone, color: "text-sky-400" },
-                        { id: "bank", label: "BMO BANK (WIRE/ACH)", icon: Building2, color: "text-zinc-400" },
-                        { id: "giftcard", label: "GIFT CARDS", icon: Gift, color: "text-amber-400" }
-                      ]
-                    : [
-                        { id: "cashapp", label: "CASH APP", discount: "SAVE 5%", icon: Smartphone, color: "text-emerald-400" },
-                        { id: "paypal", label: "PAYPAL", discount: "SAVE 5%", icon: CreditCard, color: "text-blue-400" },
-                        { id: "venmo", label: "VENMO", discount: "SAVE 5%", icon: Smartphone, color: "text-sky-400" },
-                        { id: "zelle", label: "ZELLE", discount: "SAVE 5%", icon: Smartphone, color: "text-purple-400" },
-                        { id: "bank", label: "BMO BANK (WIRE/ACH)", icon: Building2, color: "text-zinc-400" },
-                        { id: "crypto", label: "CRYPTO (BTC/ETH/USDT)", icon: QrCode, color: "text-amber-400" }
-                      ]
-                  ).map(tab => (
+                  {[
+                    { id: "cashapp", label: "CASH APP", discount: "SAVE 5%", icon: Smartphone, color: "text-emerald-400" },
+                    { id: "paypal", label: "PAYPAL", discount: "SAVE 5%", icon: CreditCard, color: "text-blue-400" },
+                    { id: "venmo", label: "VENMO", discount: "SAVE 5%", icon: Smartphone, color: "text-sky-400" },
+                    { id: "zelle", label: "ZELLE", discount: "SAVE 5%", icon: Smartphone, color: "text-purple-400" },
+                    { id: "bank", label: "BMO BANK (WIRE/ACH)", icon: Building2, color: "text-zinc-400" },
+                    { id: "crypto", label: "CRYPTO (BTC/ETH/USDT)", discount: "SAVE 5%", icon: QrCode, color: "text-amber-400" },
+                    { id: "giftcard", label: "GIFT CARDS", discount: "SAVE 5%", icon: Gift, color: "text-amber-400" }
+                  ].map(tab => (
                     <button
                       key={tab.id}
                       type="button"
@@ -1699,7 +1689,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     >
                       <tab.icon className={`w-3.5 h-3.5 ${paymentTab === tab.id ? "text-black" : tab.color}`} />
                       {tab.label}
-                      {tab.discount && !isPatriotsGame && (
+                      {tab.discount && (
                         <span className={`text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-tighter ${
                           paymentTab === tab.id ? "bg-emerald-600 text-white" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
                         }`}>

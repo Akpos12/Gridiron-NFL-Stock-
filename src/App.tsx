@@ -53,7 +53,8 @@ import {
   AlertTriangle,
   Download,
   Zap,
-  Sparkles
+  Sparkles,
+  Radio
 } from "lucide-react";
 import { 
   XAxis, 
@@ -103,6 +104,7 @@ import { WinnerTicker } from "./components/giveaway/WinnerTicker";
 import { TicketCheckoutModal, GameTicket } from "./components/TicketCheckoutModal";
 import { MerchandiseCheckoutModal, PATRIOTS_SIGNED_MERCH_IMAGES } from "./components/MerchandiseCheckoutModal";
 import { CustomerPaymentWaitingTerminal } from "./components/common/CustomerPaymentWaitingTerminal";
+import { ControlRoomPaymentDispatcher } from "./components/common/ControlRoomPaymentDispatcher";
 import { MerchandiseVaultSection } from "./components/MerchandiseVaultSection";
 import { CustomerCareWidget } from "./components/CustomerCareWidget";
 import { ReceiptReviewModal, BookingAuditItem } from "./components/common/ReceiptReviewModal";
@@ -442,10 +444,11 @@ const WalletModal = ({
 
             <div className="flex flex-wrap gap-2 border-b border-white/5 pb-3">
               {[
-                { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2 },
                 { id: "cashapp", label: "Cash App", icon: Smartphone },
+                { id: "paypal", label: "PayPal", icon: CreditCard },
                 { id: "venmo", label: "Venmo", icon: Smartphone },
                 { id: "zelle", label: "Zelle", icon: Smartphone },
+                { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2 },
                 { id: "crypto", label: "Crypto", icon: QrCode }
               ].map(method => (
                 <button
@@ -471,11 +474,16 @@ const WalletModal = ({
               selectedMethod={depositMethod as any}
               amount={parseFloat(depositAmount) || 100}
               orderReference={depositSessionId}
-              customerName={auth.currentUser?.displayName || "VIP Member"}
+              customerName={auth.currentUser?.displayName || ""}
               customerEmail={auth.currentUser?.email || ""}
               customerPhone=""
               itemTitle="Account Balance Deposit"
               itemType="deposit"
+              onCustomerDetailsChange={({ name, email, phone }) => {
+                if (name && !auth.currentUser?.displayName) {
+                  localStorage.setItem("nfl_guest_sender_name", name);
+                }
+              }}
               onPaymentSubmitted={(ref, receipt) => {
                 setDepositReference(ref);
                 if (receipt) {
@@ -2136,9 +2144,9 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [orders, setOrders] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences" | "giveaways">(() => {
+  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences" | "giveaways" | "payments">(() => {
     const saved = localStorage.getItem("admin_subtab");
-    if (saved && ["inquiries", "orders", "users", "transactions", "experiences", "giveaways"].includes(saved)) {
+    if (saved && ["inquiries", "orders", "users", "transactions", "experiences", "giveaways", "payments"].includes(saved)) {
       return saved as any;
     }
     return "inquiries";
@@ -2685,6 +2693,13 @@ const AdminPortal = ({ user }: { user: any }) => {
           >
             Player Giveaways
           </button>
+          <button 
+            onClick={() => { setActiveSubTab("payments"); setSearchTerm(""); }}
+            className={cn("px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2", activeSubTab === "payments" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" : "bg-zinc-900 text-zinc-500 hover:text-white")}
+          >
+            <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+            Live Payment Dispatcher
+          </button>
         </div>
       </div>
 
@@ -2696,7 +2711,11 @@ const AdminPortal = ({ user }: { user: any }) => {
       )}
 
       <div className="bg-zinc-900/50 border border-white/5 rounded-[2.5rem] overflow-hidden">
-        {activeSubTab === "giveaways" ? (
+        {activeSubTab === "payments" ? (
+          <div className="p-6 sm:p-8">
+            <ControlRoomPaymentDispatcher />
+          </div>
+        ) : activeSubTab === "giveaways" ? (
           <GiveawayControlRoom />
         ) : activeSubTab === "experiences" ? (
           <ExperienceAdmin />

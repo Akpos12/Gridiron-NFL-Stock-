@@ -84,7 +84,7 @@ export interface Booking {
   qrCode: string;
   createdAt: any;
   imageUrl: string;
-  installmentPlan?: "1x" | "2x" | "3x";
+  installmentPlan?: "1x" | "2x" | "3x" | "4x" | "5x";
   installmentAmount?: number;
   installmentTotal?: number;
   installmentDueToday?: number;
@@ -406,6 +406,33 @@ const SEED_EXPERIENCES: Experience[] = [
     ],
     rating: 5.0,
     reviewsCount: 48
+  },
+  {
+    id: "exp-bo-nix-meet",
+    title: "BO NIX Private Experience",
+    description: "Exclusive 1-on-1 private experience with Denver Broncos standout quarterback Bo Nix. Includes sideline access, private autograph session, photo op, and certified commemorative memorabilia. Private experience date will be announced after confirmation.",
+    type: "meet_greet",
+    category: "Private Experience",
+    price: 2000,
+    vipPrice: 2000,
+    premiumPrice: 2000,
+    teamId: "DEN",
+    imageUrl: "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg",
+    player: "Bo Nix",
+    location: "Empower Field at Mile High & Centura Training Center, Denver, CO",
+    dates: ["Private experience date will be announced after confirmation"],
+    timeSlots: ["Announced after confirmation"],
+    features: [
+      "Private 1-on-1 private experience and photo op with Bo Nix",
+      "Personalized hand-signed official NFL football or Broncos jersey",
+      "Official Empower Field at Mile High sideline access credential",
+      "Private experience date will be announced after confirmation",
+      "Digital Platinum ticket card issued upon purchase",
+      "Flexible installment options: Pay in Full ($2,000), 2 Payments ($1,100 × 2), 3 Payments ($800 × 3), or 5 Payments ($500 × 5 = $2,500)",
+      "Exclusive 5% instant discount applied for all Crypto (BTC, ETH, USDT) payments"
+    ],
+    rating: 5.0,
+    reviewsCount: 39
   }
 ];
 
@@ -433,7 +460,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const [isCustomDateMode, setIsCustomDateMode] = useState(false);
   const [guestsCount, setGuestsCount] = useState(1);
   const [tierSelection, setTierSelection] = useState<"standard" | "vip" | "premium" | "platinum">("standard");
-  const [installmentPlan, setInstallmentPlan] = useState<"1x" | "2x" | "3x">("1x");
+  const [installmentPlan, setInstallmentPlan] = useState<"1x" | "2x" | "3x" | "4x" | "5x">("1x");
 
   // VIP Promo & Bonus Code State
   const [promoCodeInput, setPromoCodeInput] = useState("");
@@ -563,7 +590,27 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
             setDoc(doc(db, "experiences", item.id), {
               title: "JALEN PITRE Private Experience",
               category: "Private Experience",
-              imageUrl: "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg"
+              imageUrl: "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg",
+              price: 1000,
+              vipPrice: 1000,
+              premiumPrice: 1000
+            }, { merge: true }).catch(console.error);
+          } else if (item.id === "exp-bo-nix-meet" || item.player?.toLowerCase().includes("bo nix") || item.title?.toLowerCase().includes("bo nix")) {
+            item.title = "BO NIX Private Experience";
+            item.category = "Private Experience";
+            item.imageUrl = "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg";
+            item.price = 2000;
+            item.vipPrice = 2000;
+            item.premiumPrice = 2000;
+            item.dates = ["Private experience date will be announced after confirmation"];
+            item.timeSlots = ["Announced after confirmation"];
+            setDoc(doc(db, "experiences", item.id), {
+              title: "BO NIX Private Experience",
+              category: "Private Experience",
+              imageUrl: "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg",
+              price: 2000,
+              vipPrice: 2000,
+              premiumPrice: 2000
             }, { merge: true }).catch(console.error);
           } else if (item.id === "exp-sea-training") {
             item.imageUrl = "/postimages/341007003061882166.jpg";
@@ -634,54 +681,91 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const isPatriotsMerchSelected = selectedExp?.id === "exp-patriots-signed-merch" || (selectedExp?.teamId === "NE" && (selectedExp?.category?.toLowerCase().includes("signed") || selectedExp?.title?.toLowerCase().includes("signed")));
   const isPatriotsTeamSelected = selectedExp?.teamId === "NE" || isDrakeMayeSelected || isPatriotsMerchSelected;
   const isJalenPitreSelected = selectedExp?.id === "exp-jalen-pitre-meet" || selectedExp?.player?.toLowerCase().includes("pitre") || selectedExp?.title?.toLowerCase().includes("pitre");
+  const isBoNixSelected = selectedExp?.id === "exp-bo-nix-meet" || selectedExp?.player?.toLowerCase().includes("bo nix") || selectedExp?.title?.toLowerCase().includes("bo nix");
+  const isPrivatePlayerExperience = isJalenPitreSelected || isBoNixSelected;
 
-  // Jalen Pitre Installment Calculations:
-  // Pay in full: $1,000
-  // 2-payment plan: $550 × 2 = $1,100 total ($550 due today)
-  // 3-payment plan: $400 × 3 = $1,200 total ($400 due today)
-  const getJalenPitrePricing = () => {
+  // Private Player Experience Pricing Calculations (Jalen Pitre & Bo Nix):
+  // Jalen Pitre: Base $1,000 | 2-pay: $550 × 2 ($1,100) | 3-pay: $400 × 3 ($1,200) | 5-pay: $250 × 5 ($1,250)
+  // Bo Nix: Base $2,000 | 2-pay: $1,100 × 2 ($2,200) | 3-pay: $800 × 3 ($2,400) | 5-pay: $500 × 5 ($2,500)
+  const getPrivateExperiencePricing = () => {
     const guests = Math.max(1, guestsCount);
+    const isNix = isBoNixSelected;
+    const basePrice = isNix ? 2000 : 1000;
+    const twoPayAmount = isNix ? 1100 : 550;
+    const threePayAmount = isNix ? 800 : 400;
+    const fourPayAmount = isNix ? 550 : 275;
+    const fivePayAmount = isNix ? 500 : 250;
+
+    if (installmentPlan === "5x") {
+      return {
+        planLabel: isNix ? "5-Payment Plan ($500/payment)" : "5-Payment Plan",
+        dueTodayPerGuest: fivePayAmount,
+        dueTodayTotal: fivePayAmount * guests,
+        totalPlanPerGuest: fivePayAmount * 5,
+        totalPlanGross: (fivePayAmount * 5) * guests,
+        numPayments: 5,
+        perPayment: fivePayAmount,
+        summaryText: `5 payments of $${fivePayAmount.toLocaleString()} ($${fivePayAmount.toLocaleString()} × 5 = $${(fivePayAmount * 5).toLocaleString()} total)`,
+        breakdownText: `5 payments of $${fivePayAmount.toLocaleString()} · Total paid: $${(fivePayAmount * 5).toLocaleString()}`
+      };
+    }
+    if (installmentPlan === "4x") {
+      return {
+        planLabel: "4-Payment Plan",
+        dueTodayPerGuest: fourPayAmount,
+        dueTodayTotal: fourPayAmount * guests,
+        totalPlanPerGuest: fourPayAmount * 4,
+        totalPlanGross: (fourPayAmount * 4) * guests,
+        numPayments: 4,
+        perPayment: fourPayAmount,
+        summaryText: `4 payments of $${fourPayAmount.toLocaleString()} ($${fourPayAmount.toLocaleString()} × 4 = $${(fourPayAmount * 4).toLocaleString()} total)`,
+        breakdownText: `4 payments of $${fourPayAmount.toLocaleString()} · Total paid: $${(fourPayAmount * 4).toLocaleString()}`
+      };
+    }
     if (installmentPlan === "2x") {
       return {
         planLabel: "2-Payment Plan",
-        dueTodayPerGuest: 550,
-        dueTodayTotal: 550 * guests,
-        totalPlanPerGuest: 1100,
-        totalPlanGross: 1100 * guests,
+        dueTodayPerGuest: twoPayAmount,
+        dueTodayTotal: twoPayAmount * guests,
+        totalPlanPerGuest: twoPayAmount * 2,
+        totalPlanGross: (twoPayAmount * 2) * guests,
         numPayments: 2,
-        perPayment: 550,
-        summaryText: "2 payments of $550 ($550 × 2 = $1,100 total)",
-        breakdownText: "2 payments of $550 · Total paid: $1,100"
+        perPayment: twoPayAmount,
+        summaryText: `2 payments of $${twoPayAmount.toLocaleString()} ($${twoPayAmount.toLocaleString()} × 2 = $${(twoPayAmount * 2).toLocaleString()} total)`,
+        breakdownText: `2 payments of $${twoPayAmount.toLocaleString()} · Total paid: $${(twoPayAmount * 2).toLocaleString()}`
       };
     }
     if (installmentPlan === "3x") {
       return {
         planLabel: "3-Payment Plan",
-        dueTodayPerGuest: 400,
-        dueTodayTotal: 400 * guests,
-        totalPlanPerGuest: 1200,
-        totalPlanGross: 1200 * guests,
+        dueTodayPerGuest: threePayAmount,
+        dueTodayTotal: threePayAmount * guests,
+        totalPlanPerGuest: threePayAmount * 3,
+        totalPlanGross: (threePayAmount * 3) * guests,
         numPayments: 3,
-        perPayment: 400,
-        summaryText: "3 payments of $400 ($400 × 3 = $1,200 total)",
-        breakdownText: "3 payments of $400 · Total paid: $1,200"
+        perPayment: threePayAmount,
+        summaryText: `3 payments of $${threePayAmount.toLocaleString()} ($${threePayAmount.toLocaleString()} × 3 = $${(threePayAmount * 3).toLocaleString()} total)`,
+        breakdownText: `3 payments of $${threePayAmount.toLocaleString()} · Total paid: $${(threePayAmount * 3).toLocaleString()}`
       };
     }
     return {
       planLabel: "Pay in Full",
-      dueTodayPerGuest: 1000,
-      dueTodayTotal: 1000 * guests,
-      totalPlanPerGuest: 1000,
-      totalPlanGross: 1000 * guests,
+      dueTodayPerGuest: basePrice,
+      dueTodayTotal: basePrice * guests,
+      totalPlanPerGuest: basePrice,
+      totalPlanGross: basePrice * guests,
       numPayments: 1,
-      perPayment: 1000,
-      summaryText: "Pay in full: $1,000 (one-time payment)",
-      breakdownText: "Total: $1,000"
+      perPayment: basePrice,
+      summaryText: `Pay in full: $${basePrice.toLocaleString()} (one-time payment)`,
+      breakdownText: `Total: $${basePrice.toLocaleString()}`
     };
   };
 
+  const getJalenPitrePricing = getPrivateExperiencePricing;
+
   const getOriginalRate = () => {
     if (!selectedExp) return 0;
+    if (isBoNixSelected) return 2000;
     if (isJalenPitreSelected) return 1000;
     if (isPatriotsMerchSelected) return 3500;
     if (isDrakeMayeSelected) return 2000;
@@ -692,6 +776,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
   const getEffectiveRate = () => {
     if (!selectedExp) return 0;
+    if (isBoNixSelected) return 2000;
     if (isJalenPitreSelected) return 1000;
     if (isPatriotsMerchSelected) {
       return appliedPromo === "258025" ? 1000 : 3500;
@@ -705,7 +790,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
   const handleApplyPromoCode = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (isJalenPitreSelected) return;
+    if (isPrivatePlayerExperience) return;
     const code = promoCodeInput.trim().toUpperCase();
     if (!code) {
       setPromoError("Please enter a bonus or promo code.");
@@ -737,14 +822,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const openBookingModal = (exp: Experience) => {
     setSelectedExp(exp);
     setCheckoutSessionId(`PAY-EXP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
-    const isPitre = exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre");
-    const validFutureDate = isPitre ? "Private experience date will be announced after confirmation" : (exp.dates.find(d => d >= TODAY_ISO) || exp.dates[0] || TODAY_ISO);
+    const isPrivate = exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.player?.toLowerCase().includes("pitre") || exp.player?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("bo nix");
+    const validFutureDate = isPrivate ? "Private experience date will be announced after confirmation" : (exp.dates.find(d => d >= TODAY_ISO) || exp.dates[0] || TODAY_ISO);
     setBookingDate(validFutureDate);
-    setBookingSlot(isPitre ? "Announced after confirmation" : (exp.timeSlots[0] || "09:30 AM"));
+    setBookingSlot(isPrivate ? "Announced after confirmation" : (exp.timeSlots[0] || "09:30 AM"));
     setCustomTimeSlotInput("");
     setIsCustomDateMode(false);
     setGuestsCount(1);
-    setTierSelection(isPitre ? "platinum" : "standard");
+    setTierSelection(isPrivate ? "platinum" : "standard");
     setInstallmentPlan("1x");
     setBookingStep("details");
     setBookingError("");
@@ -790,29 +875,29 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     setBookingError("");
 
     try {
-      const isJalenPitre = isJalenPitreSelected;
-      const pitrePricing = getJalenPitrePricing();
+      const isPrivateExp = isPrivatePlayerExperience;
+      const privatePricing = getPrivateExperiencePricing();
       const guestsNum = Math.max(1, guestsCount);
 
       let totalAmount: number;
       let installmentDetails: Partial<Booking> = {};
 
-      if (isJalenPitre) {
-        // For Jalen Pitre: 5% discount attached ONLY to crypto payment
+      if (isPrivateExp) {
+        // For Private Experiences (Jalen Pitre / Bo Nix): 5% discount attached ONLY to crypto payment
         const isCrypto = paymentTab === "crypto";
-        const cryptoDiscount = isCrypto ? Math.round(pitrePricing.dueTodayTotal * 0.05) : 0;
-        totalAmount = pitrePricing.dueTodayTotal - cryptoDiscount;
+        const cryptoDiscount = isCrypto ? Math.round(privatePricing.dueTodayTotal * 0.05) : 0;
+        totalAmount = privatePricing.dueTodayTotal - cryptoDiscount;
         installmentDetails = {
           installmentPlan: installmentPlan,
-          installmentAmount: pitrePricing.perPayment,
-          installmentTotal: pitrePricing.totalPlanGross,
+          installmentAmount: privatePricing.perPayment,
+          installmentTotal: privatePricing.totalPlanGross,
           installmentDueToday: totalAmount,
           installmentsPaid: 1,
-          installmentsTotal: pitrePricing.numPayments,
-          installmentRemaining: pitrePricing.totalPlanGross - pitrePricing.dueTodayTotal,
+          installmentsTotal: privatePricing.numPayments,
+          installmentRemaining: privatePricing.totalPlanGross - privatePricing.dueTodayTotal,
           installmentTerms: isCrypto 
-            ? `${pitrePricing.summaryText} (5% Crypto Discount Applied: $${totalAmount.toLocaleString()} due today)`
-            : pitrePricing.summaryText,
+            ? `${privatePricing.summaryText} (5% Crypto Discount Applied: $${totalAmount.toLocaleString()} due today)`
+            : privatePricing.summaryText,
           isPlayerCoordinatedDate: true
         };
       } else {
@@ -824,21 +909,22 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       }
       
       const newBookingId = `bk-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      
+      const expTitle = isPrivateExp ? (isBoNixSelected ? "BO NIX Private Experience" : "JALEN PITRE Private Experience") : `${selectedExp.title}${appliedPromo ? ` [PROMO ${appliedPromo} APPLIED: $${getEffectiveRate()}/guest]` : ""}`;
+
       const bookingData: Booking = {
         id: newBookingId,
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail.trim(),
         experienceId: selectedExp.id,
-        experienceTitle: isJalenPitre ? "JALEN PITRE Private Experience" : `${selectedExp.title}${appliedPromo ? ` [PROMO ${appliedPromo} APPLIED: $${getEffectiveRate()}/guest]` : ""}`,
+        experienceTitle: expTitle,
         experienceType: selectedExp.type,
-        date: isJalenPitre ? "Private experience date will be announced after confirmation" : bookingDate,
-        timeSlot: isJalenPitre ? "Announced after confirmation" : bookingSlot,
+        date: isPrivateExp ? "Private experience date will be announced after confirmation" : bookingDate,
+        timeSlot: isPrivateExp ? "Announced after confirmation" : bookingSlot,
         guestsCount: guestsNum,
         totalPrice: totalAmount,
-        tier: isJalenPitre ? "platinum" : tierSelection,
+        tier: isPrivateExp ? "platinum" : tierSelection,
         status: "pending", // Awaiting admin approval from the Control Room
-        qrCode: isJalenPitre ? `PASS-PLATINUM-${newBookingId}` : `GRIDIRON-${newBookingId}-${selectedExp.teamId}`,
+        qrCode: isPrivateExp ? `PASS-PLATINUM-${newBookingId}` : `GRIDIRON-${newBookingId}-${selectedExp.teamId}`,
         createdAt: new Date().toISOString(),
         imageUrl: selectedExp.imageUrl,
         ...installmentDetails,
@@ -861,8 +947,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail.trim(),
         itemType: isPatriotsMerchSelected ? "merchandise" : "ticket",
-        itemName: isJalenPitre 
-          ? `JALEN PITRE Private Experience (PLATINUM TICKET) - ${pitrePricing.planLabel}${paymentTab === "crypto" ? " [5% CRYPTO DISCOUNT]" : ""}`
+        itemName: isPrivateExp 
+          ? `${isBoNixSelected ? "BO NIX" : "JALEN PITRE"} Private Experience (PLATINUM TICKET) - ${privatePricing.planLabel}${paymentTab === "crypto" ? " [5% CRYPTO DISCOUNT]" : ""}`
           : `${selectedExp.title} (${tierSelection.toUpperCase()})${appliedPromo ? ` [PROMO ${appliedPromo}]` : ""}`,
         price: totalAmount,
         teamId: selectedExp.teamId,
@@ -886,10 +972,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           userEmail: buyerEmail.trim(),
           buyerPhone: buyerPhone.trim(),
           gameId: selectedExp.id,
-          gameName: isJalenPitre ? "JALEN PITRE Private Experience" : selectedExp.title,
+          gameName: isPrivateExp ? (isBoNixSelected ? "BO NIX Private Experience" : "JALEN PITRE Private Experience") : selectedExp.title,
           stadium: selectedExp.location,
-          city: selectedExp.location.includes("Houston") ? "Houston, TX" : "Foxborough, MA",
-          tier: isJalenPitre ? "platinum" : tierSelection,
+          city: isBoNixSelected ? "Denver, CO" : (selectedExp.location.includes("Houston") ? "Houston, TX" : "Foxborough, MA"),
+          tier: isPrivateExp ? "platinum" : tierSelection,
           quantity: guestsNum,
           totalAmount: totalAmount,
           paymentMethod: paymentTab,
@@ -898,7 +984,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
           receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
           status: "pending_approval",
-          qrCode: isJalenPitre ? `RFID-PLATINUM-${ticketOrderId.toUpperCase()}` : `RFID-VIP-${ticketOrderId.toUpperCase()}`,
+          qrCode: isPrivateExp ? `RFID-PLATINUM-${ticketOrderId.toUpperCase()}` : `RFID-VIP-${ticketOrderId.toUpperCase()}`,
           timestamp: serverTimestamp()
         });
       } catch (e) {
@@ -1083,7 +1169,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                     <div className="flex items-center gap-1.5 text-[8px] font-mono text-emerald-400/90 pt-1 border-t border-white/[0.03]">
                       <Building2 className="w-2.5 h-2.5 shrink-0" />
                       <span className="truncate">
-                        {exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre")
+                        {exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.player?.toLowerCase().includes("pitre") || exp.player?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("bo nix")
                           ? "Cash App · Crypto (5% OFF) · Gift Card"
                           : "BMO Bank · Cash App · Venmo · Zelle · Crypto"}
                       </span>
@@ -1094,7 +1180,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                   <div className="pt-2 flex items-center justify-between border-t border-white/5">
                     <div>
                       <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none">
-                        {exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre") 
+                        {exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.player?.toLowerCase().includes("pitre") || exp.player?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("bo nix") 
                           ? "Platinum Ticket"
                           : exp.id === "exp-drake-maye-meet" || exp.title.toLowerCase().includes("drake maye") 
                             ? "Pass Price" 
@@ -1176,7 +1262,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                   <span className={cn("text-[9px] font-black uppercase tracking-widest", bookingStep === "checkout" ? "text-blue-400" : "text-zinc-600")}>02 Secure Checkout</span>
                   <ChevronRight className="w-3 h-3 text-zinc-700" />
                   <span className={cn("text-[9px] font-black uppercase tracking-widest", bookingStep === "success" ? "text-green-400 animate-pulse" : "text-zinc-600")}>
-                    03 {isJalenPitreSelected ? "Platinum Ticket" : "VIP Ticket"}
+                    03 {isPrivatePlayerExperience ? "Platinum Ticket" : "VIP Ticket"}
                   </span>
                 </div>
 
@@ -1196,8 +1282,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       <p className="text-xs text-zinc-500 font-bold leading-relaxed">{selectedExp.description}</p>
                     </div>
 
-                    {/* Booking parameters: Interactive Custom Date & Time Selection OR Jalen Pitre Event Notice */}
-                    {isJalenPitreSelected ? (
+                    {/* Booking parameters: Interactive Custom Date & Time Selection OR Private Player Event Notice */}
+                    {isPrivatePlayerExperience ? (
                       <div className="p-4 bg-zinc-950/90 rounded-2xl border border-white/10 space-y-2.5">
                         <div className="flex items-center gap-2 text-zinc-300">
                           <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
@@ -1208,7 +1294,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                             Private experience date will be announced after confirmation.
                           </p>
                           <p className="text-[10px] text-zinc-400 font-medium leading-relaxed">
-                            All dates and times are coordinated directly by Jalen Pitre. Purchase your ticket card today and await player availability schedule. Your official Platinum Ticket card and digital credentials will be issued immediately upon confirmation.
+                            All dates and times are coordinated directly by {isBoNixSelected ? "Bo Nix" : "Jalen Pitre"}. Purchase your ticket card today and await player availability schedule. Your official Platinum Ticket card and digital credentials will be issued immediately upon confirmation.
                           </p>
                         </div>
                       </div>
@@ -1412,131 +1498,175 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                     )}
 
                     {/* Pricing Tiers Selection */}
-                    {isJalenPitreSelected ? (
+                    {isPrivatePlayerExperience ? (
                       <>
-                        {/* Jalen Pitre Ticket Type: PLATINUM TICKET only ($1,000) */}
-                        <div className="space-y-2.5 pt-4 border-t border-white/5">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Ticket Type</h4>
-                            <span className="text-[9px] font-mono text-zinc-200 uppercase font-black bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded">
-                              EXCLUSIVE ENCOUNTER
-                            </span>
-                          </div>
-                          <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-black uppercase text-white tracking-wider flex items-center gap-1.5">
-                                  <Sparkles className="w-4 h-4 text-zinc-300" />
-                                  PLATINUM TICKET
-                                </span>
-                                <span className="text-[9px] font-mono font-black text-black bg-zinc-200 px-2 py-0.5 rounded">
-                                  ONLY OPTION
-                                </span>
-                              </div>
-                              <p className="text-[10px] text-zinc-400 font-medium leading-normal">
-                                Private 1-on-1 private experience with Jalen Pitre, photo op, official sideline access, and hand-signed memorabilia.
-                              </p>
-                            </div>
-                            <div className="text-left sm:text-right shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-white/5">
-                              <span className="text-[9px] font-black uppercase text-zinc-500 block">Ticket Price</span>
-                              <span className="text-xl font-mono font-black text-white leading-none">$1,000</span>
-                            </div>
-                          </div>
-                        </div>
+                        {/* Private Player Ticket Type: PLATINUM TICKET only */}
+                        {(() => {
+                          const playerName = isBoNixSelected ? "Bo Nix" : "Jalen Pitre";
+                          const basePrice = isBoNixSelected ? 2000 : 1000;
+                          const twoPay = isBoNixSelected ? 1100 : 550;
+                          const threePay = isBoNixSelected ? 800 : 400;
+                          const fivePay = isBoNixSelected ? 500 : 250;
 
-                        {/* Jalen Pitre Payment Plan Options */}
-                        <div className="space-y-3 pt-4 border-t border-white/5">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Payment Plan Options</h4>
-                            <span className="text-[9px] font-mono text-zinc-400 uppercase">
-                              Select Your Preferred Plan
-                            </span>
-                          </div>
+                          return (
+                            <>
+                              <div className="space-y-2.5 pt-4 border-t border-white/5">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Ticket Type</h4>
+                                  <span className="text-[9px] font-mono text-zinc-200 uppercase font-black bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded">
+                                    EXCLUSIVE ENCOUNTER
+                                  </span>
+                                </div>
+                                <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-black uppercase text-white tracking-wider flex items-center gap-1.5">
+                                        <Sparkles className="w-4 h-4 text-zinc-300" />
+                                        PLATINUM TICKET
+                                      </span>
+                                      <span className="text-[9px] font-mono font-black text-black bg-zinc-200 px-2 py-0.5 rounded">
+                                        ONLY OPTION
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-zinc-400 font-medium leading-normal">
+                                      Private 1-on-1 private experience with {playerName}, photo op, official sideline access, and hand-signed memorabilia.
+                                    </p>
+                                  </div>
+                                  <div className="text-left sm:text-right shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-white/5">
+                                    <span className="text-[9px] font-black uppercase text-zinc-500 block">Ticket Price</span>
+                                    <span className="text-xl font-mono font-black text-white leading-none">${basePrice.toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            {/* Pay in Full */}
-                            <button
-                              type="button"
-                              onClick={() => setInstallmentPlan("1x")}
-                              className={cn(
-                                "p-4 rounded-2xl border text-left transition-all cursor-pointer",
-                                installmentPlan === "1x"
-                                  ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30"
-                                  : "bg-zinc-900/40 border-white/5 hover:border-white/15"
-                              )}
-                            >
-                              <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[11px] font-black uppercase text-white tracking-wider">Pay in Full</span>
-                                <span className="text-[11px] font-mono font-black text-emerald-400">$1,000</span>
-                              </div>
-                              <p className="text-[9px] text-zinc-400 font-bold uppercase">Total: $1,000</p>
-                              <p className="text-[8px] text-zinc-500 font-medium mt-1">One-time payment upfront.</p>
-                            </button>
+                              {/* Payment Plan Options */}
+                              <div className="space-y-3 pt-4 border-t border-white/5">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Payment Plan Options</h4>
+                                  <span className="text-[9px] font-mono text-zinc-400 uppercase">
+                                    Select Your Preferred Plan
+                                  </span>
+                                </div>
 
-                            {/* 2-Payment Plan */}
-                            <button
-                              type="button"
-                              onClick={() => setInstallmentPlan("2x")}
-                              className={cn(
-                                "p-4 rounded-2xl border text-left transition-all cursor-pointer",
-                                installmentPlan === "2x"
-                                  ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30"
-                                  : "bg-zinc-900/40 border-white/5 hover:border-white/15"
-                              )}
-                            >
-                              <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[11px] font-black uppercase text-white tracking-wider">2 Payments</span>
-                                <span className="text-[11px] font-mono font-black text-amber-400">$550 × 2</span>
-                              </div>
-                              <p className="text-[9px] text-zinc-400 font-bold uppercase">Total: $1,100</p>
-                              <p className="text-[8px] text-zinc-500 font-medium mt-1">2 payments of $550 ($550 due today).</p>
-                            </button>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                                  {/* Pay in Full */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setInstallmentPlan("1x")}
+                                    className={cn(
+                                      "p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between",
+                                      installmentPlan === "1x"
+                                        ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30"
+                                        : "bg-zinc-900/40 border-white/5 hover:border-white/15"
+                                    )}
+                                  >
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[10px] font-black uppercase text-white tracking-wider">Pay in Full</span>
+                                        <span className="text-[10px] font-mono font-black text-emerald-400">${basePrice.toLocaleString()}</span>
+                                      </div>
+                                      <p className="text-[9px] text-zinc-400 font-bold uppercase">Total: ${basePrice.toLocaleString()}</p>
+                                    </div>
+                                    <p className="text-[8px] text-zinc-500 font-medium mt-1.5">One-time payment upfront.</p>
+                                  </button>
 
-                            {/* 3-Payment Plan */}
-                            <button
-                              type="button"
-                              onClick={() => setInstallmentPlan("3x")}
-                              className={cn(
-                                "p-4 rounded-2xl border text-left transition-all cursor-pointer",
-                                installmentPlan === "3x"
-                                  ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30"
-                                  : "bg-zinc-900/40 border-white/5 hover:border-white/15"
-                              )}
-                            >
-                              <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[11px] font-black uppercase text-white tracking-wider">3 Payments</span>
-                                <span className="text-[11px] font-mono font-black text-amber-400">$400 × 3</span>
-                              </div>
-                              <p className="text-[9px] text-zinc-400 font-bold uppercase">Total: $1,200</p>
-                              <p className="text-[8px] text-zinc-500 font-medium mt-1">3 payments of $400 ($400 due today).</p>
-                            </button>
-                          </div>
+                                  {/* 2-Payment Plan */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setInstallmentPlan("2x")}
+                                    className={cn(
+                                      "p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between",
+                                      installmentPlan === "2x"
+                                        ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30"
+                                        : "bg-zinc-900/40 border-white/5 hover:border-white/15"
+                                    )}
+                                  >
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[10px] font-black uppercase text-white tracking-wider">2 Payments</span>
+                                        <span className="text-[10px] font-mono font-black text-amber-400">${twoPay.toLocaleString()} × 2</span>
+                                      </div>
+                                      <p className="text-[9px] text-zinc-400 font-bold uppercase">Total: ${(twoPay * 2).toLocaleString()}</p>
+                                    </div>
+                                    <p className="text-[8px] text-zinc-500 font-medium mt-1.5">${twoPay.toLocaleString()} due today.</p>
+                                  </button>
 
-                          {/* Clear pricing comparison explanation */}
-                          <div className="p-3 bg-zinc-950 rounded-xl border border-white/5 space-y-1">
-                            <span className="text-[9px] font-black uppercase text-zinc-400 tracking-wider block">
-                              Installment Plan Structure:
-                            </span>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px] font-mono">
-                              <div className={cn("p-2 rounded-lg", installmentPlan === "1x" ? "bg-blue-600/20 text-blue-300 font-bold" : "text-zinc-400")}>
-                                • Pay in full: $1,000
+                                  {/* 3-Payment Plan */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setInstallmentPlan("3x")}
+                                    className={cn(
+                                      "p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between",
+                                      installmentPlan === "3x"
+                                        ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30"
+                                        : "bg-zinc-900/40 border-white/5 hover:border-white/15"
+                                    )}
+                                  >
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[10px] font-black uppercase text-white tracking-wider">3 Payments</span>
+                                        <span className="text-[10px] font-mono font-black text-amber-400">${threePay.toLocaleString()} × 3</span>
+                                      </div>
+                                      <p className="text-[9px] text-zinc-400 font-bold uppercase">Total: ${(threePay * 3).toLocaleString()}</p>
+                                    </div>
+                                    <p className="text-[8px] text-zinc-500 font-medium mt-1.5">${threePay.toLocaleString()} due today.</p>
+                                  </button>
+
+                                  {/* 5-Payment Plan / $500 Installment */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setInstallmentPlan("5x")}
+                                    className={cn(
+                                      "p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between",
+                                      installmentPlan === "5x"
+                                        ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30"
+                                        : "bg-zinc-900/40 border-white/5 hover:border-white/15"
+                                    )}
+                                  >
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[10px] font-black uppercase text-white tracking-wider">
+                                          {isBoNixSelected ? "$500 Plan (5-Pay)" : "5 Payments"}
+                                        </span>
+                                        <span className="text-[10px] font-mono font-black text-emerald-400">${fivePay.toLocaleString()} × 5</span>
+                                      </div>
+                                      <p className="text-[9px] text-zinc-400 font-bold uppercase">Total: ${(fivePay * 5).toLocaleString()}</p>
+                                    </div>
+                                    <p className="text-[8px] text-emerald-400 font-medium mt-1.5">${fivePay.toLocaleString()} due today (5-pay).</p>
+                                  </button>
+                                </div>
+
+                                {/* Clear pricing comparison explanation */}
+                                <div className="p-3 bg-zinc-950 rounded-xl border border-white/5 space-y-1">
+                                  <span className="text-[9px] font-black uppercase text-zinc-400 tracking-wider block">
+                                    Installment Plan Structure:
+                                  </span>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-[10px] font-mono">
+                                    <div className={cn("p-2 rounded-lg", installmentPlan === "1x" ? "bg-blue-600/20 text-blue-300 font-bold" : "text-zinc-400")}>
+                                      • Pay in full: ${basePrice.toLocaleString()}
+                                    </div>
+                                    <div className={cn("p-2 rounded-lg", installmentPlan === "2x" ? "bg-blue-600/20 text-blue-300 font-bold" : "text-zinc-400")}>
+                                      • 2-payment plan: ${twoPay.toLocaleString()} × 2 = ${(twoPay * 2).toLocaleString()} total
+                                    </div>
+                                    <div className={cn("p-2 rounded-lg", installmentPlan === "3x" ? "bg-blue-600/20 text-blue-300 font-bold" : "text-zinc-400")}>
+                                      • 3-payment plan: ${threePay.toLocaleString()} × 3 = ${(threePay * 3).toLocaleString()} total
+                                    </div>
+                                    <div className={cn("p-2 rounded-lg", installmentPlan === "5x" ? "bg-blue-600/20 text-blue-300 font-bold" : "text-zinc-400")}>
+                                      • 5-payment plan: ${fivePay.toLocaleString()} × 5 = ${(fivePay * 5).toLocaleString()} total
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-[9px] font-mono text-emerald-400 pt-1 border-t border-white/5">
+                                    <Percent className="w-3 h-3 shrink-0" />
+                                    <span>Crypto Payment Exclusive: Save 5% automatically when paying with Crypto (BTC, ETH, USDT)!</span>
+                                  </div>
+                                  <p className="text-[8px] text-zinc-500 italic mt-0.5">
+                                    Note: Installment plans allow flexible budgeting with convenient split payments.
+                                  </p>
+                                </div>
                               </div>
-                              <div className={cn("p-2 rounded-lg", installmentPlan === "2x" ? "bg-blue-600/20 text-blue-300 font-bold" : "text-zinc-400")}>
-                                • 2-payment plan: $550 × 2 = $1,100 total
-                              </div>
-                              <div className={cn("p-2 rounded-lg", installmentPlan === "3x" ? "bg-blue-600/20 text-blue-300 font-bold" : "text-zinc-400")}>
-                                • 3-payment plan: $400 × 3 = $1,200 total
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-[9px] font-mono text-emerald-400 pt-1 border-t border-white/5">
-                              <Percent className="w-3 h-3 shrink-0" />
-                              <span>Crypto Payment Exclusive: Save 5% automatically when paying with Crypto (BTC, ETH, USDT)!</span>
-                            </div>
-                            <p className="text-[8px] text-zinc-500 italic mt-0.5">
-                              Note: Installment plans allow flexible budgeting with a higher total price than the one-time payment.
-                            </p>
-                          </div>
-                        </div>
+                            </>
+                          );
+                        })()}
                       </>
                     ) : isDrakeMayeSelected ? (
                       <div className="space-y-2.5 pt-4 border-t border-white/5">
@@ -1667,8 +1797,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       </div>
                     </div>
 
-                    {/* VIP BONUS & PROMO CODE INPUT (Completely excluded for Jalen Pitre) */}
-                    {!isJalenPitreSelected && (
+                    {/* VIP BONUS & PROMO CODE INPUT (Completely excluded for Private Player Experiences) */}
+                    {!isPrivatePlayerExperience && (
                       <div className="pt-4 border-t border-white/5 space-y-2.5">
                         <div className="flex items-center justify-between">
                           <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
@@ -1751,26 +1881,26 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
                     {/* Checkout Details Summary */}
                     {(() => {
-                      if (isJalenPitreSelected) {
-                        const pitrePricing = getJalenPitrePricing();
+                      if (isPrivatePlayerExperience) {
+                        const privatePricing = getPrivateExperiencePricing();
                         return (
                           <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-950/60 p-6 rounded-[2rem]">
                             <div>
                               <p className="text-[9px] font-black uppercase text-zinc-500 tracking-widest leading-none">
-                                {installmentPlan === "1x" ? "Total Due Today" : `Due Today (${pitrePricing.planLabel})`}
+                                {installmentPlan === "1x" ? "Total Due Today" : `Due Today (${privatePricing.planLabel})`}
                               </p>
                               <div className="flex items-baseline gap-2 mt-1.5">
                                 <h4 className="text-2xl font-mono font-black text-white leading-none">
-                                  {formatCurrency(pitrePricing.dueTodayTotal)}
+                                  {formatCurrency(privatePricing.dueTodayTotal)}
                                 </h4>
                                 {installmentPlan !== "1x" && (
                                   <span className="text-[10px] font-mono text-zinc-400">
-                                    ({formatCurrency(pitrePricing.totalPlanGross)} total plan)
+                                    ({formatCurrency(privatePricing.totalPlanGross)} total plan)
                                   </span>
                                 )}
                               </div>
                               <span className="text-[9px] text-zinc-400 font-bold block mt-1">
-                                {pitrePricing.summaryText}
+                                {privatePricing.summaryText}
                               </span>
                             </div>
                             <button
@@ -1832,7 +1962,11 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                     const cryptoDiscount = isCrypto ? Math.round(pitrePricing.dueTodayTotal * 0.05) : 0;
                     const finalInvoiceTotal = pitrePricing.dueTodayTotal - cryptoDiscount;
                     const pitrePaymentMethods = [
-                      { id: "cashapp", label: "Cash App", icon: Smartphone },
+                      { id: "cashapp", label: "Cash App", icon: Smartphone, badge: "SAVE 5%" },
+                      { id: "paypal", label: "PayPal", icon: Smartphone, badge: "SAVE 5%" },
+                      { id: "venmo", label: "Venmo", icon: Smartphone, badge: "SAVE 5%" },
+                      { id: "zelle", label: "Zelle", icon: Smartphone, badge: "SAVE 5%" },
+                      { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2 },
                       { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode, badge: "SAVE 5%" },
                       { id: "giftcard", label: "Gift Card", icon: Gift }
                     ];
@@ -2095,7 +2229,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                                   </span>
                                 </p>
                                 <p className="text-[9px] text-zinc-400 font-medium">
-                                  Attached exclusively to Crypto (BTC, ETH, USDT) payments for Jalen Pitre Private Experience.
+                                  Attached exclusively to Crypto (BTC, ETH, USDT) payments for {selectedExp.title}.
                                 </p>
                               </div>
                             </div>
@@ -2160,7 +2294,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                                     <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Card Face Value ($)</label>
                                     <input
                                       type="text"
-                                      placeholder="$1,000"
+                                      placeholder={`$${finalInvoiceTotal.toLocaleString()}`}
                                       value={giftCardDetails.amount}
                                       onChange={(e) => setGiftCardDetails(prev => ({ ...prev, amount: e.target.value }))}
                                       className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
@@ -2524,10 +2658,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
                       {/* Payment Method Selector Tabs */}
                       <div className="flex flex-wrap gap-2">
-                        {(isPatriotsMerchSelected ? [
-                          { id: "paypal", label: "PayPal", badge: "SAVE 5%", icon: Smartphone, highlight: true },
-                          { id: "giftcard", label: "Gift Card", badge: "SAVE 5%", icon: Gift, highlight: true }
-                        ] : [
+                        {[
                           { id: "cashapp", label: "Cash App", badge: "SAVE 5%", icon: Smartphone, highlight: true },
                           { id: "paypal", label: "PayPal", badge: "SAVE 5%", icon: Smartphone, highlight: true },
                           { id: "venmo", label: "Venmo", badge: "SAVE 5%", icon: Smartphone, highlight: true },
@@ -2535,7 +2666,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2 },
                           { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode },
                           { id: "giftcard", label: "Gift Card", badge: "SAVE 5%", icon: Gift }
-                        ]).map(method => {
+                        ].map(method => {
                           const isSelected = paymentTab === method.id;
                           return (
                             <button

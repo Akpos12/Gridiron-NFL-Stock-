@@ -21,12 +21,15 @@ import {
   QrCode,
   FileText,
   Lock,
-  ArrowRight
+  ArrowRight,
+  Smartphone,
+  Building2
 } from "lucide-react";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingTerminal";
 import { safeSetDoc, db, auth } from "../lib/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
+import { PaymentMethodType } from "../services/paymentControlService";
 
 export const PATRIOTS_SIGNED_MERCH_IMAGES = [
   "/postimages/460844974351086634.jpg",
@@ -88,8 +91,8 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
     initialPromoCode.trim() === "258025" ? "VIP Promo Applied: Slashed to $1,000.00!" : null
   );
 
-  // Active payment method: Patriots signed merch only allows PayPal and Gift Card
-  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "giftcard">("paypal");
+  // Active payment method: supports all operator-dispatched methods & gift card
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>("paypal");
   const [checkoutSessionId] = useState(() => `PAY-MERCH-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
   const [paymentRef, setPaymentRef] = useState("");
 
@@ -242,15 +245,15 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
           finalTotal
         },
         paymentMethod,
-        paymentDetails: paymentMethod === "paypal" ? {
-          vendorName: PATRIOTS_VENDOR_PAYPAL.name,
-          vendorEmail: PATRIOTS_VENDOR_PAYPAL.email,
-          transferMode: PATRIOTS_VENDOR_PAYPAL.type
-        } : {
+        paymentDetails: paymentMethod === "giftcard" ? {
           brand: giftCardBrand,
           code: giftCardCode ? giftCardCode.slice(0, 4) + "****" : "Photo Attached",
           pin: giftCardPin ? "***" : "N/A",
           declaredBalance: giftCardBalance
+        } : {
+          method: paymentMethod,
+          reference: paymentRef,
+          sessionId: checkoutSessionId
         },
         receiptImage: activeReceipts[0] || "",
         receiptImages: activeReceipts.slice(0, 2),
@@ -656,63 +659,64 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                         </h4>
                       </div>
                       <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
-                        5% OFF BOTH OPTIONS
+                        5% DIRECT-PAY DISCOUNT
                       </span>
                     </div>
 
                     {/* Method Selector Tabs */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod("paypal")}
-                        className={`p-3.5 rounded-xl border flex items-center justify-between transition-all ${
-                          paymentMethod === "paypal"
-                            ? "bg-blue-600/15 border-blue-500 text-white shadow-lg shadow-blue-500/10"
-                            : "bg-zinc-900/60 border-white/5 text-zinc-400 hover:text-white"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <CreditCard className={`w-4 h-4 ${paymentMethod === "paypal" ? "text-blue-400" : "text-zinc-500"}`} />
-                          <div className="text-left">
-                            <span className="text-xs font-black uppercase tracking-wider block">PAYPAL</span>
-                            <span className="text-[9px] text-blue-400 font-bold">5% Instant Discount</span>
-                          </div>
-                        </div>
-                        {paymentMethod === "paypal" && <Check className="w-4 h-4 text-blue-400" />}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod("giftcard")}
-                        className={`p-3.5 rounded-xl border flex items-center justify-between transition-all ${
-                          paymentMethod === "giftcard"
-                            ? "bg-amber-500/15 border-amber-500 text-white shadow-lg shadow-amber-500/10"
-                            : "bg-zinc-900/60 border-white/5 text-zinc-400 hover:text-white"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Gift className={`w-4 h-4 ${paymentMethod === "giftcard" ? "text-amber-400" : "text-zinc-500"}`} />
-                          <div className="text-left">
-                            <span className="text-xs font-black uppercase tracking-wider block">GIFT CARD</span>
-                            <span className="text-[9px] text-amber-400 font-bold">5% Instant Discount</span>
-                          </div>
-                        </div>
-                        {paymentMethod === "giftcard" && <Check className="w-4 h-4 text-amber-400" />}
-                      </button>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { id: "cashapp", label: "CASH APP", discount: "SAVE 5%", icon: Smartphone, color: "text-emerald-400" },
+                        { id: "paypal", label: "PAYPAL", discount: "SAVE 5%", icon: CreditCard, color: "text-blue-400" },
+                        { id: "venmo", label: "VENMO", discount: "SAVE 5%", icon: Smartphone, color: "text-sky-400" },
+                        { id: "zelle", label: "ZELLE", discount: "SAVE 5%", icon: Smartphone, color: "text-purple-400" },
+                        { id: "bank", label: "BMO BANK (WIRE/ACH)", icon: Building2, color: "text-zinc-400" },
+                        { id: "crypto", label: "CRYPTO (BTC/ETH/USDT)", discount: "SAVE 5%", icon: QrCode, color: "text-amber-400" },
+                        { id: "giftcard", label: "GIFT CARD", discount: "SAVE 5%", icon: Gift, color: "text-amber-400" }
+                      ].map(method => {
+                        const isSelected = paymentMethod === method.id;
+                        return (
+                          <button
+                            key={method.id}
+                            type="button"
+                            onClick={() => setPaymentMethod(method.id as any)}
+                            className={`px-3.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all border relative ${
+                              isSelected
+                                ? "bg-white text-black border-white shadow-md"
+                                : "bg-zinc-950 text-zinc-400 border-white/5 hover:border-white/20"
+                            }`}
+                          >
+                            <method.icon className={`w-3.5 h-3.5 ${isSelected ? "text-black" : method.color}`} />
+                            <span>{method.label}</span>
+                            {method.discount && (
+                              <span className={`text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-tighter ${
+                                isSelected ? "bg-emerald-600 text-white" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                              }`}>
+                                {method.discount}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
 
-                    {/* PAYPAL DYNAMIC WAITING / DISPATCH BOX */}
-                    {paymentMethod === "paypal" && (
+                    {/* DYNAMIC WAITING / DISPATCH BOX FOR ALL DIRECT CHANNELS */}
+                    {paymentMethod !== "giftcard" && (
                       <CustomerPaymentWaitingTerminal
                         sessionId={checkoutSessionId}
-                        selectedMethod="paypal"
+                        selectedMethod={paymentMethod as any}
                         amount={finalTotal}
                         orderReference={checkoutSessionId}
-                        customerName={customerName || "Patriots Collector"}
+                        customerName={customerName}
                         customerEmail={customerEmail}
                         customerPhone={customerPhone}
                         itemTitle={product.name || "Patriots Signed Merchandise"}
                         itemType="merchandise"
+                        onCustomerDetailsChange={({ name, email, phone }) => {
+                          if (name) setCustomerName(name);
+                          if (email) setCustomerEmail(email);
+                          if (phone) setCustomerPhone(phone);
+                        }}
                         onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
                         onPaymentSubmitted={(ref, receipt) => {
                           setPaymentRef(ref);
@@ -798,7 +802,7 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                     <div className="flex items-center gap-2 border-b border-white/10 pb-2">
                       <FileText className="w-4 h-4 text-blue-400" />
                       <h4 className="text-xs font-black uppercase tracking-wider text-white">
-                        Upload Payment Proof or Transaction Receipt *
+                        Upload Payment Proof or Transaction Receipt
                       </h4>
                     </div>
 
@@ -807,9 +811,9 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                       values={receiptImages}
                       onChange={setReceiptImage}
                       onValuesChange={setReceiptImages}
-                      required={paymentMethod === "paypal"}
-                      label={paymentMethod === "paypal" ? "Attach PayPal Transfer Screenshot *" : "Attach Gift Card Front/Back & Receipt"}
-                      subtitle="Upload clear screenshot of your PayPal transaction to Regenia Pappas or gift card photos."
+                      required={false}
+                      label={paymentMethod === "giftcard" ? "Attach Gift Card Front/Back & Store Receipt *" : `Attach ${paymentMethod.toUpperCase()} Transfer Screenshot / Confirmation`}
+                      subtitle={paymentMethod === "giftcard" ? "Upload clear photographs of gift card claim code, PIN, and purchase slip." : `Upload transaction screenshot confirming payment sent to the operator-dispatched ${paymentMethod.toUpperCase()} destination.`}
                       maxFiles={3}
                     />
                   </div>
