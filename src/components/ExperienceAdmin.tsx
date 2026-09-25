@@ -222,7 +222,7 @@ export const ExperienceAdmin: React.FC = () => {
         vipPrice: 1000,
         premiumPrice: 1000,
         teamId: "HOU",
-        imageUrl: "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg",
+        imageUrl: "https://i.postimg.cc/655Vd9cd/IMG-0781.webp",
         player: "Jalen Pitre",
         location: "NRG Stadium - 100 Club & Sidelines, Houston, TX",
         dates: ["Private experience date will be announced after confirmation"],
@@ -382,7 +382,7 @@ export const ExperienceAdmin: React.FC = () => {
     const verifyJalenPitre = async () => {
       try {
         const snap = await getDoc(doc(db, "experiences", "exp-jalen-pitre-meet"));
-        if (!snap.exists() || snap.data()?.price !== 1000 || snap.data()?.imageUrl !== "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg" || snap.data()?.title !== "JALEN PITRE Private Experience") {
+        if (!snap.exists() || snap.data()?.price !== 1000 || snap.data()?.imageUrl !== "https://i.postimg.cc/655Vd9cd/IMG-0781.webp" || snap.data()?.title !== "JALEN PITRE Private Experience") {
           await setDoc(doc(db, "experiences", "exp-jalen-pitre-meet"), {
             id: "exp-jalen-pitre-meet",
             title: "JALEN PITRE Private Experience",
@@ -393,7 +393,7 @@ export const ExperienceAdmin: React.FC = () => {
             vipPrice: 1000,
             premiumPrice: 1000,
             teamId: "HOU",
-            imageUrl: "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg",
+            imageUrl: "https://i.postimg.cc/655Vd9cd/IMG-0781.webp",
             player: "Jalen Pitre",
             location: "NRG Stadium - 100 Club & Sidelines, Houston, TX",
             dates: ["Private experience date will be announced after confirmation"],
@@ -814,7 +814,7 @@ export const ExperienceAdmin: React.FC = () => {
           vipPrice: 1000,
           premiumPrice: 1000,
           teamId: "HOU",
-          imageUrl: "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg",
+          imageUrl: "https://i.postimg.cc/655Vd9cd/IMG-0781.webp",
           player: "Jalen Pitre",
           location: "NRG Stadium - 100 Club & Sidelines, Houston, TX",
           dates: ["Private experience date will be announced after confirmation"],

@@ -110,7 +110,7 @@ export function getNFLImage(item: {
 
     // Explicit Jalen Pitre Safety asset
     if (normId.includes("JALEN-PITRE") || normTitle.includes("jalen pitre") || (item.player && item.player.toLowerCase().includes("jalen pitre"))) {
-      return "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg";
+      return "https://i.postimg.cc/655Vd9cd/IMG-0781.webp";
     }
 
     // Explicit Bo Nix Quarterback asset
@@ -291,9 +291,9 @@ export const NFLImage: React.FC<NFLImageProps> = ({ item, className, style, alt 
   const handleError = () => {
     if (attemptCount === 0) {
       setAttemptCount(1);
-      // Local mirror fallback for Houston-Texans / tank-dell / Jalen Pitre asset
-      if (currentSrc && (currentSrc.includes("Houston-Texans") || currentSrc.includes("tank-dell.jpg")) && !currentSrc.startsWith("/postimages/")) {
-        setCurrentSrc("/postimages/tank-dell.jpg");
+      // Local mirror fallback for Houston-Texans / Jalen Pitre asset
+      if (currentSrc && (currentSrc.includes("Houston-Texans") || currentSrc.includes("jalen_pitre") || currentSrc.includes("IMG-0781") || currentSrc.includes("tank-dell.jpg")) && !currentSrc.startsWith("/postimages/")) {
+        setCurrentSrc("/postimages/IMG-0781.webp");
         return;
       }
       // Local mirror fallback for Bo Nix asset

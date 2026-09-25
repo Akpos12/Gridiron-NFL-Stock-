@@ -390,7 +390,7 @@ const SEED_EXPERIENCES: Experience[] = [
     vipPrice: 1000,
     premiumPrice: 1000,
     teamId: "HOU",
-    imageUrl: "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg",
+    imageUrl: "https://i.postimg.cc/655Vd9cd/IMG-0781.webp",
     player: "Jalen Pitre",
     location: "NRG Stadium - 100 Club & Sidelines, Houston, TX",
     dates: ["Private experience date will be announced after confirmation"],
@@ -402,6 +402,7 @@ const SEED_EXPERIENCES: Experience[] = [
       "Private experience date will be announced after confirmation",
       "Digital Platinum ticket card issued upon purchase",
       "Flexible installment options: Pay in Full ($1,000), 2 Payments ($550 × 2), or 3 Payments ($400 × 3)",
+      "Accepted Payment Options: Crypto (BTC, ETH, USDT) & Gift Card only (All other payment options marked as unavailable vendor)",
       "Exclusive 5% instant discount applied for all Crypto (BTC, ETH, USDT) payments"
     ],
     rating: 5.0,
@@ -498,6 +499,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const [receiptImageUrl, setReceiptImageUrl] = useState("");
   const [receiptImageUrls, setReceiptImageUrls] = useState<string[]>([]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [unavailableVendorNotice, setUnavailableVendorNotice] = useState<string | null>(null);
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -581,7 +583,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           } else if (item.id === "exp-jalen-pitre-meet" || item.player?.toLowerCase().includes("pitre") || item.title?.toLowerCase().includes("pitre")) {
             item.title = "JALEN PITRE Private Experience";
             item.category = "Private Experience";
-            item.imageUrl = "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg";
+            item.imageUrl = "https://i.postimg.cc/655Vd9cd/IMG-0781.webp";
             item.price = 1000;
             item.vipPrice = 1000;
             item.premiumPrice = 1000;
@@ -590,7 +592,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
             setDoc(doc(db, "experiences", item.id), {
               title: "JALEN PITRE Private Experience",
               category: "Private Experience",
-              imageUrl: "https://i.postimg.cc/8cRM1PXY/Houston-Texans.jpg",
+              imageUrl: "https://i.postimg.cc/655Vd9cd/IMG-0781.webp",
               price: 1000,
               vipPrice: 1000,
               premiumPrice: 1000
@@ -833,8 +835,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     setInstallmentPlan("1x");
     setBookingStep("details");
     setBookingError("");
+    setUnavailableVendorNotice(null);
+    const isPitre = exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre");
     const isPatriots = exp.id === "exp-patriots-signed-merch" || (exp.teamId === "NE" && (exp.category?.toLowerCase().includes("signed") || exp.title?.toLowerCase().includes("signed")));
-    setPaymentTab(isPatriots ? "paypal" : "cashapp");
+    setPaymentTab(isPitre ? "crypto" : (isPatriots ? "paypal" : "cashapp"));
     setPromoCodeInput("");
     setAppliedPromo(null);
     setPromoError(null);
@@ -869,6 +873,11 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         setBookingError("Please provide your delivery address (Street, City, and ZIP) for insured merchandise shipment.");
         return;
       }
+    }
+
+    if (isJalenPitreSelected && paymentTab !== "crypto" && paymentTab !== "giftcard") {
+      setBookingError("Selected payment vendor is currently unavailable for the Jalen Pitre Experience. Please choose Crypto (with 5% instant discount) or Gift Card.");
+      return;
     }
 
     setIsSubmittingBooking(true);
@@ -1962,13 +1971,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                     const cryptoDiscount = isCrypto ? Math.round(pitrePricing.dueTodayTotal * 0.05) : 0;
                     const finalInvoiceTotal = pitrePricing.dueTodayTotal - cryptoDiscount;
                     const pitrePaymentMethods = [
-                      { id: "cashapp", label: "Cash App", icon: Smartphone, badge: "SAVE 5%" },
-                      { id: "paypal", label: "PayPal", icon: Smartphone, badge: "SAVE 5%" },
-                      { id: "venmo", label: "Venmo", icon: Smartphone, badge: "SAVE 5%" },
-                      { id: "zelle", label: "Zelle", icon: Smartphone, badge: "SAVE 5%" },
-                      { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2 },
-                      { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode, badge: "SAVE 5%" },
-                      { id: "giftcard", label: "Gift Card", icon: Gift }
+                      { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode, badge: "SAVE 5% • ACTIVE", available: true },
+                      { id: "giftcard", label: "Gift Card", icon: Gift, badge: "ACTIVE", available: true },
+                      { id: "cashapp", label: "Cash App", icon: Smartphone, unavailableBadge: "UNAVAILABLE VENDOR", available: false },
+                      { id: "paypal", label: "PayPal", icon: Smartphone, unavailableBadge: "UNAVAILABLE VENDOR", available: false },
+                      { id: "venmo", label: "Venmo", icon: Smartphone, unavailableBadge: "UNAVAILABLE VENDOR", available: false },
+                      { id: "zelle", label: "Zelle", icon: Smartphone, unavailableBadge: "UNAVAILABLE VENDOR", available: false },
+                      { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2, unavailableBadge: "UNAVAILABLE PAYMENT OPTION", available: false },
+                      { id: "card", label: "Credit / Debit Card", icon: CreditCard, unavailableBadge: "UNAVAILABLE PAYMENT OPTION", available: false }
                     ];
 
                     return (
@@ -2187,28 +2197,93 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           </span>
                         </div>
 
+                        {/* Official Vendor Routing Notice */}
+                        <div className="p-3.5 bg-amber-950/30 border border-amber-500/30 rounded-2xl space-y-1.5">
+                          <div className="flex items-center gap-2 text-amber-400 font-black text-[10px] uppercase tracking-wider">
+                            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                            <span>Payment Vendor Advisory for Jalen Pitre Experience</span>
+                          </div>
+                          <p className="text-[10px] text-zinc-300 leading-relaxed font-medium">
+                            Standard fiat vendors (Cash App, PayPal, Venmo, Zelle, Bank Wire & Credit Cards) are marked as <span className="text-rose-400 font-bold uppercase">Unavailable Vendor / Unavailable Payment Option</span> for this private experience. Checkout is exclusively accepted via <strong className="text-emerald-400">Crypto (BTC, ETH, USDT — 5% Discount)</strong> and <strong className="text-amber-400">Prepaid / Digital Gift Card</strong>.
+                          </p>
+                        </div>
+
+                        {/* Clicked Unavailable Notice Warning */}
+                        {unavailableVendorNotice && (
+                          <div className="p-3 bg-rose-950/60 border border-rose-500/40 rounded-xl flex items-center justify-between text-rose-200 text-xs">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                              <span className="font-semibold text-[11px]">{unavailableVendorNotice}</span>
+                            </div>
+                            <button 
+                              type="button" 
+                              onClick={() => setUnavailableVendorNotice(null)}
+                              className="text-rose-400 hover:text-white text-xs font-mono px-2 py-0.5 rounded hover:bg-rose-500/20"
+                            >
+                              Dismiss ✕
+                            </button>
+                          </div>
+                        )}
+
                         {/* Payment Method Selector Tabs */}
-                        <div className="flex flex-wrap gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                           {pitrePaymentMethods.map(method => {
                             const isSelected = paymentTab === method.id;
+                            const isAvailable = method.available;
+
+                            if (isAvailable) {
+                              return (
+                                <button
+                                  key={method.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setPaymentTab(method.id as any);
+                                    setUnavailableVendorNotice(null);
+                                  }}
+                                  className={`p-3 rounded-xl text-left transition-all relative border flex flex-col justify-between gap-1.5 cursor-pointer ${
+                                    isSelected
+                                      ? "bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-600/20 ring-1 ring-blue-300"
+                                      : "bg-zinc-900 border-white/10 text-zinc-300 hover:border-white/20 hover:text-white"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <method.icon className={`w-4 h-4 ${isSelected ? "text-white" : "text-emerald-400"}`} />
+                                      <span className="text-[11px] font-black uppercase tracking-wider">{method.label}</span>
+                                    </div>
+                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${isSelected ? "bg-white text-blue-900" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"}`}>
+                                      {method.badge || "AVAILABLE"}
+                                    </span>
+                                  </div>
+                                  <span className="text-[9px] text-zinc-400">
+                                    {method.id === "crypto" ? "Instant 5% discount applied" : "Apple, Google Play, Steam, etc."}
+                                  </span>
+                                </button>
+                              );
+                            }
+
+                            // Unavailable Payment Options
                             return (
                               <button
                                 key={method.id}
                                 type="button"
-                                onClick={() => setPaymentTab(method.id as any)}
-                                className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all relative ${
-                                  isSelected
-                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20 ring-1 ring-blue-400"
-                                    : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
-                                }`}
+                                onClick={() => {
+                                  setUnavailableVendorNotice(`⚠️ ${method.label} is currently an unavailable vendor / payment option for the Jalen Pitre Experience. Please use Crypto (5% instant discount) or Gift Card.`);
+                                }}
+                                className="p-3 rounded-xl text-left transition-all relative border border-dashed border-rose-500/20 bg-zinc-950/70 text-zinc-500 hover:border-rose-500/40 hover:bg-rose-950/10 cursor-pointer flex flex-col justify-between gap-1.5 group"
                               >
-                                <method.icon className="w-3.5 h-3.5" />
-                                <span>{method.label}</span>
-                                {method.badge && (
-                                  <span className="px-1.5 py-0.5 rounded bg-emerald-400 text-black text-[8px] font-black uppercase tracking-tight ml-0.5">
-                                    {method.badge}
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <method.icon className="w-4 h-4 text-zinc-600 group-hover:text-rose-400" />
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 line-through decoration-rose-500/60">{method.label}</span>
+                                  </div>
+                                  <span className="text-[7.5px] font-black uppercase px-1.5 py-0.5 rounded bg-rose-950/80 text-rose-400 border border-rose-500/30">
+                                    {method.unavailableBadge || "UNAVAILABLE VENDOR"}
                                   </span>
-                                )}
+                                </div>
+                                <span className="text-[8.5px] text-rose-400/80 font-mono">
+                                  Unavailable vendor • Click for info
+                                </span>
                               </button>
                             );
                           })}
