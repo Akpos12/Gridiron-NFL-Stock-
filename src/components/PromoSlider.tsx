@@ -47,6 +47,16 @@ const DEFAULT_BANNERS: PromoBanner[] = [
     badge: "PREMIUM PLATINUM",
     linkText: "INQUIRE PRIVATELY",
     accentColor: "from-purple-600 to-pink-600"
+  },
+  {
+    id: "promo-podcast-bo-nix",
+    title: "PODCAST RESERVATIONS: BO NIX & NFL STARS",
+    subtitle: "EXCLUSIVE STUDIO & GUEST APPEARANCE",
+    description: "Host Denver Broncos standout quarterback Bo Nix on your podcast, studio broadcast, or YouTube show. Coordinate recording dates directly with Customer Care.",
+    imageUrl: "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg",
+    badge: "PODCAST CONCIERGE",
+    linkText: "RESERVE PODCAST SESSION",
+    accentColor: "from-purple-600 via-indigo-600 to-blue-600"
   }
 ];
 

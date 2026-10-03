@@ -31,8 +31,11 @@ import {
   Download,
   Percent,
   AlertTriangle,
+  AlertCircle,
   Gift,
-  UserCheck
+  UserCheck,
+  Radio,
+  Mic
 } from "lucide-react";
 import { collection, onSnapshot, getDocs, setDoc, doc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { db, auth, safeSetDoc, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -434,6 +437,33 @@ const SEED_EXPERIENCES: Experience[] = [
     ],
     rating: 5.0,
     reviewsCount: 39
+  },
+  {
+    id: "exp-bo-nix-podcast",
+    title: "BO NIX Live Podcast Guest Session",
+    description: "Book Denver Broncos standout quarterback Bo Nix for an exclusive live podcast guest appearance or broadcast interview. Ideal for sports shows, YouTube broadcasts, studio productions, or virtual live recordings. Includes direct producer coordination, topic clearance, promotional rights, and pre-interview sound check.",
+    type: "meet_greet",
+    category: "Live Podcast Session",
+    price: 1500,
+    vipPrice: 2500,
+    premiumPrice: 3500,
+    teamId: "DEN",
+    imageUrl: "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg",
+    player: "Bo Nix",
+    location: "In-Studio (Denver, CO) or High-Fidelity Remote (Riverside / 4K Stream)",
+    dates: ["Live podcast date coordinated directly after booking confirmation"],
+    timeSlots: ["Coordinated with Show Producer"],
+    features: [
+      "30 to 45-minute live on-air interview & interactive Q&A session with Bo Nix",
+      "Available in-studio (Denver, CO) or high-fidelity broadcast remote (Riverside.fm / Zoom 4K)",
+      "Direct scheduling coordination with Bo Nix's media concierge & show producers",
+      "Official promotional license to use Bo Nix name & likeness for episode marketing",
+      "Pre-show soundcheck & producer topic alignment window",
+      "VIP Tier option includes extended 60-min broadcast and co-branded sponsor shoutout",
+      "Flexible payment options: Crypto (5% discount), Cash App, PayPal, Venmo, Zelle & Gift Cards"
+    ],
+    rating: 5.0,
+    reviewsCount: 31
   }
 ];
 
@@ -597,7 +627,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
               vipPrice: 1000,
               premiumPrice: 1000
             }, { merge: true }).catch(console.error);
-          } else if (item.id === "exp-bo-nix-meet" || item.player?.toLowerCase().includes("bo nix") || item.title?.toLowerCase().includes("bo nix")) {
+          } else if (item.id === "exp-bo-nix-meet") {
             item.title = "BO NIX Private Experience";
             item.category = "Private Experience";
             item.imageUrl = "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg";
@@ -613,6 +643,23 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
               price: 2000,
               vipPrice: 2000,
               premiumPrice: 2000
+            }, { merge: true }).catch(console.error);
+          } else if (item.id === "exp-bo-nix-podcast") {
+            item.title = "BO NIX Live Podcast Guest Session";
+            item.category = "Live Podcast Session";
+            item.imageUrl = "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg";
+            item.price = 1500;
+            item.vipPrice = 2500;
+            item.premiumPrice = 3500;
+            item.dates = ["Live podcast date coordinated directly after booking confirmation"];
+            item.timeSlots = ["Coordinated with Show Producer"];
+            setDoc(doc(db, "experiences", item.id), {
+              title: "BO NIX Live Podcast Guest Session",
+              category: "Live Podcast Session",
+              imageUrl: "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg",
+              price: 1500,
+              vipPrice: 2500,
+              premiumPrice: 3500
             }, { merge: true }).catch(console.error);
           } else if (item.id === "exp-sea-training") {
             item.imageUrl = "/postimages/341007003061882166.jpg";
@@ -683,7 +730,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const isPatriotsMerchSelected = selectedExp?.id === "exp-patriots-signed-merch" || (selectedExp?.teamId === "NE" && (selectedExp?.category?.toLowerCase().includes("signed") || selectedExp?.title?.toLowerCase().includes("signed")));
   const isPatriotsTeamSelected = selectedExp?.teamId === "NE" || isDrakeMayeSelected || isPatriotsMerchSelected;
   const isJalenPitreSelected = selectedExp?.id === "exp-jalen-pitre-meet" || selectedExp?.player?.toLowerCase().includes("pitre") || selectedExp?.title?.toLowerCase().includes("pitre");
-  const isBoNixSelected = selectedExp?.id === "exp-bo-nix-meet" || selectedExp?.player?.toLowerCase().includes("bo nix") || selectedExp?.title?.toLowerCase().includes("bo nix");
+  const isBoNixPodcast = selectedExp?.id === "exp-bo-nix-podcast" || (selectedExp?.title?.toLowerCase().includes("bo nix") && selectedExp?.title?.toLowerCase().includes("podcast"));
+  const isBoNixSelected = !isBoNixPodcast && (selectedExp?.id === "exp-bo-nix-meet" || (selectedExp?.title?.toLowerCase().includes("bo nix") && (selectedExp?.title?.toLowerCase().includes("private") || selectedExp?.category?.toLowerCase().includes("private"))));
   const isPrivatePlayerExperience = isJalenPitreSelected || isBoNixSelected;
 
   // Private Player Experience Pricing Calculations (Jalen Pitre & Bo Nix):
@@ -824,10 +872,17 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const openBookingModal = (exp: Experience) => {
     setSelectedExp(exp);
     setCheckoutSessionId(`PAY-EXP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
-    const isPrivate = exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.player?.toLowerCase().includes("pitre") || exp.player?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("bo nix");
-    const validFutureDate = isPrivate ? "Private experience date will be announced after confirmation" : (exp.dates.find(d => d >= TODAY_ISO) || exp.dates[0] || TODAY_ISO);
+    const isPitre = exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre");
+    const isBoNixPriv = exp.id === "exp-bo-nix-meet" || (exp.title?.toLowerCase().includes("bo nix") && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private")));
+    const isPrivate = isPitre || isBoNixPriv;
+    const isPodcast = exp.id === "exp-bo-nix-podcast" || (exp.title?.toLowerCase().includes("bo nix") && exp.title?.toLowerCase().includes("podcast"));
+    const validFutureDate = isPrivate 
+      ? "Private experience date will be announced after confirmation" 
+      : isPodcast
+        ? "Live podcast date coordinated directly after booking confirmation"
+        : (exp.dates.find(d => d >= TODAY_ISO) || exp.dates[0] || TODAY_ISO);
     setBookingDate(validFutureDate);
-    setBookingSlot(isPrivate ? "Announced after confirmation" : (exp.timeSlots[0] || "09:30 AM"));
+    setBookingSlot(isPrivate ? "Announced after confirmation" : isPodcast ? "Coordinated with Show Producer" : (exp.timeSlots[0] || "09:30 AM"));
     setCustomTimeSlotInput("");
     setIsCustomDateMode(false);
     setGuestsCount(1);
@@ -836,7 +891,6 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     setBookingStep("details");
     setBookingError("");
     setUnavailableVendorNotice(null);
-    const isPitre = exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre");
     const isPatriots = exp.id === "exp-patriots-signed-merch" || (exp.teamId === "NE" && (exp.category?.toLowerCase().includes("signed") || exp.title?.toLowerCase().includes("signed")));
     setPaymentTab(isPitre ? "crypto" : (isPatriots ? "paypal" : "cashapp"));
     setPromoCodeInput("");
@@ -1178,9 +1232,13 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                     <div className="flex items-center gap-1.5 text-[8px] font-mono text-emerald-400/90 pt-1 border-t border-white/[0.03]">
                       <Building2 className="w-2.5 h-2.5 shrink-0" />
                       <span className="truncate">
-                        {exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.player?.toLowerCase().includes("pitre") || exp.player?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("bo nix")
-                          ? "Cash App · Crypto (5% OFF) · Gift Card"
-                          : "BMO Bank · Cash App · Venmo · Zelle · Crypto"}
+                        {exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre")
+                          ? "Crypto (5% OFF) · Gift Card"
+                          : exp.id === "exp-bo-nix-meet" || (exp.title?.toLowerCase().includes("bo nix") && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private")))
+                            ? "Cash App · Crypto (5% OFF) · Gift Card"
+                            : exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast")
+                              ? "Live Podcast · Remote / Denver Studio · Crypto (5% OFF)"
+                              : "BMO Bank · Cash App · Venmo · Zelle · Crypto"}
                       </span>
                     </div>
                   </div>
@@ -1189,11 +1247,13 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                   <div className="pt-2 flex items-center justify-between border-t border-white/5">
                     <div>
                       <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none">
-                        {exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.player?.toLowerCase().includes("pitre") || exp.player?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("bo nix") 
+                        {exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.player?.toLowerCase().includes("pitre") || (exp.title?.toLowerCase().includes("bo nix") && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private"))) 
                           ? "Platinum Ticket"
-                          : exp.id === "exp-drake-maye-meet" || exp.title.toLowerCase().includes("drake maye") 
-                            ? "Pass Price" 
-                            : "Starting from"}
+                          : exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast")
+                            ? "Live Podcast Booking"
+                            : exp.id === "exp-drake-maye-meet" || exp.title.toLowerCase().includes("drake maye") 
+                              ? "Pass Price" 
+                              : "Starting from"}
                       </p>
                       <p className={cn(
                         "text-lg font-mono font-black mt-1",
@@ -1212,7 +1272,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           : "bg-blue-600 hover:bg-blue-700 text-white"
                       )}
                     >
-                      Book Ticket
+                      {exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast") ? "Book Podcast" : "Book Ticket"}
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1291,8 +1351,26 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       <p className="text-xs text-zinc-500 font-bold leading-relaxed">{selectedExp.description}</p>
                     </div>
 
-                    {/* Booking parameters: Interactive Custom Date & Time Selection OR Private Player Event Notice */}
-                    {isPrivatePlayerExperience ? (
+                    {/* Booking parameters: Interactive Custom Date & Time Selection OR Private Player Event Notice OR Live Podcast Scheduling Notice */}
+                    {isBoNixPodcast ? (
+                      <div className="p-4 bg-zinc-950/90 rounded-2xl border border-emerald-500/20 space-y-2.5">
+                        <div className="flex items-center gap-2 text-zinc-300">
+                          <Radio className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <span className="text-xs font-black uppercase tracking-wider text-white">Live Broadcast & Podcast Scheduling</span>
+                        </div>
+                        <div className="p-3.5 bg-zinc-900/80 rounded-xl border border-white/5 space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                            <p className="text-xs font-black text-emerald-300 uppercase tracking-wide">
+                              Live Recording Window Coordinated After Confirmation
+                            </p>
+                          </div>
+                          <p className="text-[10px] text-zinc-400 font-medium leading-relaxed">
+                            Our executive talent concierge coordinates directly with your podcast show producer to confirm live broadcast recording date, remote 4K stream link (Riverside.fm / Zoom) or in-studio session in Denver, CO, along with pre-interview topic review.
+                          </p>
+                        </div>
+                      </div>
+                    ) : isPrivatePlayerExperience ? (
                       <div className="p-4 bg-zinc-950/90 rounded-2xl border border-white/10 space-y-2.5">
                         <div className="flex items-center gap-2 text-zinc-300">
                           <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
@@ -1677,6 +1755,65 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           );
                         })()}
                       </>
+                    ) : isBoNixPodcast ? (
+                      <div className="space-y-3 pt-4 border-t border-white/5">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Podcast Appearance Package</h4>
+                          <span className="text-[9px] font-mono text-emerald-400 uppercase font-black bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+                            MEDIA BROADCAST
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Standard Podcast Session */}
+                          <button
+                            type="button"
+                            onClick={() => setTierSelection("standard")}
+                            className={cn(
+                              "p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between",
+                              tierSelection === "standard"
+                                ? "bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30"
+                                : "bg-zinc-900/40 border-white/5 hover:border-white/15"
+                            )}
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-black uppercase text-white tracking-wider">Standard Live Session</span>
+                                <span className="text-sm font-mono font-black text-blue-400">$1,500</span>
+                              </div>
+                              <p className="text-[10px] text-zinc-400 leading-normal">
+                                30–45 min on-air guest interview with Bo Nix. Virtual 4K (Riverside/Zoom) or Denver in-studio with technical soundcheck.
+                              </p>
+                            </div>
+                            <span className="text-[9px] text-zinc-500 uppercase font-mono mt-2 block">Standard Broadcast License</span>
+                          </button>
+
+                          {/* VIP Extended & Co-Promo Session */}
+                          <button
+                            type="button"
+                            onClick={() => setTierSelection("vip")}
+                            className={cn(
+                              "p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between",
+                              tierSelection === "vip"
+                                ? "bg-zinc-900 border-amber-500 shadow-lg shadow-amber-500/10 ring-1 ring-amber-500/30"
+                                : "bg-zinc-900/40 border-white/5 hover:border-white/15"
+                            )}
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-black uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
+                                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                  VIP Extended & Promo
+                                </span>
+                                <span className="text-sm font-mono font-black text-amber-400">$2,500</span>
+                              </div>
+                              <p className="text-[10px] text-zinc-400 leading-normal">
+                                Full 60-min deep-dive appearance, episode sponsor shout-out, and official social media co-promo rights.
+                              </p>
+                            </div>
+                            <span className="text-[9px] text-amber-400/80 uppercase font-mono mt-2 block">Extended Commercial Rights</span>
+                          </button>
+                        </div>
+                      </div>
                     ) : isDrakeMayeSelected ? (
                       <div className="space-y-2.5 pt-4 border-t border-white/5">
                         <div className="flex items-center justify-between">

@@ -14,13 +14,14 @@ import {
   Clock,
   ExternalLink,
   Ticket,
-  Download
+  Download,
+  Radio
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 
 interface CustomerCareWidgetProps {
-  onOpenCustomerCare: () => void;
+  onOpenCustomerCare: (category?: string, player?: string) => void;
   onOpenTrackInquiry: (initialTab?: "ticket" | "email") => void;
   onOpenTicketCheck?: () => void;
   user?: any;
@@ -76,6 +77,35 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
 
               {/* Action Buttons */}
               <div className="py-4 space-y-2.5">
+                {/* 0. Reserve / Inquire Podcast with Bo Nix & NFL Players */}
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    onOpenCustomerCare("podcast", "Bo Nix");
+                  }}
+                  className="w-full p-3.5 bg-gradient-to-r from-purple-950/80 via-indigo-950/70 to-blue-950/80 hover:from-purple-900/90 hover:to-indigo-900/90 border border-purple-500/40 hover:border-purple-400/70 rounded-2xl transition-all flex items-center justify-between group cursor-pointer shadow-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 group-hover:scale-105 transition-transform">
+                      <Radio className="w-4 h-4 animate-pulse" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black uppercase tracking-wider text-purple-300 group-hover:text-purple-200 transition-colors block">
+                          Podcast Reservation
+                        </span>
+                        <span className="text-[8px] font-black uppercase bg-purple-500 text-black px-1.5 py-0.2 rounded font-mono">
+                          Bo Nix
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase">
+                        Inquire & Book Podcast Appearances
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                </button>
+
                 {/* 1. Check & Download Approved Ticket Pass */}
                 {onOpenTicketCheck && (
                   <button

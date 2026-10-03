@@ -285,6 +285,45 @@ export const ExperienceAdmin: React.FC = () => {
     }
   };
 
+  // One-click function to ensure Bo Nix Live Podcast Session is verified in database
+  const handleSeedBoNixPodcast = async () => {
+    try {
+      await setDoc(doc(db, "experiences", "exp-bo-nix-podcast"), {
+        id: "exp-bo-nix-podcast",
+        title: "BO NIX Live Podcast Guest Session",
+        description: "Book Denver Broncos standout quarterback Bo Nix for an exclusive live podcast guest appearance or broadcast interview. Ideal for sports shows, YouTube broadcasts, studio productions, or virtual live recordings. Includes direct producer coordination, topic clearance, promotional rights, and pre-interview sound check.",
+        type: "meet_greet",
+        category: "Live Podcast Session",
+        price: 1500,
+        vipPrice: 2500,
+        premiumPrice: 3500,
+        teamId: "DEN",
+        imageUrl: "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg",
+        player: "Bo Nix",
+        location: "In-Studio (Denver, CO) or High-Fidelity Remote (Riverside / 4K Stream)",
+        dates: ["Live podcast date coordinated directly after booking confirmation"],
+        timeSlots: ["Coordinated with Show Producer"],
+        features: [
+          "30 to 45-minute live on-air interview & interactive Q&A session with Bo Nix",
+          "Available in-studio (Denver, CO) or high-fidelity broadcast remote (Riverside.fm / Zoom 4K)",
+          "Direct scheduling coordination with Bo Nix's media concierge & show producers",
+          "Official promotional license to use Bo Nix name & likeness for episode marketing",
+          "Pre-show soundcheck & producer topic alignment window",
+          "VIP Tier option includes extended 60-min broadcast and co-branded sponsor shoutout",
+          "Flexible payment options: Crypto (5% discount), Cash App, PayPal, Venmo, Zelle & Gift Cards"
+        ],
+        rating: 5.0,
+        reviewsCount: 31,
+        v: Date.now(),
+        updatedAt: Date.now()
+      }, { merge: true });
+      alert("✅ BO NIX Live Podcast Guest Session successfully verified and saved with price $1,500!");
+    } catch (err: any) {
+      console.error(err);
+      alert("Error adding Bo Nix Podcast session: " + err.message);
+    }
+  };
+
   // One-click function to ensure Drew Lock is verified in database
   const handleSeedDrewLock = async () => {
     try {
@@ -853,6 +892,33 @@ export const ExperienceAdmin: React.FC = () => {
           ],
           rating: 5.0,
           reviewsCount: 39
+        },
+        {
+          id: "exp-bo-nix-podcast",
+          title: "BO NIX Live Podcast Guest Session",
+          description: "Book Denver Broncos standout quarterback Bo Nix for an exclusive live podcast guest appearance or broadcast interview. Ideal for sports shows, YouTube broadcasts, studio productions, or virtual live recordings. Includes direct producer coordination, topic clearance, promotional rights, and pre-interview sound check.",
+          type: "meet_greet",
+          category: "Live Podcast Session",
+          price: 1500,
+          vipPrice: 2500,
+          premiumPrice: 3500,
+          teamId: "DEN",
+          imageUrl: "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg",
+          player: "Bo Nix",
+          location: "In-Studio (Denver, CO) or High-Fidelity Remote (Riverside / 4K Stream)",
+          dates: ["Live podcast date coordinated directly after booking confirmation"],
+          timeSlots: ["Coordinated with Show Producer"],
+          features: [
+            "30 to 45-minute live on-air interview & interactive Q&A session with Bo Nix",
+            "Available in-studio (Denver, CO) or high-fidelity broadcast remote (Riverside.fm / Zoom 4K)",
+            "Direct scheduling coordination with Bo Nix's media concierge & show producers",
+            "Official promotional license to use Bo Nix name & likeness for episode marketing",
+            "Pre-show soundcheck & producer topic alignment window",
+            "VIP Tier option includes extended 60-min broadcast and co-branded sponsor shoutout",
+            "Flexible payment options: Crypto (5% discount), Cash App, PayPal, Venmo, Zelle & Gift Cards"
+          ],
+          rating: 5.0,
+          reviewsCount: 31
         }
       ];
 

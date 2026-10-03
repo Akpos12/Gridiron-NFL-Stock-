@@ -2165,6 +2165,7 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [adminLoading, setAdminLoading] = useState(false);
   const [permError, setPermError] = useState<string | null>(null);
 
+  const [inquiryCategoryFilter, setInquiryCategoryFilter] = useState<"all" | "podcast" | "player" | "pending" | "responded">("all");
   const [confirmDelete, setConfirmDelete] = useState<{ id: string, type: 'inquiry' | 'ledger' | 'user' | 'order' } | null>(null);
   const [selectedOrderForReview, setSelectedOrderForReview] = useState<BookingAuditItem | null>(null);
   const [isOrderReviewOpen, setIsOrderReviewOpen] = useState(false);
@@ -2465,11 +2466,33 @@ const AdminPortal = ({ user }: { user: any }) => {
     (u.email || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredInquiries = requests.filter(r => 
-    (r.teamId || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (r.userEmail || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.message || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredInquiries = requests.filter(r => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = 
+      (r.teamId || "").toLowerCase().includes(term) || 
+      (r.userEmail || "").toLowerCase().includes(term) ||
+      (r.userName || "").toLowerCase().includes(term) ||
+      (r.targetPlayer || "").toLowerCase().includes(term) ||
+      (r.id || "").toLowerCase().includes(term) ||
+      (r.podcastDetails?.showName || "").toLowerCase().includes(term) ||
+      (r.message || "").toLowerCase().includes(term);
+
+    if (!matchesSearch) return false;
+
+    if (inquiryCategoryFilter === "podcast") {
+      return r.category === "podcast" || !!r.podcastDetails || (r.message || "").toLowerCase().includes("podcast") || (r.targetPlayer || "").toLowerCase().includes("nix");
+    }
+    if (inquiryCategoryFilter === "player") {
+      return r.category === "player_experience" || !!r.targetPlayer || r.category === "podcast";
+    }
+    if (inquiryCategoryFilter === "pending") {
+      return r.status === "pending" || !r.status;
+    }
+    if (inquiryCategoryFilter === "responded") {
+      return r.status === "responded";
+    }
+    return true;
+  });
 
   const filteredOrders = orders.filter(o => 
     (o.itemName || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -3178,37 +3201,79 @@ const AdminPortal = ({ user }: { user: any }) => {
             )}
           </div>
         ) : (
-          <table className="w-full text-left">
-            <thead className="bg-zinc-950 border-b border-white/5">
-              <tr>
-                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Date</th>
-                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Entity</th>
-                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Contact Handle</th>
-                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Message / Detail</th>
-                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Status</th>
-                <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredInquiries.map((item: any) => (
-                <tr 
-                  key={item.id} 
-                  className={cn(
-                    "border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer",
-                    selectedInquiry?.id === item.id && "bg-white/[0.05]"
-                  )}
-                  onClick={() => setSelectedInquiry(item)}
-                >
-                  <td className="p-6 text-[10px] font-mono text-zinc-400">
-                    {item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString() : 'Recent'}
-                  </td>
-                  <td className="p-6">
-                    <p className="text-xs font-black uppercase italic">{item.userName || item.teamId || item.itemName}</p>
-                    <p className="text-[10px] font-bold text-zinc-600 uppercase">
-                      {item.userEmail || (item.userId === 'guest' ? 'GUEST' : 'USER')}
-                    </p>
-                    <p className="text-[8px] font-mono text-zinc-500">{item.id}</p>
-                  </td>
+          <div>
+            {/* Quick Filters for Inquiries & Podcast Reservations */}
+            <div className="p-4 bg-zinc-950/80 border-b border-white/5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-wider text-zinc-500 mr-1">Concierge Filter:</span>
+                {[
+                  { id: "all", label: `All Inquiries (${requests.length})` },
+                  { id: "podcast", label: `🎙️ Podcast & Bo Nix (${requests.filter(r => r.category === 'podcast' || r.podcastDetails || (r.message || "").toLowerCase().includes("podcast") || (r.targetPlayer || "").toLowerCase().includes("nix")).length})` },
+                  { id: "player", label: `🏈 Player Inquiries (${requests.filter(r => r.category === 'player_experience' || !!r.targetPlayer).length})` },
+                  { id: "pending", label: `Awaiting Reply (${requests.filter(r => r.status === 'pending' || !r.status).length})` },
+                  { id: "responded", label: `Responded (${requests.filter(r => r.status === 'responded').length})` }
+                ].map(flt => (
+                  <button
+                    key={flt.id}
+                    type="button"
+                    onClick={() => setInquiryCategoryFilter(flt.id as any)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border cursor-pointer",
+                      inquiryCategoryFilter === flt.id 
+                        ? "bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-600/20" 
+                        : "bg-zinc-900 border-white/5 text-zinc-400 hover:text-white hover:border-white/20"
+                    )}
+                  >
+                    {flt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <table className="w-full text-left">
+              <thead className="bg-zinc-950 border-b border-white/5">
+                <tr>
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Date</th>
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Entity / Talent</th>
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Contact Handle</th>
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">Message / Detail</th>
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Status</th>
+                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredInquiries.map((item: any) => (
+                  <tr 
+                    key={item.id} 
+                    className={cn(
+                      "border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer",
+                      selectedInquiry?.id === item.id && "bg-white/[0.05]"
+                    )}
+                    onClick={() => setSelectedInquiry(item)}
+                  >
+                    <td className="p-6 text-[10px] font-mono text-zinc-400">
+                      {item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString() : 'Recent'}
+                    </td>
+                    <td className="p-6">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                        <p className="text-xs font-black uppercase italic">{item.userName || item.teamId || item.itemName}</p>
+                        {(item.category === 'podcast' || item.podcastDetails || (item.message || "").toLowerCase().includes("podcast") || (item.targetPlayer || "").toLowerCase().includes("bo nix")) && (
+                          <span className="px-2 py-0.5 bg-purple-950/80 border border-purple-500/40 text-purple-300 text-[8px] font-black uppercase rounded-md tracking-wider flex items-center gap-1">
+                            <Radio className="w-2.5 h-2.5 text-purple-400 animate-pulse" />
+                            Podcast: {item.targetPlayer || "Bo Nix"}
+                          </span>
+                        )}
+                        {item.category !== 'podcast' && !item.podcastDetails && item.targetPlayer && (
+                          <span className="px-2 py-0.5 bg-blue-950/80 border border-blue-500/40 text-blue-300 text-[8px] font-black uppercase rounded-md tracking-wider flex items-center gap-1">
+                            Player: {item.targetPlayer}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] font-bold text-zinc-600 uppercase">
+                        {item.userEmail || (item.userId === 'guest' ? 'GUEST' : 'USER')}
+                      </p>
+                      <p className="text-[8px] font-mono text-zinc-500">{item.id}</p>
+                    </td>
                   <td className="p-6 text-xs font-bold text-blue-400 underline decoration-blue-400/30">
                     {item.contactMethod || (item.userId !== 'guest' ? 'Registered Account' : 'Unknown')}
                   </td>
@@ -3298,7 +3363,8 @@ const AdminPortal = ({ user }: { user: any }) => {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
 
@@ -3323,8 +3389,14 @@ const AdminPortal = ({ user }: { user: any }) => {
                 )}>
                   {selectedInquiry.status === 'ended' ? 'Session Concluded / Ended' : selectedInquiry.status || 'Active Session'}
                 </span>
+                {(selectedInquiry.category === 'podcast' || selectedInquiry.podcastDetails || (selectedInquiry.targetPlayer || "").toLowerCase().includes("bo nix")) && (
+                  <span className="px-3 py-1 text-[9px] font-black uppercase rounded-lg bg-purple-950/80 border border-purple-500/40 text-purple-300 flex items-center gap-1.5">
+                    <Radio className="w-3 h-3 text-purple-400 animate-pulse" />
+                    Podcast Session: {selectedInquiry.targetPlayer || "Bo Nix"}
+                  </span>
+                )}
               </div>
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic">User Email: {selectedInquiry.userEmail || "GUEST"} · Reviewing inquiry & drafting response...</p>
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic">User Email: {selectedInquiry.userEmail || "GUEST"} · Replying live as Customer Care representative...</p>
             </div>
             
             <div className="flex items-center gap-3">
@@ -3332,7 +3404,7 @@ const AdminPortal = ({ user }: { user: any }) => {
                 <button
                   onClick={() => handleReopenSession(selectedInquiry.id)}
                   disabled={adminLoading}
-                  className="px-3.5 py-2 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1.5"
+                  className="px-3.5 py-2 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" /> Reopen Session
                 </button>
@@ -3340,7 +3412,7 @@ const AdminPortal = ({ user }: { user: any }) => {
                 <button
                   onClick={() => handleEndSession(selectedInquiry.id)}
                   disabled={adminLoading}
-                  className="px-3.5 py-2 bg-amber-600/10 hover:bg-amber-600 border border-amber-500/20 text-amber-400 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1.5"
+                  className="px-3.5 py-2 bg-amber-600/10 hover:bg-amber-600 border border-amber-500/20 text-amber-400 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
                   title="Click to End Session so user can submit new inquiries or conclude support"
                 >
                   <PowerOff className="w-3.5 h-3.5" /> End Session
@@ -3370,7 +3442,7 @@ const AdminPortal = ({ user }: { user: any }) => {
                 <button
                   onClick={() => setConfirmDelete({ id: selectedInquiry.id, type: 'inquiry' })}
                   disabled={adminLoading}
-                  className="px-3 py-2 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/20 text-rose-500 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1"
+                  className="px-3 py-2 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/20 text-rose-500 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1 cursor-pointer"
                   title="Delete Inquiry Permanently"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -3378,14 +3450,78 @@ const AdminPortal = ({ user }: { user: any }) => {
                 </button>
               )}
 
-              <button onClick={() => setSelectedInquiry(null)} className="text-zinc-500 hover:text-white p-2"><X className="w-5 h-5" /></button>
+              <button onClick={() => setSelectedInquiry(null)} className="text-zinc-500 hover:text-white p-2 cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
           </div>
 
+          {/* Specialized Player Podcast & Media Session Card */}
+          {(selectedInquiry.category === 'podcast' || selectedInquiry.podcastDetails || (selectedInquiry.targetPlayer || "").toLowerCase().includes("bo nix") || selectedInquiry.targetPlayer) && (
+            <div className="bg-gradient-to-r from-purple-950/60 via-indigo-950/40 to-blue-950/60 border border-purple-500/30 rounded-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300">
+                    <Radio className="w-5 h-5 text-purple-400 animate-pulse" />
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-purple-300 block">
+                      Player Podcast & Media Reservation Session
+                    </span>
+                    <h5 className="text-lg font-black uppercase tracking-tight text-white flex items-center gap-2">
+                      {selectedInquiry.targetPlayer || "Bo Nix"}
+                      <span className="text-[8px] font-black uppercase bg-purple-500 text-black px-2 py-0.5 rounded font-mono">
+                        VERIFIED NFL TALENT
+                      </span>
+                    </h5>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-mono text-zinc-400 block">
+                    Session Ref: {selectedInquiry.id}
+                  </span>
+                  <span className="text-[8px] font-black uppercase text-purple-400 font-mono">
+                    Direct Concierge Queue
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
+                <div className="bg-black/50 p-3.5 rounded-xl border border-white/5">
+                  <p className="text-[8px] font-black uppercase tracking-wider text-zinc-500">Podcast Show / Channel</p>
+                  <p className="text-xs font-black text-white truncate mt-0.5">
+                    {selectedInquiry.podcastDetails?.showName || selectedInquiry.itemName || "Show Name Not Provided"}
+                  </p>
+                </div>
+                <div className="bg-black/50 p-3.5 rounded-xl border border-white/5">
+                  <p className="text-[8px] font-black uppercase tracking-wider text-zinc-500">Recording Format</p>
+                  <p className="text-xs font-black text-purple-300 truncate mt-0.5">
+                    {selectedInquiry.podcastDetails?.format || "Virtual Stream / Studio"}
+                  </p>
+                </div>
+                <div className="bg-black/50 p-3.5 rounded-xl border border-white/5">
+                  <p className="text-[8px] font-black uppercase tracking-wider text-zinc-500">Proposed Window</p>
+                  <p className="text-xs font-black text-white truncate mt-0.5">
+                    {selectedInquiry.podcastDetails?.recordingWindow || "Flexible Window"}
+                  </p>
+                </div>
+                <div className="bg-black/50 p-3.5 rounded-xl border border-white/5">
+                  <p className="text-[8px] font-black uppercase tracking-wider text-zinc-500">Proposed Honorarium</p>
+                  <p className="text-xs font-black text-emerald-400 truncate mt-0.5">
+                    {selectedInquiry.podcastDetails?.budget ? `$${selectedInquiry.podcastDetails.budget}` : "To Negotiate / Quote"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[9px] font-bold text-zinc-400 pt-1">
+                <span>Client Contact: <strong className="text-white">{selectedInquiry.contactMethod || selectedInquiry.userEmail}</strong></span>
+                <span>Category: <strong className="text-purple-300 uppercase">{selectedInquiry.category || 'Podcast'}</strong></span>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4">
             <div className="bg-zinc-950 p-6 rounded-2xl border border-white/5">
-              <p className="text-[10px] font-black uppercase text-zinc-600 mb-2 tracking-widest">Original Inquiry</p>
-              <p className="text-sm font-medium text-white">{selectedInquiry.message}</p>
+              <p className="text-[10px] font-black uppercase text-zinc-600 mb-2 tracking-widest">Original Inquiry Message</p>
+              <p className="text-sm font-medium text-white leading-relaxed">{selectedInquiry.message}</p>
             </div>
             {selectedInquiry.replies?.map((r: any, idx: number) => {
               const isCc = r.sender === 'Customer Care' || (r.sender && r.sender.toLowerCase().includes('care')) || (r.sender && r.sender.toLowerCase().includes('concierge'));
@@ -3478,20 +3614,72 @@ const AdminPortal = ({ user }: { user: any }) => {
             })}
           </div>
 
-          <div className="space-y-4">
+          {/* Quick-Reply Customer Care Templates */}
+          <div className="space-y-2 pt-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                Customer Care Quick Response Templates (1-Click to Insert)
+              </p>
+              <span className="text-[8px] text-zinc-500 font-mono uppercase">Replying as Customer Care</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setReplyText(`Hello! Thank you for inquiring with Customer Care about reserving a podcast session with ${selectedInquiry.targetPlayer || "Bo Nix"}. The player is currently accepting select media appearances and studio recordings during scheduled bye weeks and team media days. We would love to coordinate with your show producer. Please confirm your planned interview duration (e.g. 45-60 min), proposed recording dates, and whether your recording will be conducted via remote studio link (Riverside.fm) or in Denver.`)}
+                className="text-[9px] font-black uppercase tracking-wider px-3.5 py-2 bg-purple-950/70 hover:bg-purple-900 border border-purple-500/40 hover:border-purple-300 text-purple-300 rounded-xl transition-all cursor-pointer text-left shadow-sm flex items-center gap-1.5"
+              >
+                <Radio className="w-3 h-3 text-purple-400" />
+                🎙️ {selectedInquiry.targetPlayer || "Bo Nix"} Podcast Availability
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setReplyText(`Thank you for reaching out to NFL Concierge Customer Care regarding ${selectedInquiry.targetPlayer || "Bo Nix"}. We have logged your show details with the player's media coordination team. Before confirming the studio recording window, please provide your production tech rider and topic outline for pre-production clearance.`)}
+                className="text-[9px] font-black uppercase tracking-wider px-3.5 py-2 bg-indigo-950/70 hover:bg-indigo-900 border border-indigo-500/40 hover:border-indigo-300 text-indigo-300 rounded-xl transition-all cursor-pointer text-left shadow-sm flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3 h-3 text-indigo-400" />
+                📋 Tech Rider & Studio Clearance
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setReplyText(`Thank you for contacting NFL Concierge Customer Care. We are currently checking active training schedules and appearance availability for ${selectedInquiry.targetPlayer || "the requested player"}. Our talent liaison will update your ticket thread with confirmed scheduling windows and appearance credentials.`)}
+                className="text-[9px] font-black uppercase tracking-wider px-3.5 py-2 bg-blue-950/70 hover:bg-blue-900 border border-blue-500/40 hover:border-blue-300 text-blue-300 rounded-xl transition-all cursor-pointer text-left shadow-sm flex items-center gap-1.5"
+              >
+                <Star className="w-3 h-3 text-blue-400" />
+                🏈 Player Schedule & Concierge Check
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center justify-between text-[10px] font-bold text-zinc-400">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                Active Session: <strong className="text-white">Customer Care Terminal</strong>
+              </span>
+              <span className="font-mono text-zinc-500">Replies sync to customer in real-time</span>
+            </div>
             <textarea 
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
-              placeholder="Type your official response here. This will be visible to the user under their Reference ID..."
+              placeholder="Type your official Customer Care response here. This will be visible to the customer under their Reference ID..."
               rows={4}
-              className="w-full bg-zinc-950 border border-white/5 rounded-2xl p-6 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all font-medium"
+              className="w-full bg-zinc-950 border border-white/10 rounded-2xl p-6 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all font-medium text-white resize-y"
             />
-            <button 
-              onClick={handleReply}
-              className="px-12 py-4 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-zinc-200 transition-all flex items-center gap-3"
-            >
-              <Send className="w-4 h-4" /> Dispatch Official Reply
-            </button>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <span className="text-[10px] font-bold text-zinc-500">
+                Author: <strong className="text-zinc-300">Customer Care ({user?.email || "Control Room"})</strong>
+              </span>
+              <button 
+                onClick={handleReply}
+                disabled={!replyText.trim() || adminLoading}
+                className="px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl transition-all flex items-center gap-2.5 shadow-xl shadow-blue-600/25 disabled:opacity-50 cursor-pointer active:scale-98"
+              >
+                <Send className="w-4 h-4" /> Dispatch Reply as Customer Care
+              </button>
+            </div>
           </div>
         </motion.div>
       )}
@@ -3543,6 +3731,13 @@ export default function App() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showFanCardForm, setShowFanCardForm] = useState(false);
+  const [selectedInquiryCategory, setSelectedInquiryCategory] = useState("general");
+  const [selectedInquiryPlayer, setSelectedInquiryPlayer] = useState("Bo Nix");
+  const [customPlayerName, setCustomPlayerName] = useState("");
+  const [podcastShowInput, setPodcastShowInput] = useState("");
+  const [podcastFormatInput, setPodcastFormatInput] = useState("Virtual Studio Stream (Riverside.fm / Zoom 4K)");
+  const [podcastWindowInput, setPodcastWindowInput] = useState("Next 2-4 Weeks (Flexible Schedule)");
+  const [podcastBudgetInput, setPodcastBudgetInput] = useState("");
   const [isSubmittingInquiry, setIsSubmittingInquiry] = useState(false);
   const [inquirySuccess, setInquirySuccess] = useState<string | null>(null);
   const [ongoingSessionAlert, setOngoingSessionAlert] = useState<any | null>(null);
@@ -4088,13 +4283,30 @@ export default function App() {
         }
       }
 
+      const category = (formData.get("category") as string) || selectedInquiryCategory || "general";
+      const targetPlayerRaw = (formData.get("targetPlayer") as string) || selectedInquiryPlayer || "";
+      const customPlayerRaw = (formData.get("customPlayer") as string) || customPlayerName || "";
+      const finalPlayer = targetPlayerRaw === "other" ? (customPlayerRaw.trim() || "Custom NFL Athlete") : (targetPlayerRaw || (category === "podcast" ? "Bo Nix" : ""));
+      const podcastShow = (formData.get("podcastShow") as string) || podcastShowInput || "";
+      const podcastFormat = (formData.get("podcastFormat") as string) || podcastFormatInput || "";
+      const podcastWindow = (formData.get("podcastWindow") as string) || podcastWindowInput || "";
+      const podcastBudget = (formData.get("podcastBudget") as string) || podcastBudgetInput || "";
+      const isPodcastOrPlayer = category === "podcast" || category === "player_experience";
+
       const requestId = `TRK-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
       await setDoc(doc(db, "fan_card_requests", requestId), {
         userId: user ? user.uid : 'guest',
         userEmail: submittedEmail || null,
         userName: (formData.get("name") as string) || (user?.displayName || "Fan"),
         teamId: (formData.get("team") as string) || selectedTeam.id,
-        category: (formData.get("category") as string) || "general",
+        category: category,
+        targetPlayer: isPodcastOrPlayer ? finalPlayer : (finalPlayer || null),
+        podcastDetails: category === "podcast" ? {
+          showName: podcastShow,
+          format: podcastFormat,
+          recordingWindow: podcastWindow,
+          budget: podcastBudget
+        } : null,
         contactMethod: (formData.get("contact") as string) || submittedEmail || "Email",
         message: formData.get("message") as string,
         status: "pending",
@@ -4514,7 +4726,11 @@ export default function App() {
 
       {/* Persistent Floating 24/7 Customer Care Hub */}
       <CustomerCareWidget 
-        onOpenCustomerCare={() => setShowFanCardForm(true)}
+        onOpenCustomerCare={(category, player) => {
+          if (category) setSelectedInquiryCategory(category);
+          if (player) setSelectedInquiryPlayer(player);
+          setShowFanCardForm(true);
+        }}
         onOpenTrackInquiry={(tab) => {
           setTrackedInquiry(null);
           setEmailInquiries(null);
@@ -4758,6 +4974,34 @@ export default function App() {
                       </span>
                     </div>
                   </div>
+
+                  {/* Highlight for Podcast or Player Concierge Session */}
+                  {(trackedInquiry.category === 'podcast' || trackedInquiry.podcastDetails || trackedInquiry.targetPlayer) && (
+                    <div className="p-4 bg-gradient-to-r from-purple-950/60 to-indigo-950/60 border border-purple-500/30 rounded-2xl flex items-center justify-between gap-3 text-left">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 shrink-0">
+                          <Radio className="w-4 h-4 text-purple-400 animate-pulse" />
+                        </div>
+                        <div>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-purple-300 block">
+                            {trackedInquiry.category === 'podcast' ? 'Podcast Reservation Concierge' : 'Player Concierge Inquiry'}
+                          </span>
+                          <p className="text-xs font-black uppercase text-white">
+                            Athlete: <strong className="text-purple-200">{trackedInquiry.targetPlayer || "Bo Nix"}</strong>
+                            {trackedInquiry.podcastDetails?.showName && ` • Show: ${trackedInquiry.podcastDetails.showName}`}
+                          </p>
+                          {trackedInquiry.podcastDetails?.format && (
+                            <p className="text-[9px] font-mono text-zinc-400">
+                              Format: {trackedInquiry.podcastDetails.format}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0 font-mono">
+                        VERIFIED TALENT DESK
+                      </span>
+                    </div>
+                  )}
 
                   <div className="max-h-[250px] md:max-h-[300px] overflow-y-auto pr-2 sm:pr-4 space-y-6 custom-scrollbar">
                     <div className="bg-zinc-950 p-4 sm:p-6 rounded-2xl border border-white/5 max-w-[90%] sm:max-w-[80%]">
@@ -5452,7 +5696,13 @@ export default function App() {
                 {/* Visual advertising rotating banners */}
                 <PromoSlider 
                   onActionClick={(banner) => {
-                    setDeepLinkExp(banner);
+                    if (banner.id === "promo-podcast-bo-nix" || banner.id?.includes("podcast")) {
+                      setSelectedInquiryCategory("podcast");
+                      setSelectedInquiryPlayer("Bo Nix");
+                      setShowFanCardForm(true);
+                    } else {
+                      setDeepLinkExp(banner);
+                    }
                   }}
                 />
 
@@ -5462,6 +5712,12 @@ export default function App() {
                   onRequestLoginModal={() => setShowLogin(true)}
                   onNotifyCheckout={() => {
                     console.log("Invoice finalized.");
+                  }}
+                  onOpenPodcastInquiry={(player, showTitle) => {
+                    setSelectedInquiryCategory("podcast");
+                    setSelectedInquiryPlayer(player || "Bo Nix");
+                    if (showTitle) setPodcastShowInput(showTitle);
+                    setShowFanCardForm(true);
                   }}
                 />
               </div>
@@ -5903,9 +6159,12 @@ export default function App() {
                         <select 
                           name="category" 
                           disabled={isSubmittingInquiry} 
-                          defaultValue="general" 
+                          value={selectedInquiryCategory}
+                          onChange={(e) => setSelectedInquiryCategory(e.target.value)}
                           className="w-full bg-zinc-950 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold uppercase transition-all disabled:opacity-50 text-white"
                         >
+                          <option value="podcast">🎙️ Player Podcast Reservation & Studio Session</option>
+                          <option value="player_experience">🏈 Player Private Experience & Custom Booking</option>
                           <option value="general">General Support & Customer Care</option>
                           <option value="giveaway">Player Giveaway Claim & Prize Dispatch</option>
                           <option value="passes">VIP Experiences & Match Passes</option>
@@ -5927,6 +6186,117 @@ export default function App() {
                       </div>
                     </div>
 
+                    {/* Specialized Athlete & Podcast Selection Module */}
+                    {(selectedInquiryCategory === "podcast" || selectedInquiryCategory === "player_experience") && (
+                      <div className="bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-blue-950/40 border border-purple-500/30 rounded-2xl p-4 sm:p-5 space-y-4 text-left">
+                        <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                          <div className="flex items-center gap-2">
+                            <Radio className="w-4 h-4 text-purple-400 animate-pulse" />
+                            <span className="text-[10px] font-black uppercase tracking-wider text-purple-300">
+                              {selectedInquiryCategory === "podcast" ? "Podcast Guest Appearance Reservation" : "Player Concierge Scheduling"}
+                            </span>
+                          </div>
+                          <span className="text-[8px] font-mono text-zinc-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded">
+                            Verified NFL Talent
+                          </span>
+                        </div>
+
+                        {/* Player Selector */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[8px] md:text-[9px] font-black uppercase text-purple-300 mb-1.5 tracking-wider">Target Player / Athlete</label>
+                            <select
+                              name="targetPlayer"
+                              value={selectedInquiryPlayer}
+                              onChange={(e) => setSelectedInquiryPlayer(e.target.value)}
+                              disabled={isSubmittingInquiry}
+                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500 font-bold text-white uppercase"
+                            >
+                              <option value="Bo Nix">Bo Nix (Denver Broncos - QB)</option>
+                              <option value="Justin Jefferson">Justin Jefferson (Minnesota Vikings - WR)</option>
+                              <option value="Patrick Mahomes">Patrick Mahomes (Kansas City Chiefs - QB)</option>
+                              <option value="Drake Maye">Drake Maye (New England Patriots - QB)</option>
+                              <option value="Jalen Pitre">Jalen Pitre (Houston Texans - S)</option>
+                              <option value="Lamar Jackson">Lamar Jackson (Baltimore Ravens - QB)</option>
+                              <option value="Josh Allen">Josh Allen (Buffalo Bills - QB)</option>
+                              <option value="C.J. Stroud">C.J. Stroud (Houston Texans - QB)</option>
+                              <option value="Travis Kelce">Travis Kelce (Kansas City Chiefs - TE)</option>
+                              <option value="Caleb Williams">Caleb Williams (Chicago Bears - QB)</option>
+                              <option value="other">Other NFL Player / Custom Request</option>
+                            </select>
+                          </div>
+
+                          {selectedInquiryPlayer === "other" ? (
+                            <div>
+                              <label className="block text-[8px] md:text-[9px] font-black uppercase text-purple-300 mb-1.5 tracking-wider">Specify Player Name & Team</label>
+                              <input
+                                name="customPlayer"
+                                value={customPlayerName}
+                                onChange={(e) => setCustomPlayerName(e.target.value)}
+                                disabled={isSubmittingInquiry}
+                                placeholder="e.g. Derrick Henry - Baltimore Ravens"
+                                className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-bold focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              />
+                            </div>
+                          ) : (
+                            <div>
+                              <label className="block text-[8px] md:text-[9px] font-black uppercase text-purple-300 mb-1.5 tracking-wider">Podcast / Show Name</label>
+                              <input
+                                name="podcastShow"
+                                value={podcastShowInput}
+                                onChange={(e) => setPodcastShowInput(e.target.value)}
+                                disabled={isSubmittingInquiry}
+                                placeholder="e.g. The Gridiron Breakdown / YouTube Show"
+                                className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-bold focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Format & Recording Window (if podcast) */}
+                        {selectedInquiryCategory === "podcast" && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <div>
+                              <label className="block text-[8px] md:text-[9px] font-black uppercase text-zinc-400 mb-1.5 tracking-wider">Recording Format</label>
+                              <select
+                                name="podcastFormat"
+                                value={podcastFormatInput}
+                                onChange={(e) => setPodcastFormatInput(e.target.value)}
+                                disabled={isSubmittingInquiry}
+                                className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-medium focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              >
+                                <option value="Virtual Studio Stream (Riverside.fm / Zoom 4K)">Virtual Studio Stream (Riverside.fm / Zoom 4K)</option>
+                                <option value="In-Studio Recording (Denver, CO Studio)">In-Studio Recording (Denver, CO Studio)</option>
+                                <option value="On-Location / Team Facility Media Room">On-Location / Team Facility Media Room</option>
+                                <option value="Live Stage / Tour Guest Appearance">Live Stage / Tour Guest Appearance</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[8px] md:text-[9px] font-black uppercase text-zinc-400 mb-1.5 tracking-wider">Preferred Window</label>
+                              <select
+                                name="podcastWindow"
+                                value={podcastWindowInput}
+                                onChange={(e) => setPodcastWindowInput(e.target.value)}
+                                disabled={isSubmittingInquiry}
+                                className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-medium focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              >
+                                <option value="Next 1-2 Weeks (Priority Window)">Next 1-2 Weeks (Priority Window)</option>
+                                <option value="Next 3-4 Weeks (Mid-Season)">Next 3-4 Weeks (Mid-Season)</option>
+                                <option value="Post-Game Media Day / Bye Week">Post-Game Media Day / Bye Week</option>
+                                <option value="Off-Season / Studio Tour">Off-Season / Studio Tour</option>
+                                <option value="Flexible Producer Schedule">Flexible Producer Schedule</option>
+                              </select>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-[9px] font-bold text-zinc-400 pt-1">
+                          <span>Concierge Direct: <strong className="text-white">{selectedInquiryPlayer === 'other' ? (customPlayerName || 'Requested Athlete') : selectedInquiryPlayer}</strong></span>
+                          <span className="text-purple-300">Customer Care responds in real-time</span>
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 tracking-widest">Contact Handle / Phone</label>
                       <input 
@@ -5940,20 +6310,33 @@ export default function App() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 tracking-widest">Inquiry Details</label>
+                      <label className="block text-[8px] md:text-[10px] font-black uppercase text-zinc-500 mb-2 tracking-widest">
+                        {selectedInquiryCategory === "podcast" ? "Show Notes & Interview Synopsis" : "Inquiry Details"}
+                      </label>
                       <textarea 
                         name="message" 
                         required 
                         disabled={isSubmittingInquiry} 
                         rows={3} 
-                        placeholder="Describe your inquiry, order, giveaway claim details, or concierge support request. Our customer care team responds in real-time..." 
+                        placeholder={
+                          selectedInquiryCategory === "podcast" 
+                            ? `Describe your show format, topics, planned interview duration (e.g. 45-60 min), and recording window for ${selectedInquiryPlayer === 'other' ? (customPlayerName || 'the athlete') : selectedInquiryPlayer}...` 
+                            : selectedInquiryCategory === "player_experience"
+                              ? `Describe your custom event, private appearance, or VIP booking request for ${selectedInquiryPlayer === 'other' ? (customPlayerName || 'the athlete') : selectedInquiryPlayer}...`
+                              : "Describe your inquiry, order, giveaway claim details, or concierge support request. Our customer care team responds in real-time..."
+                        } 
                         className="w-full bg-zinc-950 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50 text-white resize-none" 
                       />
                     </div>
                     <button 
                       type="submit" 
                       disabled={isSubmittingInquiry}
-                      className="w-full py-4.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                      className={cn(
+                        "w-full py-4.5 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer",
+                        selectedInquiryCategory === "podcast"
+                          ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 shadow-purple-600/30"
+                          : "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 shadow-blue-600/20"
+                      )}
                     >
                       {isSubmittingInquiry ? (
                         <>
@@ -5962,8 +6345,17 @@ export default function App() {
                         </>
                       ) : (
                         <>
-                          <Send className="w-4 h-4" />
-                          SUBMIT TO CUSTOMER CARE
+                          {selectedInquiryCategory === "podcast" ? (
+                            <>
+                              <Radio className="w-4 h-4 text-purple-200" />
+                              RESERVE PODCAST SESSION WITH {selectedInquiryPlayer === 'other' ? (customPlayerName.toUpperCase() || 'PLAYER') : selectedInquiryPlayer.toUpperCase()}
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-4 h-4" />
+                              SUBMIT TO CUSTOMER CARE
+                            </>
+                          )}
                         </>
                       )}
                     </button>
