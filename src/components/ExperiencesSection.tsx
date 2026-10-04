@@ -471,6 +471,7 @@ interface ExperiencesSectionProps {
   onNotifyCheckout?: () => void;
   onRequestLoginModal?: () => void;
   initialTargetExperience?: any;
+  onOpenPodcastInquiry?: (player: any, showTitle: any) => void;
 }
 
 export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({ 

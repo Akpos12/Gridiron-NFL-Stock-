@@ -1103,6 +1103,31 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
         if (active) {
           const clientFallback = [
             {
+              id: "tm-sea-lac-oct4",
+              name: "Seattle Seahawks vs Los Angeles Chargers",
+              homeTeam: "Seahawks",
+              awayTeam: "Chargers",
+              stadium: "Lumen Field",
+              city: "Seattle, WA",
+              date: "2026-10-04",
+              time: "1:25 PM PDT (4:25 PM ET)",
+              competition: "NFL Regular Season · Week 4",
+              status: "Today · Sun, Oct 4 · 1:25 PM PDT (4:25 PM ET)",
+              location: "Lumen Field, Seattle, WA",
+              winProbability: {
+                home: "56.8%",
+                away: "43.2%",
+                homeTeam: "Seahawks",
+                awayTeam: "Chargers"
+              },
+              cheapestPrice: 300,
+              vipPrice: 850,
+              seasonPassPrice: 4500,
+              url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
+              image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+              isResale: false
+            },
+            {
               id: "tm-sea-training-session",
               name: "Seattle Seahawks Official Training Session Access",
               homeTeam: "Seahawks",
