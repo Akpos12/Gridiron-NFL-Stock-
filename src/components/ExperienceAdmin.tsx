@@ -324,6 +324,45 @@ export const ExperienceAdmin: React.FC = () => {
     }
   };
 
+  // One-click function to ensure Brock Purdy Private Experience is verified in database
+  const handleSeedBrockPurdy = async () => {
+    try {
+      await setDoc(doc(db, "experiences", "exp-brock-purdy-meet"), {
+        id: "exp-brock-purdy-meet",
+        title: "BROCK PURDY Private Experience",
+        description: "Exclusive 1-on-1 private experience with San Francisco 49ers Pro Bowl starting quarterback Brock Purdy. Includes sideline access, private autograph session, photo op, and certified commemorative memorabilia. Private experience date will be announced after confirmation.",
+        type: "meet_greet",
+        category: "Private Experience",
+        price: 2000,
+        vipPrice: 2000,
+        premiumPrice: 2000,
+        teamId: "SF",
+        imageUrl: "https://i.postimg.cc/CM24tWsF/download-(4).jpg",
+        player: "Brock Purdy",
+        location: "Levi's Stadium & SAP Performance Facility, Santa Clara, CA",
+        dates: ["Private experience date will be announced after confirmation"],
+        timeSlots: ["Announced after confirmation"],
+        features: [
+          "Private 1-on-1 private experience and photo op with Brock Purdy",
+          "Personalized hand-signed official NFL football or 49ers jersey",
+          "Official Levi's Stadium sideline access credential",
+          "Private experience date will be announced after confirmation",
+          "Digital Platinum ticket card issued upon purchase",
+          "Flexible installment options: Pay in Full ($2,000), 2 Payments ($1,100 × 2), 3 Payments ($800 × 3), or 5 Payments ($500 × 5 = $2,500)",
+          "Exclusive 5% instant discount applied for all Crypto (BTC, ETH, USDT) payments"
+        ],
+        rating: 5.0,
+        reviewsCount: 52,
+        v: Date.now(),
+        updatedAt: Date.now()
+      }, { merge: true });
+      alert("✅ BROCK PURDY Private Experience successfully verified and saved with price $2,000!");
+    } catch (err: any) {
+      console.error(err);
+      alert("Error adding Brock Purdy experience: " + err.message);
+    }
+  };
+
   // One-click function to ensure Drew Lock is verified in database
   const handleSeedDrewLock = async () => {
     try {
@@ -511,11 +550,15 @@ export const ExperienceAdmin: React.FC = () => {
 
     // 2. Listen to experience bookings
     const unsubBookings = onSnapshot(collection(db, "bookings"), (snap) => {
-      const docs: Booking[] = [];
+      const map = new Map<string, Booking>();
       snap.forEach(d => {
-        docs.push({ id: d.id, ...d.data() } as Booking);
+        const data = d.data() as Booking;
+        const canonicalKey = ((data as any).orderId || data.id || d.id);
+        if (!map.has(canonicalKey)) {
+          map.set(canonicalKey, { ...data, id: d.id });
+        }
       });
-      setBookings(docs);
+      setBookings(Array.from(map.values()));
     });
 
     // 3. Listen to promo banners
@@ -919,6 +962,31 @@ export const ExperienceAdmin: React.FC = () => {
           ],
           rating: 5.0,
           reviewsCount: 31
+        },
+        {
+          id: "exp-brock-purdy-meet",
+          title: "BROCK PURDY Private Experience",
+          description: "Exclusive 1-on-1 private experience with San Francisco 49ers Pro Bowl starting quarterback Brock Purdy. Includes sideline access, private autograph session, photo op, and certified commemorative memorabilia. Private experience date will be announced after confirmation.",
+          type: "meet_greet",
+          category: "Private Experience",
+          price: 2000,
+          vipPrice: 2000,
+          premiumPrice: 2000,
+          teamId: "SF",
+          imageUrl: "https://i.postimg.cc/CM24tWsF/download-(4).jpg",
+          player: "Brock Purdy",
+          location: "Levi's Stadium & SAP Performance Facility, Santa Clara, CA",
+          dates: ["Private experience date will be announced after confirmation"],
+          timeSlots: ["Announced after confirmation"],
+          features: [
+            "Private 1-on-1 private experience and photo op with Brock Purdy",
+            "Personalized hand-signed official NFL football or 49ers jersey",
+            "Official Levi's Stadium sideline access credential",
+            "Private experience date will be announced after confirmation",
+            "Instant Ticket Card & digital credential issued upon purchase"
+          ],
+          rating: 5.0,
+          reviewsCount: 52
         }
       ];
 
@@ -1959,7 +2027,7 @@ export const ExperienceAdmin: React.FC = () => {
                     );
                   }
 
-                  return filtered.map(b => {
+                  return filtered.map((b, bIdx) => {
                     const receiptList: string[] = (b.receiptImages && b.receiptImages.length > 0)
                       ? b.receiptImages
                       : ((b as any).receiptImages && (b as any).receiptImages.length > 0)
@@ -1969,7 +2037,7 @@ export const ExperienceAdmin: React.FC = () => {
                     const receiptUrl = receiptList[0];
 
                     return (
-                      <tr key={b.id} className="border-b border-white/5 hover:bg-white/[0.01]">
+                      <tr key={`${b.id || (b as any).orderId || bIdx}-${bIdx}`} className="border-b border-white/5 hover:bg-white/[0.01]">
                         <td className="p-4 sm:p-6 font-mono text-[9px] font-black text-zinc-400 select-all shrink-0">
                           {b.id}
                         </td>

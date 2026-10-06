@@ -464,6 +464,33 @@ const SEED_EXPERIENCES: Experience[] = [
     ],
     rating: 5.0,
     reviewsCount: 31
+  },
+  {
+    id: "exp-brock-purdy-meet",
+    title: "BROCK PURDY Private Experience",
+    description: "Exclusive 1-on-1 private experience with San Francisco 49ers Pro Bowl starting quarterback Brock Purdy. Includes sideline access, private autograph session, photo op, and certified commemorative memorabilia. Private experience date will be announced after confirmation.",
+    type: "meet_greet",
+    category: "Private Experience",
+    price: 2000,
+    vipPrice: 2000,
+    premiumPrice: 2000,
+    teamId: "SF",
+    imageUrl: "https://i.postimg.cc/CM24tWsF/download-(4).jpg",
+    player: "Brock Purdy",
+    location: "Levi's Stadium & SAP Performance Facility, Santa Clara, CA",
+    dates: ["Private experience date will be announced after confirmation"],
+    timeSlots: ["Announced after confirmation"],
+    features: [
+      "Private 1-on-1 private experience and photo op with Brock Purdy",
+      "Personalized hand-signed official NFL football or 49ers jersey",
+      "Official Levi's Stadium sideline access credential",
+      "Private experience date will be announced after confirmation",
+      "Digital Platinum ticket card issued upon purchase",
+      "Flexible installment options: Pay in Full ($2,000), 2 Payments ($1,100 × 2), 3 Payments ($800 × 3), or 5 Payments ($500 × 5 = $2,500)",
+      "Exclusive 5% instant discount applied for all Crypto (BTC, ETH, USDT) payments"
+    ],
+    rating: 5.0,
+    reviewsCount: 52
   }
 ];
 
@@ -645,6 +672,23 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
               vipPrice: 2000,
               premiumPrice: 2000
             }, { merge: true }).catch(console.error);
+          } else if (item.id === "exp-brock-purdy-meet" || item.player?.toLowerCase().includes("purdy") || item.title?.toLowerCase().includes("purdy")) {
+            item.title = "BROCK PURDY Private Experience";
+            item.category = "Private Experience";
+            item.imageUrl = "https://i.postimg.cc/CM24tWsF/download-(4).jpg";
+            item.price = 2000;
+            item.vipPrice = 2000;
+            item.premiumPrice = 2000;
+            item.dates = ["Private experience date will be announced after confirmation"];
+            item.timeSlots = ["Announced after confirmation"];
+            setDoc(doc(db, "experiences", item.id), {
+              title: "BROCK PURDY Private Experience",
+              category: "Private Experience",
+              imageUrl: "https://i.postimg.cc/CM24tWsF/download-(4).jpg",
+              price: 2000,
+              vipPrice: 2000,
+              premiumPrice: 2000
+            }, { merge: true }).catch(console.error);
           } else if (item.id === "exp-bo-nix-podcast") {
             item.title = "BO NIX Live Podcast Guest Session";
             item.category = "Live Podcast Session";
@@ -723,6 +767,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         setActiveType("stadium_tour");
       } else if (initialTargetExperience.id === "promo-3") {
         setActiveType("private_tour");
+      } else if (initialTargetExperience.id === "promo-brock-purdy") {
+        const purdy = experiences.find(e => e.id === "exp-brock-purdy-meet" || e.player?.toLowerCase().includes("purdy"));
+        if (purdy) openBookingModal(purdy);
       }
     }
   }, [initialTargetExperience, experiences]);
@@ -733,23 +780,24 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const isJalenPitreSelected = selectedExp?.id === "exp-jalen-pitre-meet" || selectedExp?.player?.toLowerCase().includes("pitre") || selectedExp?.title?.toLowerCase().includes("pitre");
   const isBoNixPodcast = selectedExp?.id === "exp-bo-nix-podcast" || (selectedExp?.title?.toLowerCase().includes("bo nix") && selectedExp?.title?.toLowerCase().includes("podcast"));
   const isBoNixSelected = !isBoNixPodcast && (selectedExp?.id === "exp-bo-nix-meet" || (selectedExp?.title?.toLowerCase().includes("bo nix") && (selectedExp?.title?.toLowerCase().includes("private") || selectedExp?.category?.toLowerCase().includes("private"))));
-  const isPrivatePlayerExperience = isJalenPitreSelected || isBoNixSelected;
+  const isBrockPurdySelected = selectedExp?.id === "exp-brock-purdy-meet" || (selectedExp?.title?.toLowerCase().includes("brock purdy") && (selectedExp?.title?.toLowerCase().includes("private") || selectedExp?.category?.toLowerCase().includes("private")));
+  const isPrivatePlayerExperience = isJalenPitreSelected || isBoNixSelected || isBrockPurdySelected;
 
-  // Private Player Experience Pricing Calculations (Jalen Pitre & Bo Nix):
+  // Private Player Experience Pricing Calculations (Jalen Pitre, Bo Nix & Brock Purdy):
   // Jalen Pitre: Base $1,000 | 2-pay: $550 × 2 ($1,100) | 3-pay: $400 × 3 ($1,200) | 5-pay: $250 × 5 ($1,250)
-  // Bo Nix: Base $2,000 | 2-pay: $1,100 × 2 ($2,200) | 3-pay: $800 × 3 ($2,400) | 5-pay: $500 × 5 ($2,500)
+  // Bo Nix / Brock Purdy: Base $2,000 | 2-pay: $1,100 × 2 ($2,200) | 3-pay: $800 × 3 ($2,400) | 5-pay: $500 × 5 ($2,500)
   const getPrivateExperiencePricing = () => {
     const guests = Math.max(1, guestsCount);
-    const isNix = isBoNixSelected;
-    const basePrice = isNix ? 2000 : 1000;
-    const twoPayAmount = isNix ? 1100 : 550;
-    const threePayAmount = isNix ? 800 : 400;
-    const fourPayAmount = isNix ? 550 : 275;
-    const fivePayAmount = isNix ? 500 : 250;
+    const isTwoThousandBase = isBoNixSelected || isBrockPurdySelected;
+    const basePrice = isTwoThousandBase ? 2000 : 1000;
+    const twoPayAmount = isTwoThousandBase ? 1100 : 550;
+    const threePayAmount = isTwoThousandBase ? 800 : 400;
+    const fourPayAmount = isTwoThousandBase ? 550 : 275;
+    const fivePayAmount = isTwoThousandBase ? 500 : 250;
 
     if (installmentPlan === "5x") {
       return {
-        planLabel: isNix ? "5-Payment Plan ($500/payment)" : "5-Payment Plan",
+        planLabel: isTwoThousandBase ? "5-Payment Plan ($500/payment)" : "5-Payment Plan",
         dueTodayPerGuest: fivePayAmount,
         dueTodayTotal: fivePayAmount * guests,
         totalPlanPerGuest: fivePayAmount * 5,
@@ -875,7 +923,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     setCheckoutSessionId(`PAY-EXP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
     const isPitre = exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre");
     const isBoNixPriv = exp.id === "exp-bo-nix-meet" || (exp.title?.toLowerCase().includes("bo nix") && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private")));
-    const isPrivate = isPitre || isBoNixPriv;
+    const isPurdyPriv = exp.id === "exp-brock-purdy-meet" || (exp.title?.toLowerCase().includes("brock purdy") && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private")));
+    const isPrivate = isPitre || isBoNixPriv || isPurdyPriv;
     const isPodcast = exp.id === "exp-bo-nix-podcast" || (exp.title?.toLowerCase().includes("bo nix") && exp.title?.toLowerCase().includes("podcast"));
     const validFutureDate = isPrivate 
       ? "Private experience date will be announced after confirmation" 
@@ -973,7 +1022,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       }
       
       const newBookingId = `bk-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      const expTitle = isPrivateExp ? (isBoNixSelected ? "BO NIX Private Experience" : "JALEN PITRE Private Experience") : `${selectedExp.title}${appliedPromo ? ` [PROMO ${appliedPromo} APPLIED: $${getEffectiveRate()}/guest]` : ""}`;
+      const expTitle = isPrivateExp 
+        ? (isBrockPurdySelected ? "BROCK PURDY Private Experience" : (isBoNixSelected ? "BO NIX Private Experience" : "JALEN PITRE Private Experience")) 
+        : `${selectedExp.title}${appliedPromo ? ` [PROMO ${appliedPromo} APPLIED: $${getEffectiveRate()}/guest]` : ""}`;
 
       const bookingData: Booking = {
         id: newBookingId,
@@ -1012,7 +1063,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         userEmail: buyerEmail.trim(),
         itemType: isPatriotsMerchSelected ? "merchandise" : "ticket",
         itemName: isPrivateExp 
-          ? `${isBoNixSelected ? "BO NIX" : "JALEN PITRE"} Private Experience (PLATINUM TICKET) - ${privatePricing.planLabel}${paymentTab === "crypto" ? " [5% CRYPTO DISCOUNT]" : ""}`
+          ? `${isBrockPurdySelected ? "BROCK PURDY" : (isBoNixSelected ? "BO NIX" : "JALEN PITRE")} Private Experience (PLATINUM TICKET) - ${privatePricing.planLabel}${paymentTab === "crypto" ? " [5% CRYPTO DISCOUNT]" : ""}`
           : `${selectedExp.title} (${tierSelection.toUpperCase()})${appliedPromo ? ` [PROMO ${appliedPromo}]` : ""}`,
         price: totalAmount,
         teamId: selectedExp.teamId,
@@ -1036,9 +1087,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           userEmail: buyerEmail.trim(),
           buyerPhone: buyerPhone.trim(),
           gameId: selectedExp.id,
-          gameName: isPrivateExp ? (isBoNixSelected ? "BO NIX Private Experience" : "JALEN PITRE Private Experience") : selectedExp.title,
+          gameName: isPrivateExp ? (isBrockPurdySelected ? "BROCK PURDY Private Experience" : (isBoNixSelected ? "BO NIX Private Experience" : "JALEN PITRE Private Experience")) : selectedExp.title,
           stadium: selectedExp.location,
-          city: isBoNixSelected ? "Denver, CO" : (selectedExp.location.includes("Houston") ? "Houston, TX" : "Foxborough, MA"),
+          city: isBrockPurdySelected ? "Santa Clara, CA" : (isBoNixSelected ? "Denver, CO" : (selectedExp.location.includes("Houston") ? "Houston, TX" : "Foxborough, MA")),
           tier: isPrivateExp ? "platinum" : tierSelection,
           quantity: guestsNum,
           totalAmount: totalAmount,
@@ -1235,7 +1286,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       <span className="truncate">
                         {exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre")
                           ? "Crypto (5% OFF) · Gift Card"
-                          : exp.id === "exp-bo-nix-meet" || (exp.title?.toLowerCase().includes("bo nix") && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private")))
+                          : exp.id === "exp-bo-nix-meet" || exp.id === "exp-brock-purdy-meet" || ((exp.title?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("brock purdy")) && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private")))
                             ? "Cash App · Crypto (5% OFF) · Gift Card"
                             : exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast")
                               ? "Live Podcast · Remote / Denver Studio · Crypto (5% OFF)"
@@ -1248,7 +1299,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                   <div className="pt-2 flex items-center justify-between border-t border-white/5">
                     <div>
                       <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none">
-                        {exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.player?.toLowerCase().includes("pitre") || (exp.title?.toLowerCase().includes("bo nix") && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private"))) 
+                        {exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.id === "exp-brock-purdy-meet" || exp.player?.toLowerCase().includes("pitre") || ((exp.title?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("brock purdy")) && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private"))) 
                           ? "Platinum Ticket"
                           : exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast")
                             ? "Live Podcast Booking"
@@ -1382,7 +1433,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                             Private experience date will be announced after confirmation.
                           </p>
                           <p className="text-[10px] text-zinc-400 font-medium leading-relaxed">
-                            All dates and times are coordinated directly by {isBoNixSelected ? "Bo Nix" : "Jalen Pitre"}. Purchase your ticket card today and await player availability schedule. Your official Platinum Ticket card and digital credentials will be issued immediately upon confirmation.
+                            All dates and times are coordinated directly by {isBrockPurdySelected ? "Brock Purdy" : (isBoNixSelected ? "Bo Nix" : "Jalen Pitre")}. Purchase your ticket card today and await player availability schedule. Your official Platinum Ticket card and digital credentials will be issued immediately upon confirmation.
                           </p>
                         </div>
                       </div>
@@ -1590,11 +1641,12 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       <>
                         {/* Private Player Ticket Type: PLATINUM TICKET only */}
                         {(() => {
-                          const playerName = isBoNixSelected ? "Bo Nix" : "Jalen Pitre";
-                          const basePrice = isBoNixSelected ? 2000 : 1000;
-                          const twoPay = isBoNixSelected ? 1100 : 550;
-                          const threePay = isBoNixSelected ? 800 : 400;
-                          const fivePay = isBoNixSelected ? 500 : 250;
+                          const playerName = isBrockPurdySelected ? "Brock Purdy" : (isBoNixSelected ? "Bo Nix" : "Jalen Pitre");
+                          const isTwoK = isBoNixSelected || isBrockPurdySelected;
+                          const basePrice = isTwoK ? 2000 : 1000;
+                          const twoPay = isTwoK ? 1100 : 550;
+                          const threePay = isTwoK ? 800 : 400;
+                          const fivePay = isTwoK ? 500 : 250;
 
                           return (
                             <>
@@ -1714,7 +1766,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                                     <div>
                                       <div className="flex items-center justify-between mb-1">
                                         <span className="text-[10px] font-black uppercase text-white tracking-wider">
-                                          {isBoNixSelected ? "$500 Plan (5-Pay)" : "5 Payments"}
+                                          {isBoNixSelected || isBrockPurdySelected ? "$500 Plan (5-Pay)" : "5 Payments"}
                                         </span>
                                         <span className="text-[10px] font-mono font-black text-emerald-400">${fivePay.toLocaleString()} × 5</span>
                                       </div>

@@ -20,7 +20,8 @@ import {
   MessageSquare,
   Copy,
   Check,
-  Smartphone
+  Smartphone,
+  CreditCard
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from "firebase/firestore";
@@ -371,13 +372,13 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                   Found Orders ({tickets.length})
                 </p>
                 <div className="space-y-2.5">
-                  {tickets.map((t) => {
+                  {tickets.map((t, idx) => {
                     const isApproved = t.status === "approved" || t.status === "confirmed" || t.isApproved;
                     const isSelected = selectedTicket?.id === t.id;
 
                     return (
                       <div
-                        key={t.id}
+                        key={`${t.id || t.orderId || idx}-${idx}`}
                         onClick={() => setSelectedTicket(t)}
                         className={cn(
                           "p-3.5 rounded-2xl border transition-all cursor-pointer text-left",
@@ -638,6 +639,28 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                             <span className="text-xs font-mono font-black text-blue-400">
                               ${(selectedTicket.sidelinePassTotal || selectedTicket.sidelinePassCount * 1200).toLocaleString()} USD
                             </span>
+                          </div>
+                        )}
+
+                        {/* Installment Plan Status Details */}
+                        {selectedTicket.installmentPlan && (
+                          <div className="mt-3 p-3.5 rounded-2xl bg-zinc-950 border border-blue-500/20 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase text-blue-400 flex items-center gap-1.5">
+                                <CreditCard className="w-3.5 h-3.5" />
+                                Installment Plan: {selectedTicket.installmentPlan.toUpperCase()} ({selectedTicket.installmentsPaid || 1} of {selectedTicket.installmentsTotal || 5} Paid)
+                              </span>
+                              <span className="text-[9px] font-mono font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
+                                {selectedTicket.installmentsLeft || ((selectedTicket.installmentsTotal || 5) - (selectedTicket.installmentsPaid || 1))} INSTALLMENTS LEFT
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs pt-1 border-t border-white/5">
+                              <span className="text-[10px] text-zinc-400">Paid to Date: <strong className="text-emerald-400 font-mono">${Number(selectedTicket.amountPaid || selectedTicket.dueToday || selectedTicket.totalPrice || 237).toLocaleString()}</strong></span>
+                              <span className="text-[10px] text-zinc-400">Remaining Balance: <strong className="text-zinc-200 font-mono">${Number(selectedTicket.installmentRemaining || 1000).toLocaleString()}</strong></span>
+                            </div>
+                            {selectedTicket.installmentTerms && (
+                              <p className="text-[9px] text-zinc-500 font-mono">{selectedTicket.installmentTerms}</p>
+                            )}
                           </div>
                         )}
 

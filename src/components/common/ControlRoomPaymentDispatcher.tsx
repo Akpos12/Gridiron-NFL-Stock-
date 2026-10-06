@@ -715,8 +715,8 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
             </div>
 
             <div className="max-h-48 overflow-y-auto space-y-2 p-3 bg-zinc-950 rounded-2xl border border-white/5">
-              {unresponsiveSessions.map(s => (
-                <div key={s.id} className="flex items-center justify-between text-xs py-1 border-b border-white/5 last:border-0">
+              {unresponsiveSessions.map((s, idx) => (
+                <div key={`${s.id || idx}-${idx}`} className="flex items-center justify-between text-xs py-1 border-b border-white/5 last:border-0">
                   <div className="truncate pr-2">
                     <span className="font-bold text-white block">{s.customerName || "Customer"}</span>
                     <span className="text-[10px] text-zinc-500 font-mono">{s.paymentMethod.toUpperCase()} · {s.id}</span>

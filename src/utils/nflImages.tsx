@@ -63,6 +63,34 @@ export function getNFLImage(item: {
 }): string {
   if (!item) return "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800";
 
+  const normId = (item.id || "").toUpperCase();
+  const normTitle = (item.title || item.name || item.experienceTitle || "").toLowerCase();
+  const normCategory = (item.category || item.badge || "").toLowerCase();
+  const normType = (item.type || "").toLowerCase();
+  const normPlayer = (item.player || "").toLowerCase();
+  const normDesc = (item.description || "").toLowerCase();
+
+  // 1. ABSOLUTE TOP PRIORITY: SPECIFIC STAR PLAYER ASSETS (Guarantees Brock Purdy always gets his exact verified image)
+  if (normId.includes("BROCK-PURDY") || normTitle.includes("brock purdy") || normTitle.includes("purdy") || normPlayer.includes("purdy") || normDesc.includes("brock purdy")) {
+    return "https://i.postimg.cc/CM24tWsF/download-(4).jpg";
+  }
+
+  if (normId.includes("BO-NIX") || normTitle.includes("bo nix") || normPlayer.includes("bo nix")) {
+    return "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg";
+  }
+
+  if (normId.includes("JALEN-PITRE") || normTitle.includes("jalen pitre") || normPlayer.includes("jalen pitre") || normPlayer.includes("pitre")) {
+    return "https://i.postimg.cc/655Vd9cd/IMG-0781.webp";
+  }
+
+  if (normId.includes("DREW-LOCK") || normTitle.includes("drew lock") || normPlayer.includes("drew lock")) {
+    return "/postimages/Drew-Lock.jpg";
+  }
+
+  if (normId.includes("SEA-NE") || (normTitle.includes("seahawks") && normTitle.includes("patriot"))) {
+    return "/postimages/IMG-0463.jpg";
+  }
+
   let baseSrc = "";
 
   // PRIORITIZE THE EXPLICIT IMAGE FIELD FROM DATABASE OR ADMIN SEEDS (Remove any hardcoding inside components)
@@ -93,30 +121,6 @@ export function getNFLImage(item: {
 
   // IF NO EXPLICIT URL, MAP TO THE PREMIUM DYNAMIC ASSETS ACCORDING TO METADATA
   if (!baseSrc) {
-    const normId = (item.id || "").toUpperCase();
-    const normTitle = (item.title || item.name || item.experienceTitle || "").toLowerCase();
-    const normCategory = (item.category || item.badge || "").toLowerCase();
-    const normType = (item.type || "").toLowerCase();
-    
-    // Explicit Seahawks vs Patriots gameday asset
-    if (normId.includes("SEA-NE") || (normTitle.includes("seahawks") && normTitle.includes("patriot"))) {
-      return "/postimages/IMG-0463.jpg";
-    }
-
-    // Explicit Drew Lock Quarterback asset
-    if (normId.includes("DREW-LOCK") || normTitle.includes("drew lock") || (item.player && item.player.toLowerCase().includes("drew lock"))) {
-      return "/postimages/Drew-Lock.jpg";
-    }
-
-    // Explicit Jalen Pitre Safety asset
-    if (normId.includes("JALEN-PITRE") || normTitle.includes("jalen pitre") || (item.player && item.player.toLowerCase().includes("jalen pitre"))) {
-      return "https://i.postimg.cc/655Vd9cd/IMG-0781.webp";
-    }
-
-    // Explicit Bo Nix Quarterback asset
-    if (normId.includes("BO-NIX") || normTitle.includes("bo nix") || (item.player && item.player.toLowerCase().includes("bo nix"))) {
-      return "https://i.postimg.cc/90bgpRVV/IMG-0622.jpg";
-    }
     
     // 1. EXTRACT TEAM
     let teamId = (item.teamId || "").toUpperCase();
@@ -250,6 +254,7 @@ interface NFLImageProps {
     category?: string;
     badge?: string;
     type?: string;
+    player?: string;
     teamId?: string;
     imageUrl?: string;
     image?: string;
@@ -285,12 +290,18 @@ export const NFLImage: React.FC<NFLImageProps> = ({ item, className, style, alt 
     item?.title, 
     item?.name, 
     item?.experienceTitle,
-    item?.teamId
+    item?.teamId,
+    item?.player
   ]);
 
   const handleError = () => {
     if (attemptCount === 0) {
       setAttemptCount(1);
+      // Local mirror fallback for Brock Purdy asset
+      if (currentSrc && (currentSrc.includes("download-(4)") || currentSrc.includes("CM24tWsF") || currentSrc.includes("purdy") || currentSrc.includes("brock")) && !currentSrc.startsWith("/postimages/")) {
+        setCurrentSrc("/postimages/download-(4).jpg");
+        return;
+      }
       // Local mirror fallback for Houston-Texans / Jalen Pitre asset
       if (currentSrc && (currentSrc.includes("Houston-Texans") || currentSrc.includes("jalen_pitre") || currentSrc.includes("IMG-0781") || currentSrc.includes("tank-dell.jpg")) && !currentSrc.startsWith("/postimages/")) {
         setCurrentSrc("/postimages/IMG-0781.webp");

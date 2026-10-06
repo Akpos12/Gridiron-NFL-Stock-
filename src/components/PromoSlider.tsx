@@ -57,6 +57,16 @@ const DEFAULT_BANNERS: PromoBanner[] = [
     badge: "PODCAST CONCIERGE",
     linkText: "RESERVE PODCAST SESSION",
     accentColor: "from-purple-600 via-indigo-600 to-blue-600"
+  },
+  {
+    id: "promo-brock-purdy",
+    title: "BROCK PURDY PRIVATE EXPERIENCE",
+    subtitle: "SAN FRANCISCO 49ERS VIP ENCOUNTER",
+    description: "Meet starting quarterback Brock Purdy 1-on-1 at Levi's Stadium. Includes exclusive sideline passes, signed memorabilia, and private photo session.",
+    imageUrl: "https://i.postimg.cc/CM24tWsF/download-(4).jpg",
+    badge: "PLATINUM VIP",
+    linkText: "BOOK BROCK PURDY",
+    accentColor: "from-red-600 via-amber-600 to-yellow-600"
   }
 ];
 

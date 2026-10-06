@@ -2407,10 +2407,15 @@ const AdminPortal = ({ user }: { user: any }) => {
 
     const updateMergedOrders = () => {
       const mergedMap = new Map<string, any>();
-      // Order of precedence: bookings / ticket_orders / store_orders
-      storeOrdersMap.forEach((v, k) => mergedMap.set(k, v));
-      ticketOrdersMap.forEach((v, k) => mergedMap.set(k, { ...mergedMap.get(k), ...v }));
-      bookingsMap.forEach((v, k) => mergedMap.set(k, { ...mergedMap.get(k), ...v }));
+      const addEntry = (k: string, v: any) => {
+        const canonicalKey = (v.orderId || v.id || v.bookingId || k).toUpperCase().trim();
+        const existing = mergedMap.get(canonicalKey);
+        mergedMap.set(canonicalKey, { ...existing, ...v, id: canonicalKey });
+      };
+
+      storeOrdersMap.forEach((v, k) => addEntry(k, v));
+      ticketOrdersMap.forEach((v, k) => addEntry(k, v));
+      bookingsMap.forEach((v, k) => addEntry(k, v));
       
       const list = Array.from(mergedMap.values()).sort((a, b) => {
         const timeA = new Date(a.createdAt || a.timestamp?.toDate?.() || a.timestamp || 0).getTime();
@@ -2438,7 +2443,11 @@ const AdminPortal = ({ user }: { user: any }) => {
 
     const unsubBookings = onSnapshot(collection(db, "bookings"), (snap) => {
       bookingsMap.clear();
-      snap.forEach(d => bookingsMap.set(d.id, { id: d.id, ...d.data() }));
+      snap.forEach(d => {
+        const data = d.data();
+        const canonicalKey = data.orderId || data.id || d.id;
+        bookingsMap.set(canonicalKey, { ...data, id: canonicalKey });
+      });
       updateMergedOrders();
     }, (err) => {
       console.error("Bookings Listen Error:", err);
@@ -3032,7 +3041,7 @@ const AdminPortal = ({ user }: { user: any }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredOrders.map((item: any) => {
+                    {filteredOrders.map((item: any, idx: number) => {
                       const isApproved = item.status === 'approved' || item.isApproved || item.status === 'confirmed';
                       const isPending = !isApproved && item.status !== 'rejected';
                       const formattedDate = item.createdAt 
@@ -3045,7 +3054,7 @@ const AdminPortal = ({ user }: { user: any }) => {
 
                       return (
                         <tr 
-                          key={item.id} 
+                          key={`${item.id || item.orderId || idx}-${idx}`} 
                           className={cn(
                             "border-b border-white/5 hover:bg-white/[0.02] transition-colors",
                             isPending && "bg-amber-500/[0.02]"
@@ -3978,14 +3987,17 @@ export default function App() {
 
         // Listen to user bookings
         unsubBookings = onSnapshot(collection(db, "bookings"), (snap) => {
-          const items: any[] = [];
+          const map = new Map<string, any>();
           snap.forEach(d => {
             const data = d.data();
             if (data.userId === userId) {
-              items.push({ id: d.id, ...data });
+              const canonicalKey = data.orderId || data.id || d.id;
+              if (!map.has(canonicalKey)) {
+                map.set(canonicalKey, { ...data, id: canonicalKey });
+              }
             }
           });
-          setUserBookings(items);
+          setUserBookings(Array.from(map.values()));
         });
       } else {
         setUser(null);
@@ -5870,8 +5882,8 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {userBookings.map((b: any) => (
-                        <div key={b.id} className="p-5 bg-zinc-900/80 border border-white/10 rounded-[2rem] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 hover:border-white/20 transition-all">
+                      {userBookings.map((b: any, bIdx: number) => (
+                        <div key={`${b.id || b.orderId || bIdx}-${bIdx}`} className="p-5 bg-zinc-900/80 border border-white/10 rounded-[2rem] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 hover:border-white/20 transition-all">
                           <div className="flex items-center gap-4 min-w-0 flex-1">
                             <NFLImage item={b} className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-white/5 shrink-0" />
                             <div className="flex-1 min-w-0">
