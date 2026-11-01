@@ -642,6 +642,46 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                           </div>
                         )}
 
+                        {/* Star Player Inquiry Session Details */}
+                        {(selectedTicket.experienceType === "player_inquiry" || selectedTicket.favoritePlayer) && (
+                          <div className="mt-3 p-4 rounded-2xl bg-gradient-to-r from-blue-950/60 via-indigo-950/40 to-zinc-950 border border-blue-500/30 space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <span className="text-[10px] font-black uppercase text-blue-400 flex items-center gap-1.5 tracking-wider">
+                                <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                                NFL Star Player Liaison Inquiry ($100 Paid)
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase font-mono">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                Awaiting Player Details
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-2 border-t border-white/5">
+                              <div className="bg-zinc-950/60 p-2.5 rounded-xl border border-white/5">
+                                <span className="text-[8px] font-black uppercase tracking-wider text-zinc-500 block">Favorite Inquired Player:</span>
+                                <p className="text-sm font-black text-white mt-0.5">{selectedTicket.favoritePlayer} ({selectedTicket.teamId})</p>
+                              </div>
+                              <div className="bg-zinc-950/60 p-2.5 rounded-xl border border-white/5">
+                                <span className="text-[8px] font-black uppercase tracking-wider text-zinc-500 block">Messaging Channel & Handle:</span>
+                                <p className="text-xs font-mono font-bold text-blue-300 mt-0.5 uppercase">
+                                  {selectedTicket.messagingPlatform}: <span className="text-white font-normal lowercase">{selectedTicket.messagingDetails}</span>
+                                </p>
+                              </div>
+                            </div>
+
+                            {selectedTicket.inquiryObjective && (
+                              <div className="text-[10px] text-zinc-300 font-medium bg-zinc-950/40 p-2.5 rounded-xl border border-white/5">
+                                <span className="text-[8px] font-black uppercase tracking-wider text-zinc-500 block mb-0.5">Inquiry Focus / Objective:</span>
+                                {selectedTicket.inquiryObjective}
+                              </div>
+                            )}
+
+                            <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[9px] text-blue-300 font-medium">
+                              Our NFL player operations coordinator will connect with the player's management and send private availability and liaison details directly via your selected messaging channel ({selectedTicket.messagingPlatform}).
+                            </div>
+                          </div>
+                        )}
+
                         {/* Installment Plan Status Details */}
                         {selectedTicket.installmentPlan && (
                           <div className="mt-3 p-3.5 rounded-2xl bg-zinc-950 border border-blue-500/20 space-y-2">

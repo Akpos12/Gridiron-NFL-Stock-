@@ -19,6 +19,16 @@ export interface PromoBanner {
 
 const DEFAULT_BANNERS: PromoBanner[] = [
   {
+    id: "promo-player-inquiry",
+    title: "INQUIRE ABOUT ANY ACTIVE NFL STAR",
+    subtitle: "CUSTOM PLAYER LIAISON SESSION",
+    description: "Submit your favorite player and team with your preferred messaging app (WhatsApp, Zangi, or Telegram) to receive private availability & liaison details.",
+    imageUrl: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=1200",
+    badge: "STAR INQUIRY",
+    linkText: "INQUIRE ABOUT A PLAYER",
+    accentColor: "from-blue-600 via-indigo-600 to-cyan-500"
+  },
+  {
     id: "promo-1",
     title: "EXCLUSIVE NFL LEGENDS MEET & GREET",
     subtitle: "ON-FIELD VIP ACCESS",

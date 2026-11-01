@@ -79,7 +79,7 @@ export const ExperienceAdmin: React.FC = () => {
   // Form fields for Experience creation
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [type, setType] = useState<"stadium_tour" | "meet_greet" | "private_tour" | "memorabilia">("stadium_tour");
+  const [type, setType] = useState<"stadium_tour" | "meet_greet" | "private_tour" | "memorabilia" | "player_inquiry">("stadium_tour");
   const [category, setCategory] = useState("Standard Stadium Tour");
   const [price, setPrice] = useState(45);
   const [vipPrice, setVipPrice] = useState(120);
@@ -533,9 +533,47 @@ export const ExperienceAdmin: React.FC = () => {
       }
     };
 
+    const verifyPlayerInquirySession = async () => {
+      try {
+        const snap = await getDoc(doc(db, "experiences", "exp-player-inquiry-session"));
+        if (!snap.exists()) {
+          await setDoc(doc(db, "experiences", "exp-player-inquiry-session"), {
+            id: "exp-player-inquiry-session",
+            title: "NFL STAR PLAYER INQUIRY & LIAISON SESSION",
+            description: "Direct inquiry session for ANY active NFL player across all 32 teams. Submit your favorite star player, team, and preferred messaging platform (WhatsApp, Zangi, or Telegram). Following liaison review, our verified player coordinator connects with player management and supplies you with private availability, schedule, and encounter details.",
+            type: "player_inquiry",
+            category: "Player Inquiry Session",
+            price: 100,
+            vipPrice: 100,
+            premiumPrice: 100,
+            teamId: "NFL",
+            imageUrl: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=1200",
+            player: "Any NFL Star Player (All 32 Teams)",
+            location: "Official NFL Liaison Network · Direct Messaging",
+            dates: ["Direct On-Demand Inquiry (Active Daily)"],
+            timeSlots: ["Awaiting Player Details"],
+            features: [
+              "Direct inquiry access for any active player across all 32 NFL franchises",
+              "Customer chooses preferred messaging app (WhatsApp, Zangi, or Telegram)",
+              "Official liaison verification & direct outreach to player management",
+              "Digital VIP Clearance Pass & QR Code issued immediately upon confirmation",
+              "Status tracking: Awaiting Player Details with direct notification"
+            ],
+            rating: 5.0,
+            reviewsCount: 128,
+            v: Date.now(),
+            updatedAt: Date.now()
+          });
+        }
+      } catch (e) {
+        console.warn("Player inquiry auto-verification:", e);
+      }
+    };
+
     verifyDrewLock();
     verifyJalenPitre();
     verifyBoNix();
+    verifyPlayerInquirySession();
   }, []);
 
   useEffect(() => {
@@ -688,6 +726,31 @@ export const ExperienceAdmin: React.FC = () => {
   const handleSeedDefaultExperiences = async () => {
     try {
       const defaults = [
+        {
+          id: "exp-player-inquiry-session",
+          title: "NFL STAR PLAYER INQUIRY & LIAISON SESSION",
+          description: "Direct inquiry session for ANY active NFL player across all 32 teams. Submit your favorite star player, team, and preferred messaging platform (WhatsApp, Zangi, or Telegram). Following liaison review, our verified player coordinator connects with player management and supplies you with private availability, schedule, and encounter details.",
+          type: "player_inquiry",
+          category: "Player Inquiry Session",
+          price: 100,
+          vipPrice: 100,
+          premiumPrice: 100,
+          teamId: "NFL",
+          imageUrl: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=1200",
+          player: "Any NFL Star Player (All 32 Teams)",
+          location: "Official NFL Liaison Network · Direct Messaging",
+          dates: ["Direct On-Demand Inquiry (Active Daily)"],
+          timeSlots: ["Awaiting Player Details"],
+          features: [
+            "Direct inquiry access for any active player across all 32 NFL franchises",
+            "Customer chooses preferred messaging app (WhatsApp, Zangi, or Telegram)",
+            "Official liaison verification & direct outreach to player management",
+            "Digital VIP Clearance Pass & QR Code issued immediately upon confirmation",
+            "Status tracking: Awaiting Player Details with direct notification"
+          ],
+          rating: 5.0,
+          reviewsCount: 128
+        },
         {
           id: "exp-sea-training",
           title: "Seattle Seahawks Official Training Session Access",
@@ -2049,10 +2112,29 @@ export const ExperienceAdmin: React.FC = () => {
                           )}
                         </td>
                         <td className="p-4 sm:p-6">
-                          <h4 className="text-xs font-black text-white uppercase">{b.experienceTitle}</h4>
-                          <p className="text-[9px] font-black text-zinc-500 uppercase mt-0.5 font-mono">
-                            {b.tier.toUpperCase()} · {b.date} · {b.timeSlot} · {b.guestsCount} GUEST(S)
-                          </p>
+                          {(b.experienceType === "player_inquiry" || (b as any).favoritePlayer) ? (
+                            <div className="space-y-1">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[8px] font-black uppercase tracking-wider">
+                                <Sparkles className="w-2.5 h-2.5" /> PLAYER INQUIRY ($100)
+                              </span>
+                              <h4 className="text-xs font-black text-white uppercase">
+                                {(b as any).favoritePlayer || b.experienceTitle} ({(b as any).teamId || "NFL"})
+                              </h4>
+                              <p className="text-[9px] font-mono text-zinc-400">
+                                Channel: <strong className="text-emerald-400 uppercase">{(b as any).messagingPlatform || "Direct"}</strong> ({(b as any).messagingDetails || "N/A"})
+                              </p>
+                              <p className="text-[8px] font-bold text-amber-400 uppercase tracking-wider">
+                                Status: Awaiting Player Details
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              <h4 className="text-xs font-black text-white uppercase">{b.experienceTitle}</h4>
+                              <p className="text-[9px] font-black text-zinc-500 uppercase mt-0.5 font-mono">
+                                {b.tier.toUpperCase()} · {b.date} · {b.timeSlot} · {b.guestsCount} GUEST(S)
+                              </p>
+                            </>
+                          )}
                         </td>
                         <td className="p-4 sm:p-6">
                           {hasReceipt ? (

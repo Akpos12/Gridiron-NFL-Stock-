@@ -46,12 +46,13 @@ import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingT
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 import { QRCodeSVG } from "qrcode.react";
+import { PlayerInquiryModal } from "./PlayerInquiryModal";
 
 export interface Experience {
   id: string;
   title: string;
   description: string;
-  type: "stadium_tour" | "meet_greet" | "private_tour" | "memorabilia";
+  type: "stadium_tour" | "meet_greet" | "private_tour" | "memorabilia" | "player_inquiry";
   category: string;
   price: number;
   vipPrice?: number;
@@ -121,6 +122,31 @@ export interface Booking {
 const TODAY_ISO = "2026-08-18";
 
 const SEED_EXPERIENCES: Experience[] = [
+  {
+    id: "exp-player-inquiry-session",
+    title: "NFL STAR PLAYER INQUIRY & LIAISON SESSION",
+    description: "Direct inquiry session for ANY active NFL player across all 32 teams. Submit your favorite star player, team, and preferred messaging platform (WhatsApp, Zangi, or Telegram). Following liaison review, our verified player coordinator connects with player management and supplies you with private availability, schedule, and encounter details.",
+    type: "player_inquiry",
+    category: "Player Inquiry Session",
+    price: 100,
+    vipPrice: 100,
+    premiumPrice: 100,
+    teamId: "NFL",
+    imageUrl: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=1200",
+    player: "Any NFL Star Player (All 32 Teams)",
+    location: "Official NFL Liaison Network · Direct Messaging",
+    dates: ["Direct On-Demand Inquiry (Active Daily)"],
+    timeSlots: ["Awaiting Player Details"],
+    features: [
+      "Direct inquiry access for any active player across all 32 NFL franchises",
+      "Customer chooses preferred messaging app (WhatsApp, Zangi, or Telegram)",
+      "Official liaison verification & direct outreach to player management",
+      "Digital VIP Clearance Pass & QR Code issued immediately upon confirmation",
+      "Status tracking: Awaiting Player Details with direct notification"
+    ],
+    rating: 5.0,
+    reviewsCount: 128
+  },
   {
     id: "exp-dal-tour",
     title: "AT&T Stadium Ultimate Access Tour",
@@ -508,9 +534,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 }) => {
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeType, setActiveType] = useState<"all" | "stadium_tour" | "meet_greet" | "private_tour">("all");
+  const [activeType, setActiveType] = useState<"all" | "stadium_tour" | "meet_greet" | "private_tour" | "player_inquiry">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedExp, setSelectedExp] = useState<Experience | null>(null);
+
+  // Player Inquiry Session Modal State ($100 flat session)
+  const [isPlayerInquiryOpen, setIsPlayerInquiryOpen] = useState(false);
+  const [inquiryInitialPlayer, setInquiryInitialPlayer] = useState<string | undefined>();
+  const [inquiryInitialTeam, setInquiryInitialTeam] = useState<string | undefined>();
 
   // Booking details
   const [bookingDate, setBookingDate] = useState("");
@@ -770,6 +801,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       } else if (initialTargetExperience.id === "promo-brock-purdy") {
         const purdy = experiences.find(e => e.id === "exp-brock-purdy-meet" || e.player?.toLowerCase().includes("purdy"));
         if (purdy) openBookingModal(purdy);
+      } else if (initialTargetExperience.id === "promo-player-inquiry") {
+        setActiveType("player_inquiry");
+        setIsPlayerInquiryOpen(true);
       }
     }
   }, [initialTargetExperience, experiences]);
@@ -919,6 +953,13 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   };
 
   const openBookingModal = (exp: Experience) => {
+    if (exp.id === "exp-player-inquiry-session" || exp.type === "player_inquiry") {
+      setInquiryInitialPlayer(exp.player && !exp.player.includes("Any") ? exp.player : undefined);
+      setInquiryInitialTeam(exp.teamId && exp.teamId !== "NFL" ? exp.teamId : undefined);
+      setIsPlayerInquiryOpen(true);
+      return;
+    }
+
     setSelectedExp(exp);
     setCheckoutSessionId(`PAY-EXP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
     const isPitre = exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre");
@@ -1167,6 +1208,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           {([
             { id: "all", label: "All Events" },
+            { id: "player_inquiry", label: "Inquire About A Player" },
             { id: "stadium_tour", label: "Stadium Tours" },
             { id: "meet_greet", label: "Meet & Greets" },
             { id: "private_tour", label: "Private Tours" }
@@ -1184,6 +1226,50 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
               {tab.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Hero Callout Banner: Inquire About Any NFL Player */}
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-blue-950 via-indigo-950 to-zinc-950 border border-blue-500/30 p-6 sm:p-8 shadow-2xl">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-3 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-[9px] font-black uppercase tracking-widest">
+              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+              Direct Player Liaison Session · Any Active NFL Star
+            </div>
+            <h3 className="text-xl sm:text-2xl lg:text-3xl font-black italic uppercase tracking-tight text-white leading-tight">
+              Looking for a Specific NFL Star Player?
+            </h3>
+            <p className="text-xs sm:text-sm text-zinc-300 font-medium leading-relaxed">
+              Submit your contact information, select any of the 32 NFL teams & your favorite player, and choose your preferred messaging platform (WhatsApp, Zangi, or Telegram) to receive verified player availability and scheduling details.
+            </p>
+            <div className="flex flex-wrap items-center gap-3 pt-1 text-[9px] font-mono text-zinc-400">
+              <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                <CheckCircle2 className="w-3 h-3" /> All 32 Teams Supported
+              </span>
+              <span className="text-zinc-600">·</span>
+              <span className="flex items-center gap-1 text-blue-400 font-bold">
+                <Smartphone className="w-3 h-3" /> WhatsApp · Zangi · Telegram
+              </span>
+              <span className="text-zinc-600">·</span>
+              <span className="flex items-center gap-1 text-purple-400 font-bold">
+                <ShieldCheck className="w-3 h-3" /> Verified Player Management
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setInquiryInitialPlayer(undefined);
+              setInquiryInitialTeam(undefined);
+              setIsPlayerInquiryOpen(true);
+            }}
+            className="px-8 py-5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2.5 shadow-2xl shadow-blue-600/40 transition-all hover:scale-[1.02] active:scale-95 shrink-0 cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Inquire About A Player</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -1299,20 +1385,28 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                   <div className="pt-2 flex items-center justify-between border-t border-white/5">
                     <div>
                       <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none">
-                        {exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.id === "exp-brock-purdy-meet" || exp.player?.toLowerCase().includes("pitre") || ((exp.title?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("brock purdy")) && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private"))) 
-                          ? "Platinum Ticket"
-                          : exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast")
-                            ? "Live Podcast Booking"
-                            : exp.id === "exp-drake-maye-meet" || exp.title.toLowerCase().includes("drake maye") 
-                              ? "Pass Price" 
-                              : "Starting from"}
+                        {exp.id === "exp-player-inquiry-session" || exp.type === "player_inquiry"
+                          ? "Direct Liaison"
+                          : exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.id === "exp-brock-purdy-meet" || exp.player?.toLowerCase().includes("pitre") || ((exp.title?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("brock purdy")) && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private"))) 
+                            ? "Platinum Ticket"
+                            : exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast")
+                              ? "Live Podcast Booking"
+                              : exp.id === "exp-drake-maye-meet" || exp.title.toLowerCase().includes("drake maye") 
+                                ? "Pass Price" 
+                                : "Starting from"}
                       </p>
-                      <p className={cn(
-                        "text-lg font-mono font-black mt-1",
-                        exp.type === "private_tour" ? "text-amber-400" : "text-white"
-                      )}>
-                        {formatCurrency(exp.price)}
-                      </p>
+                      {exp.id === "exp-player-inquiry-session" || exp.type === "player_inquiry" ? (
+                        <p className="text-xs font-mono font-black text-emerald-400 mt-1 uppercase tracking-wider">
+                          Inquire for Details
+                        </p>
+                      ) : (
+                        <p className={cn(
+                          "text-lg font-mono font-black mt-1",
+                          exp.type === "private_tour" ? "text-amber-400" : "text-white"
+                        )}>
+                          {formatCurrency(exp.price)}
+                        </p>
+                      )}
                     </div>
 
                     <button
@@ -1321,10 +1415,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         "px-4.5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-1.5 transform active:scale-95 duration-150",
                         exp.type === "private_tour" 
                           ? "bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold" 
-                          : "bg-blue-600 hover:bg-blue-700 text-white"
+                          : exp.type === "player_inquiry"
+                            ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black shadow-lg shadow-blue-600/30"
+                            : "bg-blue-600 hover:bg-blue-700 text-white"
                       )}
                     >
-                      {exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast") ? "Book Podcast" : "Book Ticket"}
+                      {exp.id === "exp-player-inquiry-session" || exp.type === "player_inquiry" 
+                        ? "Inquire About Player" 
+                        : (exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast") ? "Book Podcast" : "Book Ticket")}
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -3276,6 +3374,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      {/* NFL Star Player Inquiry Liaison Modal ($100 Flat Session) */}
+      <PlayerInquiryModal
+        isOpen={isPlayerInquiryOpen}
+        onClose={() => setIsPlayerInquiryOpen(false)}
+        initialPlayer={inquiryInitialPlayer}
+        initialTeamId={inquiryInitialTeam}
+      />
     </div>
   );
 };

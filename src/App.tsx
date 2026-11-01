@@ -38,7 +38,6 @@ import {
   Lock,
   Edit2,
   Check,
-  Gift,
   Building2,
   Smartphone,
   QrCode,
@@ -98,9 +97,6 @@ import { cn, formatCurrency } from "./lib/utils";
 import { PromoSlider } from "./components/PromoSlider";
 import { ExperiencesSection } from "./components/ExperiencesSection";
 import { ExperienceAdmin } from "./components/ExperienceAdmin";
-import { PlayerGiveawaySection } from "./components/giveaway/PlayerGiveawaySection";
-import { GiveawayControlRoom } from "./components/giveaway/GiveawayControlRoom";
-import { WinnerTicker } from "./components/giveaway/WinnerTicker";
 import { TicketCheckoutModal, GameTicket } from "./components/TicketCheckoutModal";
 import { MerchandiseCheckoutModal, PATRIOTS_SIGNED_MERCH_IMAGES } from "./components/MerchandiseCheckoutModal";
 import { CustomerPaymentWaitingTerminal } from "./components/common/CustomerPaymentWaitingTerminal";
@@ -2169,9 +2165,9 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [orders, setOrders] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences" | "giveaways" | "payments">(() => {
+  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences" | "payments">(() => {
     const saved = localStorage.getItem("admin_subtab");
-    if (saved && ["inquiries", "orders", "users", "transactions", "experiences", "giveaways", "payments"].includes(saved)) {
+    if (saved && ["inquiries", "orders", "users", "transactions", "experiences", "payments"].includes(saved)) {
       return saved as any;
     }
     return "inquiries";
@@ -2745,12 +2741,6 @@ const AdminPortal = ({ user }: { user: any }) => {
             Experiences
           </button>
           <button 
-            onClick={() => { setActiveSubTab("giveaways"); setSearchTerm(""); }}
-            className={cn("px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap", activeSubTab === "giveaways" ? "bg-blue-600 text-white" : "bg-zinc-900 text-zinc-500")}
-          >
-            Player Giveaways
-          </button>
-          <button 
             onClick={() => { setActiveSubTab("payments"); setSearchTerm(""); }}
             className={cn("px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2", activeSubTab === "payments" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" : "bg-zinc-900 text-zinc-500 hover:text-white")}
           >
@@ -2772,8 +2762,6 @@ const AdminPortal = ({ user }: { user: any }) => {
           <div className="p-6 sm:p-8">
             <ControlRoomPaymentDispatcher />
           </div>
-        ) : activeSubTab === "giveaways" ? (
-          <GiveawayControlRoom />
         ) : activeSubTab === "experiences" ? (
           <ExperienceAdmin />
         ) : activeSubTab === "transactions" ? (
@@ -3786,9 +3774,9 @@ export default function App() {
   };
   const [activeTicket, setActiveTicket] = useState<string | null>(localStorage.getItem("active_ticket_id"));
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "giveaways" | "stocks">(() => {
+  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "stocks">(() => {
     const saved = localStorage.getItem("active_tab");
-    if (saved && ["markets", "draft", "portfolio", "shop", "admin", "experiences", "giveaways", "stocks"].includes(saved)) {
+    if (saved && ["markets", "draft", "portfolio", "shop", "admin", "experiences", "stocks"].includes(saved)) {
       return saved as any;
     }
     return "experiences";
@@ -4648,7 +4636,6 @@ export default function App() {
                 { id: "draft", label: "Speculation", icon: Target },
               ]),
               { id: "experiences", label: "Experiences", icon: Star },
-              { id: "giveaways", label: "Player Giveaways", icon: Gift },
               { id: "shop", label: "Arena Shop", icon: ShoppingBag },
               ...(user ? [{ id: "portfolio", label: "Portfolio", icon: History }] : []),
               ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control", icon: ShieldCheck }] : [])
@@ -4745,22 +4732,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Global Live Giveaway Winners Ticker */}
-      <WinnerTicker 
-        onCheckWinnerClick={() => {
-          setActiveTab("giveaways");
-          setDismissedHero(true);
-        }}
-        onTrackInquiryClick={() => {
-          setTrackedInquiry(null);
-          setEmailInquiries(null);
-          setTrackingEmail("");
-          setTrackingId("");
-          setShowInquiryStatus("SEARCH");
-        }}
-        onCustomerCareClick={() => setShowFanCardForm(true)}
-      />
-
       {/* Persistent Floating 24/7 Customer Care Hub */}
       <CustomerCareWidget 
         onOpenCustomerCare={(category, player) => {
@@ -4793,7 +4764,6 @@ export default function App() {
             { id: "draft", label: "Speculation", icon: Target },
           ]),
           { id: "experiences", label: "Experiences", icon: Star },
-          { id: "giveaways", label: "Giveaways", icon: Gift },
           { id: "shop", label: "Shop", icon: ShoppingBag },
           ...(user ? [{ id: "portfolio", label: "Portfolio", icon: History }] : []),
           ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control", icon: ShieldCheck }] : [])
@@ -5760,33 +5730,6 @@ export default function App() {
               </div>
             )}
 
-            {activeTab === "giveaways" && (
-              <PlayerGiveawaySection 
-                user={user} 
-                onSignInClick={() => setShowLogin(true)} 
-                onOpenCustomerCare={() => setShowFanCardForm(true)}
-                onNavigateHome={() => setActiveTab("experiences")}
-                onOpenTrackInquiry={(ticketIdOrEmail) => {
-                  setTrackedInquiry(null);
-                  setEmailInquiries(null);
-                  if (ticketIdOrEmail) {
-                    if (ticketIdOrEmail.includes("@")) {
-                      setTrackingTab("email");
-                      setTrackingEmail(ticketIdOrEmail);
-                      setTrackingId("");
-                    } else {
-                      setTrackingTab("ticket");
-                      setTrackingId(ticketIdOrEmail);
-                      setTrackingEmail("");
-                    }
-                  } else {
-                    setTrackingEmail("");
-                    setTrackingId("");
-                  }
-                  setShowInquiryStatus("SEARCH");
-                }}
-              />
-            )}
 
             {activeTab === "admin" && user?.email === "alexwtchmn@gmail.com" && (
               <AdminPortal user={user} />
@@ -6203,7 +6146,6 @@ export default function App() {
                           <option value="podcast">🎙️ Player Podcast Reservation & Studio Session</option>
                           <option value="player_experience">🏈 Player Private Experience & Custom Booking</option>
                           <option value="general">General Support & Customer Care</option>
-                          <option value="giveaway">Player Giveaway Claim & Prize Dispatch</option>
                           <option value="passes">VIP Experiences & Match Passes</option>
                           <option value="merchandise">Arena Shop & Merchandise Orders</option>
                           <option value="wallet">Wallet & Transaction Assistance</option>
@@ -6360,7 +6302,7 @@ export default function App() {
                             ? `Describe your show format, topics, planned interview duration (e.g. 45-60 min), and recording window for ${selectedInquiryPlayer === 'other' ? (customPlayerName || 'the athlete') : selectedInquiryPlayer}...` 
                             : selectedInquiryCategory === "player_experience"
                               ? `Describe your custom event, private appearance, or VIP booking request for ${selectedInquiryPlayer === 'other' ? (customPlayerName || 'the athlete') : selectedInquiryPlayer}...`
-                              : "Describe your inquiry, order, giveaway claim details, or concierge support request. Our customer care team responds in real-time..."
+                              : "Describe your inquiry, order, or concierge support request. Our customer care team responds in real-time..."
                         } 
                         className="w-full bg-zinc-950 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold transition-all disabled:opacity-50 text-white resize-none" 
                       />
