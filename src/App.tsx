@@ -105,6 +105,7 @@ import { MerchandiseVaultSection } from "./components/MerchandiseVaultSection";
 import { CustomerCareWidget } from "./components/CustomerCareWidget";
 import { ReceiptReviewModal, BookingAuditItem } from "./components/common/ReceiptReviewModal";
 import { TicketCheckModal } from "./components/TicketCheckModal";
+import { VipCommemorativeTicketModal } from "./components/VipCommemorativeTicketModal";
 import { generateTicketPDF } from "./utils/ticketPdfGenerator";
 import { NFLImage } from "./utils/nflImages";
 import { QRCodeSVG } from "qrcode.react";
@@ -3808,6 +3809,7 @@ export default function App() {
   const [isSavingTrackedReply, setIsSavingTrackedReply] = useState(false);
   const [showTicketCheckModal, setShowTicketCheckModal] = useState(false);
   const [ticketCheckInitialQuery, setTicketCheckInitialQuery] = useState("");
+  const [showVipCommemorativeModal, setShowVipCommemorativeModal] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const portfolioRef = useRef<any[]>([]);
 
@@ -4683,7 +4685,7 @@ export default function App() {
           {/* Quick Check & Download Pass Navbar Button */}
           <button
             onClick={() => {
-              setTicketCheckInitialQuery(user?.email || "");
+              setTicketCheckInitialQuery("");
               setShowTicketCheckModal(true);
             }}
             className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-950/70 to-zinc-900 hover:from-emerald-900/80 hover:to-zinc-800 border border-emerald-500/40 hover:border-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-wider text-emerald-300 hover:text-white transition-all cursor-pointer shadow-sm"
@@ -4748,7 +4750,7 @@ export default function App() {
           setShowInquiryStatus("SEARCH");
         }}
         onOpenTicketCheck={() => {
-          setTicketCheckInitialQuery(user?.email || "");
+          setTicketCheckInitialQuery("");
           setShowTicketCheckModal(true);
         }}
         user={user}
@@ -5726,6 +5728,7 @@ export default function App() {
                     if (showTitle) setPodcastShowInput(showTitle);
                     setShowFanCardForm(true);
                   }}
+                  onOpenCommemorativeTicket={() => setShowVipCommemorativeModal(true)}
                 />
               </div>
             )}
@@ -6537,6 +6540,12 @@ export default function App() {
           setTrackingId(emailOrOrderId || "");
           setShowInquiryStatus("SEARCH");
         }}
+      />
+
+      {/* Official VIP Commemorative Game Ticket Modal */}
+      <VipCommemorativeTicketModal
+        isOpen={showVipCommemorativeModal}
+        onClose={() => setShowVipCommemorativeModal(false)}
       />
     </div>
   );

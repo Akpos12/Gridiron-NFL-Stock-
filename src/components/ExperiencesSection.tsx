@@ -35,7 +35,8 @@ import {
   Gift,
   UserCheck,
   Radio,
-  Mic
+  Mic,
+  Award
 } from "lucide-react";
 import { collection, onSnapshot, getDocs, setDoc, doc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { db, auth, safeSetDoc, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -525,12 +526,14 @@ interface ExperiencesSectionProps {
   onRequestLoginModal?: () => void;
   initialTargetExperience?: any;
   onOpenPodcastInquiry?: (player: any, showTitle: any) => void;
+  onOpenCommemorativeTicket?: () => void;
 }
 
 export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({ 
   onNotifyCheckout, 
   onRequestLoginModal,
-  initialTargetExperience
+  initialTargetExperience,
+  onOpenCommemorativeTicket
 }) => {
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1272,6 +1275,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           </button>
         </div>
       </div>
+
+
 
       {/* Search Input Filter */}
       <div className="relative max-w-lg">

@@ -49,6 +49,8 @@ export interface TicketPassInfo {
   installmentPlan?: string;
   installmentTerms?: string;
   installmentDueToday?: number | string;
+  isCommemorative?: boolean;
+  commemorativeDesign?: boolean;
 }
 
 export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
@@ -72,6 +74,12 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
     ticket.tier?.toLowerCase().includes("stockholder") ||
     (ticket.buyerEmail && ticket.buyerEmail.toLowerCase().includes("jayne_welage")) ||
     (ticket.buyerName && ticket.buyerName.toLowerCase().includes("welage"));
+
+  const isCommemorative =
+    ticket.isCommemorative === true ||
+    ticket.commemorativeDesign === true ||
+    (ticket.buyerName && ticket.buyerName.toLowerCase().includes("dena")) ||
+    (ticket.eventTitle && ticket.eventTitle.toLowerCase().includes("seahawks"));
 
   const isDateTbd =
     ticket.isDateTbd ||
@@ -108,46 +116,61 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   
   const baseTierName = isStockholder
     ? "FRANCHISE STOCKHOLDER VIP"
-    : (ticket.tier || "VIP ALL-ACCESS").toUpperCase().replace(/_/g, " ");
+    : isCommemorative
+      ? "VIP EXPERIENCE · COMMEMORATIVE PASS"
+      : (ticket.tier || "VIP ALL-ACCESS").toUpperCase().replace(/_/g, " ");
   
   const tierName = ticket.sidelinePassCount && ticket.sidelinePassCount > 0
     ? `${baseTierName} + ${ticket.sidelinePassCount}x SIDELINE PASS`
     : baseTierName;
 
   const guests = ticket.quantity || ticket.guestsCount || 1;
-  const totalPaid = ticket.totalAmount ?? ticket.totalPrice ?? 0;
-  const approvedBy = ticket.approvedBy || (isStockholder ? "NFL Gridiron Executive Treasury & Investor Relations" : "NFL Gridiron Box Office Management");
+  const totalPaid = ticket.totalAmount ?? ticket.totalPrice ?? (isCommemorative ? 1000 : 0);
+  const approvedBy = ticket.approvedBy || (isStockholder ? "NFL Gridiron Executive Treasury & Investor Relations" : isCommemorative ? "NFL Official VIP Concierge Desk" : "NFL Gridiron Box Office Management");
   const approvalDate = ticket.approvedAt ? new Date(ticket.approvedAt).toLocaleDateString() : new Date().toLocaleDateString();
 
   // Background Canvas
-  doc.setFillColor(15, 17, 23); // Dark modern theme
+  doc.setFillColor(isCommemorative ? 0 : 15, isCommemorative ? 23 : 17, isCommemorative ? 46 : 23); // Seahawks Deep Navy or dark
   doc.rect(0, 0, 210, 297, "F");
 
-  // Top Accent Bar (NFL Red / White / Blue)
-  doc.setFillColor(14, 82, 214); // Electric Blue
-  doc.rect(0, 0, 70, 4, "F");
-  doc.setFillColor(255, 255, 255); // White
-  doc.rect(70, 0, 70, 4, "F");
-  doc.setFillColor(220, 38, 38); // Crimson Red
-  doc.rect(140, 0, 70, 4, "F");
+  // Top Accent Bar (Seahawks Navy / Action Green / Silver OR NFL Red / White / Blue)
+  if (isCommemorative) {
+    doc.setFillColor(0, 34, 68); // Seahawks College Navy
+    doc.rect(0, 0, 70, 4, "F");
+    doc.setFillColor(105, 190, 40); // Seahawks Action Green
+    doc.rect(70, 0, 70, 4, "F");
+    doc.setFillColor(165, 172, 175); // Seahawks Wolf Grey / Silver
+    doc.rect(140, 0, 70, 4, "F");
+  } else {
+    doc.setFillColor(14, 82, 214); // Electric Blue
+    doc.rect(0, 0, 70, 4, "F");
+    doc.setFillColor(255, 255, 255); // White
+    doc.rect(70, 0, 70, 4, "F");
+    doc.setFillColor(220, 38, 38); // Crimson Red
+    doc.rect(140, 0, 70, 4, "F");
+  }
 
   // Header Box
-  doc.setFillColor(24, 27, 36);
+  doc.setFillColor(isCommemorative ? 3 : 24, isCommemorative ? 34 : 27, isCommemorative ? 68 : 36);
   doc.roundedRect(margin, 12, contentWidth, 34, 4, 4, "F");
-  doc.setDrawColor(45, 50, 65);
-  doc.setLineWidth(0.5);
+  doc.setDrawColor(isCommemorative ? 105 : 45, isCommemorative ? 190 : 50, isCommemorative ? 40 : 65);
+  doc.setLineWidth(isCommemorative ? 0.8 : 0.5);
   doc.roundedRect(margin, 12, contentWidth, 34, 4, 4, "S");
 
   // Header Title & Logo text
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("NFL GRIDIRON EXCHANGE", margin + 8, 24);
+  doc.text(isCommemorative ? "SEATTLE SEAHAWKS VIP" : "NFL GRIDIRON EXCHANGE", margin + 8, 24);
 
   doc.setFontSize(8);
-  doc.setTextColor(isStockholder ? 52 : 96, isStockholder ? 211 : 165, isStockholder ? 153 : 250); // Emerald if stockholder
+  doc.setTextColor(isCommemorative ? 105 : isStockholder ? 52 : 96, isCommemorative ? 190 : isStockholder ? 211 : 165, isCommemorative ? 40 : isStockholder ? 153 : 250); // Action Green if commemorative
   doc.text(
-    isStockholder ? "OFFICIAL FRANCHISE STOCKHOLDER & INVESTOR PASS" : "OFFICIAL VERIFIED DIGITAL ADMISSION PASS",
+    isCommemorative
+      ? "OFFICIAL COMMEMORATIVE VIP EXPERIENCE PASS · COLLECTOR'S DESIGN"
+      : isStockholder 
+        ? "OFFICIAL FRANCHISE STOCKHOLDER & INVESTOR PASS" 
+        : "OFFICIAL VERIFIED DIGITAL ADMISSION PASS",
     margin + 8,
     30
   );
@@ -155,22 +178,24 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   doc.setFontSize(7);
   doc.setTextColor(156, 163, 175);
   doc.text(
-    isStockholder
-      ? `TICKET ORDER: #${orderNumber}  |  STATUS: SHAREHOLDER ALLOCATION CLEARED`
-      : `TICKET ORDER: #${orderNumber}  |  STATUS: AUTHORIZED & CONFIRMED`,
+    isCommemorative
+      ? `REF: #${passCode}  |  STATUS: VIP CLEARANCE CONFIRMED · $1,000 USD`
+      : isStockholder
+        ? `TICKET ORDER: #${orderNumber}  |  STATUS: SHAREHOLDER ALLOCATION CLEARED`
+        : `TICKET ORDER: #${orderNumber}  |  STATUS: AUTHORIZED & CONFIRMED`,
     margin + 8,
     38
   );
 
   // Status Badge in Header
-  doc.setFillColor(isStockholder ? 16 : 16, isStockholder ? 185 : 185, isStockholder ? 129 : 129); // Emerald green badge
+  doc.setFillColor(isCommemorative ? 105 : isStockholder ? 16 : 16, isCommemorative ? 190 : isStockholder ? 185 : 185, isCommemorative ? 40 : isStockholder ? 129 : 129); // Action Green badge
   doc.roundedRect(pageWidth - margin - 56, 20, 48, 18, 2, 2, "F");
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(isCommemorative ? 0 : 255, isCommemorative ? 0 : 255, isCommemorative ? 0 : 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.text(isStockholder ? "STOCKHOLDER VIP" : "GATE READY", pageWidth - margin - 32, 28, { align: "center" });
+  doc.text(isCommemorative ? "VIP EXPERIENCE" : isStockholder ? "STOCKHOLDER VIP" : "GATE READY", pageWidth - margin - 32, 28, { align: "center" });
   doc.setFontSize(6);
-  doc.text(isStockholder ? "VERIFIED SHAREHOLDER" : "VERIFIED RFID ENTRY", pageWidth - margin - 32, 33, { align: "center" });
+  doc.text(isCommemorative ? "COMMEMORATIVE" : isStockholder ? "VERIFIED SHAREHOLDER" : "VERIFIED RFID ENTRY", pageWidth - margin - 32, 33, { align: "center" });
 
   // Main Ticket Container Card
   const cardY = 52;
@@ -238,10 +263,18 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   doc.roundedRect(margin + 8, curY, 80, 24, 3, 3, "F");
   doc.setTextColor(156, 163, 175);
   doc.setFontSize(6.5);
-  doc.text(isStockholder ? "PASSHOLDER (FRANCHISE SHAREHOLDER)" : "PASSHOLDER (LEAD ATTENDEE)", margin + 12, curY + 7);
-  doc.setTextColor(255, 255, 255);
+  doc.text(
+    isCommemorative 
+      ? "VIP TICKET HOLDER" 
+      : isStockholder 
+        ? "PASSHOLDER (FRANCHISE SHAREHOLDER)" 
+        : "PASSHOLDER (LEAD ATTENDEE)", 
+    margin + 12, 
+    curY + 7
+  );
+  doc.setTextColor(isCommemorative ? 105 : 255, isCommemorative ? 190 : 255, isCommemorative ? 40 : 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.text(`${attendeeName}`, margin + 12, curY + 14);
   doc.setTextColor(156, 163, 175);
   doc.setFontSize(7);

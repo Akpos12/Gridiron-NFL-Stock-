@@ -28,6 +28,7 @@ import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from "fire
 import { db } from "../lib/firebase";
 import { generateTicketPDF, TicketPassInfo } from "../utils/ticketPdfGenerator";
 import { cn } from "../lib/utils";
+import { VipCommemorativeTicketModal } from "./VipCommemorativeTicketModal";
 
 interface TicketCheckModalProps {
   isOpen: boolean;
@@ -49,6 +50,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
   const [hasSearched, setHasSearched] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [showCommemorativeModal, setShowCommemorativeModal] = useState(false);
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -56,64 +58,56 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
     setTimeout(() => setCopiedKey(null), 2500);
   };
 
-  // Sync initial query when opened
+  // Reset to clean search state when opened; only search if an explicit query was provided
   useEffect(() => {
-    if (initialSearchQuery) {
-      setSearchQuery(initialSearchQuery);
-      performSearch(initialSearchQuery);
-    } else {
-      // Auto-load recent bookings from localStorage if available
-      loadRecentTickets();
+    if (isOpen) {
+      if (initialSearchQuery && initialSearchQuery.trim()) {
+        setSearchQuery(initialSearchQuery.trim());
+        performSearch(initialSearchQuery.trim());
+      } else {
+        setSearchQuery("");
+        setTickets([]);
+        setSelectedTicket(null);
+        setHasSearched(false);
+      }
     }
   }, [initialSearchQuery, isOpen]);
 
-  const loadRecentTickets = async () => {
-    try {
-      const recentIds: string[] = JSON.parse(localStorage.getItem("recent_ticket_orders") || "[]");
-      const savedEmail = localStorage.getItem("user_email") || "";
-
-      if (recentIds.length > 0 || savedEmail) {
-        setIsLoading(true);
-        const resultsMap = new Map<string, any>();
-
-        // Query by recent IDs
-        for (const orderId of (Array.isArray(recentIds) ? recentIds : []).slice(0, 5)) {
-          if (!orderId) continue;
-          try {
-            const snap = await getDoc(doc(db, "bookings", orderId));
-            if (snap.exists()) {
-              resultsMap.set(snap.id, { id: snap.id, ...snap.data() });
-            }
-            const orderSnap = await getDoc(doc(db, "ticket_orders", orderId));
-            if (orderSnap.exists()) {
-              resultsMap.set(orderSnap.id, { ...resultsMap.get(orderSnap.id), id: orderSnap.id, ...orderSnap.data() });
-            }
-          } catch (e) {
-            // ignore item error
-          }
-        }
-
-        // Also query by saved email if present
-        if (savedEmail && resultsMap.size === 0) {
-          const bQuery = query(collection(db, "bookings"), where("userEmail", "==", savedEmail));
-          const bSnap = await getDocs(bQuery);
-          bSnap.forEach(d => resultsMap.set(d.id, { id: d.id, ...d.data() }));
-        }
-
-        const items = Array.from(resultsMap.values()).sort(
-          (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-        );
-
-        setTickets(items);
-        if (items.length === 1) {
-          setSelectedTicket(items[0]);
-        }
-      }
-    } catch (err) {
-      console.error("Error loading recent tickets:", err);
-    } finally {
-      setIsLoading(false);
-    }
+  const COMMEMORATIVE_VIP_TICKET = {
+    id: "SEA-CARD-VIP-2026-DJ08",
+    orderId: "SEA-CARD-VIP-2026-DJ08",
+    refCode: "SEA-CARD-VIP-2026-DJ08",
+    ticketCode: "SEA-CARD-VIP-2026-DJ08",
+    qrCode: "SEA-CARD-VIP-2026-DJ08",
+    buyerName: "Dena Johnston",
+    senderName: "Dena Johnston",
+    userEmail: "dena.johnston@gmail.com",
+    buyerEmail: "dena.johnston@gmail.com",
+    homeTeam: "Seattle Seahawks",
+    awayTeam: "Arizona Cardinals",
+    gameName: "Seattle Seahawks vs. Arizona Cardinals",
+    eventTitle: "Seattle Seahawks vs. Arizona Cardinals",
+    experienceTitle: "Seattle Seahawks vs. Arizona Cardinals · VIP Experience",
+    date: "Sunday, November 8, 2026",
+    time: "4:25 PM EST",
+    timeSlot: "4:25 PM EST (Kickoff)",
+    kickoff: "4:25 PM EST",
+    stadium: "Lumen Field",
+    city: "Seattle, Washington",
+    venue: "Lumen Field, Seattle, Washington",
+    price: 1000,
+    totalAmount: 1000,
+    totalPrice: 1000,
+    quantity: 1,
+    tier: "VIP Experience",
+    category: "VIP Experience",
+    seatDetails: "Section VIP Club Level 100 · Row A1 · Seat 12",
+    gateInfo: "Gate 3 - Northwest VIP Club Entrance",
+    status: "approved",
+    isApproved: true,
+    isCommemorative: true,
+    commemorativeDesign: true,
+    commemorativeImageUrl: "/images/seahawks_vip_ticket_isolated.png"
   };
 
   const performSearch = async (queryText: string) => {
@@ -127,6 +121,20 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
     try {
       const resultsMap = new Map<string, any>();
       const termLower = term.toLowerCase();
+
+      // Check if searched query corresponds to Dena Johnston commemorative pass
+      const isDenaMatch =
+        termLower.includes("dena") ||
+        termLower.includes("johnston") ||
+        termLower === "dj" ||
+        termLower.includes("dj08") ||
+        termLower.includes("sea-card") ||
+        "dena.johnston@gmail.com".includes(termLower) ||
+        "sea-card-vip-2026-dj08".includes(termLower);
+
+      if (isDenaMatch) {
+        resultsMap.set(COMMEMORATIVE_VIP_TICKET.id, COMMEMORATIVE_VIP_TICKET);
+      }
 
       // 1. Direct ID lookup in bookings & ticket_orders
       try {
@@ -169,19 +177,28 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
         tCodeSnap.forEach(d => resultsMap.set(d.id, { id: d.id, ...d.data() }));
       } catch (e) {}
 
-      // If no exact matches yet, fetch all recent and fuzzy filter
-      if (resultsMap.size === 0) {
-        try {
-          const allSnap = await getDocs(collection(db, "bookings"));
-          allSnap.forEach(d => {
-            const data = d.data();
-            const str = JSON.stringify(data).toLowerCase();
-            if (str.includes(termLower)) {
-              resultsMap.set(d.id, { id: d.id, ...data });
-            }
-          });
-        } catch (e) {}
-      }
+      // 5. Broad text search across bookings and ticket orders
+      try {
+        const allSnap = await getDocs(collection(db, "bookings"));
+        allSnap.forEach(d => {
+          const data = d.data();
+          const str = JSON.stringify(data).toLowerCase();
+          if (str.includes(termLower)) {
+            resultsMap.set(d.id, { id: d.id, ...data });
+          }
+        });
+      } catch (e) {}
+
+      try {
+        const allOrdersSnap = await getDocs(collection(db, "ticket_orders"));
+        allOrdersSnap.forEach(d => {
+          const data = d.data();
+          const str = JSON.stringify(data).toLowerCase();
+          if (str.includes(termLower)) {
+            resultsMap.set(d.id, { ...resultsMap.get(d.id), id: d.id, ...data });
+          }
+        });
+      } catch (e) {}
 
       const items = Array.from(resultsMap.values()).sort(
         (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
@@ -302,7 +319,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Enter Email Address, Order Reference ID, or Pass Code..."
+                placeholder="Search by Passholder Name (e.g. Dena Johnston), Email, or Reference ID..."
                 className="w-full bg-zinc-900 border border-white/10 rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
               />
             </div>
@@ -324,6 +341,11 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
               )}
             </button>
           </form>
+
+          {/* Search Helper */}
+          <div className="flex items-center gap-2 mt-2 px-1 text-[10px] text-zinc-500">
+            <span>Enter the ticket holder name, email address, or confirmation reference to retrieve your verified pass.</span>
+          </div>
         </div>
 
         {/* Content Area */}
@@ -855,7 +877,30 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                         <span>Cryptographically signed by NFL Gridiron Box Office</span>
                       </div>
 
-                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        {(selectedTicket.isCommemorative || selectedTicket.buyerName?.toLowerCase().includes("dena") || selectedTicket.homeTeam?.toLowerCase().includes("seahawks")) && (
+                          <>
+                            <a
+                              href="/images/seahawks_vip_ticket_isolated.png"
+                              download="Seattle-Seahawks-VIP-Ticket-Dena-Johnston-Isolated.png"
+                              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#69BE28] to-emerald-400 hover:from-[#5da823] hover:to-emerald-500 text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer hover:scale-[1.02] active:scale-95"
+                              title="Download isolated ticket PNG with transparent background (all stadium background removed)"
+                            >
+                              <Download className="w-4 h-4 text-black" />
+                              <span>Download Isolated Ticket (PNG)</span>
+                            </a>
+
+                            <button
+                              type="button"
+                              onClick={() => setShowCommemorativeModal(true)}
+                              className="px-4 py-2.5 rounded-xl bg-[#002244] hover:bg-[#002f5e] border border-[#69BE28]/60 text-[#69BE28] hover:text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                            >
+                              <Sparkles className="w-4 h-4 text-[#69BE28]" />
+                              <span>View Artwork</span>
+                            </button>
+                          </>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => handleDownloadPdf(selectedTicket)}
@@ -929,6 +974,13 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Commemorative Artwork Fullscreen Modal */}
+        <VipCommemorativeTicketModal
+          isOpen={showCommemorativeModal}
+          onClose={() => setShowCommemorativeModal(false)}
+          ticketData={selectedTicket}
+        />
       </div>
     </div>
   );
