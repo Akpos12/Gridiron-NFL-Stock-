@@ -882,21 +882,31 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                           <>
                             <a
                               href="/images/seahawks_vip_ticket_isolated.png"
-                              download="Seattle-Seahawks-VIP-Ticket-Dena-Johnston-Isolated.png"
-                              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#69BE28] to-emerald-400 hover:from-[#5da823] hover:to-emerald-500 text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer hover:scale-[1.02] active:scale-95"
-                              title="Download isolated ticket PNG with transparent background (all stadium background removed)"
+                              download="Seattle-Seahawks-VIP-Ticket-Dena-Johnston-Front-Isolated.png"
+                              className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-[#69BE28] to-emerald-400 hover:from-[#5da823] hover:to-emerald-500 text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer hover:scale-[1.02] active:scale-95"
+                              title="Download isolated front ticket PNG with transparent background"
                             >
-                              <Download className="w-4 h-4 text-black" />
-                              <span>Download Isolated Ticket (PNG)</span>
+                              <Download className="w-3.5 h-3.5 text-black" />
+                              <span>Front (PNG)</span>
+                            </a>
+
+                            <a
+                              href="/images/seahawks_vip_ticket_back_isolated.png"
+                              download="Seattle-Seahawks-VIP-Ticket-Dena-Johnston-Back-Isolated.png"
+                              className="px-3.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-[#69BE28]/60 text-[#69BE28] hover:text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer hover:scale-[1.02] active:scale-95"
+                              title="Download isolated back ticket PNG with transparent background"
+                            >
+                              <Download className="w-3.5 h-3.5 text-[#69BE28]" />
+                              <span>Back (PNG)</span>
                             </a>
 
                             <button
                               type="button"
                               onClick={() => setShowCommemorativeModal(true)}
-                              className="px-4 py-2.5 rounded-xl bg-[#002244] hover:bg-[#002f5e] border border-[#69BE28]/60 text-[#69BE28] hover:text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                              className="px-3.5 py-2.5 rounded-xl bg-[#002244] hover:bg-[#002f5e] border border-[#69BE28]/60 text-[#69BE28] hover:text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
                             >
-                              <Sparkles className="w-4 h-4 text-[#69BE28]" />
-                              <span>View Artwork</span>
+                              <Sparkles className="w-3.5 h-3.5 text-[#69BE28]" />
+                              <span>View Both Sides</span>
                             </button>
                           </>
                         )}

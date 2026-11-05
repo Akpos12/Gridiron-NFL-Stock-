@@ -33,7 +33,7 @@ export const VipCommemorativeTicketModal: React.FC<VipCommemorativeTicketModalPr
   onClose,
   ticketData
 }) => {
-  const [activeView, setActiveView] = useState<"render" | "interactive">("render");
+  const [activeView, setActiveView] = useState<"front" | "back" | "interactive">("front");
   const [copied, setCopied] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
@@ -114,14 +114,26 @@ export const VipCommemorativeTicketModal: React.FC<VipCommemorativeTicketModalPr
   const handleDownloadIsolatedPng = () => {
     const a = document.createElement("a");
     a.href = "/images/seahawks_vip_ticket_isolated.png";
-    a.download = "Seattle-Seahawks-VIP-Ticket-Dena-Johnston-Isolated.png";
+    a.download = "Seattle-Seahawks-VIP-Ticket-Dena-Johnston-Front-Isolated.png";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   };
 
-  const handleDownloadImage = () => {
+  const handleDownloadBackPng = () => {
+    const a = document.createElement("a");
+    a.href = "/images/seahawks_vip_ticket_back_isolated.png";
+    a.download = "Seattle-Seahawks-VIP-Ticket-Dena-Johnston-Back-Isolated.png";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleDownloadBothSides = () => {
     handleDownloadIsolatedPng();
+    setTimeout(() => {
+      handleDownloadBackPng();
+    }, 350);
   };
 
   const handlePrint = () => {
@@ -144,7 +156,7 @@ export const VipCommemorativeTicketModal: React.FC<VipCommemorativeTicketModalPr
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-widest text-[#69BE28]">
-                  Official Commemorative VIP Pass
+                  Official Commemorative VIP Pass (Front &amp; Back)
                 </span>
                 <span className="text-[9px] font-mono text-zinc-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
                   Collector’s Edition
@@ -160,20 +172,31 @@ export const VipCommemorativeTicketModal: React.FC<VipCommemorativeTicketModalPr
             {/* View Switcher */}
             <div className="hidden sm:flex items-center p-1 bg-zinc-900 border border-white/10 rounded-xl">
               <button
-                onClick={() => setActiveView("render")}
+                onClick={() => setActiveView("front")}
                 className={cn(
-                  "px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all",
-                  activeView === "render"
+                  "px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer",
+                  activeView === "front"
                     ? "bg-[#69BE28] text-black shadow-md font-black"
                     : "text-zinc-400 hover:text-white"
                 )}
               >
-                HD Isolated Ticket
+                Front Side
+              </button>
+              <button
+                onClick={() => setActiveView("back")}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer",
+                  activeView === "back"
+                    ? "bg-[#69BE28] text-black shadow-md font-black"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                Back Side
               </button>
               <button
                 onClick={() => setActiveView("interactive")}
                 className={cn(
-                  "px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all",
+                  "px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer",
                   activeView === "interactive"
                     ? "bg-[#69BE28] text-black shadow-md font-black"
                     : "text-zinc-400 hover:text-white"
@@ -199,18 +222,27 @@ export const VipCommemorativeTicketModal: React.FC<VipCommemorativeTicketModalPr
           {/* Mobile View Switcher */}
           <div className="sm:hidden flex items-center p-1 bg-zinc-900 border border-white/10 rounded-xl">
             <button
-              onClick={() => setActiveView("render")}
+              onClick={() => setActiveView("front")}
               className={cn(
-                "flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all text-center",
-                activeView === "render" ? "bg-[#69BE28] text-black font-black" : "text-zinc-400"
+                "flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all text-center",
+                activeView === "front" ? "bg-[#69BE28] text-black font-black" : "text-zinc-400"
               )}
             >
-              HD Isolated Ticket
+              Front Side
+            </button>
+            <button
+              onClick={() => setActiveView("back")}
+              className={cn(
+                "flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all text-center",
+                activeView === "back" ? "bg-[#69BE28] text-black font-black" : "text-zinc-400"
+              )}
+            >
+              Back Side
             </button>
             <button
               onClick={() => setActiveView("interactive")}
               className={cn(
-                "flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all text-center",
+                "flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all text-center",
                 activeView === "interactive" ? "bg-[#69BE28] text-black font-black" : "text-zinc-400"
               )}
             >
@@ -219,8 +251,8 @@ export const VipCommemorativeTicketModal: React.FC<VipCommemorativeTicketModalPr
           </div>
 
           {/* MAIN TICKET VIEW */}
-          {activeView === "render" ? (
-            /* 1. Isolated Ticket Render (Clean Transparent Background, Stadium Scenery & Background Removed) */
+          {activeView === "front" ? (
+            /* Front Side Isolated Render */
             <div className="relative group rounded-2xl overflow-hidden border border-[#69BE28]/40 shadow-2xl bg-zinc-950/90 flex flex-col items-center justify-center p-4 sm:p-8 min-h-[340px]">
               <div 
                 className="w-full max-w-4xl flex items-center justify-center p-3 sm:p-6 rounded-xl"
@@ -231,7 +263,7 @@ export const VipCommemorativeTicketModal: React.FC<VipCommemorativeTicketModalPr
               >
                 <img
                   src="/images/seahawks_vip_ticket_isolated.png"
-                  alt="Seattle Seahawks vs Arizona Cardinals VIP Game Ticket - Dena Johnston (Isolated with Transparent Background)"
+                  alt="Seattle Seahawks vs Arizona Cardinals VIP Game Ticket - Dena Johnston (Front)"
                   className="w-full max-w-3xl h-auto object-contain drop-shadow-[0_20px_45px_rgba(0,34,68,0.85)] rounded-lg transition-transform duration-300"
                 />
               </div>
@@ -240,14 +272,46 @@ export const VipCommemorativeTicketModal: React.FC<VipCommemorativeTicketModalPr
                 <div className="flex items-center gap-2 text-xs text-zinc-400">
                   <ShieldCheck className="w-4 h-4 text-[#69BE28]" />
                   <span className="text-[11px] font-medium text-zinc-300">
-                    Isolated Ticket Asset · High-Resolution PNG with Clean Transparent Background
+                    Front Side · High-Resolution PNG with Clean Transparent Background
                   </span>
                 </div>
                 <button
                   onClick={handleDownloadIsolatedPng}
                   className="px-5 py-2.5 bg-gradient-to-r from-[#69BE28] to-emerald-400 hover:from-[#5cb31f] hover:to-emerald-500 text-black font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center gap-2 shadow-xl shadow-[#69BE28]/25 cursor-pointer hover:scale-[1.02] active:scale-95"
                 >
-                  <Download className="w-4 h-4 text-black" /> Download Isolated Ticket (PNG)
+                  <Download className="w-4 h-4 text-black" /> Download Front Ticket (PNG)
+                </button>
+              </div>
+            </div>
+          ) : activeView === "back" ? (
+            /* Back Side Isolated Render */
+            <div className="relative group rounded-2xl overflow-hidden border border-[#69BE28]/40 shadow-2xl bg-zinc-950/90 flex flex-col items-center justify-center p-4 sm:p-8 min-h-[340px]">
+              <div 
+                className="w-full max-w-4xl flex items-center justify-center p-3 sm:p-6 rounded-xl"
+                style={{
+                  backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)",
+                  backgroundSize: "18px 18px"
+                }}
+              >
+                <img
+                  src="/images/seahawks_vip_ticket_back_isolated.png"
+                  alt="Seattle Seahawks vs Arizona Cardinals VIP Game Ticket - Dena Johnston (Back)"
+                  className="w-full max-w-3xl h-auto object-contain drop-shadow-[0_20px_45px_rgba(0,34,68,0.85)] rounded-lg transition-transform duration-300"
+                />
+              </div>
+              
+              <div className="w-full flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/5 mt-4">
+                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                  <ShieldCheck className="w-4 h-4 text-[#69BE28]" />
+                  <span className="text-[11px] font-medium text-zinc-300">
+                    Back Side · Game Day Information &amp; Matchup Details (Transparent PNG)
+                  </span>
+                </div>
+                <button
+                  onClick={handleDownloadBackPng}
+                  className="px-5 py-2.5 bg-gradient-to-r from-[#69BE28] to-emerald-400 hover:from-[#5cb31f] hover:to-emerald-500 text-black font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center gap-2 shadow-xl shadow-[#69BE28]/25 cursor-pointer hover:scale-[1.02] active:scale-95"
+                >
+                  <Download className="w-4 h-4 text-black" /> Download Back Ticket (PNG)
                 </button>
               </div>
             </div>
@@ -446,40 +510,60 @@ export const VipCommemorativeTicketModal: React.FC<VipCommemorativeTicketModalPr
             </div>
           )}
 
-          {/* Action Toolbar */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
-            <button
-              onClick={handleDownloadPdf}
-              disabled={isDownloadingPdf}
-              className="py-3.5 px-4 bg-gradient-to-r from-[#002244] to-blue-700 hover:from-[#00172E] hover:to-blue-600 border border-[#69BE28]/50 text-white font-black uppercase text-xs tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              <Download className="w-4 h-4 text-[#69BE28]" />
-              {isDownloadingPdf ? "Generating PDF..." : "Download Official PDF"}
-            </button>
+          {/* Action Toolbar with Separate Download Options */}
+          <div className="space-y-3 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                onClick={handleDownloadIsolatedPng}
+                className="py-3.5 px-4 bg-gradient-to-r from-[#69BE28] to-emerald-400 hover:from-[#5cb31f] hover:to-emerald-500 text-black font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#69BE28]/20 hover:scale-[1.02] active:scale-95"
+              >
+                <Download className="w-4 h-4 text-black" />
+                <span>Download Front (PNG)</span>
+              </button>
 
-            <button
-              onClick={handleDownloadIsolatedPng}
-              className="py-3.5 px-4 bg-gradient-to-r from-[#69BE28] to-emerald-400 hover:from-[#5cb31f] hover:to-emerald-500 text-black font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#69BE28]/20"
-            >
-              <Download className="w-4 h-4 text-black" />
-              Download Ticket (PNG)
-            </button>
+              <button
+                onClick={handleDownloadBackPng}
+                className="py-3.5 px-4 bg-gradient-to-r from-[#002244] to-[#00346a] hover:from-[#002b55] hover:to-[#004285] border border-[#69BE28]/60 text-[#69BE28] hover:text-white font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:scale-[1.02] active:scale-95"
+              >
+                <Download className="w-4 h-4 text-[#69BE28]" />
+                <span>Download Back (PNG)</span>
+              </button>
 
-            <button
-              onClick={handleCopyRef}
-              className="py-3.5 px-4 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-white font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-400" />}
-              {copied ? "Copied Reference!" : "Copy Reference Code"}
-            </button>
+              <button
+                onClick={handleDownloadBothSides}
+                className="py-3.5 px-4 bg-zinc-900 hover:bg-zinc-850 border border-white/15 text-white font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md hover:scale-[1.02] active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 text-[#69BE28]" />
+                <span>Download Both Sides</span>
+              </button>
+            </div>
 
-            <button
-              onClick={handlePrint}
-              className="py-3.5 px-4 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-white font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Printer className="w-4 h-4 text-zinc-400" />
-              Print Commemorative Pass
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                onClick={handleDownloadPdf}
+                disabled={isDownloadingPdf}
+                className="py-3 px-4 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Download className="w-4 h-4 text-blue-400" />
+                <span>{isDownloadingPdf ? "Generating PDF..." : "Official PDF Pass"}</span>
+              </button>
+
+              <button
+                onClick={handleCopyRef}
+                className="py-3 px-4 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-zinc-400" />}
+                <span>{copied ? "Copied Reference!" : "Copy Reference Code"}</span>
+              </button>
+
+              <button
+                onClick={handlePrint}
+                className="py-3 px-4 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white font-black uppercase text-xs tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-zinc-400" />
+                <span>Print Commemorative Pass</span>
+              </button>
+            </div>
           </div>
 
           {/* Verification Audit Card */}
