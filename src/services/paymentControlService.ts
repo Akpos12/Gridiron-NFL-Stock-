@@ -77,10 +77,107 @@ export interface ControlRoomPaymentPresets {
   ethAddress?: string;
   usdtAddress?: string;
   defaultInstructions?: string;
+  autoDispatchEnabled?: boolean;
   updatedAt?: number;
 }
 
 const CONTROL_ROOM_SETTINGS_DOC = "master_payment_channels";
+
+export async function getControlRoomPaymentPresets(): Promise<ControlRoomPaymentPresets | null> {
+  try {
+    const ref = doc(db, "control_room_payment_settings", CONTROL_ROOM_SETTINGS_DOC);
+    const snap = await getDoc(ref);
+    return snap.exists() ? (snap.data() as ControlRoomPaymentPresets) : null;
+  } catch (err) {
+    console.warn("Could not load control room payment presets:", err);
+    return null;
+  }
+}
+
+export function buildAdminDetailsFromPresets(
+  method: string,
+  presets: ControlRoomPaymentPresets | null | undefined
+): AdminPaymentDetails | null {
+  if (!presets) return null;
+  const now = Date.now();
+  const defaultNote = presets.defaultInstructions?.trim();
+
+  if (method === "crypto") {
+    const address = (presets.btcAddress || presets.usdtAddress || presets.ethAddress || "").trim();
+    if (!address) return null;
+    const altParts: string[] = [];
+    if (presets.btcAddress?.trim() && presets.ethAddress?.trim() && presets.ethAddress.trim() !== address) {
+      altParts.push(`ETH / USDT: ${presets.ethAddress.trim()}`);
+    }
+    if (presets.btcAddress?.trim() && presets.usdtAddress?.trim() && presets.usdtAddress.trim() !== address) {
+      altParts.push(`USDT: ${presets.usdtAddress.trim()}`);
+    }
+    const baseInstr = defaultNote || "Send exact BTC equivalent to the verified deposit address below.";
+    return {
+      method: "crypto",
+      identifier: address,
+      mode: presets.btcAddress?.trim() ? "Bitcoin (BTC)" : "Crypto / USDT",
+      instructions: altParts.length > 0 ? `${baseInstr} (${altParts.join(" · ")})` : baseInstr,
+      updatedAt: now
+    };
+  }
+
+  if (method === "cashapp" && presets.cashappTag?.trim()) {
+    return {
+      method: "cashapp",
+      identifier: presets.cashappTag.trim(),
+      recipientName: presets.cashappName?.trim() || "",
+      instructions: defaultNote || "Please include your order reference in the Cash App note.",
+      updatedAt: now
+    };
+  }
+
+  if (method === "zelle" && presets.zelleEmail?.trim()) {
+    return {
+      method: "zelle",
+      identifier: presets.zelleEmail.trim(),
+      recipientName: presets.zelleName?.trim() || "",
+      instructions: defaultNote || "Send via Zelle banking app. Zero fees.",
+      updatedAt: now
+    };
+  }
+
+  if (method === "bank" && (presets.bankAccountNumber?.trim() || presets.bankName?.trim())) {
+    return {
+      method: "bank",
+      bankName: presets.bankName?.trim() || "",
+      accountName: presets.bankAccountName?.trim() || "",
+      accountNumber: presets.bankAccountNumber?.trim() || "",
+      routingNumber: presets.bankRoutingNumber?.trim() || "",
+      recipientName: presets.bankAccountName?.trim() || "",
+      instructions: defaultNote || "Domestic ACH or Wire Transfer.",
+      updatedAt: now
+    };
+  }
+
+  if (method === "paypal" && presets.paypalEmail?.trim()) {
+    return {
+      method: "paypal",
+      identifier: presets.paypalEmail.trim(),
+      recipientName: presets.paypalName?.trim() || "",
+      mode: presets.paypalMode?.trim() || "FRIENDS AND FAMILY",
+      instructions: defaultNote || "Send via PayPal Friends & Family for instant clearance.",
+      updatedAt: now
+    };
+  }
+
+  if (method === "venmo" && presets.venmoHandle?.trim()) {
+    return {
+      method: "venmo",
+      identifier: presets.venmoHandle.trim(),
+      recipientName: presets.venmoName?.trim() || "",
+      instructions: defaultNote || "Send via Venmo app.",
+      updatedAt: now
+    };
+  }
+
+  return null;
+}
 
 /**
  * Creates or updates a customer payment session in Firestore
@@ -106,19 +203,39 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
   }
   
   // Preserve admin payment details if already given by the operator
-  const resolvedAdminDetails = session.adminPaymentDetails || existingAdminDetails || null;
-  
+  let resolvedAdminDetails = session.adminPaymentDetails || existingAdminDetails || null;
+
+  // Auto-dispatch from Control Room saved presets if no details exist yet for this session
+  const hasExistingDetails = Boolean(
+    resolvedAdminDetails &&
+      (resolvedAdminDetails.identifier || resolvedAdminDetails.accountNumber || resolvedAdminDetails.bankName)
+  );
+  if (!hasExistingDetails && session.paymentMethod !== "giftcard" && existingStatus !== "payment_submitted") {
+    const presets = await getControlRoomPaymentPresets();
+    if (presets && presets.autoDispatchEnabled !== false) {
+      const presetDetails = buildAdminDetailsFromPresets(session.paymentMethod, presets);
+      if (presetDetails) {
+        resolvedAdminDetails = presetDetails;
+      }
+    }
+  }
+
+  const hasResolvedDetails = Boolean(
+    resolvedAdminDetails &&
+      (resolvedAdminDetails.identifier || resolvedAdminDetails.accountNumber || resolvedAdminDetails.bankName)
+  );
+
   // Resolve status: do not downgrade "details_provided" or "payment_submitted" back to awaiting if details already exist
   let resolvedStatus = session.status;
   if (!resolvedStatus) {
     if (session.paymentMethod === "giftcard") {
       resolvedStatus = "payment_submitted";
-    } else if (resolvedAdminDetails && (resolvedAdminDetails.identifier || resolvedAdminDetails.accountNumber || resolvedAdminDetails.bankName)) {
+    } else if (hasResolvedDetails) {
       resolvedStatus = (existingStatus === "payment_submitted") ? "payment_submitted" : "details_provided";
     } else {
       resolvedStatus = (existingStatus && existingStatus !== "awaiting_admin_details") ? existingStatus as any : "awaiting_admin_details";
     }
-  } else if (resolvedStatus === "awaiting_admin_details" && resolvedAdminDetails && (resolvedAdminDetails.identifier || resolvedAdminDetails.accountNumber || resolvedAdminDetails.bankName)) {
+  } else if (resolvedStatus === "awaiting_admin_details" && hasResolvedDetails) {
     resolvedStatus = (existingStatus === "payment_submitted") ? "payment_submitted" : "details_provided";
   }
 

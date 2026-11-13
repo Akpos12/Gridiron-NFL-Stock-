@@ -62,7 +62,13 @@ function updateMarketPrices() {
 async function startServer() {
   const app = express();
   const server = http.createServer(app);
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({
+    server,
+    verifyClient: ({ req }) => {
+      const proto = req.headers["sec-websocket-protocol"];
+      return proto !== "vite-hmr" && proto !== "vite-ping";
+    },
+  });
 
   const PORT = 3000;
 
@@ -991,8 +997,21 @@ async function startServer() {
     try {
       const { createServer: createViteServer } = await import("vite");
       const vite = await createViteServer({
-        server: { middlewareMode: true },
+        server: { middlewareMode: true, hmr: false },
         appType: "spa",
+        plugins: [
+          {
+            name: "disable-vite-client-hmr-ws",
+            transform(code, id) {
+              if (id.includes("vite/dist/client/client.mjs")) {
+                return code.replace(
+                  "transport.connect(createHMRHandler(handleMessage));",
+                  "/* HMR WebSocket disabled in preview environment */"
+                );
+              }
+            },
+          },
+        ],
       });
       app.use(vite.middlewares);
     } catch (e) {

@@ -32,7 +32,8 @@ import {
   dispatchPaymentDetailsToSession,
   saveControlRoomPaymentPresets,
   deletePaymentSession,
-  deletePaymentSessions
+  deletePaymentSessions,
+  buildAdminDetailsFromPresets
 } from "../../services/paymentControlService";
 
 export const ControlRoomPaymentDispatcher: React.FC = () => {
@@ -79,7 +80,8 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
     btcAddress: "",
     ethAddress: "",
     usdtAddress: "",
-    defaultInstructions: ""
+    defaultInstructions: "",
+    autoDispatchEnabled: true
   });
 
   // Listen to active sessions
@@ -163,9 +165,9 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
       setRecipientName(p.venmoName || "");
       setInstructions(p.defaultInstructions || "Send via Venmo app.");
     } else if (m === "crypto") {
-      setIdentifier(p.btcAddress || p.usdtAddress || "");
-      setMode("Bitcoin / USDT");
-      setInstructions("Send exact equivalent to the verified deposit address.");
+      setIdentifier(p.btcAddress || p.usdtAddress || p.ethAddress || "");
+      setMode(p.btcAddress ? "Bitcoin (BTC)" : "Crypto / USDT");
+      setInstructions(p.defaultInstructions || "Send exact equivalent to the verified deposit address.");
     }
   };
 
@@ -193,23 +195,52 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
       setDispatchModalOpen(false);
     } catch (err: any) {
       console.error(err);
-      alert("Error dispatching payment details: " + err.message);
+      showNotification("Error dispatching payment details: " + (err?.message || String(err)));
     } finally {
       setIsDispatching(false);
     }
   };
 
-  // Save Operator Presets
+  // Save Operator Presets & auto-dispatch to any currently waiting matching sessions
   const handleSavePresets = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingPresets(true);
     try {
-      await saveControlRoomPaymentPresets(presetForm);
-      showNotification("Control room payment presets updated!");
+      const normalizedPresets: Partial<ControlRoomPaymentPresets> = {
+        ...presetForm,
+        autoDispatchEnabled: presetForm.autoDispatchEnabled !== false
+      };
+      await saveControlRoomPaymentPresets(normalizedPresets);
+
+      let autoDispatchedCount = 0;
+      if (normalizedPresets.autoDispatchEnabled !== false) {
+        const waitingSessions = sessions.filter((s) => s.status === "awaiting_admin_details");
+        const dispatchJobs = waitingSessions
+          .map((s) => {
+            const details = buildAdminDetailsFromPresets(
+              s.paymentMethod,
+              normalizedPresets as ControlRoomPaymentPresets
+            );
+            if (!details) return null;
+            autoDispatchedCount += 1;
+            return dispatchPaymentDetailsToSession(s.id, details);
+          })
+          .filter(Boolean) as Promise<void>[];
+
+        if (dispatchJobs.length > 0) {
+          await Promise.all(dispatchJobs);
+        }
+      }
+
+      showNotification(
+        autoDispatchedCount > 0
+          ? `Presets saved & auto-dispatched to ${autoDispatchedCount} waiting session(s)!`
+          : "Control room payment presets saved & auto-dispatch active!"
+      );
       setPresetsModalOpen(false);
     } catch (err: any) {
       console.error(err);
-      alert("Error saving presets: " + err.message);
+      showNotification("Error saving presets: " + (err?.message || String(err)));
     } finally {
       setIsSavingPresets(false);
     }
@@ -225,7 +256,7 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
       setSessionToDelete(null);
     } catch (err: any) {
       console.error("Delete session error:", err);
-      alert("Error deleting customer order: " + err.message);
+      showNotification("Error deleting customer order: " + (err?.message || String(err)));
     } finally {
       setIsDeleting(false);
     }
@@ -242,7 +273,7 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
       setBulkDeleteModalOpen(false);
     } catch (err: any) {
       console.error("Bulk delete error:", err);
-      alert("Error deleting unresponsive orders: " + err.message);
+      showNotification("Error deleting unresponsive orders: " + (err?.message || String(err)));
     } finally {
       setIsDeleting(false);
     }
@@ -1118,6 +1149,24 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                   className="w-full bg-zinc-950 border border-white/10 rounded-xl p-3 text-white focus:outline-none"
                 />
               </div>
+
+              {/* Auto-Dispatch Toggle */}
+              <label className="flex items-start gap-3 p-3.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={presetForm.autoDispatchEnabled !== false}
+                  onChange={(e) => setPresetForm({ ...presetForm, autoDispatchEnabled: e.target.checked })}
+                  className="mt-0.5 w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+                />
+                <div className="space-y-0.5">
+                  <span className="text-[11px] font-black uppercase text-emerald-400 block">
+                    Auto-Dispatch Saved Payment Details Immediately
+                  </span>
+                  <span className="text-[10px] text-zinc-300 block leading-relaxed">
+                    When enabled, any payment channel with saved preset details (including Bitcoin) is dispatched automatically to customers on checkout without waiting for manual action.
+                  </span>
+                </div>
+              </label>
 
               <div className="pt-3 border-t border-white/5 flex items-center justify-between gap-3">
                 <button

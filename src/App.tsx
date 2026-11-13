@@ -2212,10 +2212,41 @@ const AdminPortal = ({ user }: { user: any }) => {
   const handleDeleteOrder = async (id: string) => {
     try {
       setAdminLoading(true);
-      // Delete across all collections
-      await deleteDoc(doc(db, "store_orders", id)).catch(() => {});
-      await deleteDoc(doc(db, "bookings", id)).catch(() => {});
-      await deleteDoc(doc(db, "ticket_orders", id)).catch(() => {});
+      const target = orders.find(o => o.id === id);
+      const sourceDocs: Array<{ col: string; docId: string }> = Array.isArray(target?._sourceDocs) ? target._sourceDocs : [];
+
+      const deleteMap = new Map<string, { col: string; docId: string }>();
+      for (const src of sourceDocs) {
+        if (src?.col && src?.docId) {
+          deleteMap.set(`${src.col}::${src.docId}`, src);
+        }
+      }
+
+      const candidateIds = Array.from(new Set(
+        [
+          id,
+          target?._docId,
+          target?.orderId,
+          target?.bookingId,
+          String(id || "").replace(/^order-/i, ""),
+          id && !/^order-/i.test(id) ? `order-${id}` : ""
+        ]
+          .map(v => String(v || "").trim())
+          .filter(Boolean)
+      ));
+
+      for (const colName of ["store_orders", "bookings", "ticket_orders", "customer_inquiries"]) {
+        for (const cid of candidateIds) {
+          deleteMap.set(`${colName}::${cid}`, { col: colName, docId: cid });
+        }
+      }
+
+      await Promise.all(
+        Array.from(deleteMap.values()).map(({ col, docId }) =>
+          deleteDoc(doc(db, col, docId))
+        )
+      );
+
       if (selectedOrderForReview?.id === id) {
         setSelectedOrderForReview(null);
         setIsOrderReviewOpen(false);
@@ -2226,7 +2257,12 @@ const AdminPortal = ({ user }: { user: any }) => {
       setTimeout(() => setOrderActionFeedback(null), 3500);
     } catch (err: any) {
       console.error("Delete Order Error:", err);
-      alert("Error deleting order: " + (err instanceof Error ? err.message : String(err)));
+      const msg = err instanceof Error ? err.message : String(err);
+      setOrderActionFeedback({ text: `Failed to delete order: ${msg}`, type: 'error' });
+      setTimeout(() => setOrderActionFeedback(null), 5000);
+      if (msg.includes("permission") || msg.includes("Missing or insufficient permissions")) {
+        handleFirestoreError(err, OperationType.DELETE, "store_orders");
+      }
     } finally {
       setAdminLoading(false);
     }
@@ -2248,9 +2284,23 @@ const AdminPortal = ({ user }: { user: any }) => {
         reviewedBy: user?.email || "Control Room Admin"
       };
 
-      await setDoc(doc(db, "store_orders", orderId), payload, { merge: true }).catch(() => {});
-      await setDoc(doc(db, "bookings", orderId), payload, { merge: true }).catch(() => {});
-      await setDoc(doc(db, "ticket_orders", orderId), { ...payload, status: "confirmed" }, { merge: true }).catch(() => {});
+      const sourceDocs: Array<{ col: string; docId: string }> = Array.isArray(target._sourceDocs) && target._sourceDocs.length > 0
+        ? target._sourceDocs
+        : [
+            { col: "store_orders", docId: orderId },
+            { col: "bookings", docId: orderId },
+            { col: "ticket_orders", docId: orderId }
+          ];
+
+      await Promise.all(
+        sourceDocs.map(({ col, docId }) =>
+          setDoc(
+            doc(db, col, docId),
+            col === "ticket_orders" ? { ...payload, status: "confirmed" } : payload,
+            { merge: true }
+          ).catch(() => {})
+        )
+      );
 
       // Optimistic local update
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...payload } : o));
@@ -2404,15 +2454,26 @@ const AdminPortal = ({ user }: { user: any }) => {
 
     const updateMergedOrders = () => {
       const mergedMap = new Map<string, any>();
-      const addEntry = (k: string, v: any) => {
-        const canonicalKey = (v.orderId || v.id || v.bookingId || k).toUpperCase().trim();
-        const existing = mergedMap.get(canonicalKey);
-        mergedMap.set(canonicalKey, { ...existing, ...v, id: canonicalKey });
+      const addEntry = (col: "store_orders" | "ticket_orders" | "bookings", docId: string, v: any) => {
+        const rawKey = String(v.orderId || v.bookingId || v.id || docId).trim();
+        const groupKey = rawKey.replace(/^order-(?=ORD-)/i, "").toUpperCase();
+        const existing = mergedMap.get(groupKey);
+        const existingDocs: Array<{ col: string; docId: string }> = existing?._sourceDocs || [];
+        const hasDoc = existingDocs.some(d => d.col === col && d.docId === docId);
+        const nextDocs = hasDoc ? existingDocs : [...existingDocs, { col, docId }];
+        const primaryId = existing?.id || docId;
+        mergedMap.set(groupKey, {
+          ...existing,
+          ...v,
+          id: primaryId,
+          _docId: primaryId,
+          _sourceDocs: nextDocs
+        });
       };
 
-      storeOrdersMap.forEach((v, k) => addEntry(k, v));
-      ticketOrdersMap.forEach((v, k) => addEntry(k, v));
-      bookingsMap.forEach((v, k) => addEntry(k, v));
+      storeOrdersMap.forEach((v, k) => addEntry("store_orders", k, v));
+      ticketOrdersMap.forEach((v, k) => addEntry("ticket_orders", k, v));
+      bookingsMap.forEach((v, k) => addEntry("bookings", k, v));
       
       const list = Array.from(mergedMap.values()).sort((a, b) => {
         const timeA = new Date(a.createdAt || a.timestamp?.toDate?.() || a.timestamp || 0).getTime();
@@ -2424,7 +2485,7 @@ const AdminPortal = ({ user }: { user: any }) => {
 
     const unsubStoreOrders = onSnapshot(query(collection(db, "store_orders"), orderBy("timestamp", "desc")), (snap) => {
       storeOrdersMap.clear();
-      snap.forEach(d => storeOrdersMap.set(d.id, { id: d.id, ...d.data() }));
+      snap.forEach(d => storeOrdersMap.set(d.id, { ...d.data(), id: d.id, _docId: d.id }));
       updateMergedOrders();
     }, (err) => {
       console.error("Store Orders Listen Error:", err);
@@ -2432,7 +2493,7 @@ const AdminPortal = ({ user }: { user: any }) => {
 
     const unsubTicketOrders = onSnapshot(collection(db, "ticket_orders"), (snap) => {
       ticketOrdersMap.clear();
-      snap.forEach(d => ticketOrdersMap.set(d.id, { id: d.id, ...d.data() }));
+      snap.forEach(d => ticketOrdersMap.set(d.id, { ...d.data(), id: d.id, _docId: d.id }));
       updateMergedOrders();
     }, (err) => {
       console.error("Ticket Orders Listen Error:", err);
@@ -2440,11 +2501,7 @@ const AdminPortal = ({ user }: { user: any }) => {
 
     const unsubBookings = onSnapshot(collection(db, "bookings"), (snap) => {
       bookingsMap.clear();
-      snap.forEach(d => {
-        const data = d.data();
-        const canonicalKey = data.orderId || data.id || d.id;
-        bookingsMap.set(canonicalKey, { ...data, id: canonicalKey });
-      });
+      snap.forEach(d => bookingsMap.set(d.id, { ...d.data(), id: d.id, _docId: d.id }));
       updateMergedOrders();
     }, (err) => {
       console.error("Bookings Listen Error:", err);

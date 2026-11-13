@@ -22,7 +22,6 @@ import {
   Mail,
   Phone
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import { 
   PaymentMethodType, 
   AdminPaymentDetails, 
@@ -31,7 +30,10 @@ import {
   subscribeToPaymentSession,
   submitCustomerPayment,
   findRecentDispatchedSessionForCustomer,
-  subscribeToCustomerDispatchedSession
+  subscribeToCustomerDispatchedSession,
+  subscribeToControlRoomPaymentPresets,
+  buildAdminDetailsFromPresets,
+  dispatchPaymentDetailsToSession
 } from "../../services/paymentControlService";
 import { PaymentReceiptUploader } from "./PaymentReceiptUploader";
 
@@ -71,6 +73,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
   const [referenceTag, setReferenceTag] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   // Internal state for customer inputs so customer can fill details here or via parent
@@ -281,6 +284,72 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     return () => unsubscribe();
   }, [activeSessionId, sessionId, selectedMethod, amount, effectiveName, effectiveEmail, effectivePhone, itemTitle, itemType, orderReference, isIdentified]);
 
+  // Auto-dispatch saved Control Room presets in real time (e.g., saved Bitcoin address)
+  useEffect(() => {
+    if (!isIdentified || selectedMethod === "giftcard") return;
+    const targetSessionId = activeSessionId || sessionId;
+    if (!targetSessionId) return;
+
+    const alreadyHasDetails = Boolean(
+      session?.adminPaymentDetails &&
+        (session.adminPaymentDetails.identifier ||
+          session.adminPaymentDetails.accountNumber ||
+          session.adminPaymentDetails.bankName)
+    );
+    if (alreadyHasDetails || session?.status === "payment_submitted") return;
+
+    const unsubscribePresets = subscribeToControlRoomPaymentPresets((presets) => {
+      if (!presets || presets.autoDispatchEnabled === false) return;
+      const presetDetails = buildAdminDetailsFromPresets(selectedMethod, presets);
+      if (!presetDetails) return;
+
+      setSession((prev) => {
+        const hasDetails = Boolean(
+          prev?.adminPaymentDetails &&
+            (prev.adminPaymentDetails.identifier ||
+              prev.adminPaymentDetails.accountNumber ||
+              prev.adminPaymentDetails.bankName)
+        );
+        if (hasDetails || prev?.status === "payment_submitted") return prev;
+        return {
+          id: targetSessionId,
+          orderId: orderReference || targetSessionId,
+          customerName: effectiveName,
+          customerEmail: effectiveEmail,
+          customerPhone: effectivePhone,
+          itemType,
+          itemTitle,
+          amount,
+          paymentMethod: selectedMethod,
+          status: "details_provided",
+          adminPaymentDetails: presetDetails,
+          createdAt: prev?.createdAt || Date.now(),
+          updatedAt: Date.now()
+        };
+      });
+
+      dispatchPaymentDetailsToSession(targetSessionId, presetDetails).catch((err) =>
+        console.warn("Auto-dispatch preset error:", err)
+      );
+    });
+
+    return () => unsubscribePresets();
+  }, [
+    isIdentified,
+    selectedMethod,
+    activeSessionId,
+    sessionId,
+    session?.adminPaymentDetails,
+    session?.status,
+    orderReference,
+    effectiveName,
+    effectiveEmail,
+    effectivePhone,
+    itemType,
+    itemTitle,
+    amount
+  ]);
+
   // Elapsed timer for waiting experience
   useEffect(() => {
     const timer = setInterval(() => {
@@ -298,8 +367,9 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
 
   const handleConfirmAndProceed = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    setSubmitError(null);
     if (!referenceTag.trim() && !receiptUrl) {
-      alert("Please provide your payment reference/tag or upload a transfer receipt.");
+      setSubmitError("Please provide your payment reference/tag or upload a transfer receipt.");
       return;
     }
 
@@ -312,7 +382,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
       }
     } catch (err: any) {
       console.error(err);
-      alert("Error confirming payment: " + err.message);
+      setSubmitError("Error confirming payment: " + (err?.message || String(err)));
     } finally {
       setIsSubmitting(false);
     }
@@ -641,19 +711,6 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
                 </div>
               ) : null}
 
-              {/* Crypto QR code if applicable */}
-              {selectedMethod === "crypto" && details.identifier && (
-                <div className="p-3 bg-zinc-900/60 rounded-xl border border-white/5 flex items-center gap-4">
-                  <div className="bg-white p-2 rounded-lg shrink-0">
-                    <QRCodeSVG value={details.identifier} size={64} level="M" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase text-zinc-400">Scan Wallet QR Code</p>
-                    <p className="text-[9px] text-zinc-500">Scan using your crypto exchange or wallet app to transmit payment.</p>
-                  </div>
-                </div>
-              )}
-
               {/* Special Instructions or Memo from Control Room */}
               {details.instructions && (
                 <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-[10px] text-blue-300 space-y-1">
@@ -698,6 +755,13 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
                   onChange={(url) => setReceiptUrl(url)}
                 />
               </div>
+
+              {submitError && (
+                <div className="p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-2 text-rose-400 text-[11px] font-bold">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{submitError}</span>
+                </div>
+              )}
 
               <button
                 type="submit"
