@@ -1093,8 +1093,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
         senderName: senderName.trim(),
         buyerPhone: buyerPhone.trim(),
-        shippingAddress: isPatriotsMerchSelected || shippingAddress.street ? shippingAddress : undefined,
-        giftCardDetails: paymentTab === "giftcard" ? giftCardDetails : undefined
+        ...(isPatriotsMerchSelected || shippingAddress.street ? { shippingAddress } : {}),
+        ...(paymentTab === "giftcard" ? { giftCardDetails } : {})
       };
 
       // Add to Firestore database using safeSetDoc (guards against Firestore 1MB document limit)
@@ -1116,8 +1116,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
         senderName: senderName.trim(),
         buyerPhone: buyerPhone.trim(),
-        shippingAddress: isPatriotsMerchSelected || shippingAddress.street ? shippingAddress : undefined,
-        giftCardDetails: paymentTab === "giftcard" ? giftCardDetails : undefined,
+        ...(isPatriotsMerchSelected || shippingAddress.street ? { shippingAddress } : {}),
+        ...(paymentTab === "giftcard" ? { giftCardDetails } : {}),
         status: "pending_approval",
         timestamp: new Date().toISOString()
       });

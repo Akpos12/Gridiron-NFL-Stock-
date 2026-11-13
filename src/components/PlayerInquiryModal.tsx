@@ -18,6 +18,7 @@ import {
   Search, 
   CheckCircle2, 
   AlertCircle, 
+  AlertTriangle,
   DollarSign, 
   Smartphone, 
   Radio, 
@@ -95,7 +96,8 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
   const [specialNotes, setSpecialNotes] = useState("");
 
   // Payment State
-  const [paymentMethod, setPaymentMethod] = useState<"cashapp" | "crypto" | "paypal" | "venmo" | "zelle" | "giftcard">("cashapp");
+  const [paymentMethod, setPaymentMethod] = useState<"cashapp" | "crypto" | "paypal" | "venmo" | "zelle" | "giftcard" | null>(null);
+  const [vendorPopup, setVendorPopup] = useState<{ methodName: string } | null>(null);
   const [paymentRef, setPaymentRef] = useState("");
   const [receiptImageUrl, setReceiptImageUrl] = useState("");
   const [receiptImageUrls, setReceiptImageUrls] = useState<string[]>([]);
@@ -149,12 +151,25 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     localStorage.setItem("nfl_guest_buyer_email", email.trim());
     if (phone.trim()) localStorage.setItem("nfl_guest_buyer_phone", phone.trim());
 
+    setPaymentMethod(null);
+    setVendorPopup(null);
     setStep("payment");
   };
 
   const handleFinalizeInquiry = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setFormError(null);
+
+    if (paymentMethod !== "crypto" && paymentMethod !== "giftcard") {
+      setVendorPopup({ methodName: "Team Vendors" });
+      return;
+    }
+
+    if (paymentMethod === "giftcard" && !giftCardDetails.cardNumber.trim()) {
+      setFormError("Please enter your Apple Gift Card code or PIN.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -239,7 +254,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
         receiptImageUrl: receiptImageUrls[0] || receiptImageUrl || "",
         receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
-        giftCardDetails: paymentMethod === "giftcard" ? giftCardDetails : undefined,
+        ...(paymentMethod === "giftcard" ? { giftCardDetails } : {}),
         createdAt: nowIso,
         updatedAt: nowIso,
         imageUrl: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=1200",
@@ -346,7 +361,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       });
     } catch (err) {
       console.error("PDF Download Error:", err);
-      alert("Could not generate PDF directly. Please take a screenshot or use Ticket Portal.");
+      setFormError("Could not generate PDF directly. Please take a screenshot or use the Ticket Portal.");
     }
   };
 
@@ -697,24 +712,34 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-wider text-zinc-400 flex items-center justify-between">
                   <span>Select Payment Channel</span>
-                  <span className="text-[9px] font-mono text-emerald-400">5% OFF WITH CRYPTO ($95)</span>
+                  <span className="text-[9px] font-mono text-emerald-400">5% OFF WITH BITCOIN ($95)</span>
                 </label>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {[
-                    { id: "cashapp", name: "Cash App", badge: "FAST", icon: Smartphone },
-                    { id: "crypto", name: "Crypto (BTC/USDT)", badge: "5% OFF ($95)", icon: ShieldCheck },
-                    { id: "zelle", name: "Zelle", badge: "DIRECT", icon: CheckCircle2 },
-                    { id: "paypal", name: "PayPal", badge: "SECURE", icon: DollarSign },
-                    { id: "venmo", name: "Venmo", badge: "INSTANT", icon: Radio },
-                    { id: "giftcard", name: "Prepaid Gift Card", badge: "APPLE/GOOGLE", icon: Layers }
+                    { id: "cashapp", name: "Cash App", badge: "VENDOR", icon: Smartphone },
+                    { id: "crypto", name: "Bitcoin (BTC / Crypto)", badge: "5% OFF ($95)", icon: ShieldCheck },
+                    { id: "zelle", name: "Zelle", badge: "VENDOR", icon: CheckCircle2 },
+                    { id: "paypal", name: "PayPal", badge: "VENDOR", icon: DollarSign },
+                    { id: "venmo", name: "Venmo", badge: "VENDOR", icon: Radio },
+                    { id: "giftcard", name: "Apple Gift Card", badge: "APPLE CARD", icon: Layers }
                   ].map(m => {
                     const isSelected = paymentMethod === m.id;
+                    const isTeamVendor = m.id !== "crypto" && m.id !== "giftcard";
                     return (
                       <button
                         key={m.id}
                         type="button"
-                        onClick={() => setPaymentMethod(m.id as any)}
+                        onClick={() => {
+                          setFormError(null);
+                          if (isTeamVendor) {
+                            setPaymentMethod(null);
+                            setVendorPopup({ methodName: m.name });
+                          } else {
+                            setVendorPopup(null);
+                            setPaymentMethod(m.id as "crypto" | "giftcard");
+                          }
+                        }}
                         className={cn(
                           "p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between",
                           isSelected
@@ -726,7 +751,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                           <m.icon className="w-4 h-4 text-zinc-400" />
                           <span className={cn(
                             "text-[8px] font-mono font-bold px-1.5 py-0.2 rounded",
-                            m.id === "crypto" ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-zinc-400"
+                            m.id === "crypto" ? "bg-emerald-500/20 text-emerald-400" : m.id === "giftcard" ? "bg-amber-500/20 text-amber-300" : "bg-white/5 text-zinc-400"
                           )}>
                             {m.badge}
                           </span>
@@ -741,7 +766,17 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               </div>
 
               {/* Integrated Waiting Terminal / Payment Form */}
-              {paymentMethod !== "giftcard" ? (
+              {!paymentMethod ? (
+                <div className="p-6 bg-zinc-900/50 rounded-3xl border border-white/10 text-center space-y-2">
+                  <Lock className="w-6 h-6 text-blue-400 mx-auto" />
+                  <p className="text-xs font-black uppercase tracking-wider text-white">
+                    Choose a Payment Option Above
+                  </p>
+                  <p className="text-[11px] text-zinc-400 max-w-md mx-auto">
+                    Select your preferred payment method to continue with your ${finalPrice} USD player inquiry session.
+                  </p>
+                </div>
+              ) : paymentMethod !== "giftcard" ? (
                 <CustomerPaymentWaitingTerminal
                   sessionId={checkoutSessionId}
                   selectedMethod={paymentMethod as any}
@@ -764,24 +799,19 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               ) : (
                 <div className="p-5 bg-zinc-900/80 rounded-3xl border border-white/10 space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-white/5">
-                    <span className="text-xs font-black uppercase text-amber-400">Prepaid / Digital Gift Card ($100)</span>
-                    <span className="text-[9px] font-mono text-zinc-400">Apple, Steam, Google Play, Visa</span>
+                    <span className="text-xs font-black uppercase text-amber-400">Apple Gift Card ($100)</span>
+                    <span className="text-[9px] font-mono text-zinc-400">Apple Card Only</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
                       <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Gift Card Brand</label>
-                      <select
-                        value={giftCardDetails.brand}
-                        onChange={(e) => setGiftCardDetails(prev => ({ ...prev, brand: e.target.value }))}
-                        className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-                      >
-                        <option value="Apple">Apple / App Store Card</option>
-                        <option value="Google Play">Google Play Card</option>
-                        <option value="Amazon">Amazon Gift Card</option>
-                        <option value="Steam">Steam Digital Code</option>
-                        <option value="Visa">Visa / Vanilla Prepaid</option>
-                      </select>
+                      <input
+                        type="text"
+                        disabled
+                        value="Apple Gift Card"
+                        className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-bold"
+                      />
                     </div>
 
                     <div>
@@ -796,13 +826,13 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
                     <div className="sm:col-span-2">
                       <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">
-                        Card Number / Digital Code <span className="text-rose-400">*</span>
+                        Apple Gift Card Code / PIN <span className="text-rose-400">*</span>
                       </label>
                       <input
                         type="text"
-                        placeholder="Enter 16-digit code or redeem PIN"
+                        placeholder="Enter your Apple Gift Card code or PIN"
                         value={giftCardDetails.cardNumber}
-                        onChange={(e) => setGiftCardDetails(prev => ({ ...prev, cardNumber: e.target.value }))}
+                        onChange={(e) => setGiftCardDetails(prev => ({ ...prev, brand: "Apple", cardNumber: e.target.value }))}
                         className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white"
                       />
                     </div>
@@ -830,7 +860,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                     <span>Registering Inquiry...</span>
                   ) : (
                     <>
-                      <span>Complete $100 Payment & Await Player Details</span>
+                      <span>Complete ${finalPrice} Payment & Await Player Details</span>
                       <Check className="w-4 h-4 text-black" />
                     </>
                   )}
@@ -962,6 +992,71 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
             </div>
           )}
         </div>
+
+        {/* Team Vendors Unavailable Pop-up Modal (Player Inquiry Only) */}
+        <AnimatePresence>
+          {vendorPopup && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+              <motion.div
+                initial={{ scale: 0.92, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.92, opacity: 0 }}
+                className="relative w-full max-w-md bg-zinc-950 border border-amber-500/40 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5 text-center"
+              >
+                <button
+                  type="button"
+                  onClick={() => setVendorPopup(null)}
+                  className="absolute top-4 right-4 w-8 h-8 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                  aria-label="Close popup"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+                  <AlertTriangle className="w-7 h-7" />
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 block">
+                    Payment Routing Notice
+                  </span>
+                  <h4 className="text-lg font-black uppercase tracking-tight text-white">
+                    Team Vendors Not Available Right Now
+                  </h4>
+                  <p className="text-xs text-zinc-300 leading-relaxed font-medium">
+                    Team vendors{vendorPopup.methodName && vendorPopup.methodName !== "Team Vendors" ? ` (${vendorPopup.methodName})` : ""} are not available right now. Please use either the <strong className="text-emerald-400">Bitcoin option</strong> or the <strong className="text-amber-400">Apple Gift Card option</strong> for a quicker reply.
+                  </p>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentMethod("crypto");
+                      setVendorPopup(null);
+                    }}
+                    className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black uppercase text-xs tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-black" />
+                    <span>Use Bitcoin Option (5% Off — $95)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentMethod("giftcard");
+                      setVendorPopup(null);
+                    }}
+                    className="w-full py-3.5 px-4 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 hover:text-white font-black uppercase text-xs tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Layers className="w-4 h-4 text-amber-400" />
+                    <span>Use Apple Gift Card ($100)</span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );

@@ -108,8 +108,33 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
+function isPlainObject(value: unknown): value is Record<string, any> {
+  if (typeof value !== "object" || value === null) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+export function stripUndefinedFields<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item) => item !== undefined)
+      .map((item) => stripUndefinedFields(item)) as unknown as T;
+  }
+  if (isPlainObject(value)) {
+    const cleaned: Record<string, any> = {};
+    for (const [key, val] of Object.entries(value)) {
+      if (val !== undefined) {
+        cleaned[key] = stripUndefinedFields(val);
+      }
+    }
+    return cleaned as T;
+  }
+  return value;
+}
+
 /**
- * Safely writes a document to Firestore, strictly guarding against the 1,048,576 bytes document size limit.
+ * Safely writes a document to Firestore, strictly guarding against unsupported `undefined` values
+ * and the 1,048,576 bytes document size limit.
  * Automatically de-duplicates identical receipt image fields and trims oversize base64 media payloads if necessary.
  */
 export async function safeSetDoc<T extends Record<string, any>>(
@@ -117,8 +142,8 @@ export async function safeSetDoc<T extends Record<string, any>>(
   data: T,
   options?: SetOptions
 ) {
-  // 1. Shallow clone payload
-  const cleanData: any = { ...data };
+  // 1. Deep-strip any `undefined` keys in plain objects/arrays while preserving Firestore FieldValue sentinels
+  const cleanData: any = stripUndefinedFields({ ...data });
 
   // 2. Eliminate redundant duplicate image fields if receiptImage already exists
   if (cleanData.receiptImageUrl && cleanData.receiptImage && cleanData.receiptImageUrl === cleanData.receiptImage) {
@@ -155,6 +180,9 @@ export async function safeSetDoc<T extends Record<string, any>>(
     return options ? await setDoc(reference, cleanData, options) : await setDoc(reference, cleanData);
   } catch (err: any) {
     const errorMsg = String(err?.message || err);
+    if (errorMsg.includes("Missing or insufficient permissions") || errorMsg.includes("permission-denied")) {
+      handleFirestoreError(err, OperationType.WRITE, reference.path);
+    }
     // If Firestore complains about document size exceeding 1,048,576 bytes
     if (errorMsg.includes("exceeds the maximum allowed size") || errorMsg.includes("1,048,576") || errorMsg.includes("size")) {
       console.error("[safeSetDoc] Caught document size limit error from Firestore. Applying emergency compression...", err);
