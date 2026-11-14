@@ -53,6 +53,8 @@ export interface PaymentSession {
   status: "awaiting_admin_details" | "details_provided" | "payment_submitted" | "completed" | "cancelled";
   adminPaymentDetails?: AdminPaymentDetails | null;
   receiptUrl?: string;
+  receiptImage?: string;
+  receiptImages?: string[];
   referenceTag?: string;
   createdAt: number;
   updatedAt: number;
@@ -189,6 +191,9 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
   let existingAdminDetails: AdminPaymentDetails | null = null;
   let existingStatus: string | null = null;
   let existingCreatedAt = now;
+  let existingReceiptUrl = "";
+  let existingReceiptImages: string[] = [];
+  let existingReferenceTag = "";
 
   try {
     const snap = await getDoc(sessionRef);
@@ -197,6 +202,11 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
       existingAdminDetails = data.adminPaymentDetails || null;
       existingStatus = data.status || null;
       if (data.createdAt) existingCreatedAt = data.createdAt;
+      existingReceiptUrl = data.receiptUrl || data.receiptImage || "";
+      if (Array.isArray(data.receiptImages)) {
+        existingReceiptImages = data.receiptImages.filter((u): u is string => typeof u === "string" && u.trim().length > 0);
+      }
+      if (data.referenceTag) existingReferenceTag = data.referenceTag;
     }
   } catch (err) {
     console.warn("Could not check existing payment session:", err);
@@ -239,6 +249,16 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
     resolvedStatus = (existingStatus === "payment_submitted") ? "payment_submitted" : "details_provided";
   }
 
+  const mergedImages = Array.from(new Set([
+    ...(Array.isArray(session.receiptImages) ? session.receiptImages : []),
+    ...(session.receiptUrl ? [session.receiptUrl] : []),
+    ...(session.receiptImage ? [session.receiptImage] : []),
+    ...existingReceiptImages,
+    ...(existingReceiptUrl ? [existingReceiptUrl] : [])
+  ].filter((u): u is string => typeof u === "string" && u.trim().length > 0)));
+
+  const primaryReceipt = session.receiptUrl || session.receiptImage || mergedImages[0] || "";
+
   const payload: PaymentSession = {
     id: session.id,
     orderId: session.orderId || session.id,
@@ -251,8 +271,10 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
     paymentMethod: session.paymentMethod,
     status: resolvedStatus,
     adminPaymentDetails: resolvedAdminDetails,
-    receiptUrl: session.receiptUrl || "",
-    referenceTag: session.referenceTag || "",
+    receiptUrl: primaryReceipt,
+    receiptImage: primaryReceipt,
+    receiptImages: mergedImages,
+    referenceTag: session.referenceTag || existingReferenceTag || "",
     createdAt: session.createdAt || existingCreatedAt,
     updatedAt: now
   };
@@ -312,13 +334,41 @@ export async function dispatchPaymentDetailsToSession(
 export async function submitCustomerPayment(
   sessionId: string,
   referenceTag: string,
-  receiptUrl?: string
+  receiptUrl?: string,
+  receiptUrls?: string[]
 ): Promise<void> {
   const sessionRef = doc(db, "payment_sessions", sessionId);
+  const allImages = Array.from(new Set([
+    ...(Array.isArray(receiptUrls) ? receiptUrls : []),
+    ...(receiptUrl ? [receiptUrl] : [])
+  ].filter((u): u is string => typeof u === "string" && u.trim().length > 0)));
+  const primary = allImages[0] || receiptUrl || "";
+
   await safeSetDoc(sessionRef, {
     referenceTag,
-    receiptUrl: receiptUrl || "",
+    receiptUrl: primary,
+    receiptImage: primary,
+    receiptImages: allImages,
     status: "payment_submitted",
+    updatedAt: Date.now()
+  }, { merge: true });
+}
+
+/**
+ * Sync attached receipt images immediately to payment_sessions even before final submit
+ */
+export async function syncSessionReceipts(
+  sessionId: string,
+  receiptUrls: string[]
+): Promise<void> {
+  if (!sessionId) return;
+  const sessionRef = doc(db, "payment_sessions", sessionId);
+  const cleanUrls = receiptUrls.filter((u): u is string => typeof u === "string" && u.trim().length > 0);
+  const primary = cleanUrls[0] || "";
+  await safeSetDoc(sessionRef, {
+    receiptUrl: primary,
+    receiptImage: primary,
+    receiptImages: cleanUrls,
     updatedAt: Date.now()
   }, { merge: true });
 }

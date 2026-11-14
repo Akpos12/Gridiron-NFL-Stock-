@@ -98,6 +98,7 @@ export interface Booking {
   installmentRemaining?: number;
   installmentTerms?: string;
   isPlayerCoordinatedDate?: boolean;
+  paymentSessionId?: string;
   paymentMethod?: string;
   paymentRef?: string;
   receiptImage?: string;
@@ -1087,9 +1088,11 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         createdAt: new Date().toISOString(),
         imageUrl: selectedExp.imageUrl,
         ...installmentDetails,
+        paymentSessionId: checkoutSessionId,
         paymentMethod: paymentTab,
         paymentRef: paymentRef || (paymentTab === "giftcard" ? `GIFTCARD-${giftCardDetails.brand}-${giftCardDetails.cardNumber.slice(-4)}` : "PENDING_CONTROL_ROOM_VERIFICATION"),
         receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
+        receiptImageUrl: receiptImageUrls[0] || receiptImageUrl || "",
         receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
         senderName: senderName.trim(),
         buyerPhone: buyerPhone.trim(),
@@ -1100,9 +1103,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       // Add to Firestore database using safeSetDoc (guards against Firestore 1MB document limit)
       await safeSetDoc(doc(db, "bookings", newBookingId), bookingData);
 
+      const bookingReceipts = receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []);
+
       // Create a store order transaction automatically to catalog revenue in audit channels!
       const storeOrderId = `order-${Date.now()}`;
       await safeSetDoc(doc(db, "store_orders", storeOrderId), {
+        orderId: newBookingId,
+        sessionId: checkoutSessionId,
+        paymentSessionId: checkoutSessionId,
         userId: auth.currentUser?.uid || "guest",
         userEmail: buyerEmail.trim(),
         itemType: isPatriotsMerchSelected ? "merchandise" : "ticket",
@@ -1113,7 +1121,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         teamId: selectedExp.teamId,
         paymentMethod: paymentTab,
         paymentRef: paymentRef || (paymentTab === "giftcard" ? `GIFTCARD-${giftCardDetails.brand}` : "PENDING_CONTROL_ROOM_VERIFICATION"),
-        receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
+        receiptImage: bookingReceipts[0] || "",
+        receiptImageUrl: bookingReceipts[0] || "",
+        receiptImages: bookingReceipts,
         senderName: senderName.trim(),
         buyerPhone: buyerPhone.trim(),
         ...(isPatriotsMerchSelected || shippingAddress.street ? { shippingAddress } : {}),
@@ -1127,6 +1137,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         const ticketOrderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         await safeSetDoc(doc(db, "ticket_orders", ticketOrderId), {
           id: ticketOrderId,
+          orderId: newBookingId,
+          sessionId: checkoutSessionId,
+          paymentSessionId: checkoutSessionId,
           userId: auth.currentUser?.uid || "guest",
           userEmail: buyerEmail.trim(),
           buyerPhone: buyerPhone.trim(),
@@ -1140,8 +1153,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           paymentMethod: paymentTab,
           senderName: senderName.trim(),
           paymentRef: paymentRef || "SUBMITTED_FOR_APPROVAL",
-          receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
-          receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
+          receiptImage: bookingReceipts[0] || "",
+          receiptImageUrl: bookingReceipts[0] || "",
+          receiptImages: bookingReceipts,
           status: "pending_approval",
           qrCode: isPrivateExp ? `RFID-PLATINUM-${ticketOrderId.toUpperCase()}` : `RFID-VIP-${ticketOrderId.toUpperCase()}`,
           timestamp: serverTimestamp()
@@ -2623,11 +2637,18 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                                 if (phone) setBuyerPhone(phone);
                               }}
                               onSwitchToGiftCard={() => setPaymentTab("giftcard")}
-                              onPaymentSubmitted={(ref, receipt) => {
-                                setPaymentRef(ref);
-                                if (receipt) {
+                              onReceiptsChange={(primary, all) => {
+                                setReceiptImageUrl(primary);
+                                setReceiptImageUrls(all);
+                              }}
+                              onPaymentSubmitted={(ref, receipt, all) => {
+                                if (ref) setPaymentRef(ref);
+                                if (all && all.length > 0) {
+                                  setReceiptImageUrl(all[0]);
+                                  setReceiptImageUrls(all);
+                                } else if (receipt) {
                                   setReceiptImageUrl(receipt);
-                                  setReceiptImageUrls(prev => [receipt, ...prev]);
+                                  setReceiptImageUrls(prev => Array.from(new Set([receipt, ...prev])));
                                 }
                               }}
                             />
@@ -3080,11 +3101,18 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                               if (phone) setBuyerPhone(phone);
                             }}
                             onSwitchToGiftCard={() => setPaymentTab("giftcard")}
-                            onPaymentSubmitted={(ref, receipt) => {
-                              setPaymentRef(ref);
-                              if (receipt) {
+                            onReceiptsChange={(primary, all) => {
+                              setReceiptImageUrl(primary);
+                              setReceiptImageUrls(all);
+                            }}
+                            onPaymentSubmitted={(ref, receipt, all) => {
+                              if (ref) setPaymentRef(ref);
+                              if (all && all.length > 0) {
+                                setReceiptImageUrl(all[0]);
+                                setReceiptImageUrls(all);
+                              } else if (receipt) {
                                 setReceiptImageUrl(receipt);
-                                setReceiptImageUrls(prev => [receipt, ...prev]);
+                                setReceiptImageUrls(prev => Array.from(new Set([receipt, ...prev])));
                               }
                             }}
                           />

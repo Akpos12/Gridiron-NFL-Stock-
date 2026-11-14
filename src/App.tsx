@@ -53,7 +53,8 @@ import {
   Download,
   Zap,
   Sparkles,
-  Radio
+  Radio,
+  Eye
 } from "lucide-react";
 import { 
   XAxis, 
@@ -2319,8 +2320,16 @@ const AdminPortal = ({ user }: { user: any }) => {
   };
 
   const handleOpenOrderReview = (item: any) => {
+    const allReceipts = Array.from(new Set([
+      ...(Array.isArray(item.receiptImages) ? item.receiptImages : []),
+      ...(item.receiptImage ? [item.receiptImage] : []),
+      ...(item.receiptImageUrl ? [item.receiptImageUrl] : []),
+      ...(item.receiptUrl ? [item.receiptUrl] : [])
+    ].filter((u): u is string => typeof u === "string" && u.trim().length > 0)));
+
     setSelectedOrderForReview({
       id: item.id,
+      orderId: item.orderId || item.id,
       userId: item.userId,
       userEmail: item.userEmail || item.buyerEmail,
       userName: item.userName || item.senderName || item.buyerName,
@@ -2344,8 +2353,9 @@ const AdminPortal = ({ user }: { user: any }) => {
       paymentMethod: item.paymentMethod || item.paymentChannel || "Direct Settlement",
       paymentRef: item.paymentRef || item.paymentReference || "N/A",
       paymentReference: item.paymentReference || item.paymentRef || "N/A",
-      receiptImage: item.receiptImage || item.receiptImageUrl || "",
-      receiptImageUrl: item.receiptImageUrl || item.receiptImage || "",
+      receiptImage: allReceipts[0] || "",
+      receiptImageUrl: allReceipts[0] || "",
+      receiptImages: allReceipts,
       status: item.status || "pending",
       qrCode: item.qrCode || item.ticketCode,
       ticketCode: item.ticketCode || item.qrCode,
@@ -2447,10 +2457,25 @@ const AdminPortal = ({ user }: { user: any }) => {
       if (err.message.includes("permission")) setPermError("Permission Denied: Ensure your email is alexwtchmn@gmail.com and rules are deployed.");
     });
 
-    // Multi-collection order sync: store_orders, ticket_orders, bookings
+    // Multi-collection order sync: store_orders, ticket_orders, bookings + payment_sessions receipt enrichment
     let storeOrdersMap = new Map<string, any>();
     let ticketOrdersMap = new Map<string, any>();
     let bookingsMap = new Map<string, any>();
+    let paymentSessionsMap = new Map<string, any>();
+
+    const collectReceiptsFromObj = (obj: any): string[] => {
+      if (!obj) return [];
+      const urls: string[] = [];
+      if (Array.isArray(obj.receiptImages)) {
+        for (const u of obj.receiptImages) {
+          if (typeof u === "string" && u.trim()) urls.push(u.trim());
+        }
+      }
+      for (const single of [obj.receiptImage, obj.receiptImageUrl, obj.receiptUrl]) {
+        if (typeof single === "string" && single.trim()) urls.push(single.trim());
+      }
+      return urls;
+    };
 
     const updateMergedOrders = () => {
       const mergedMap = new Map<string, any>();
@@ -2462,18 +2487,65 @@ const AdminPortal = ({ user }: { user: any }) => {
         const hasDoc = existingDocs.some(d => d.col === col && d.docId === docId);
         const nextDocs = hasDoc ? existingDocs : [...existingDocs, { col, docId }];
         const primaryId = existing?.id || docId;
+
+        const mergedReceipts = Array.from(new Set([
+          ...collectReceiptsFromObj(existing),
+          ...collectReceiptsFromObj(v)
+        ]));
+        const primaryReceipt = mergedReceipts[0] || "";
+
         mergedMap.set(groupKey, {
           ...existing,
           ...v,
           id: primaryId,
           _docId: primaryId,
-          _sourceDocs: nextDocs
+          _sourceDocs: nextDocs,
+          receiptImage: primaryReceipt,
+          receiptImageUrl: primaryReceipt,
+          receiptImages: mergedReceipts,
+          paymentSessionId: v.paymentSessionId || v.sessionId || existing?.paymentSessionId || existing?.sessionId || "",
+          paymentRef: v.paymentRef || v.paymentReference || existing?.paymentRef || existing?.paymentReference || "",
+          buyerName: v.buyerName || v.senderName || v.userName || v.customerName || existing?.buyerName || existing?.senderName || existing?.userName || "",
+          buyerEmail: v.buyerEmail || v.userEmail || v.email || existing?.buyerEmail || existing?.userEmail || ""
         });
       };
 
       storeOrdersMap.forEach((v, k) => addEntry("store_orders", k, v));
       ticketOrdersMap.forEach((v, k) => addEntry("ticket_orders", k, v));
       bookingsMap.forEach((v, k) => addEntry("bookings", k, v));
+
+      // Enrich merged orders with any receipts stored on linked payment_sessions
+      mergedMap.forEach((order, key) => {
+        const refCandidates = [
+          order.paymentSessionId,
+          order.sessionId,
+          order.paymentRef,
+          order.paymentReference,
+          order.orderId,
+          order.id
+        ]
+          .filter(Boolean)
+          .map((s: any) => String(s).trim());
+
+        const matchedSessions: any[] = [];
+        paymentSessionsMap.forEach((sess, sessId) => {
+          const isMatch = refCandidates.some((c) => c === sessId || (c.startsWith("INQ-") && c === `INQ-${sessId}`) || (sess.orderId && c === sess.orderId));
+          if (isMatch) matchedSessions.push(sess);
+        });
+
+        if (matchedSessions.length > 0) {
+          const extraReceipts = matchedSessions.flatMap((s) => collectReceiptsFromObj(s));
+          if (extraReceipts.length > 0) {
+            const combined = Array.from(new Set([...(order.receiptImages || []), ...extraReceipts]));
+            mergedMap.set(key, {
+              ...order,
+              receiptImages: combined,
+              receiptImage: combined[0] || "",
+              receiptImageUrl: combined[0] || ""
+            });
+          }
+        }
+      });
       
       const list = Array.from(mergedMap.values()).sort((a, b) => {
         const timeA = new Date(a.createdAt || a.timestamp?.toDate?.() || a.timestamp || 0).getTime();
@@ -2507,6 +2579,14 @@ const AdminPortal = ({ user }: { user: any }) => {
       console.error("Bookings Listen Error:", err);
     });
 
+    const unsubPaymentSessions = onSnapshot(collection(db, "payment_sessions"), (snap) => {
+      paymentSessionsMap.clear();
+      snap.forEach(d => paymentSessionsMap.set(d.id, { ...d.data(), id: d.id }));
+      updateMergedOrders();
+    }, (err) => {
+      console.warn("Payment Sessions Listen Error:", err);
+    });
+
     const unsubUsers = onSnapshot(query(collection(db, "users"), orderBy("balance", "desc")), (snap) => {
       const docs: any[] = [];
       snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
@@ -2529,6 +2609,7 @@ const AdminPortal = ({ user }: { user: any }) => {
       unsubStoreOrders(); 
       unsubTicketOrders(); 
       unsubBookings(); 
+      unsubPaymentSessions();
       unsubUsers(); 
       unsubTransactions(); 
     };
@@ -3095,7 +3176,13 @@ const AdminPortal = ({ user }: { user: any }) => {
                         : (item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString() : 'Recent');
                       const title = item.experienceTitle || item.itemName || item.gameName || 'NFL Experience Pass';
                       const amount = item.totalPrice || item.price || item.totalAmount || 0;
-                      const receiptUrl = item.receiptImage || item.receiptImageUrl || '';
+                      const receiptList: string[] = Array.from(new Set([
+                        ...(Array.isArray(item.receiptImages) ? item.receiptImages : []),
+                        ...(item.receiptImage ? [item.receiptImage] : []),
+                        ...(item.receiptImageUrl ? [item.receiptImageUrl] : []),
+                        ...(item.receiptUrl ? [item.receiptUrl] : [])
+                      ].filter((u): u is string => typeof u === 'string' && u.trim().length > 0)));
+                      const receiptUrl = receiptList[0] || '';
                       const ticketCode = item.ticketCode || item.qrCode;
 
                       return (
@@ -3161,7 +3248,7 @@ const AdminPortal = ({ user }: { user: any }) => {
                           </td>
 
                           <td className="p-6">
-                            <div className="space-y-1">
+                            <div className="space-y-1.5">
                               <span className="text-[10px] font-black uppercase text-zinc-300 block">
                                 {item.paymentMethod || item.paymentChannel || 'Direct Settlement'}
                               </span>
@@ -3172,9 +3259,29 @@ const AdminPortal = ({ user }: { user: any }) => {
                                 <button
                                   type="button"
                                   onClick={() => handleOpenOrderReview(item)}
-                                  className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-2 py-1 rounded-lg transition-all"
+                                  className="group flex items-center gap-2 p-1.5 bg-zinc-950 hover:bg-zinc-800 border border-emerald-500/30 rounded-xl transition-all cursor-pointer text-left"
+                                  title="Click to inspect attached receipt image"
                                 >
-                                  <ShieldCheck className="w-3 h-3" /> Proof Attached
+                                  <div className="relative shrink-0">
+                                    <img
+                                      src={receiptUrl}
+                                      alt="Attached Receipt"
+                                      className="w-10 h-10 object-cover rounded-lg border border-white/10 group-hover:scale-105 transition-transform"
+                                    />
+                                    {receiptList.length > 1 && (
+                                      <span className="absolute -top-1 -right-1 bg-blue-600 text-[7px] font-mono font-black text-white px-1 rounded-full border border-zinc-950">
+                                        +{receiptList.length}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[9px]">
+                                    <span className="font-black uppercase text-emerald-400 flex items-center gap-1">
+                                      <Eye className="w-3 h-3" /> View Receipt
+                                    </span>
+                                    <span className="font-mono text-zinc-400 block">
+                                      {receiptList.length > 1 ? `${receiptList.length} Images` : "Proof Attached"}
+                                    </span>
+                                  </div>
                                 </button>
                               ) : (
                                 <span className="text-[8px] font-mono text-zinc-600 block">
@@ -3773,6 +3880,7 @@ const AdminPortal = ({ user }: { user: any }) => {
             setSelectedOrderForReview(null);
           }}
           booking={selectedOrderForReview}
+          onApprove={(orderId, issuedCode) => handleApproveOrder(orderId, issuedCode)}
           onStatusUpdated={() => {
             // Real-time Firestore snapshot listeners automatically sync state
           }}
@@ -4131,13 +4239,32 @@ export default function App() {
 
       e.preventDefault();
       const formData = new FormData(e.target as HTMLFormElement);
-      const password = formData.get("password") as string;
-      const rawIdentifier = (formData.get(isSignUp ? "email" : "username") as string || "").trim();
+      const password = String(formData.get("password") || "");
+      const rawIdentifier = String(formData.get(isSignUp ? "email" : "username") || "").trim();
+
+      if (!rawIdentifier) {
+        setAuthError(isSignUp ? "Please enter your email address." : "Please enter your email or username.");
+        return;
+      }
+      if (!password) {
+        setAuthError("Please enter your password.");
+        return;
+      }
+      if (isSignUp && password.length < 6) {
+        setAuthError("Security requirement: Password must be at least 6 characters.");
+        return;
+      }
+
+      const localHandle = rawIdentifier.toLowerCase().replace(/[^a-z0-9_]/g, "");
+      if (!rawIdentifier.includes("@") && !localHandle) {
+        setAuthError("Please enter a valid email address or alphanumeric username.");
+        return;
+      }
       
       // Clean identifier and convert to email if simple username
       const email = rawIdentifier.includes("@") 
         ? rawIdentifier 
-        : `${rawIdentifier.toLowerCase().replace(/[^a-z0-9_]/g, '')}@gridiron.exchange`;
+        : `${localHandle}@gridiron.exchange`;
 
       if (!isSignUp && (rawIdentifier.toLowerCase() === "gridiron_whale" || rawIdentifier.toLowerCase() === "institutional" || rawIdentifier.toLowerCase() === "alex_rivera" || rawIdentifier.toLowerCase() === "jayne_welage") && password === "Vikings") {
         const whaleEmail = "institutional@gridiron.exchange";
@@ -4152,7 +4279,6 @@ export default function App() {
               cred = await createUserWithEmailAndPassword(auth, whaleEmail, whalePass);
             } catch (createErr: any) {
               if (createErr.code === "auth/email-already-in-use") {
-                // If account exists but wrong password, try to update it or just fail gracefully
                 throw new Error("Institutional account authentication failed. Please check your system configuration or contact support.");
               }
               throw createErr;
@@ -4203,19 +4329,25 @@ export default function App() {
         console.warn("Popup blocked/closed notice:", err.message);
         setAuthError("POPUP_BLOCKED");
       } else {
-        console.error("Auth Error:", err);
-        let friendlyMessage = err.message;
-        if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found") {
+        console.warn("Auth Notice:", err?.code || err?.message);
+        let friendlyMessage = err.message || "Authentication failed. Please check your credentials and try again.";
+        if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
           friendlyMessage = isSignUp 
             ? "Unable to create account with these credentials. Please check your email format or use a stronger password."
             : "Invalid access key or password. If you haven't registered, please switch to 'Sign Up' below.";
+        } else if (err.code === "auth/operation-not-allowed") {
+          friendlyMessage = "Email/Password sign-in is not enabled on this Firebase project. Please use 'Continue with Google' or enable Email/Password in Firebase Console > Authentication > Sign-in method.";
+        } else if (err.code === "auth/too-many-requests") {
+          friendlyMessage = "Too many failed sign-in attempts. Please wait a moment and try again, or use 'Continue with Google'.";
+        } else if (err.code === "auth/network-request-failed") {
+          friendlyMessage = "Network error communicating with authentication service. Please check your connection and retry.";
         } else if (err.code === "auth/unauthorized-domain") {
           const domain = window.location.hostname;
           const isInIframe = typeof window !== "undefined" && window.self !== window.top;
           friendlyMessage = `DOMAIN RESTRICTION: "${domain}" is not whitelisted.\n\n` + 
-            `1. Go to Firebase Console > Authentication > Settings > Authorized Domains and add "${domain}".\n` +
-            `2. Go to Google Cloud Console > APIs & Services > OAuth consent screen and add "${domain}" to 'Authorized domains'.\n` +
-            `3. Wait ~5-10 minutes for propagation.\n` +
+            `1. Go to Firebase Console > Authentication > Settings > Authorized Domains and add "${domain}".\n` + 
+            `2. Go to Google Cloud Console > APIs & Services > OAuth consent screen and add "${domain}" to 'Authorized domains'.\n` + 
+            `3. Wait ~5-10 minutes for propagation.\n` + 
             (isInIframe ? `4. IMPORTANT: You are in an iframe. Use the "Open in new tab" button to avoid security blocks.` : "");
         } else if (err.code === "auth/invalid-email") {
           friendlyMessage = "Standard formatting required (e.g., name@domain.com).";
@@ -4223,6 +4355,8 @@ export default function App() {
           friendlyMessage = "Security requirement: Password must be at least 6 characters.";
         } else if (err.code === "auth/email-already-in-use") {
           friendlyMessage = "This identity is already registered in our terminal. Please sign in instead.";
+        } else if (err.code === "auth/missing-password") {
+          friendlyMessage = "Please enter your password.";
         }
         setAuthError(friendlyMessage);
       }

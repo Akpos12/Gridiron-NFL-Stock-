@@ -29,6 +29,7 @@ import {
   createOrUpdatePaymentSession, 
   subscribeToPaymentSession,
   submitCustomerPayment,
+  syncSessionReceipts,
   findRecentDispatchedSessionForCustomer,
   subscribeToCustomerDispatchedSession,
   subscribeToControlRoomPaymentPresets,
@@ -49,7 +50,8 @@ interface CustomerPaymentWaitingTerminalProps {
   itemType: "ticket" | "experience" | "merchandise" | "deposit";
   onCustomerDetailsChange?: (details: { name: string; email: string; phone: string }) => void;
   onSwitchToGiftCard?: () => void;
-  onPaymentSubmitted?: (referenceTag: string, receiptUrl: string) => void;
+  onReceiptsChange?: (receiptUrl: string, receiptUrls: string[]) => void;
+  onPaymentSubmitted?: (referenceTag: string, receiptUrl: string, receiptUrls?: string[]) => void;
 }
 
 export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerminalProps> = ({
@@ -64,6 +66,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
   itemType,
   onCustomerDetailsChange,
   onSwitchToGiftCard,
+  onReceiptsChange,
   onPaymentSubmitted
 }) => {
   const [session, setSession] = useState<PaymentSession | null>(null);
@@ -72,6 +75,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [referenceTag, setReferenceTag] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
+  const [receiptUrls, setReceiptUrls] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -278,6 +282,16 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
           const cacheKey = `nfl_dispatched_${selectedMethod}_${normName}`;
           localStorage.setItem(cacheKey, JSON.stringify(updatedSession.adminPaymentDetails));
         }
+        const sessionImgs = Array.from(new Set([
+          ...(Array.isArray(updatedSession.receiptImages) ? updatedSession.receiptImages : []),
+          ...(updatedSession.receiptUrl ? [updatedSession.receiptUrl] : []),
+          ...(updatedSession.receiptImage ? [updatedSession.receiptImage] : [])
+        ].filter((u): u is string => typeof u === "string" && u.trim().length > 0)));
+        if (sessionImgs.length > 0 && receiptUrls.length === 0) {
+          setReceiptUrls(sessionImgs);
+          setReceiptUrl(sessionImgs[0]);
+          onReceiptsChange?.(sessionImgs[0], sessionImgs);
+        }
       }
     });
 
@@ -365,10 +379,27 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     setTimeout(() => setCopiedKey(null), 2500);
   };
 
+  const handleReceiptsUpdated = (nextUrls: string[]) => {
+    const clean = Array.from(new Set(nextUrls.filter((u): u is string => typeof u === "string" && u.trim().length > 0)));
+    const primary = clean[0] || "";
+    setReceiptUrls(clean);
+    setReceiptUrl(primary);
+    onReceiptsChange?.(primary, clean);
+    onPaymentSubmitted?.(referenceTag.trim(), primary, clean);
+    const targetSessionId = activeSessionId || sessionId;
+    if (targetSessionId) {
+      syncSessionReceipts(targetSessionId, clean).catch((err) =>
+        console.warn("Session receipt sync warning:", err)
+      );
+    }
+  };
+
   const handleConfirmAndProceed = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setSubmitError(null);
-    if (!referenceTag.trim() && !receiptUrl) {
+    const effectiveImgs = receiptUrls.length > 0 ? receiptUrls : (receiptUrl ? [receiptUrl] : []);
+    const primaryImg = effectiveImgs[0] || receiptUrl;
+    if (!referenceTag.trim() && effectiveImgs.length === 0) {
       setSubmitError("Please provide your payment reference/tag or upload a transfer receipt.");
       return;
     }
@@ -376,9 +407,9 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     setIsSubmitting(true);
     try {
       const targetSessionId = activeSessionId || sessionId;
-      await submitCustomerPayment(targetSessionId, referenceTag.trim(), receiptUrl);
+      await submitCustomerPayment(targetSessionId, referenceTag.trim(), primaryImg, effectiveImgs);
       if (onPaymentSubmitted) {
-        onPaymentSubmitted(referenceTag.trim(), receiptUrl);
+        onPaymentSubmitted(referenceTag.trim(), primaryImg, effectiveImgs);
       }
     } catch (err: any) {
       console.error(err);
@@ -733,14 +764,20 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
 
               <div className="space-y-1">
                 <label className="text-[9px] font-bold uppercase text-zinc-400 block">
-                  Your Sender Cashtag / Bank Ref / Transaction ID *
+                  Your Sender Cashtag / Bank Ref / Transaction ID {receiptUrls.length === 0 ? "*" : "(Optional if screenshot attached)"}
                 </label>
                 <input
                   type="text"
-                  required
+                  required={receiptUrls.length === 0}
                   placeholder="e.g. $MyTag, Wire Ref #12849, or confirmation code"
                   value={referenceTag}
-                  onChange={(e) => setReferenceTag(e.target.value)}
+                  onChange={(e) => {
+                    const nextRef = e.target.value;
+                    setReferenceTag(nextRef);
+                    if (receiptUrls.length > 0 && onPaymentSubmitted) {
+                      onPaymentSubmitted(nextRef.trim(), receiptUrl, receiptUrls);
+                    }
+                  }}
                   className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -752,7 +789,9 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
                 </label>
                 <PaymentReceiptUploader
                   value={receiptUrl}
-                  onChange={(url) => setReceiptUrl(url)}
+                  values={receiptUrls}
+                  onChange={(url) => handleReceiptsUpdated(url ? [url] : [])}
+                  onValuesChange={(urls) => handleReceiptsUpdated(urls)}
                 />
               </div>
 
@@ -765,7 +804,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
 
               <button
                 type="submit"
-                disabled={isSubmitting || !referenceTag.trim()}
+                disabled={isSubmitting || (!referenceTag.trim() && receiptUrls.length === 0)}
                 className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-500/20"
               >
                 {isSubmitting ? (

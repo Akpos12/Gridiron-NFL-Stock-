@@ -31,6 +31,7 @@ import { db, auth, safeSetDoc } from "../lib/firebase";
 import { NFL_TEAMS, getLogoUrl } from "../constants";
 import { cn } from "../lib/utils";
 import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingTerminal";
+import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 
 interface PlayerInquiryModalProps {
@@ -248,6 +249,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         isApproved: false,
         verificationNotice: `AUDITED BY NFL GRIDIRON EXECUTIVE TREASURY · $100 LIAISON DEPOSIT LOGGED FOR ${favoritePlayer.toUpperCase()}`,
         paymentMethod: paymentMethod,
+        paymentSessionId: checkoutSessionId,
         paymentReference: paymentRef || `INQ-${checkoutSessionId}`,
         paymentRef: paymentRef || `INQ-${checkoutSessionId}`,
         paymentChannel: paymentMethod.toUpperCase(),
@@ -280,6 +282,10 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
       // 3. Write to store_orders collection
       await safeSetDoc(doc(db, "store_orders", `order-${orderId}`), {
+        id: `order-${orderId}`,
+        orderId: orderId,
+        sessionId: checkoutSessionId,
+        paymentSessionId: checkoutSessionId,
         userId: auth.currentUser?.uid || "guest",
         userEmail: email.trim(),
         buyerName: fullName.trim(),
@@ -289,8 +295,10 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         price: finalPrice,
         teamId: selectedTeam.id,
         paymentMethod: paymentMethod,
-        paymentRef: paymentRef || "PENDING_CONCIERGE_VERIFICATION",
+        paymentRef: paymentRef || `INQ-${checkoutSessionId}`,
         receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
+        receiptImageUrl: receiptImageUrls[0] || receiptImageUrl || "",
+        receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
         status: "pending_approval",
         orderStatus: "AWAITING PLAYER DETAILS",
         isApproved: false,
@@ -303,6 +311,8 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       // 4. Also store in customer_inquiries collection for real-time concierge dispatch
       await safeSetDoc(doc(db, "customer_inquiries", orderId), {
         id: orderId,
+        orderId: orderId,
+        sessionId: checkoutSessionId,
         type: "player_inquiry",
         category: "player_inquiry",
         customerName: fullName.trim(),
@@ -319,6 +329,8 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         paymentMethod: paymentMethod,
         paymentRef: paymentRef || "SUBMITTED",
         receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
+        receiptImageUrl: receiptImageUrls[0] || receiptImageUrl || "",
+        receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
         status: "awaiting_player_details",
         createdAt: nowIso
       });
@@ -788,11 +800,18 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   itemTitle={`Player Inquiry: ${favoritePlayer} (${selectedTeam.id})`}
                   itemType="experience"
                   onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
-                  onPaymentSubmitted={(ref, receipt) => {
-                    setPaymentRef(ref);
-                    if (receipt) {
+                  onReceiptsChange={(primary, all) => {
+                    setReceiptImageUrl(primary);
+                    setReceiptImageUrls(all);
+                  }}
+                  onPaymentSubmitted={(ref, receipt, all) => {
+                    if (ref) setPaymentRef(ref);
+                    if (all && all.length > 0) {
+                      setReceiptImageUrl(all[0]);
+                      setReceiptImageUrls(all);
+                    } else if (receipt) {
                       setReceiptImageUrl(receipt);
-                      setReceiptImageUrls(prev => [receipt, ...prev]);
+                      setReceiptImageUrls(prev => Array.from(new Set([receipt, ...prev])));
                     }
                   }}
                 />
@@ -834,6 +853,23 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                         value={giftCardDetails.cardNumber}
                         onChange={(e) => setGiftCardDetails(prev => ({ ...prev, brand: "Apple", cardNumber: e.target.value }))}
                         className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2 pt-1">
+                      <PaymentReceiptUploader
+                        value={receiptImageUrl}
+                        values={receiptImageUrls}
+                        onChange={(url) => {
+                          setReceiptImageUrl(url);
+                          if (!url) setReceiptImageUrls([]);
+                        }}
+                        onValuesChange={(urls) => {
+                          setReceiptImageUrls(urls);
+                          setReceiptImageUrl(urls[0] || "");
+                        }}
+                        label="Attach Apple Gift Card Photo / Receipt (Recommended)"
+                        subtitle="Upload clear photos of the Apple Gift Card PIN and store activation receipt."
                       />
                     </div>
                   </div>

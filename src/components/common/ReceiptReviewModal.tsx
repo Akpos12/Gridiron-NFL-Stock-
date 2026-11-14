@@ -100,6 +100,7 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [customTicketCode, setCustomTicketCode] = useState<string>("");
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
 
   if (!isOpen || !booking) return null;
 
@@ -115,11 +116,13 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
   const paymentChannel = booking.paymentMethod || "Direct Settlement";
   const referenceCode = booking.paymentRef || booking.paymentReference || "PENDING_VERIFICATION";
   const receiptImg = booking.receiptImage || booking.receiptImageUrl || "";
-  const allReceiptImages: string[] = (booking.receiptImages && booking.receiptImages.length > 0)
-    ? booking.receiptImages
-    : (receiptImg ? [receiptImg] : []);
-  const [activeImageIdx, setActiveImageIdx] = useState(0);
-  const currentReceiptImg = allReceiptImages[activeImageIdx] || receiptImg;
+  const allReceiptImages: string[] = Array.from(new Set([
+    ...(Array.isArray(booking.receiptImages) ? booking.receiptImages : []),
+    ...(booking.receiptImage ? [booking.receiptImage] : []),
+    ...(booking.receiptImageUrl ? [booking.receiptImageUrl] : [])
+  ].filter((u): u is string => typeof u === "string" && u.trim().length > 0)));
+  const safeIdx = allReceiptImages.length > 0 ? Math.min(activeImageIdx, allReceiptImages.length - 1) : 0;
+  const currentReceiptImg = allReceiptImages[safeIdx] || receiptImg;
   const bookingIdStr = String(booking.id || booking.orderId || "BOOKING");
   
   // Deterministic or stored ticket code

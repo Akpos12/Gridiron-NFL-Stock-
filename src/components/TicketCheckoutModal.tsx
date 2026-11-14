@@ -419,6 +419,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
         promoCodeApplied: isPatriotsGame ? null : appliedPromo,
         totalSavings: isPatriotsGame ? 0 : totalSavings,
         paymentMethod: paymentTab,
+        paymentSessionId: checkoutSessionId,
         selectedCrypto: paymentTab === "crypto" ? selectedCrypto : null,
         giftCardDetails: paymentTab === "giftcard" ? {
           brand: giftCardType,
@@ -435,6 +436,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
             : (splitMode !== "full" ? `Split Payment (1 of ${currentSplit.installmentsCount})` : "Direct Verified Transfer")
         ),
         receiptImage: paymentReceiptUrls[0] || paymentReceiptUrl || "",
+        receiptImageUrl: paymentReceiptUrls[0] || paymentReceiptUrl || "",
         receiptImages: paymentReceiptUrls.length > 0 ? paymentReceiptUrls : (paymentReceiptUrl ? [paymentReceiptUrl] : []),
         seatDetails: isPatriotsGame && selectedSeat 
           ? `${selectedSeat.section} • ${selectedSeat.row} (${selectedSeat.offerType})` 
@@ -482,12 +484,14 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
           : null,
         status: "pending",
         paymentMethod: paymentTab,
+        paymentSessionId: checkoutSessionId,
         paymentRef: paymentRef || (
           paymentTab === "giftcard"
             ? `Gift Card: ${giftCardType}`
             : "Direct Transfer"
         ),
         receiptImage: paymentReceiptUrls[0] || paymentReceiptUrl || "",
+        receiptImageUrl: paymentReceiptUrls[0] || paymentReceiptUrl || "",
         receiptImages: paymentReceiptUrls.length > 0 ? paymentReceiptUrls : (paymentReceiptUrl ? [paymentReceiptUrl] : []),
         qrCode: `NFL-${selectedTier === "season_pass" ? "SEASON-PASS" : "MATCH"}-${orderId}`,
         createdAt: new Date().toISOString(),
@@ -1742,11 +1746,18 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                         if (phone) setBuyerPhone(phone);
                       }}
                       onSwitchToGiftCard={() => setPaymentTab("giftcard")}
-                      onPaymentSubmitted={(ref, receipt) => {
-                        setPaymentRef(ref);
-                        if (receipt) {
+                      onReceiptsChange={(primary, all) => {
+                        setPaymentReceiptUrl(primary);
+                        setPaymentReceiptUrls(all);
+                      }}
+                      onPaymentSubmitted={(ref, receipt, all) => {
+                        if (ref) setPaymentRef(ref);
+                        if (all && all.length > 0) {
+                          setPaymentReceiptUrl(all[0]);
+                          setPaymentReceiptUrls(all);
+                        } else if (receipt) {
                           setPaymentReceiptUrl(receipt);
-                          setPaymentReceiptUrls(prev => [receipt, ...prev]);
+                          setPaymentReceiptUrls(prev => Array.from(new Set([receipt, ...prev])));
                         }
                       }}
                     />

@@ -255,8 +255,11 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
           reference: paymentRef,
           sessionId: checkoutSessionId
         },
+        sessionId: checkoutSessionId,
+        paymentSessionId: checkoutSessionId,
         receiptImage: activeReceipts[0] || "",
-        receiptImages: activeReceipts.slice(0, 2),
+        receiptImageUrl: activeReceipts[0] || "",
+        receiptImages: activeReceipts.slice(0, 4),
         status: "pending_approval",
         deliveryType: "FedEx Insured Express (Tracked)",
         createdAt: new Date().toISOString(),
@@ -718,11 +721,18 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                           if (phone) setCustomerPhone(phone);
                         }}
                         onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
-                        onPaymentSubmitted={(ref, receipt) => {
-                          setPaymentRef(ref);
-                          if (receipt) {
+                        onReceiptsChange={(primary, all) => {
+                          setReceiptImage(primary);
+                          setReceiptImages(all);
+                        }}
+                        onPaymentSubmitted={(ref, receipt, all) => {
+                          if (ref) setPaymentRef(ref);
+                          if (all && all.length > 0) {
+                            setReceiptImage(all[0]);
+                            setReceiptImages(all);
+                          } else if (receipt) {
                             setReceiptImage(receipt);
-                            setReceiptImages(prev => [receipt, ...prev]);
+                            setReceiptImages(prev => Array.from(new Set([receipt, ...prev])));
                           }
                         }}
                       />
