@@ -642,6 +642,90 @@ export function subscribeToCustomerDispatchedSession(
 }
 
 /**
+ * Customer / Inquiry Recovery: Look up ALL active/responded sessions for a customer
+ * across ALL payment methods (whether vendor already responded, is still assigning, or customer submitted receipt).
+ */
+export async function findCustomerInquirySessions(params: {
+  email?: string;
+  name?: string;
+  sessionId?: string;
+}): Promise<PaymentSession[]> {
+  const normEmail = params.email?.trim().toLowerCase() || "";
+  const normName = params.name?.trim().toLowerCase() || "";
+  const rawId = params.sessionId?.trim() || "";
+  const normId = rawId.toLowerCase();
+
+  const isGeneric = (val: string) =>
+    !val || ["customer", "vip guest", "ticket guest", "guest", "vip member", "patriots collector"].includes(val);
+  const hasSpecificName = !isGeneric(normName) && normName.length >= 2;
+  const hasEmail = normEmail.includes("@");
+  const hasId = rawId.length >= 3;
+
+  if (!hasSpecificName && !hasEmail && !hasId) {
+    return [];
+  }
+
+  const resultsMap = new Map<string, PaymentSession>();
+
+  try {
+    if (hasId) {
+      try {
+        const directSnap = await getDoc(doc(db, "payment_sessions", rawId));
+        if (directSnap.exists()) {
+          const data = directSnap.data() as PaymentSession;
+          if (data.status !== "cancelled") {
+            resultsMap.set(directSnap.id, data);
+          }
+        }
+      } catch {
+        // ignore missing direct doc
+      }
+    }
+
+    const allSnap = await getDocs(collection(db, "payment_sessions"));
+    allSnap.forEach((d) => {
+      const s = d.data() as PaymentSession;
+      if (!s || s.status === "cancelled") return;
+
+      const sId = (s.id || d.id || "").toLowerCase();
+      const sOrderId = (s.orderId || "").toLowerCase();
+      const sName = (s.customerName || "").trim().toLowerCase();
+      const sEmail = (s.customerEmail || "").trim().toLowerCase();
+
+      const emailMatch = Boolean(hasEmail && sEmail && sEmail === normEmail);
+      const nameMatch = Boolean(
+        hasSpecificName && sName && (sName === normName || sName.includes(normName) || normName.includes(sName))
+      );
+      const idMatch = Boolean(hasId && (sId === normId || sOrderId === normId || sId.includes(normId)));
+
+      if (emailMatch || nameMatch || idMatch) {
+        resultsMap.set(s.id || d.id, s);
+      }
+    });
+
+    const priorityRank = (s: PaymentSession): number => {
+      const hasDetails = Boolean(
+        s.adminPaymentDetails &&
+          (s.adminPaymentDetails.identifier || s.adminPaymentDetails.accountNumber || s.adminPaymentDetails.bankName)
+      );
+      if (hasDetails && s.status !== "payment_submitted" && s.status !== "completed") return 1;
+      if (s.status === "awaiting_admin_details") return 2;
+      if (s.status === "payment_submitted") return 3;
+      return 4;
+    };
+
+    return Array.from(resultsMap.values()).sort((a, b) => {
+      const rankDiff = priorityRank(a) - priorityRank(b);
+      if (rankDiff !== 0) return rankDiff;
+      return (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0);
+    });
+  } catch (err) {
+    console.warn("Failed to find customer inquiry sessions:", err);
+    return Array.from(resultsMap.values());
+  }
+}
+
+/**
  * Direct In-Website Messaging (No Login or External Email Needed):
  * Sends an admin update or customer reply directly onto the payment session document.
  */

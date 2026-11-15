@@ -1,17 +1,21 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import {
   AlertCircle,
   ArrowDown,
   ArrowRight,
   Calendar,
+  Check,
   CheckCircle2,
   Clock,
+  Copy,
+  ExternalLink,
   Headphones,
   Heart,
   Mail,
   MapPin,
   MessageSquare,
+  RefreshCw,
   Search,
   ShieldCheck,
   ShoppingBag,
@@ -25,6 +29,13 @@ import stadiumHeroImg from "../assets/images/nfl_stadium_hero_1794712782399.jpg"
 import { NFLImage } from "../utils/nflImages";
 import { NFL_TEAMS, getLogoUrl } from "../constants";
 import { SupportTrustSection } from "./SupportTrustSection";
+import {
+  findCustomerInquirySessions,
+  getSavedGuestSessions,
+  PaymentMethodType,
+  PaymentSession,
+  SAVED_SESSIONS_EVENT,
+} from "../services/paymentControlService";
 
 export interface PlayerInquiryPrefill {
   playerName?: string;
@@ -35,6 +46,9 @@ export interface PlayerInquiryPrefill {
   messagingPlatform?: "whatsapp" | "zangi" | "telegram";
   messagingDetails?: string;
   skipToPayment?: boolean;
+  resumeSessionId?: string;
+  resumePaymentMethod?: PaymentMethodType;
+  initialMode?: "new" | "check_existing";
 }
 
 const CUSTOM_INQUIRY_QUICK_STARS: Array<{ name: string; teamId: string }> = [
@@ -258,6 +272,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
   const [showcaseFilter, setShowcaseFilter] = useState<"all" | "meet_greet" | "stadium_tour" | "memorabilia">("all");
 
   // Top-of-page Custom Player Inquiry Quick Form State
+  const [cardMode, setCardMode] = useState<"new" | "check_existing">("new");
   const [inquiryPlayer, setInquiryPlayer] = useState("");
   const [inquiryTeamId, setInquiryTeamId] = useState("DAL");
   const [inquiryObjective, setInquiryObjective] = useState(CUSTOM_INQUIRY_OBJECTIVES[0]);
@@ -266,6 +281,94 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
   const [inquiryPlatform, setInquiryPlatform] = useState<"whatsapp" | "telegram" | "zangi">("whatsapp");
   const [inquiryHandle, setInquiryHandle] = useState("");
   const [inquiryError, setInquiryError] = useState<string | null>(null);
+
+  // Returning Inquiry Detection & Existing Inquiry Lookup State
+  const [matchedSessions, setMatchedSessions] = useState<PaymentSession[]>([]);
+  const [dismissedAutoResume, setDismissedAutoResume] = useState(false);
+  const [lookupQuery, setLookupQuery] = useState(() => localStorage.getItem("nfl_guest_buyer_email") || localStorage.getItem("nfl_guest_sender_name") || "");
+  const [lookupResults, setLookupResults] = useState<PaymentSession[]>([]);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [hasSearchedLookup, setHasSearchedLookup] = useState(false);
+  const [savedSessions, setSavedSessions] = useState(() => getSavedGuestSessions());
+  const [copiedSessionKey, setCopiedSessionKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const syncSaved = () => setSavedSessions(getSavedGuestSessions());
+    window.addEventListener(SAVED_SESSIONS_EVENT, syncSaved);
+    return () => window.removeEventListener(SAVED_SESSIONS_EVENT, syncSaved);
+  }, []);
+
+  // Automatically check if returning visitor already has an awaiting / responded inquiry
+  useEffect(() => {
+    const emailClean = inquiryEmail.trim();
+    const nameClean = inquiryName.trim();
+    if (!emailClean.includes("@") && nameClean.length < 2) {
+      setMatchedSessions([]);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const found = await findCustomerInquirySessions({
+          email: emailClean,
+          name: nameClean,
+        });
+        if (!cancelled) {
+          setMatchedSessions(found.filter((s) => s.status !== "completed"));
+        }
+      } catch {
+        // silent fallback
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [inquiryEmail, inquiryName]);
+
+  const handleRunLookup = async (overrideQuery?: string) => {
+    const q = (overrideQuery ?? lookupQuery).trim();
+    if (!q) return;
+    setIsLookingUp(true);
+    setHasSearchedLookup(true);
+    try {
+      const results = await findCustomerInquirySessions({
+        email: q.includes("@") ? q : undefined,
+        name: !q.includes("@") && !q.toUpperCase().startsWith("INQ-") && !q.toUpperCase().startsWith("PAY-") ? q : undefined,
+        sessionId: q.toUpperCase().startsWith("INQ-") || q.toUpperCase().startsWith("PAY-") ? q.toUpperCase() : undefined,
+      });
+      setLookupResults(results);
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
+  const handleResumeSession = (s: PaymentSession) => {
+    const cleanedPlayer = (s.itemTitle || "")
+      .replace(/^Player Inquiry:\s*/i, "")
+      .replace(/\s*\([A-Z]{2,3}\)\s*$/i, "")
+      .trim();
+    onOpenPlayerInquiry({
+      playerName: cleanedPlayer || inquiryPlayer.trim() || undefined,
+      teamId: inquiryTeamId,
+      fullName: s.customerName || inquiryName.trim() || undefined,
+      email: s.customerEmail || inquiryEmail.trim() || undefined,
+      messagingPlatform: inquiryPlatform,
+      messagingDetails: s.customerPhone || inquiryHandle.trim() || undefined,
+      skipToPayment: true,
+      resumeSessionId: s.id,
+      resumePaymentMethod: s.paymentMethod,
+      initialMode: "new",
+    });
+  };
+
+  const handleCopyValue = (val: string, key: string) => {
+    navigator.clipboard.writeText(val);
+    setCopiedSessionKey(key);
+    setTimeout(() => setCopiedSessionKey(null), 1800);
+  };
 
   const visibleCards =
     showcaseFilter === "all"
@@ -291,6 +394,18 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
     const trimmedEmail = inquiryEmail.trim();
     const trimmedHandle = inquiryHandle.trim();
 
+    if (trimmedName) localStorage.setItem("nfl_guest_sender_name", trimmedName);
+    if (trimmedEmail) localStorage.setItem("nfl_guest_buyer_email", trimmedEmail);
+
+    // If an active existing inquiry exists for these details and user didn't dismiss auto-resume, open it instead of creating a duplicate
+    if (!dismissedAutoResume && matchedSessions.length > 0) {
+      const top = matchedSessions[0];
+      if (top.status === "details_provided" || top.status === "awaiting_admin_details") {
+        handleResumeSession(top);
+        return;
+      }
+    }
+
     if (!trimmedPlayer) {
       setInquiryError("Please enter or tap your favorite NFL player name to continue.");
       return;
@@ -300,9 +415,6 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
       setInquiryError("Please enter a valid email address for booking confirmation.");
       return;
     }
-
-    if (trimmedName) localStorage.setItem("nfl_guest_sender_name", trimmedName);
-    if (trimmedEmail) localStorage.setItem("nfl_guest_buyer_email", trimmedEmail);
 
     const hasCompleteContact =
       trimmedName.length > 0 &&
@@ -460,10 +572,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               transition={{ duration: 0.5, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
               className="lg:col-span-6"
             >
-              <form
-                onSubmit={handleCustomInquirySubmit}
-                className="bg-[#080d22]/95 backdrop-blur-xl border border-indigo-400/30 rounded-3xl p-5 sm:p-7 shadow-[0_24px_60px_-15px_rgba(15,23,60,0.85)] space-y-4"
-              >
+              <div className="bg-[#080d22]/95 backdrop-blur-xl border border-indigo-400/30 rounded-3xl p-5 sm:p-7 shadow-[0_24px_60px_-15px_rgba(15,23,60,0.85)] space-y-4">
                 {/* Form Header */}
                 <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
                   <div className="flex items-center gap-3 min-w-0">
@@ -493,188 +602,467 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                   </div>
                 </div>
 
-                {inquiryError && (
-                  <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs font-semibold flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                    <span>{inquiryError}</span>
-                  </div>
-                )}
-
-                {/* Player Input */}
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="hero-custom-player"
-                    className="block text-xs font-bold uppercase tracking-wider text-zinc-300"
-                  >
-                    Who Do You Want to Meet? <span className="text-rose-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <Search className="w-4 h-4 text-sky-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      id="hero-custom-player"
-                      type="text"
-                      value={inquiryPlayer}
-                      onChange={(e) => {
-                        setInquiryPlayer(e.target.value);
-                        if (inquiryError) setInquiryError(null);
-                      }}
-                      placeholder="Type any NFL player (e.g. CeeDee Lamb, Tyreek Hill)..."
-                      className="w-full min-h-[48px] bg-[#040714] border border-white/15 focus:border-sky-400 rounded-2xl pl-10 pr-4 py-3 text-[16px] sm:text-sm font-semibold text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-sky-400"
-                    />
-                  </div>
-                </div>
-
-                {/* Team & Experience Type */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor="hero-custom-team"
-                      className="block text-xs font-bold uppercase tracking-wider text-zinc-300"
-                    >
-                      NFL Team
-                    </label>
-                    <select
-                      id="hero-custom-team"
-                      value={inquiryTeamId}
-                      onChange={(e) => setInquiryTeamId(e.target.value)}
-                      className="w-full min-h-[46px] bg-[#040714] border border-white/15 focus:border-sky-400 rounded-2xl px-3.5 py-2.5 text-[16px] sm:text-sm font-semibold text-white focus:outline-none cursor-pointer"
-                    >
-                      {NFL_TEAMS.map((team) => (
-                        <option key={team.id} value={team.id} className="bg-zinc-900 text-white">
-                          {team.city} {team.name} ({team.id})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor="hero-custom-objective"
-                      className="block text-xs font-bold uppercase tracking-wider text-zinc-300"
-                    >
-                      Experience Type
-                    </label>
-                    <select
-                      id="hero-custom-objective"
-                      value={inquiryObjective}
-                      onChange={(e) => setInquiryObjective(e.target.value)}
-                      className="w-full min-h-[46px] bg-[#040714] border border-white/15 focus:border-sky-400 rounded-2xl px-3.5 py-2.5 text-[16px] sm:text-sm font-semibold text-white focus:outline-none cursor-pointer"
-                    >
-                      {CUSTOM_INQUIRY_OBJECTIVES.map((obj) => (
-                        <option key={obj} value={obj} className="bg-zinc-900 text-white">
-                          {obj}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Name & Email */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor="hero-custom-name"
-                      className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-zinc-300"
-                    >
-                      <User className="w-3.5 h-3.5 text-zinc-400" />
-                      Your Name
-                    </label>
-                    <input
-                      id="hero-custom-name"
-                      type="text"
-                      value={inquiryName}
-                      onChange={(e) => setInquiryName(e.target.value)}
-                      placeholder="Full Name"
-                      className="w-full min-h-[46px] bg-[#040714] border border-white/15 focus:border-sky-400 rounded-2xl px-3.5 py-2.5 text-[16px] sm:text-sm font-semibold text-white placeholder-zinc-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor="hero-custom-email"
-                      className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-zinc-300"
-                    >
-                      <Mail className="w-3.5 h-3.5 text-zinc-400" />
-                      Email Address
-                    </label>
-                    <input
-                      id="hero-custom-email"
-                      type="email"
-                      value={inquiryEmail}
-                      onChange={(e) => {
-                        setInquiryEmail(e.target.value);
-                        if (inquiryError) setInquiryError(null);
-                      }}
-                      placeholder="you@example.com"
-                      className="w-full min-h-[46px] bg-[#040714] border border-white/15 focus:border-sky-400 rounded-2xl px-3.5 py-2.5 text-[16px] sm:text-sm font-semibold text-white placeholder-zinc-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Messaging Platform Selector + Handle */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-300">
-                    Where Should Our Concierge Reach You?
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: "whatsapp", label: "WhatsApp" },
-                      { id: "telegram", label: "Telegram" },
-                      { id: "zangi", label: "Zangi" },
-                    ].map((plat) => (
-                      <button
-                        key={plat.id}
-                        type="button"
-                        onClick={() => setInquiryPlatform(plat.id as "whatsapp" | "telegram" | "zangi")}
-                        className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                          inquiryPlatform === plat.id
-                            ? "bg-indigo-600/25 border-sky-400 text-white"
-                            : "bg-[#040714] border-white/10 text-zinc-400 hover:text-zinc-200"
-                        }`}
-                      >
-                        {plat.label}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    type="text"
-                    value={inquiryHandle}
-                    onChange={(e) => setInquiryHandle(e.target.value)}
-                    placeholder={
-                      inquiryPlatform === "whatsapp"
-                        ? "WhatsApp Phone Number (e.g. +1 555-234-5678)"
-                        : inquiryPlatform === "telegram"
-                        ? "Telegram @username or Phone Number"
-                        : "Zangi Private Number / ID"
-                    }
-                    className="w-full min-h-[46px] bg-[#040714] border border-white/15 focus:border-sky-400 rounded-2xl px-3.5 py-2.5 text-[16px] sm:text-sm font-semibold text-white placeholder-zinc-500 focus:outline-none"
-                  />
-                </div>
-
-                {/* High-Converting Submit Button */}
-                <button
-                  type="submit"
-                  className="w-full min-h-[54px] px-6 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-400 hover:via-teal-400 hover:to-sky-400 text-zinc-950 font-extrabold text-sm sm:text-base uppercase tracking-wide shadow-[0_14px_34px_-8px_rgba(16,185,129,0.55)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer inline-flex items-center justify-center gap-2.5"
-                >
-                  <span>Secure My Player Inquiry · $100 Charity</span>
-                  <ArrowRight className="w-4 h-4 shrink-0" />
-                </button>
-
-                {/* Form Trust & Status Links Footer */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-zinc-400">
-                  <span className="inline-flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span>Next: $100 Charity Contribution &amp; Receipt</span>
-                  </span>
+                {/* Mode Tabs: New Inquiry vs Already Started? Check Vendor Response */}
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={onOpenTrackInquiry}
-                    className="text-sky-300 hover:text-sky-200 font-semibold transition-colors cursor-pointer"
+                    onClick={() => setCardMode("new")}
+                    className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wide border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      cardMode === "new"
+                        ? "bg-blue-600 border-blue-400 text-white shadow-md"
+                        : "bg-[#040714] border-white/10 text-zinc-400 hover:text-white"
+                    }`}
                   >
-                    Track Existing Inquiry
+                    <Search className="w-3.5 h-3.5 shrink-0" />
+                    <span>New Player Inquiry</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCardMode("check_existing");
+                      const preQ = (inquiryEmail || inquiryName || "").trim();
+                      if (preQ && !hasSearchedLookup) {
+                        setLookupQuery(preQ);
+                        handleRunLookup(preQ);
+                      }
+                    }}
+                    className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wide border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      cardMode === "check_existing"
+                        ? "bg-emerald-500 border-emerald-400 text-zinc-950 shadow-md"
+                        : "bg-[#040714] border-emerald-500/35 text-emerald-300 hover:text-white"
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span>
+                      Already Started? Check Details
+                      {matchedSessions.length > 0 ? ` (${matchedSessions.length})` : ""}
+                    </span>
                   </button>
                 </div>
-              </form>
+
+                {cardMode === "check_existing" ? (
+                  <div className="space-y-4">
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      Already submitted your info and awaiting vendor details? Enter the <strong className="text-white">Email Address, Full Name, or Reference ID</strong> you used earlier to check if vendors have responded—without starting a new inquiry.
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={lookupQuery}
+                        onChange={(e) => setLookupQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleRunLookup();
+                          }
+                        }}
+                        placeholder="Email, Name, or Ref ID (e.g. INQ-...)"
+                        className="flex-1 min-h-[46px] bg-[#040714] border border-white/15 focus:border-emerald-400 rounded-2xl px-3.5 py-2.5 text-[16px] sm:text-sm font-semibold text-white placeholder-zinc-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRunLookup()}
+                        disabled={isLookingUp || !lookupQuery.trim()}
+                        className="min-h-[46px] px-5 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-zinc-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                      >
+                        {isLookingUp ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                        <span>{isLookingUp ? "Checking..." : "Check Response"}</span>
+                      </button>
+                    </div>
+
+                    {savedSessions.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-[11px] font-bold text-zinc-400">Saved on this device:</span>
+                        {savedSessions.slice(0, 3).map((ss) => (
+                          <button
+                            key={ss.id}
+                            type="button"
+                            onClick={() => {
+                              setLookupQuery(ss.customerEmail || ss.id);
+                              handleRunLookup(ss.id);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-[#040714] hover:bg-zinc-900 border border-white/15 text-[11px] font-mono text-sky-300 cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <Clock className="w-3 h-3 text-amber-400" />
+                            <span>{ss.id}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {isLookingUp ? (
+                      <div className="py-8 text-center space-y-2">
+                        <RefreshCw className="w-6 h-6 text-emerald-400 animate-spin mx-auto" />
+                        <p className="text-xs font-bold uppercase text-zinc-400">Checking live vendor dispatch queue...</p>
+                      </div>
+                    ) : hasSearchedLookup && lookupResults.length === 0 ? (
+                      <div className="p-4 rounded-2xl bg-[#040714] border border-white/10 text-center space-y-2">
+                        <p className="text-xs font-bold text-white">No inquiry found matching &ldquo;{lookupQuery}&rdquo;.</p>
+                        <p className="text-[11px] text-zinc-400">Check your spelling or switch back to New Player Inquiry.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
+                        {lookupResults.map((s) => {
+                          const hasVendorDetails = Boolean(
+                            s.adminPaymentDetails &&
+                              (s.adminPaymentDetails.identifier || s.adminPaymentDetails.accountNumber || s.adminPaymentDetails.bankName)
+                          );
+                          const isSubmitted = s.status === "payment_submitted" || s.status === "completed";
+                          const elapsedMins = s.createdAt ? Math.max(0, Math.floor((Date.now() - s.createdAt) / 60000)) : 0;
+                          const handleVal =
+                            s.adminPaymentDetails?.identifier ||
+                            s.adminPaymentDetails?.accountNumber ||
+                            s.adminPaymentDetails?.bankName ||
+                            "";
+
+                          return (
+                            <div
+                              key={s.id}
+                              className={`p-4 rounded-2xl border space-y-2.5 ${
+                                hasVendorDetails && !isSubmitted
+                                  ? "bg-emerald-500/10 border-emerald-500/40"
+                                  : isSubmitted
+                                  ? "bg-amber-500/10 border-amber-500/30"
+                                  : "bg-[#040714] border-sky-500/30"
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                                    hasVendorDetails && !isSubmitted
+                                      ? "bg-emerald-500 text-zinc-950"
+                                      : isSubmitted
+                                      ? "bg-amber-500/20 text-amber-300"
+                                      : "bg-sky-500/20 text-sky-300"
+                                  }`}
+                                >
+                                  {hasVendorDetails && !isSubmitted
+                                    ? "VENDOR RESPONDED · DETAILS READY"
+                                    : isSubmitted
+                                    ? "PAYMENT PROOF SUBMITTED"
+                                    : `AWAITING VENDOR (${elapsedMins}m)`}
+                                </span>
+                                <span className="text-[11px] font-mono text-zinc-400">{s.id}</span>
+                              </div>
+
+                              <div>
+                                <p className="text-xs font-extrabold uppercase text-white">{s.itemTitle || "Custom Player Inquiry"}</p>
+                                <p className="text-[11px] text-zinc-300">
+                                  {s.customerName} · <span className="uppercase font-bold">{s.paymentMethod}</span> · ${Number(s.amount || 100).toLocaleString()}
+                                </p>
+                              </div>
+
+                              {hasVendorDetails && handleVal && !isSubmitted && (
+                                <div className="p-2.5 rounded-xl bg-zinc-950 border border-emerald-500/30 flex items-center justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <span className="text-[9px] font-black uppercase text-zinc-400 block">Vendor Payment Destination</span>
+                                    <span className="text-xs font-mono font-black text-emerald-400 break-all">{handleVal}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyValue(handleVal, s.id)}
+                                    className="px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-[10px] font-bold text-white shrink-0 cursor-pointer inline-flex items-center gap-1"
+                                  >
+                                    {copiedSessionKey === s.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                    <span>{copiedSessionKey === s.id ? "Copied" : "Copy"}</span>
+                                  </button>
+                                </div>
+                              )}
+
+                              {Array.isArray(s.messages) && s.messages.length > 0 && (
+                                <div className="p-2.5 rounded-xl bg-zinc-950 border border-sky-500/25 text-[11px]">
+                                  <span className="text-[9px] font-black uppercase text-sky-300 block">
+                                    Concierge Note ({s.messages.length})
+                                  </span>
+                                  <p className="text-zinc-200 line-clamp-2 mt-0.5">{s.messages[s.messages.length - 1].body}</p>
+                                </div>
+                              )}
+
+                              <div className="flex flex-wrap items-center gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleResumeSession(s)}
+                                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 font-black text-[11px] uppercase tracking-wider inline-flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <span>
+                                    {hasVendorDetails && !isSubmitted
+                                      ? "Open Vendor Details & Upload Receipt"
+                                      : "Resume Awaiting Screen & Messages"}
+                                  </span>
+                                  <ArrowRight className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={onOpenTicketCheck}
+                                  className="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-300 text-[11px] font-bold uppercase inline-flex items-center gap-1 cursor-pointer"
+                                >
+                                  <ExternalLink className="w-3 h-3" /> Full Portal
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <form onSubmit={handleCustomInquirySubmit} className="space-y-4">
+                    {/* Auto-Detected Returning Inquiry Banner */}
+                    {matchedSessions.length > 0 && !dismissedAutoResume && (() => {
+                      const top = matchedSessions[0];
+                      const hasVendorDetails = Boolean(
+                        top.adminPaymentDetails &&
+                          (top.adminPaymentDetails.identifier || top.adminPaymentDetails.accountNumber || top.adminPaymentDetails.bankName)
+                      );
+                      return (
+                        <div
+                          className={`p-3.5 rounded-2xl border space-y-2 ${
+                            hasVendorDetails
+                              ? "bg-emerald-500/15 border-emerald-400/50"
+                              : "bg-sky-500/15 border-sky-400/40"
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span
+                              className={`text-[10px] font-black uppercase tracking-wider ${
+                                hasVendorDetails ? "text-emerald-300" : "text-sky-300"
+                              }`}
+                            >
+                              {hasVendorDetails
+                                ? "Existing Inquiry Found · Vendor Responded!"
+                                : "Existing Inquiry Found · Awaiting Vendor Details"}
+                            </span>
+                            <span className="text-[11px] font-mono text-zinc-300">{top.id}</span>
+                          </div>
+                          <p className="text-xs text-zinc-200 leading-snug">
+                            We found your existing inquiry for{" "}
+                            <strong className="text-white">{top.itemTitle || "Custom Player Inquiry"}</strong> ({top.customerEmail}).{" "}
+                            {hasVendorDetails
+                              ? "Vendor payment details are ready to view now."
+                              : "Your session is active—check live vendor status and messages instead of starting over."}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleResumeSession(top)}
+                              className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-[11px] uppercase tracking-wider inline-flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <span>{hasVendorDetails ? "Open & View Vendor Response" : "Resume Awaiting Details"}</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDismissedAutoResume(true)}
+                              className="text-[11px] font-bold text-zinc-300 hover:text-white underline cursor-pointer px-2 py-1"
+                            >
+                              Start Separate New Inquiry
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {inquiryError && (
+                      <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs font-semibold flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                        <span>{inquiryError}</span>
+                      </div>
+                    )}
+
+                    {/* Player Input */}
+                    <div className="space-y-1.5">
+                      <label
+                        htmlFor="hero-custom-player"
+                        className="block text-xs font-bold uppercase tracking-wider text-zinc-300"
+                      >
+                        Who Do You Want to Meet? <span className="text-rose-400">*</span>
+                      </label>
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-sky-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          id="hero-custom-player"
+                          type="text"
+                          value={inquiryPlayer}
+                          onChange={(e) => {
+                            setInquiryPlayer(e.target.value);
+                            if (inquiryError) setInquiryError(null);
+                          }}
+                          placeholder="Type any NFL player (e.g. CeeDee Lamb, Tyreek Hill)..."
+                          className="w-full min-h-[48px] bg-[#040714] border border-white/15 focus:border-sky-400 rounded-2xl pl-10 pr-4 py-3 text-[16px] sm:text-sm font-semibold text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Team & Experience Type */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor="hero-custom-team"
+                          className="block text-xs font-bold uppercase tracking-wider text-zinc-300"
+                        >
+                          NFL Team
+                        </label>
+                        <select
+                          id="hero-custom-team"
+                          value={inquiryTeamId}
+                          onChange={(e) => setInquiryTeamId(e.target.value)}
+                          className="w-full min-h-[46px] bg-[#040714] border border-white/15 focus:border-sky-400 rounded-2xl px-3.5 py-2.5 text-[16px] sm:text-sm font-semibold text-white focus:outline-none cursor-pointer"
+                        >
+                          {NFL_TEAMS.map((team) => (
+                            <option key={team.id} value={team.id} className="bg-zinc-900 text-white">
+                              {team.city} {team.name} ({team.id})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor="hero-custom-objective"
+                          className="block text-xs font-bold uppercase tracking-wider text-zinc-300"
+                        >
+                          Experience Type
+                        </label>
+                        <select
+                          id="hero-custom-objective"
+                          value={inquiryObjective}
+                          onChange={(e) => setInquiryObjective(e.target.value)}
+                          className="w-full min-h-[46px] bg-[#040714] border border-white/15 focus:border-sky-400 rounded-2xl px-3.5 py-2.5 text-[16px] sm:text-sm font-semibold text-white focus:outline-none cursor-pointer"
+                        >
+                          {CUSTOM_INQUIRY_OBJECTIVES.map((obj) => (
+                            <option key={obj} value={obj} className="bg-zinc-900 text-white">
+                              {obj}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Name & Email */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor="hero-custom-name"
+                          className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-zinc-300"
+                        >
+                          <User className="w-3.5 h-3.5 text-zinc-400" />
+                          Your Name
+                        </label>
+                        <input
+                          id="hero-custom-name"
+                          type="text"
+                          value={inquiryName}
+                          onChange={(e) => setInquiryName(e.target.value)}
+                          placeholder="Full Name"
+                          className="w-full min-h-[46px] bg-[#040714] border border-white/15 focus:border-sky-400 rounded-2xl px-3.5 py-2.5 text-[16px] sm:text-sm font-semibold text-white placeholder-zinc-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor="hero-custom-email"
+                          className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-zinc-300"
+                        >
+                          <Mail className="w-3.5 h-3.5 text-zinc-400" />
+                          Email Address
+                        </label>
+                        <input
+                          id="hero-custom-email"
+                          type="email"
+                          value={inquiryEmail}
+                          onChange={(e) => {
+                            setInquiryEmail(e.target.value);
+                            if (inquiryError) setInquiryError(null);
+                          }}
+                          placeholder="you@example.com"
+                          className="w-full min-h-[46px] bg-[#040714] border border-white/15 focus:border-sky-400 rounded-2xl px-3.5 py-2.5 text-[16px] sm:text-sm font-semibold text-white placeholder-zinc-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Messaging Platform Selector + Handle */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-300">
+                        Where Should Our Concierge Reach You?
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { id: "whatsapp", label: "WhatsApp" },
+                          { id: "telegram", label: "Telegram" },
+                          { id: "zangi", label: "Zangi" },
+                        ].map((plat) => (
+                          <button
+                            key={plat.id}
+                            type="button"
+                            onClick={() => setInquiryPlatform(plat.id as "whatsapp" | "telegram" | "zangi")}
+                            className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                              inquiryPlatform === plat.id
+                                ? "bg-indigo-600/25 border-sky-400 text-white"
+                                : "bg-[#040714] border-white/10 text-zinc-400 hover:text-zinc-200"
+                            }`}
+                          >
+                            {plat.label}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="text"
+                        value={inquiryHandle}
+                        onChange={(e) => setInquiryHandle(e.target.value)}
+                        placeholder={
+                          inquiryPlatform === "whatsapp"
+                            ? "WhatsApp Phone Number (e.g. +1 555-234-5678)"
+                            : inquiryPlatform === "telegram"
+                            ? "Telegram @username or Phone Number"
+                            : "Zangi Private Number / ID"
+                        }
+                        className="w-full min-h-[46px] bg-[#040714] border border-white/15 focus:border-sky-400 rounded-2xl px-3.5 py-2.5 text-[16px] sm:text-sm font-semibold text-white placeholder-zinc-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* High-Converting Submit Button */}
+                    <button
+                      type="submit"
+                      className="w-full min-h-[54px] px-6 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-400 hover:via-teal-400 hover:to-sky-400 text-zinc-950 font-extrabold text-sm sm:text-base uppercase tracking-wide shadow-[0_14px_34px_-8px_rgba(16,185,129,0.55)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer inline-flex items-center justify-center gap-2.5"
+                    >
+                      <span>Secure My Player Inquiry · $100 Charity</span>
+                      <ArrowRight className="w-4 h-4 shrink-0" />
+                    </button>
+
+                    {/* Form Trust & Status Links Footer */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-zinc-400">
+                      <span className="inline-flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>Next: $100 Charity Contribution &amp; Receipt</span>
+                      </span>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCardMode("check_existing");
+                            const preQ = (inquiryEmail || inquiryName || "").trim();
+                            if (preQ) {
+                              setLookupQuery(preQ);
+                              handleRunLookup(preQ);
+                            }
+                          }}
+                          className="text-emerald-300 hover:text-emerald-200 font-semibold transition-colors cursor-pointer"
+                        >
+                          Already Started? Check Vendor Details
+                        </button>
+                        <button
+                          type="button"
+                          onClick={onOpenTrackInquiry}
+                          className="text-sky-300 hover:text-sky-200 font-semibold transition-colors cursor-pointer"
+                        >
+                          Track Ticket
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                )}
+              </div>
             </motion.div>
           </div>
         </div>

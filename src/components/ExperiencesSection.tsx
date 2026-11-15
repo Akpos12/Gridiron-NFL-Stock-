@@ -555,6 +555,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const [inquiryInitialMessagingPlatform, setInquiryInitialMessagingPlatform] = useState<"whatsapp" | "zangi" | "telegram" | undefined>();
   const [inquiryInitialMessagingDetails, setInquiryInitialMessagingDetails] = useState<string | undefined>();
   const [inquiryInitialStep, setInquiryInitialStep] = useState<"details" | "payment" | undefined>();
+  const [inquiryInitialSessionId, setInquiryInitialSessionId] = useState<string | undefined>();
+  const [inquiryInitialPaymentMethod, setInquiryInitialPaymentMethod] = useState<any>(undefined);
+  const [inquiryInitialMode, setInquiryInitialMode] = useState<"new" | "check_existing" | undefined>();
 
   // Booking details
   const [bookingDate, setBookingDate] = useState("");
@@ -828,6 +831,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           setInquiryInitialMessagingPlatform(prefill.messagingPlatform);
           setInquiryInitialMessagingDetails(prefill.messagingDetails);
           setInquiryInitialStep(prefill.skipToPayment ? "payment" : "details");
+          setInquiryInitialSessionId(prefill.resumeSessionId);
+          setInquiryInitialPaymentMethod(prefill.resumePaymentMethod);
+          setInquiryInitialMode(prefill.initialMode);
         } else {
           setInquiryInitialPlayer("");
           setInquiryInitialTeam("KC");
@@ -837,6 +843,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
           setInquiryInitialMessagingPlatform(undefined);
           setInquiryInitialMessagingDetails(undefined);
           setInquiryInitialStep("details");
+          setInquiryInitialSessionId(undefined);
+          setInquiryInitialPaymentMethod(undefined);
+          setInquiryInitialMode(undefined);
         }
         setActiveType("player_inquiry");
         setIsPlayerInquiryOpen(true);
@@ -992,6 +1001,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     if (exp.id === "exp-player-inquiry-session" || exp.type === "player_inquiry") {
       setInquiryInitialPlayer(exp.player && !exp.player.includes("Any") ? exp.player : undefined);
       setInquiryInitialTeam(exp.teamId && exp.teamId !== "NFL" ? exp.teamId : undefined);
+      setInquiryInitialSessionId(undefined);
+      setInquiryInitialPaymentMethod(undefined);
+      setInquiryInitialMode("new");
+      setInquiryInitialStep("details");
       setIsPlayerInquiryOpen(true);
       return;
     }
@@ -1333,18 +1346,39 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
               </span>
             </div>
           </div>
-          <button
-            onClick={() => {
-              setInquiryInitialPlayer(undefined);
-              setInquiryInitialTeam(undefined);
-              setIsPlayerInquiryOpen(true);
-            }}
-            className="px-8 py-4 min-h-[48px] rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2.5 shadow-2xl shadow-indigo-600/35 transition-all hover:scale-[1.02] active:scale-95 shrink-0 cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Inquire About A Player</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+            <button
+              onClick={() => {
+                setInquiryInitialPlayer(undefined);
+                setInquiryInitialTeam(undefined);
+                setInquiryInitialSessionId(undefined);
+                setInquiryInitialPaymentMethod(undefined);
+                setInquiryInitialStep("details");
+                setInquiryInitialMode("new");
+                setIsPlayerInquiryOpen(true);
+              }}
+              className="px-7 py-4 min-h-[48px] rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2.5 shadow-2xl shadow-indigo-600/35 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Inquire About A Player</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                setInquiryInitialPlayer(undefined);
+                setInquiryInitialTeam(undefined);
+                setInquiryInitialSessionId(undefined);
+                setInquiryInitialPaymentMethod(undefined);
+                setInquiryInitialStep("details");
+                setInquiryInitialMode("check_existing");
+                setIsPlayerInquiryOpen(true);
+              }}
+              className="px-5 py-4 min-h-[48px] rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/40 text-emerald-200 font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <Clock className="w-4 h-4 text-emerald-400" />
+              <span>Already Started? Check Details</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -3512,6 +3546,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         initialMessagingPlatform={inquiryInitialMessagingPlatform}
         initialMessagingDetails={inquiryInitialMessagingDetails}
         initialStep={inquiryInitialStep}
+        initialSessionId={inquiryInitialSessionId}
+        initialPaymentMethod={inquiryInitialPaymentMethod}
+        initialMode={inquiryInitialMode}
         onOpenTicketPortal={onOpenTicketPortal}
       />
     </div>

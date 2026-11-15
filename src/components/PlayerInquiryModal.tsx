@@ -26,7 +26,9 @@ import {
   Lock,
   Heart,
   Building2,
-  CreditCard
+  CreditCard,
+  RefreshCw,
+  ExternalLink
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -36,6 +38,13 @@ import { cn } from "../lib/utils";
 import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingTerminal";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
+import {
+  findCustomerInquirySessions,
+  getSavedGuestSessions,
+  PaymentSession,
+  PaymentMethodType,
+  SAVED_SESSIONS_EVENT
+} from "../services/paymentControlService";
 
 interface PlayerInquiryModalProps {
   isOpen: boolean;
@@ -49,6 +58,9 @@ interface PlayerInquiryModalProps {
   initialMessagingDetails?: string;
   initialSpecialNotes?: string;
   initialStep?: "details" | "payment";
+  initialSessionId?: string;
+  initialPaymentMethod?: PaymentMethodType | null;
+  initialMode?: "new" | "check_existing";
   onOpenTicketPortal?: (query?: string) => void;
 }
 
@@ -97,8 +109,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
   initialMessagingDetails,
   initialSpecialNotes,
   initialStep,
+  initialSessionId,
+  initialPaymentMethod,
+  initialMode,
   onOpenTicketPortal
 }) => {
+  const [modalMode, setModalMode] = useState<"new" | "check_existing">(initialMode || "new");
   const [step, setStep] = useState<"details" | "payment" | "success">("details");
 
   // Form State
@@ -122,10 +138,48 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Completed Inquiry Session Data
+  // Completed & Existing Inquiry Lookup State
   const [completedOrder, setCompletedOrder] = useState<any | null>(null);
   const [checkoutSessionId, setCheckoutSessionId] = useState(() => `INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [matchedExistingSessions, setMatchedExistingSessions] = useState<PaymentSession[]>([]);
+  const [resumedSessionBanner, setResumedSessionBanner] = useState<PaymentSession | null>(null);
+  const [forceBrandNew, setForceBrandNew] = useState(false);
+
+  // Explicit "Already Started? Check Awaiting Details" lookup state
+  const [lookupInput, setLookupInput] = useState("");
+  const [lookupResults, setLookupResults] = useState<PaymentSession[]>([]);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [hasSearchedExisting, setHasSearchedExisting] = useState(false);
+  const [savedDeviceSessions, setSavedDeviceSessions] = useState(() => getSavedGuestSessions());
+
+  const applyResumedSession = (s: PaymentSession) => {
+    setCheckoutSessionId(s.id);
+    if (s.customerName && !fullName.trim()) setFullName(s.customerName);
+    if (s.customerEmail && !email.trim()) setEmail(s.customerEmail);
+    if (s.customerPhone && !phone.trim()) setPhone(s.customerPhone);
+    if (!messagingDetails.trim() && s.customerPhone) setMessagingDetails(s.customerPhone);
+    if (s.itemTitle && !favoritePlayer.trim()) {
+      const cleaned = s.itemTitle.replace(/^Player Inquiry:\s*/i, "").replace(/\s*\([A-Z]{2,3}\)\s*$/i, "").trim();
+      if (cleaned) setFavoritePlayer(cleaned);
+    }
+    const pm = s.paymentMethod;
+    if (pm && ["cashapp", "crypto", "paypal", "venmo", "zelle", "giftcard"].includes(pm)) {
+      setPaymentMethod(pm as any);
+    } else {
+      setPaymentMethod("zelle");
+    }
+    setResumedSessionBanner(s);
+    setForceBrandNew(false);
+    setModalMode("new");
+    setStep("payment");
+  };
+
+  useEffect(() => {
+    const syncSaved = () => setSavedDeviceSessions(getSavedGuestSessions());
+    window.addEventListener(SAVED_SESSIONS_EVENT, syncSaved);
+    return () => window.removeEventListener(SAVED_SESSIONS_EVENT, syncSaved);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -133,7 +187,6 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     const resolvedName = (initialFullName || localStorage.getItem("nfl_guest_sender_name") || "").trim();
     const resolvedEmail = (initialEmail || localStorage.getItem("nfl_guest_buyer_email") || "").trim();
     const resolvedPlayer = (initialPlayer || "").trim();
-    const resolvedPlatform = initialMessagingPlatform || "whatsapp";
     const resolvedMessaging = (initialMessagingDetails || "").trim();
 
     if (initialPlayer !== undefined) setFavoritePlayer(initialPlayer);
@@ -145,13 +198,33 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     if (initialMessagingDetails !== undefined) setMessagingDetails(initialMessagingDetails);
     if (initialSpecialNotes !== undefined) setSpecialNotes(initialSpecialNotes);
 
-    setCheckoutSessionId(`INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
+    setSavedDeviceSessions(getSavedGuestSessions());
+    setLookupInput(resolvedEmail || resolvedName || "");
+    setLookupResults([]);
+    setHasSearchedExisting(false);
     setFormError(null);
-    setPaymentMethod(null);
     setPaymentRef("");
     setReceiptImageUrl("");
     setReceiptImageUrls([]);
     setCompletedOrder(null);
+    setResumedSessionBanner(null);
+    setForceBrandNew(false);
+    setModalMode(initialMode || "new");
+
+    if (initialSessionId) {
+      setCheckoutSessionId(initialSessionId);
+      setPaymentMethod(
+        initialPaymentMethod && ["cashapp", "crypto", "paypal", "venmo", "zelle", "giftcard"].includes(initialPaymentMethod)
+          ? (initialPaymentMethod as any)
+          : null
+      );
+      setStep("payment");
+      return;
+    }
+
+    const freshId = `INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    setCheckoutSessionId(freshId);
+    setPaymentMethod(null);
 
     const canStartOnPayment =
       initialStep === "payment" &&
@@ -161,6 +234,24 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       resolvedMessaging.length > 0;
 
     setStep(canStartOnPayment ? "payment" : "details");
+
+    // Immediately check if this returning customer already has an active / responded inquiry!
+    if (resolvedEmail.includes("@") || resolvedName.length >= 2) {
+      findCustomerInquirySessions({ email: resolvedEmail, name: resolvedName })
+        .then((matches) => {
+          const openMatches = matches.filter((m) => m.status !== "completed");
+          setMatchedExistingSessions(openMatches);
+          if (canStartOnPayment && openMatches.length > 0) {
+            const top = openMatches[0];
+            if (top.status === "details_provided" || top.status === "awaiting_admin_details") {
+              applyResumedSession(top);
+            }
+          }
+        })
+        .catch(() => {});
+    } else {
+      setMatchedExistingSessions([]);
+    }
   }, [
     isOpen,
     initialPlayer,
@@ -172,7 +263,29 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     initialMessagingDetails,
     initialSpecialNotes,
     initialStep,
+    initialSessionId,
+    initialPaymentMethod,
+    initialMode,
   ]);
+
+  // Live debounced auto-lookup whenever returning user types their email or name in Step 1
+  useEffect(() => {
+    if (!isOpen || forceBrandNew) return;
+    const trimmedEmail = email.trim();
+    const trimmedName = fullName.trim();
+    if (!trimmedEmail.includes("@") && trimmedName.length < 3) {
+      setMatchedExistingSessions([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      findCustomerInquirySessions({ email: trimmedEmail, name: trimmedName })
+        .then((matches) => {
+          setMatchedExistingSessions(matches.filter((m) => m.status !== "completed"));
+        })
+        .catch(() => {});
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [isOpen, email, fullName, forceBrandNew]);
 
   if (!isOpen) return null;
 
@@ -189,7 +302,33 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const handleProceedToPayment = (e: React.FormEvent) => {
+  const handleRunExistingLookup = async (overrideQuery?: string) => {
+    const q = (overrideQuery ?? lookupInput).trim();
+    if (!q) return;
+    setIsLookingUp(true);
+    setHasSearchedExisting(true);
+    try {
+      const results = await findCustomerInquirySessions({
+        email: q.includes("@") ? q : undefined,
+        name: !q.includes("@") ? q : undefined,
+        sessionId: q
+      });
+      setLookupResults(results);
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
+  const handleStartFreshNewInquiry = () => {
+    setForceBrandNew(true);
+    setResumedSessionBanner(null);
+    setMatchedExistingSessions([]);
+    setCheckoutSessionId(`INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
+    setPaymentMethod(null);
+    setPaymentRef("");
+  };
+
+  const handleProceedToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -214,6 +353,20 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     localStorage.setItem("nfl_guest_sender_name", fullName.trim());
     localStorage.setItem("nfl_guest_buyer_email", email.trim());
     if (phone.trim()) localStorage.setItem("nfl_guest_buyer_phone", phone.trim());
+
+    // Check if returning user already has a responded or awaiting inquiry so we resume instead of duplicating
+    if (!forceBrandNew) {
+      const candidates = matchedExistingSessions.length > 0
+        ? matchedExistingSessions
+        : await findCustomerInquirySessions({ email: email.trim(), name: fullName.trim() }).catch(() => []);
+      const openSession = candidates.find(
+        (m) => m.status === "details_provided" || m.status === "awaiting_admin_details"
+      );
+      if (openSession) {
+        applyResumedSession(openSession);
+        return;
+      }
+    }
 
     setPaymentMethod(null);
     setStep("payment");
@@ -506,23 +659,65 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
             Inquire about any active NFL superstar or roster talent across all 32 franchises. <strong className="text-emerald-300">100% of your $100 inquiry fee goes directly to charity</strong> while our team connects with player representation.
           </p>
 
-          {/* Stepper indicator */}
-          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5 text-[9px] font-black uppercase tracking-widest">
-            <div className={cn("flex items-center gap-1.5", step === "details" ? "text-blue-400" : "text-zinc-500")}>
-              <span className={cn("w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px]", step === "details" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-400")}>1</span>
-              <span>Player & Contact Info</span>
-            </div>
-            <ArrowRight className="w-3 h-3 text-zinc-700" />
-            <div className={cn("flex items-center gap-1.5", step === "payment" ? "text-blue-400" : "text-zinc-500")}>
-              <span className={cn("w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px]", step === "payment" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-400")}>2</span>
-              <span>$100 Contribution & Proof</span>
-            </div>
-            <ArrowRight className="w-3 h-3 text-zinc-700" />
-            <div className={cn("flex items-center gap-1.5", step === "success" ? "text-emerald-400" : "text-zinc-500")}>
-              <span className={cn("w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px]", step === "success" ? "bg-emerald-500 text-black" : "bg-zinc-800 text-zinc-400")}>3</span>
-              <span>Awaiting Verification</span>
-            </div>
+          {/* Mode Switcher: New Inquiry vs Already Started? Check Awaiting Details */}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setModalMode("new")}
+              className={cn(
+                "min-h-[42px] px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider border transition-all cursor-pointer flex items-center justify-center gap-1.5",
+                modalMode === "new"
+                  ? "bg-blue-600 border-blue-400 text-white shadow-md"
+                  : "bg-zinc-900/80 border-white/10 text-zinc-400 hover:text-white"
+              )}
+            >
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <span>New Player Inquiry</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setModalMode("check_existing");
+                const preQuery = (email || fullName || "").trim();
+                if (preQuery && !hasSearchedExisting) {
+                  setLookupInput(preQuery);
+                  handleRunExistingLookup(preQuery);
+                }
+              }}
+              className={cn(
+                "min-h-[42px] px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider border transition-all cursor-pointer flex items-center justify-center gap-1.5",
+                modalMode === "check_existing"
+                  ? "bg-emerald-500 border-emerald-400 text-zinc-950 shadow-md"
+                  : "bg-zinc-900/80 border-emerald-500/35 text-emerald-300 hover:text-white"
+              )}
+            >
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                Already Started? Check Details
+                {matchedExistingSessions.length > 0 ? ` (${matchedExistingSessions.length})` : ""}
+              </span>
+            </button>
           </div>
+
+          {/* Stepper indicator */}
+          {modalMode === "new" && (
+            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5 text-[9px] font-black uppercase tracking-widest">
+              <div className={cn("flex items-center gap-1.5", step === "details" ? "text-blue-400" : "text-zinc-500")}>
+                <span className={cn("w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px]", step === "details" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-400")}>1</span>
+                <span>Player & Contact Info</span>
+              </div>
+              <ArrowRight className="w-3 h-3 text-zinc-700" />
+              <div className={cn("flex items-center gap-1.5", step === "payment" ? "text-blue-400" : "text-zinc-500")}>
+                <span className={cn("w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px]", step === "payment" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-400")}>2</span>
+                <span>$100 Contribution & Proof</span>
+              </div>
+              <ArrowRight className="w-3 h-3 text-zinc-700" />
+              <div className={cn("flex items-center gap-1.5", step === "success" ? "text-emerald-400" : "text-zinc-500")}>
+                <span className={cn("w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px]", step === "success" ? "bg-emerald-500 text-black" : "bg-zinc-800 text-zinc-400")}>3</span>
+                <span>Awaiting Verification</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Modal Scrollable Body */}
@@ -534,9 +729,247 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
             </div>
           )}
 
+          {/* DEDICATED MODE: ALREADY STARTED AN INQUIRY & AWAITING VENDOR DETAILS */}
+          {modalMode === "check_existing" && (
+            <div className="space-y-5">
+              <div className="p-5 bg-zinc-900/70 border border-emerald-500/30 rounded-3xl space-y-4">
+                <div>
+                  <h4 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                    <Search className="w-4 h-4 text-emerald-400" />
+                    Resume Existing Inquiry &amp; Check Vendor Response
+                  </h4>
+                  <p className="text-xs text-zinc-300 mt-1 leading-relaxed">
+                    Already started an inquiry and waiting for vendor details? Enter the <strong className="text-white">Email Address, Full Name, or Reference ID</strong> you used earlier to check if the vendor has responded—without creating a duplicate request.
+                  </p>
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleRunExistingLookup();
+                  }}
+                  className="flex flex-col sm:flex-row gap-2.5"
+                >
+                  <input
+                    type="text"
+                    placeholder="Enter your Email, Name, or Ref ID (e.g. INQ-...)"
+                    value={lookupInput}
+                    onChange={(e) => setLookupInput(e.target.value)}
+                    className="flex-1 min-h-[46px] bg-zinc-950 border border-white/15 focus:border-emerald-400 rounded-2xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isLookingUp || !lookupInput.trim()}
+                    className="min-h-[46px] px-5 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-zinc-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                  >
+                    {isLookingUp ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                    <span>{isLookingUp ? "Checking..." : "Check Status"}</span>
+                  </button>
+                </form>
+
+                {savedDeviceSessions.length > 0 && (
+                  <div className="pt-2 border-t border-white/10 flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                      Recent on this device:
+                    </span>
+                    {savedDeviceSessions.slice(0, 3).map((ds) => (
+                      <button
+                        key={ds.id}
+                        type="button"
+                        onClick={() => {
+                          setLookupInput(ds.customerEmail || ds.id);
+                          handleRunExistingLookup(ds.id);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 border border-white/15 text-[11px] font-mono text-sky-300 cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Clock className="w-3 h-3 text-amber-400" />
+                        <span>{ds.id}</span>
+                        {ds.paymentMethod && <span className="text-zinc-500 uppercase">({ds.paymentMethod})</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {isLookingUp ? (
+                <div className="py-10 text-center space-y-2">
+                  <RefreshCw className="w-7 h-7 text-emerald-400 animate-spin mx-auto" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                    Checking live vendor dispatch queue...
+                  </p>
+                </div>
+              ) : hasSearchedExisting && lookupResults.length === 0 ? (
+                <div className="p-6 bg-zinc-900/50 border border-white/10 rounded-3xl text-center space-y-3">
+                  <p className="text-sm font-black uppercase text-white">No Existing Inquiry Found</p>
+                  <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                    We couldn&apos;t find a previous inquiry matching &ldquo;{lookupInput}&rdquo;. Double-check the email or Reference ID, or switch to New Player Inquiry.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setModalMode("new")}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase cursor-pointer"
+                  >
+                    Start a New Player Inquiry
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {lookupResults.map((s) => {
+                    const hasVendorDetails = Boolean(
+                      s.adminPaymentDetails &&
+                        (s.adminPaymentDetails.identifier || s.adminPaymentDetails.accountNumber || s.adminPaymentDetails.bankName)
+                    );
+                    const isSubmitted = s.status === "payment_submitted" || s.status === "completed";
+                    const elapsedMins = s.createdAt ? Math.max(0, Math.floor((Date.now() - s.createdAt) / 60000)) : 0;
+
+                    return (
+                      <div
+                        key={s.id}
+                        className={cn(
+                          "p-4 sm:p-5 rounded-3xl border space-y-3",
+                          hasVendorDetails && !isSubmitted
+                            ? "bg-emerald-500/10 border-emerald-500/40"
+                            : isSubmitted
+                            ? "bg-amber-500/10 border-amber-500/30"
+                            : "bg-zinc-900/80 border-sky-500/30"
+                        )}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider",
+                              hasVendorDetails && !isSubmitted
+                                ? "bg-emerald-500 text-black"
+                                : isSubmitted
+                                ? "bg-amber-500/20 text-amber-300"
+                                : "bg-sky-500/20 text-sky-300"
+                            )}
+                          >
+                            {hasVendorDetails && !isSubmitted
+                              ? "VENDOR RESPONDED · DETAILS READY"
+                              : isSubmitted
+                              ? "PAYMENT PROOF SUBMITTED"
+                              : `AWAITING VENDOR DETAILS (${elapsedMins}m ago)`}
+                          </span>
+                          <span className="text-[11px] font-mono text-zinc-400">
+                            Ref: <strong className="text-white">{s.id}</strong>
+                          </span>
+                        </div>
+
+                        <div>
+                          <h5 className="text-sm font-black uppercase text-white">
+                            {s.itemTitle || "Custom Player Inquiry"}
+                          </h5>
+                          <p className="text-xs text-zinc-300 mt-0.5">
+                            {s.customerName} ({s.customerEmail}) · <strong className="uppercase">{s.paymentMethod}</strong> · ${Number(s.amount || 100).toLocaleString()}
+                          </p>
+                        </div>
+
+                        {hasVendorDetails && s.adminPaymentDetails && !isSubmitted && (
+                          <div className="p-3 rounded-2xl bg-zinc-950 border border-emerald-500/30 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-black uppercase text-zinc-500 block">Assigned Vendor Destination</span>
+                              <span className="text-sm font-mono font-black text-emerald-400 break-all">
+                                {s.adminPaymentDetails.identifier || s.adminPaymentDetails.accountNumber || s.adminPaymentDetails.bankName}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {Array.isArray(s.messages) && s.messages.length > 0 && (
+                          <div className="p-3 rounded-2xl bg-zinc-950/90 border border-sky-500/25 text-xs space-y-1">
+                            <span className="text-[9px] font-black uppercase text-sky-300 block">
+                              Latest Concierge Update ({s.messages.length} msg)
+                            </span>
+                            <p className="text-zinc-200 line-clamp-2">
+                              {s.messages[s.messages.length - 1].body}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => applyResumedSession(s)}
+                            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md"
+                          >
+                            <span>
+                              {hasVendorDetails && !isSubmitted
+                                ? "Open Vendor Details & Upload Receipt"
+                                : "Resume Awaiting Screen & Messages"}
+                            </span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                          {onOpenTicketPortal && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose();
+                                onOpenTicketPortal(s.id);
+                              }}
+                              className="px-3.5 py-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 border border-white/10 text-zinc-300 text-xs font-bold uppercase flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" /> Full Tracker
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* STEP 1: PLAYER & CUSTOMER DETAILS FORM */}
-          {step === "details" && (
+          {modalMode === "new" && step === "details" && (
             <form onSubmit={handleProceedToPayment} className="space-y-6">
+              {/* Auto-Detected Returning Inquiry Banner */}
+              {matchedExistingSessions.length > 0 && !forceBrandNew && (() => {
+                const top = matchedExistingSessions[0];
+                const hasVendorDetails = Boolean(
+                  top.adminPaymentDetails &&
+                    (top.adminPaymentDetails.identifier || top.adminPaymentDetails.accountNumber || top.adminPaymentDetails.bankName)
+                );
+                return (
+                  <div className={cn(
+                    "p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3",
+                    hasVendorDetails
+                      ? "bg-emerald-500/15 border-emerald-400/50"
+                      : "bg-sky-500/15 border-sky-400/40"
+                  )}>
+                    <div className="space-y-0.5">
+                      <span className={cn(
+                        "text-[10px] font-black uppercase tracking-wider block",
+                        hasVendorDetails ? "text-emerald-300" : "text-sky-300"
+                      )}>
+                        {hasVendorDetails
+                          ? "Existing Inquiry Found · Vendor Has Responded!"
+                          : "Existing Inquiry Found · Awaiting Vendor Details"}
+                      </span>
+                      <p className="text-xs text-white font-semibold">
+                        Ref <span className="font-mono">{top.id}</span> · {top.itemTitle} ({String(top.paymentMethod || "").toUpperCase()})
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => applyResumedSession(top)}
+                        className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-[10px] uppercase tracking-wider cursor-pointer"
+                      >
+                        {hasVendorDetails ? "View Vendor Response" : "Resume Awaiting Screen"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleStartFreshNewInquiry}
+                        className="px-3 py-2 rounded-xl bg-zinc-900 border border-white/15 text-zinc-300 hover:text-white font-bold text-[10px] uppercase cursor-pointer"
+                      >
+                        New Instead
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
               {/* Section 1: Target Team & Player */}
               <div className="space-y-4 p-5 bg-zinc-900/40 rounded-3xl border border-white/5">
                 <div className="flex items-center justify-between">
@@ -801,8 +1234,28 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
           )}
 
           {/* STEP 2: PAYMENT EXECUTION ($100) */}
-          {step === "payment" && (
+          {modalMode === "new" && step === "payment" && (
             <div className="space-y-6">
+              {resumedSessionBanner && (
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/35 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="text-emerald-100">
+                      Resumed active inquiry <strong className="font-mono text-white">{resumedSessionBanner.id}</strong> — live vendor response &amp; messages synced.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleStartFreshNewInquiry();
+                      setStep("details");
+                    }}
+                    className="text-[10px] font-black uppercase text-sky-300 hover:text-white underline cursor-pointer"
+                  >
+                    Start Separate Inquiry
+                  </button>
+                </div>
+              )}
               {/* Order recap card */}
               <div className="p-4 bg-zinc-900/60 rounded-2xl border border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -1102,7 +1555,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
           )}
 
           {/* STEP 3: RECEIPT SUBMITTED — AWAITING VERIFICATION */}
-          {step === "success" && completedOrder && (
+          {modalMode === "new" && step === "success" && completedOrder && (
             <div className="space-y-6 text-center py-4">
               <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400 shadow-xl shadow-amber-500/10">
                 <Clock className="w-8 h-8 animate-pulse" />
