@@ -721,6 +721,7 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                           if (phone) setCustomerPhone(phone);
                         }}
                         onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
+                        onSwitchToMethod={(m) => setPaymentMethod(m as any)}
                         onReceiptsChange={(primary, all) => {
                           setReceiptImage(primary);
                           setReceiptImages(all);

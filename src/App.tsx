@@ -108,6 +108,8 @@ import { CustomerCareWidget } from "./components/CustomerCareWidget";
 import { ReceiptReviewModal, BookingAuditItem } from "./components/common/ReceiptReviewModal";
 import { TicketCheckModal } from "./components/TicketCheckModal";
 import { VipCommemorativeTicketModal } from "./components/VipCommemorativeTicketModal";
+import { GuestMailNotifier } from "./components/common/GuestMailNotifier";
+import { getSavedGuestSessions } from "./services/paymentControlService";
 import { generateTicketPDF } from "./utils/ticketPdfGenerator";
 import { NFLImage } from "./utils/nflImages";
 import { QRCodeSVG } from "qrcode.react";
@@ -4065,6 +4067,7 @@ export default function App() {
   const [isSavingTrackedReply, setIsSavingTrackedReply] = useState(false);
   const [showTicketCheckModal, setShowTicketCheckModal] = useState(false);
   const [ticketCheckInitialQuery, setTicketCheckInitialQuery] = useState("");
+  const [guestUnreadCount, setGuestUnreadCount] = useState(0);
   const [showVipCommemorativeModal, setShowVipCommemorativeModal] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const portfolioRef = useRef<any[]>([]);
@@ -4959,17 +4962,40 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Mobile/Compact Unread Desk Message Bell (No Sign-In Needed) */}
+          {guestUnreadCount > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const saved = getSavedGuestSessions();
+                setTicketCheckInitialQuery(saved[0]?.id || "");
+                setShowTicketCheckModal(true);
+              }}
+              className="sm:hidden relative flex items-center gap-1.5 px-2.5 py-2 min-h-[40px] bg-sky-500/20 border border-sky-400/50 rounded-xl text-[10px] font-black uppercase text-sky-300 cursor-pointer"
+              title="Open direct billing desk message"
+            >
+              <Bell className="w-3.5 h-3.5 text-sky-300 animate-pulse" />
+              <span>{guestUnreadCount}</span>
+            </button>
+          )}
+
           {/* Quick Check & Download Pass Navbar Button */}
           <button
             onClick={() => {
-              setTicketCheckInitialQuery("");
+              const saved = getSavedGuestSessions();
+              setTicketCheckInitialQuery(guestUnreadCount > 0 && saved[0]?.id ? saved[0].id : "");
               setShowTicketCheckModal(true);
             }}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-gradient-to-r from-emerald-950/75 to-zinc-900 hover:from-emerald-900/80 hover:to-zinc-800 border border-emerald-500/40 hover:border-emerald-400 rounded-xl text-[10px] font-bold uppercase tracking-wider text-emerald-300 hover:text-white transition-all cursor-pointer shadow-sm whitespace-nowrap"
-            title="Check ticket status and download official PDF passes"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-gradient-to-r from-emerald-950/75 to-zinc-900 hover:from-emerald-900/80 hover:to-zinc-800 border border-emerald-500/40 hover:border-emerald-400 rounded-xl text-[10px] font-bold uppercase tracking-wider text-emerald-300 hover:text-white transition-all cursor-pointer shadow-sm whitespace-nowrap relative"
+            title="Check ticket status, awaiting details inbox, and download official PDF passes"
           >
             <Download className="w-3.5 h-3.5 text-emerald-400" />
             <span>Check / Download Pass</span>
+            {guestUnreadCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-sky-500 text-black text-[9px] font-black leading-none">
+                {guestUnreadCount} New
+              </span>
+            )}
           </button>
 
           {/* Quick Track Ticket Navbar Button */}
@@ -5069,14 +5095,15 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => {
+                    const saved = getSavedGuestSessions();
                     setMobileMenuOpen(false);
-                    setTicketCheckInitialQuery("");
+                    setTicketCheckInitialQuery(guestUnreadCount > 0 && saved[0]?.id ? saved[0].id : "");
                     setShowTicketCheckModal(true);
                   }}
                   className="min-h-[46px] px-3 rounded-xl bg-emerald-950/60 border border-emerald-500/35 text-emerald-300 text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Download Pass
+                  <span>{guestUnreadCount > 0 ? `Updates (${guestUnreadCount})` : "Download Pass"}</span>
                 </button>
                 <button
                   type="button"
@@ -6784,6 +6811,15 @@ export default function App() {
           setTrackingId(emailOrOrderId || "");
           setShowInquiryStatus("SEARCH");
         }}
+      />
+
+      {/* Global Real-Time Guest Mail & Awaiting-Details Swift Notifier (No Login Needed) */}
+      <GuestMailNotifier
+        onOpenSession={(sessionId) => {
+          setTicketCheckInitialQuery(sessionId);
+          setShowTicketCheckModal(true);
+        }}
+        onUnreadCountChange={setGuestUnreadCount}
       />
 
       {/* Official VIP Commemorative Game Ticket Modal */}

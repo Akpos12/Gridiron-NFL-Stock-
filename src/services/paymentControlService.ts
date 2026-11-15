@@ -41,6 +41,15 @@ export interface AdminPaymentDetails {
   updatedAt?: number;
 }
 
+export interface SessionMailMessage {
+  id: string;
+  sender: "admin" | "customer";
+  senderName?: string;
+  subject?: string;
+  body: string;
+  createdAt: number;
+}
+
 export interface PaymentSession {
   id: string; // e.g. "PAY-XXXXXX"
   orderId?: string;
@@ -57,6 +66,9 @@ export interface PaymentSession {
   receiptImage?: string;
   receiptImages?: string[];
   referenceTag?: string;
+  messages?: SessionMailMessage[];
+  lastAdminMessageAt?: number;
+  lastCustomerReplyAt?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -208,6 +220,9 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
   let existingReceiptUrl = "";
   let existingReceiptImages: string[] = [];
   let existingReferenceTag = "";
+  let existingMessages: SessionMailMessage[] = [];
+  let existingLastAdminMessageAt: number | undefined = undefined;
+  let existingLastCustomerReplyAt: number | undefined = undefined;
 
   try {
     const snap = await getDoc(sessionRef);
@@ -222,6 +237,11 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
         existingReceiptImages = data.receiptImages.filter((u): u is string => typeof u === "string" && u.trim().length > 0);
       }
       if (data.referenceTag) existingReferenceTag = data.referenceTag;
+      if (Array.isArray(data.messages)) {
+        existingMessages = data.messages;
+      }
+      if (data.lastAdminMessageAt) existingLastAdminMessageAt = data.lastAdminMessageAt;
+      if (data.lastCustomerReplyAt) existingLastCustomerReplyAt = data.lastCustomerReplyAt;
     }
   } catch (err) {
     console.warn("Could not check existing payment session:", err);
@@ -308,6 +328,9 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
     receiptImage: primaryReceipt,
     receiptImages: mergedImages,
     referenceTag: session.referenceTag || existingReferenceTag || "",
+    messages: Array.isArray(session.messages) && session.messages.length > 0 ? session.messages : existingMessages,
+    ...(existingLastAdminMessageAt ? { lastAdminMessageAt: existingLastAdminMessageAt } : {}),
+    ...(existingLastCustomerReplyAt ? { lastCustomerReplyAt: existingLastCustomerReplyAt } : {}),
     createdAt: session.createdAt || existingCreatedAt,
     updatedAt: now
   };
@@ -617,3 +640,148 @@ export function subscribeToCustomerDispatchedSession(
     }
   );
 }
+
+/**
+ * Direct In-Website Messaging (No Login or External Email Needed):
+ * Sends an admin update or customer reply directly onto the payment session document.
+ */
+export async function sendSessionMailMessage(
+  sessionId: string,
+  message: {
+    sender: "admin" | "customer";
+    senderName?: string;
+    subject?: string;
+    body: string;
+  }
+): Promise<SessionMailMessage> {
+  if (!sessionId || !message.body.trim()) {
+    throw new Error("Session ID and message body are required.");
+  }
+
+  const sessionRef = doc(db, "payment_sessions", sessionId);
+  let existingMessages: SessionMailMessage[] = [];
+  try {
+    const snap = await getDoc(sessionRef);
+    if (snap.exists()) {
+      const data = snap.data() as PaymentSession;
+      if (Array.isArray(data.messages)) {
+        existingMessages = data.messages;
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch existing session messages:", err);
+  }
+
+  const now = Date.now();
+  const newMsg: SessionMailMessage = {
+    id: `MSG-${now}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+    sender: message.sender,
+    senderName: message.senderName?.trim() || (message.sender === "admin" ? "Billing Concierge" : "Guest"),
+    ...(message.subject?.trim() ? { subject: message.subject.trim() } : {}),
+    body: message.body.trim(),
+    createdAt: now
+  };
+
+  const nextMessages = [...existingMessages, newMsg].slice(-40);
+
+  await safeSetDoc(
+    sessionRef,
+    {
+      messages: nextMessages,
+      ...(message.sender === "admin" ? { lastAdminMessageAt: now } : { lastCustomerReplyAt: now }),
+      updatedAt: now
+    },
+    { merge: true }
+  );
+
+  return newMsg;
+}
+
+export const SAVED_PAYMENT_SESSIONS_KEY = "nfl_saved_payment_sessions";
+export const GUEST_MAIL_READ_KEY = "nfl_read_guest_mail_ids";
+export const SAVED_SESSIONS_EVENT = "nfl_saved_sessions_updated";
+export const READ_MAIL_EVENT = "nfl_guest_mail_read_updated";
+
+export interface SavedGuestSessionBookmark {
+  id: string;
+  orderId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  paymentMethod?: string;
+  itemTitle?: string;
+  amount?: number;
+  status?: string;
+  updatedAt?: number;
+}
+
+export function getSavedGuestSessions(): SavedGuestSessionBookmark[] {
+  try {
+    const raw = localStorage.getItem(SAVED_PAYMENT_SESSIONS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((x) => x && x.id) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function upsertSavedGuestSession(entry: SavedGuestSessionBookmark): void {
+  if (!entry?.id) return;
+  try {
+    const existing = getSavedGuestSessions();
+    const filtered = existing.filter((x) => x.id !== entry.id);
+    const next = [{ ...entry, updatedAt: entry.updatedAt || Date.now() }, ...filtered].slice(0, 6);
+    localStorage.setItem(SAVED_PAYMENT_SESSIONS_KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event(SAVED_SESSIONS_EVENT));
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+export function getReadGuestMailIds(): string[] {
+  try {
+    const raw = localStorage.getItem(GUEST_MAIL_READ_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markGuestMessagesAsRead(ids: string[]): void {
+  const valid = ids.filter((id) => typeof id === "string" && id.length > 0);
+  if (valid.length === 0) return;
+  try {
+    const existing = getReadGuestMailIds();
+    const merged = Array.from(new Set([...valid, ...existing])).slice(0, 250);
+    localStorage.setItem(GUEST_MAIL_READ_KEY, JSON.stringify(merged));
+    window.dispatchEvent(new Event(READ_MAIL_EVENT));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function playGuestNotificationChime(): void {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(659.25, now); // E5
+    osc1.frequency.setValueAtTime(880, now + 0.11); // A5
+    gain1.gain.setValueAtTime(0.001, now);
+    gain1.gain.exponentialRampToValueAtTime(0.09, now + 0.03);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.36);
+  } catch {
+    // Ignore autoplay restriction errors
+  }
+}
+

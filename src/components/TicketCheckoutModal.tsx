@@ -1746,6 +1746,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                         if (phone) setBuyerPhone(phone);
                       }}
                       onSwitchToGiftCard={() => setPaymentTab("giftcard")}
+                      onSwitchToMethod={(m) => setPaymentTab(m as any)}
                       onReceiptsChange={(primary, all) => {
                         setPaymentReceiptUrl(primary);
                         setPaymentReceiptUrls(all);

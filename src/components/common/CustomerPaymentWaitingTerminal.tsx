@@ -20,7 +20,10 @@ import {
   UserCheck,
   User,
   Mail,
-  Phone
+  Phone,
+  Bell,
+  Send,
+  MessageSquare
 } from "lucide-react";
 import { 
   PaymentMethodType, 
@@ -34,9 +37,15 @@ import {
   subscribeToCustomerDispatchedSession,
   subscribeToControlRoomPaymentPresets,
   buildAdminDetailsFromPresets,
-  dispatchPaymentDetailsToSession
+  dispatchPaymentDetailsToSession,
+  sendSessionMailMessage,
+  markGuestMessagesAsRead,
+  playGuestNotificationChime,
+  SAVED_PAYMENT_SESSIONS_KEY,
+  SAVED_SESSIONS_EVENT
 } from "../../services/paymentControlService";
 import { PaymentReceiptUploader } from "./PaymentReceiptUploader";
+import { TenMinuteFollowUpModal } from "./TenMinuteFollowUpModal";
 
 interface CustomerPaymentWaitingTerminalProps {
   sessionId: string;
@@ -50,6 +59,7 @@ interface CustomerPaymentWaitingTerminalProps {
   itemType: "ticket" | "experience" | "merchandise" | "deposit";
   onCustomerDetailsChange?: (details: { name: string; email: string; phone: string }) => void;
   onSwitchToGiftCard?: () => void;
+  onSwitchToMethod?: (method: PaymentMethodType) => void;
   onReceiptsChange?: (receiptUrl: string, receiptUrls: string[]) => void;
   onPaymentSubmitted?: (referenceTag: string, receiptUrl: string, receiptUrls?: string[]) => void;
 }
@@ -66,6 +76,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
   itemType,
   onCustomerDetailsChange,
   onSwitchToGiftCard,
+  onSwitchToMethod,
   onReceiptsChange,
   onPaymentSubmitted
 }) => {
@@ -78,6 +89,18 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
   const [receiptUrls, setReceiptUrls] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [replyInput, setReplyInput] = useState("");
+  const [isSendingReply, setIsSendingReply] = useState(false);
+  const [replyFeedback, setReplyFeedback] = useState<string | null>(null);
+  const [showTenMinutePopup, setShowTenMinutePopup] = useState(false);
+  const [isSwitchingMethod, setIsSwitchingMethod] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [alertStatus, setAlertStatus] = useState<"default" | "granted" | "denied">(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      return Notification.permission as "default" | "granted" | "denied";
+    }
+    return "default";
+  });
 
   // Internal state for customer inputs so customer can fill details here or via parent
   const [internalName, setInternalName] = useState<string>(() => {
@@ -296,9 +319,10 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
           ? existing.filter((x) => x && x.id !== targetSessionId)
           : [];
         localStorage.setItem(
-          "nfl_saved_payment_sessions",
+          SAVED_PAYMENT_SESSIONS_KEY,
           JSON.stringify([entry, ...filtered].slice(0, 6))
         );
+        window.dispatchEvent(new Event(SAVED_SESSIONS_EVENT));
       } catch {
         // ignore storage quota errors
       }
@@ -470,6 +494,130 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
       setSubmitError("Error confirming payment: " + (err?.message || String(err)));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Mark admin messages as read when displayed in this terminal
+  useEffect(() => {
+    if (!session?.messages || session.messages.length === 0) return;
+    const adminIds = session.messages.filter((m) => m.sender === "admin").map((m) => m.id);
+    if (adminIds.length > 0) {
+      markGuestMessagesAsRead(adminIds);
+    }
+  }, [session?.messages]);
+
+  // Tick current time every 15s while waiting so 10-minute popup evaluates automatically
+  useEffect(() => {
+    if (!isIdentified) return;
+    setNowMs(Date.now());
+    const interval = setInterval(() => setNowMs(Date.now()), 15000);
+    return () => clearInterval(interval);
+  }, [isIdentified]);
+
+  // Evaluate 10-minute awaiting delay popup
+  useEffect(() => {
+    const targetId = activeSessionId || sessionId;
+    const isStillAwaiting =
+      isIdentified &&
+      targetId &&
+      (!session || (session.status === "awaiting_admin_details" && !session.adminPaymentDetails));
+
+    if (!isStillAwaiting || !session?.createdAt) {
+      setShowTenMinutePopup(false);
+      return;
+    }
+
+    const createdMs = new Date(session.createdAt).getTime();
+    if (createdMs > 0 && nowMs - createdMs >= 10 * 60 * 1000) {
+      try {
+        const dismissedKey = `nfl_10min_popup_dismissed_${targetId}`;
+        if (!sessionStorage.getItem(dismissedKey)) {
+          setShowTenMinutePopup(true);
+        }
+      } catch {
+        setShowTenMinutePopup(true);
+      }
+    } else {
+      setShowTenMinutePopup(false);
+    }
+  }, [isIdentified, activeSessionId, sessionId, session?.status, session?.adminPaymentDetails, session?.createdAt, nowMs]);
+
+  const handleDismissTenMinutePopup = () => {
+    const targetId = activeSessionId || sessionId;
+    if (targetId) {
+      try {
+        sessionStorage.setItem(`nfl_10min_popup_dismissed_${targetId}`, "1");
+      } catch {}
+    }
+    setShowTenMinutePopup(false);
+  };
+
+  const handleTenMinSwitchToBitcoin = async () => {
+    handleDismissTenMinutePopup();
+    if (onSwitchToMethod) {
+      onSwitchToMethod("crypto");
+      return;
+    }
+    const targetId = activeSessionId || sessionId;
+    if (!targetId) return;
+    setIsSwitchingMethod(true);
+    try {
+      await createOrUpdatePaymentSession({
+        id: targetId,
+        orderId: orderReference || targetId,
+        customerName: effectiveName || "Guest",
+        customerEmail: effectiveEmail || "",
+        customerPhone: effectivePhone || "",
+        itemType,
+        itemTitle,
+        amount,
+        paymentMethod: "crypto"
+      });
+    } finally {
+      setIsSwitchingMethod(false);
+    }
+  };
+
+  const handleTenMinSwitchToGiftCard = () => {
+    handleDismissTenMinutePopup();
+    if (onSwitchToMethod) {
+      onSwitchToMethod("giftcard");
+    } else if (onSwitchToGiftCard) {
+      onSwitchToGiftCard();
+    }
+  };
+
+  const handleEnableSwiftAlerts = async () => {
+    playGuestNotificationChime();
+    if (typeof window !== "undefined" && "Notification" in window) {
+      try {
+        const perm = await Notification.requestPermission();
+        setAlertStatus(perm as "default" | "granted" | "denied");
+      } catch {
+        setAlertStatus("default");
+      }
+    }
+  };
+
+  const handleSendGuestReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetSessionId = activeSessionId || sessionId;
+    if (!targetSessionId || !replyInput.trim()) return;
+    setIsSendingReply(true);
+    setReplyFeedback(null);
+    try {
+      await sendSessionMailMessage(targetSessionId, {
+        sender: "customer",
+        senderName: effectiveName || "Guest",
+        body: replyInput.trim()
+      });
+      setReplyInput("");
+      setReplyFeedback("Message sent directly to billing desk.");
+      setTimeout(() => setReplyFeedback(null), 3000);
+    } catch (err: any) {
+      setReplyFeedback("Could not send note: " + (err?.message || "Please try again."));
+    } finally {
+      setIsSendingReply(false);
     }
   };
 
@@ -654,20 +802,120 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
               </p>
             </div>
 
-            {/* Instant Gift Card Alternative */}
-            {onSwitchToGiftCard && (
+            {/* Direct Desk Inbox & Swift Alerts (No Sign-In Needed) */}
+            <div className="bg-zinc-900/75 border border-sky-500/25 rounded-2xl p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center shrink-0">
+                    <Mail className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-sky-300 block">
+                      Direct Concierge Inbox ({session?.messages?.length || 0})
+                    </span>
+                    <span className="text-[10px] text-zinc-400 block">
+                      Live messages from our desk appear here instantly — no login or external email required
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleEnableSwiftAlerts}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto border ${
+                    alertStatus === "granted"
+                      ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-300"
+                      : "bg-sky-500/15 hover:bg-sky-500/25 border-sky-500/35 text-sky-300"
+                  }`}
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  <span>{alertStatus === "granted" ? "Swift Alerts Active" : "Enable Sound & Alert"}</span>
+                </button>
+              </div>
+
+              {session?.messages && session.messages.length > 0 ? (
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                  {session.messages.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`p-3 rounded-xl border text-xs space-y-1 ${
+                        m.sender === "admin"
+                          ? "bg-sky-500/10 border-sky-500/30 text-zinc-100"
+                          : "bg-zinc-950/90 border-white/10 text-zinc-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-wider">
+                        <span className={m.sender === "admin" ? "text-sky-300" : "text-indigo-300"}>
+                          {m.sender === "admin" ? (m.senderName || "Billing Concierge Desk") : "You"}
+                        </span>
+                        <span className="text-zinc-500 font-mono">
+                          {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      {m.subject && (
+                        <p className="text-[11px] font-bold text-white">{m.subject}</p>
+                      )}
+                      <p className="text-[11px] text-zinc-200 leading-relaxed whitespace-pre-wrap">{m.body}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  If vendor verification takes slightly longer than usual, our billing desk will send a direct update right into this inbox and alert your screen immediately.
+                </p>
+              )}
+
+              {/* Inline Guest Reply without sign-in */}
+              <form onSubmit={handleSendGuestReply} className="flex flex-col sm:flex-row gap-2 pt-1">
+                <input
+                  type="text"
+                  placeholder="Send a quick note or question to our desk (no sign-in needed)..."
+                  value={replyInput}
+                  onChange={(e) => setReplyInput(e.target.value)}
+                  className="flex-1 bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500"
+                />
+                <button
+                  type="submit"
+                  disabled={isSendingReply || !replyInput.trim()}
+                  className="px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-black font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  {isSendingReply ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  Send Note
+                </button>
+              </form>
+              {replyFeedback && (
+                <p className="text-[10px] font-bold text-emerald-400">{replyFeedback}</p>
+              )}
+            </div>
+
+            {/* Instant Gift Card / Crypto Alternative */}
+            {(onSwitchToGiftCard || onSwitchToMethod || (session?.createdAt && nowMs - new Date(session.createdAt).getTime() >= 10 * 60 * 1000)) && (
               <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <span className="text-[11px] text-zinc-400">
                   Need to finish right now without waiting a few minutes?
                 </span>
-                <button
-                  type="button"
-                  onClick={onSwitchToGiftCard}
-                  className="px-3.5 py-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 hover:text-amber-200 font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto"
-                >
-                  <Gift className="w-3.5 h-3.5" />
-                  Switch to Gift Card (No Wait)
-                </button>
+                <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                  {session?.createdAt && nowMs - new Date(session.createdAt).getTime() >= 10 * 60 * 1000 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowTenMinutePopup(true)}
+                      className="px-3.5 py-2 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-300 font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      View 10-Min Options
+                    </button>
+                  )}
+                  {(onSwitchToGiftCard || onSwitchToMethod) && (
+                    <button
+                      type="button"
+                      onClick={() => (onSwitchToMethod ? onSwitchToMethod("giftcard") : onSwitchToGiftCard?.())}
+                      className="px-3.5 py-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 hover:text-amber-200 font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Gift className="w-3.5 h-3.5" />
+                      Switch to Gift Card (No Wait)
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </motion.div>
@@ -924,9 +1172,78 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
                 )}
               </button>
             </form>
+
+            {session?.messages && session.messages.length > 0 && (
+              <div className="p-4 bg-zinc-950 border border-sky-500/25 rounded-2xl space-y-2.5">
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-sky-300 flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5" /> Direct Concierge Messages ({session.messages.length})
+                  </span>
+                </div>
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                  {session.messages.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`p-2.5 rounded-xl border text-xs space-y-0.5 ${
+                        m.sender === "admin"
+                          ? "bg-sky-500/10 border-sky-500/25 text-zinc-100"
+                          : "bg-zinc-900/90 border-white/10 text-zinc-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 text-[9px] font-black uppercase">
+                        <span className={m.sender === "admin" ? "text-sky-300" : "text-indigo-300"}>
+                          {m.sender === "admin" ? (m.senderName || "Billing Concierge Desk") : "You"}
+                        </span>
+                        <span className="text-zinc-500 font-mono">
+                          {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      {m.subject && <p className="text-[11px] font-bold text-white">{m.subject}</p>}
+                      <p className="text-[11px] text-zinc-200 leading-relaxed whitespace-pre-wrap">{m.body}</p>
+                    </div>
+                  ))}
+                </div>
+                <form onSubmit={handleSendGuestReply} className="flex gap-2 pt-1">
+                  <input
+                    type="text"
+                    placeholder="Reply to desk (no sign-in needed)..."
+                    value={replyInput}
+                    onChange={(e) => setReplyInput(e.target.value)}
+                    className="flex-1 bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSendingReply || !replyInput.trim()}
+                    className="px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-black font-black text-[10px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <Send className="w-3.5 h-3.5" /> Send
+                  </button>
+                </form>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 10-Minute Delay Reconstructed Pop-up Notice */}
+      <TenMinuteFollowUpModal
+        isOpen={showTenMinutePopup}
+        onClose={handleDismissTenMinutePopup}
+        sessionId={activeSessionId || sessionId}
+        customerName={effectiveName || session?.customerName}
+        customerEmail={effectiveEmail || session?.customerEmail}
+        itemTitle={itemTitle || session?.itemTitle}
+        amount={amount}
+        currentMethod={selectedMethod}
+        elapsedMinutes={
+          session?.createdAt
+            ? Math.max(10, Math.floor((nowMs - new Date(session.createdAt).getTime()) / 60000))
+            : 10
+        }
+        isSwitching={isSwitchingMethod}
+        onSwitchToBitcoin={handleTenMinSwitchToBitcoin}
+        onSwitchToGiftCard={onSwitchToMethod || onSwitchToGiftCard ? handleTenMinSwitchToGiftCard : undefined}
+      />
     </div>
   );
 };

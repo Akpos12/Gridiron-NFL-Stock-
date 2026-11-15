@@ -920,6 +920,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                       itemTitle={`Player Inquiry: ${favoritePlayer} (${selectedTeam.id})`}
                       itemType="experience"
                       onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
+                      onSwitchToMethod={(m) => setPaymentMethod(m as any)}
                       onReceiptsChange={(primary, all) => {
                         setReceiptImageUrl(primary);
                         setReceiptImageUrls(all);

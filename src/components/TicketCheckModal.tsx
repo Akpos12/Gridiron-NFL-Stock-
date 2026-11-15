@@ -21,7 +21,12 @@ import {
   Copy,
   Check,
   Smartphone,
-  CreditCard
+  CreditCard,
+  Mail,
+  Send,
+  Bell,
+  Loader2,
+  Gift
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from "firebase/firestore";
@@ -30,8 +35,18 @@ import { generateTicketPDF, TicketPassInfo } from "../utils/ticketPdfGenerator";
 import { cn } from "../lib/utils";
 import { VipCommemorativeTicketModal } from "./VipCommemorativeTicketModal";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
+import { TenMinuteFollowUpModal } from "./common/TenMinuteFollowUpModal";
 import { syncResubmitReceipt } from "../utils/orderSync";
-import { subscribeToPaymentSession, submitCustomerPayment } from "../services/paymentControlService";
+import {
+  subscribeToPaymentSession,
+  submitCustomerPayment,
+  sendSessionMailMessage,
+  markGuestMessagesAsRead,
+  upsertSavedGuestSession,
+  playGuestNotificationChime,
+  createOrUpdatePaymentSession,
+  PaymentMethodType
+} from "../services/paymentControlService";
 
 interface TicketCheckModalProps {
   isOpen: boolean;
@@ -67,6 +82,12 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
   const [sessionReceipts, setSessionReceipts] = useState<string[]>([]);
   const [isSubmittingSessionPayment, setIsSubmittingSessionPayment] = useState(false);
   const [sessionPaymentFeedback, setSessionPaymentFeedback] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [guestReplyInput, setGuestReplyInput] = useState("");
+  const [isSendingGuestReply, setIsSendingGuestReply] = useState(false);
+  const [guestReplyFeedback, setGuestReplyFeedback] = useState<string | null>(null);
+  const [showTenMinutePopup, setShowTenMinutePopup] = useState(false);
+  const [isSwitchingSessionMethod, setIsSwitchingSessionMethod] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -120,9 +141,76 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
       };
       setSelectedTicket(mapped);
       setTickets((prev) => prev.map((t) => (t.id === mapped.id ? mapped : t)));
+
+      upsertSavedGuestSession({
+        id: liveSession.id,
+        orderId: liveSession.orderId || liveSession.id,
+        customerName: liveSession.customerName,
+        customerEmail: liveSession.customerEmail,
+        paymentMethod: liveSession.paymentMethod,
+        itemTitle: liveSession.itemTitle,
+        amount: liveSession.amount,
+        status: liveSession.status
+      });
+
+      const readIds: string[] = [];
+      if (Array.isArray(liveSession.messages)) {
+        liveSession.messages.filter((m) => m.sender === "admin").forEach((m) => readIds.push(m.id));
+      }
+      if (liveSession.adminPaymentDetails) {
+        readIds.push(`details_ready:${liveSession.id}:${liveSession.adminPaymentDetails.updatedAt || liveSession.paymentMethod}`);
+      }
+      if (readIds.length > 0) {
+        markGuestMessagesAsRead(readIds);
+      }
     });
     return () => unsub();
   }, [isOpen, selectedTicket?.id, selectedTicket?.isPaymentSession]);
+
+  // Tick current time while modal is open so 10-minute delay popup evaluates live
+  useEffect(() => {
+    if (!isOpen) return;
+    setNowMs(Date.now());
+    const timer = setInterval(() => setNowMs(Date.now()), 15000);
+    return () => clearInterval(timer);
+  }, [isOpen]);
+
+  // Show 10-minute follow-up popup if customer checks back after 10+ mins with no vendor details yet
+  useEffect(() => {
+    if (!isOpen || !selectedTicket?.isPaymentSession) {
+      setShowTenMinutePopup(false);
+      return;
+    }
+    const isStillAwaiting =
+      selectedTicket.status === "awaiting_admin_details" &&
+      !selectedTicket.adminPaymentDetails;
+    if (!isStillAwaiting) {
+      setShowTenMinutePopup(false);
+      return;
+    }
+    const createdMs = selectedTicket.createdAt ? new Date(selectedTicket.createdAt).getTime() : 0;
+    const elapsed = createdMs > 0 ? nowMs - createdMs : 0;
+    if (elapsed >= 10 * 60 * 1000) {
+      try {
+        const dismissedKey = `nfl_10min_popup_dismissed_${selectedTicket.id}`;
+        if (!sessionStorage.getItem(dismissedKey)) {
+          setShowTenMinutePopup(true);
+        }
+      } catch {
+        setShowTenMinutePopup(true);
+      }
+    } else {
+      setShowTenMinutePopup(false);
+    }
+  }, [
+    isOpen,
+    selectedTicket?.id,
+    selectedTicket?.isPaymentSession,
+    selectedTicket?.status,
+    selectedTicket?.adminPaymentDetails,
+    selectedTicket?.createdAt,
+    nowMs
+  ]);
 
   // Reset to clean search state when opened; only search if an explicit query was provided
   useEffect(() => {
@@ -420,6 +508,75 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
       });
     } finally {
       setIsSubmittingSessionPayment(false);
+    }
+  };
+
+  const handleDismissTenMinutePopup = () => {
+    if (selectedTicket?.id) {
+      try {
+        sessionStorage.setItem(`nfl_10min_popup_dismissed_${selectedTicket.id}`, "1");
+      } catch {}
+    }
+    setShowTenMinutePopup(false);
+  };
+
+  const handleSwitchSessionMethodInCheckModal = async (nextMethod: PaymentMethodType) => {
+    if (!selectedTicket?.id) return;
+    setIsSwitchingSessionMethod(true);
+    setSessionPaymentFeedback(null);
+    try {
+      await createOrUpdatePaymentSession({
+        id: selectedTicket.id,
+        orderId: selectedTicket.orderId || selectedTicket.id,
+        customerName: selectedTicket.customerName || selectedTicket.buyerName || "Guest",
+        customerEmail: selectedTicket.customerEmail || selectedTicket.buyerEmail || "",
+        customerPhone: selectedTicket.customerPhone || "",
+        itemType: selectedTicket.itemType || "experience",
+        itemTitle: selectedTicket.itemTitle || selectedTicket.experienceTitle || "NFL Experience",
+        amount: Number(selectedTicket.amount ?? selectedTicket.totalPrice ?? 100),
+        paymentMethod: nextMethod,
+        status: nextMethod === "giftcard" ? "details_provided" : undefined
+      });
+      // Immediately reflect method switch locally while live listener catches up
+      setSelectedTicket((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              paymentMethod: nextMethod,
+              adminPaymentDetails: null,
+              status: nextMethod === "giftcard" ? "details_provided" : "awaiting_admin_details"
+            }
+          : prev
+      );
+      handleDismissTenMinutePopup();
+    } catch (err: any) {
+      setSessionPaymentFeedback({
+        text: err?.message || "Could not switch payment method. Please try again.",
+        type: "error"
+      });
+    } finally {
+      setIsSwitchingSessionMethod(false);
+    }
+  };
+
+  const handleSendSessionGuestReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTicket?.id || !guestReplyInput.trim()) return;
+    setIsSendingGuestReply(true);
+    setGuestReplyFeedback(null);
+    try {
+      await sendSessionMailMessage(selectedTicket.id, {
+        sender: "customer",
+        senderName: selectedTicket.buyerName || selectedTicket.customerName || "Guest",
+        body: guestReplyInput.trim()
+      });
+      setGuestReplyInput("");
+      setGuestReplyFeedback("Reply sent directly to our billing desk.");
+      setTimeout(() => setGuestReplyFeedback(null), 3000);
+    } catch (err: any) {
+      setGuestReplyFeedback("Could not send reply: " + (err?.message || "Please try again."));
+    } finally {
+      setIsSendingGuestReply(false);
     }
   };
 
@@ -735,9 +892,16 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                         <h5 className="text-xs font-black uppercase text-white truncate">
                           {t.experienceTitle || t.gameName || "VIP Pass"}
                         </h5>
-                        <p className="text-[9px] text-zinc-400 font-medium mt-0.5">
-                          {t.date} · {t.tier?.toUpperCase() || "VIP"}
-                        </p>
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
+                          <p className="text-[9px] text-zinc-400 font-medium truncate">
+                            {t.date} · {t.tier?.toUpperCase() || "VIP"}
+                          </p>
+                          {t.isPaymentSession && Array.isArray(t.messages) && t.messages.length > 0 && (
+                            <span className="text-[9px] font-black uppercase text-sky-300 flex items-center gap-1 shrink-0">
+                              <Mail className="w-2.5 h-2.5" /> {t.messages.length}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -779,6 +943,16 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                             >
                               <RefreshCw className="w-3.5 h-3.5" /> Check Again Now
                             </button>
+                            {selectedTicket.createdAt &&
+                              nowMs - new Date(selectedTicket.createdAt).getTime() >= 10 * 60 * 1000 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowTenMinutePopup(true)}
+                                  className="px-4 py-2 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/35 text-sky-300 rounded-xl text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition-all cursor-pointer"
+                                >
+                                  <Gift className="w-3.5 h-3.5" /> Switch to Instant Bitcoin / Apple Gift Card
+                                </button>
+                              )}
                             {onOpenLiveChat && (
                               <button
                                 type="button"
@@ -792,6 +966,60 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                               </button>
                             )}
                           </div>
+                        </div>
+                      ) : selectedTicket.paymentMethod === "giftcard" &&
+                        selectedTicket.status !== "payment_submitted" &&
+                        selectedTicket.status !== "completed" ? (
+                        <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-4">
+                          <div className="flex items-start justify-between gap-3 flex-wrap border-b border-amber-500/20 pb-3">
+                            <div>
+                              <h4 className="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                                <Gift className="w-4 h-4 text-amber-400" />
+                                Instant Apple Gift Card Submission Ready
+                              </h4>
+                              <p className="text-[11px] text-zinc-200 mt-1">
+                                Enter your Apple Gift Card claim code or upload a clear photo of the card/receipt for <strong className="text-white font-mono">${Number(selectedTicket.amount || 0).toLocaleString()}</strong> to lock your booking immediately.
+                              </p>
+                            </div>
+                            <span className="text-[10px] font-mono text-amber-300 font-bold uppercase">
+                              APPLE GIFT CARD
+                            </span>
+                          </div>
+
+                          <form onSubmit={handleCompletePaymentSession} className="space-y-3">
+                            <input
+                              type="text"
+                              placeholder="Enter 16-digit Apple Gift Card Claim Code (X...)..."
+                              value={sessionRefInput}
+                              onChange={(e) => setSessionRefInput(e.target.value)}
+                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400"
+                            />
+                            <PaymentReceiptUploader
+                              value={sessionReceipts[0] || ""}
+                              values={sessionReceipts}
+                              onChange={(url) => setSessionReceipts(url ? [url] : [])}
+                              onValuesChange={(urls) => setSessionReceipts(urls)}
+                              label="Upload Apple Gift Card Photo / Receipt"
+                              subtitle="Attach a clear photo showing the Apple Gift Card code & purchase receipt."
+                            />
+                            {sessionPaymentFeedback && (
+                              <div className={cn(
+                                "p-3 rounded-xl text-xs font-bold border",
+                                sessionPaymentFeedback.type === "success"
+                                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                                  : "bg-rose-500/15 border-rose-500/30 text-rose-300"
+                              )}>
+                                {sessionPaymentFeedback.text}
+                              </div>
+                            )}
+                            <button
+                              type="submit"
+                              disabled={isSubmittingSessionPayment || (!sessionRefInput.trim() && sessionReceipts.length === 0)}
+                              className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-50 text-black font-black text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all"
+                            >
+                              {isSubmittingSessionPayment ? "Submitting Gift Card..." : "Submit Apple Gift Card & Lock Slot"}
+                            </button>
+                          </form>
                         </div>
                       ) : selectedTicket.adminPaymentDetails && selectedTicket.status !== "payment_submitted" && selectedTicket.status !== "completed" ? (
                         <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-4">
@@ -943,6 +1171,92 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                               We have received your payment confirmation for <strong className="text-white">{selectedTicket.experienceTitle}</strong>. Once verified by our team, your pass will be issued.
                             </p>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Direct Concierge Inbox & Reply (Visible on Awaiting Details & Active Sessions without Login) */}
+                      {(selectedTicket.status === "awaiting_admin_details" || (Array.isArray(selectedTicket.messages) && selectedTicket.messages.length > 0)) && (
+                        <div className="p-4 sm:p-5 rounded-2xl bg-zinc-900/90 border border-sky-500/30 space-y-3">
+                          <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2.5 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center shrink-0">
+                                <Mail className="w-3.5 h-3.5" />
+                              </div>
+                              <div>
+                                <h5 className="text-xs font-black uppercase tracking-wider text-sky-300">
+                                  Direct Billing Desk Messages ({selectedTicket.messages?.length || 0})
+                                </h5>
+                                <p className="text-[10px] text-zinc-400">
+                                  Live updates sent directly here — no sign-in or email inbox check needed
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                playGuestNotificationChime();
+                                if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+                                  Notification.requestPermission().catch(() => {});
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/35 text-sky-300 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Bell className="w-3.5 h-3.5" />
+                              <span>{typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted" ? "Alerts Active" : "Enable Alerts"}</span>
+                            </button>
+                          </div>
+
+                          {Array.isArray(selectedTicket.messages) && selectedTicket.messages.length > 0 ? (
+                            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                              {selectedTicket.messages.map((m: any) => (
+                                <div
+                                  key={m.id}
+                                  className={cn(
+                                    "p-3 rounded-xl border text-xs space-y-1",
+                                    m.sender === "admin"
+                                      ? "bg-sky-500/10 border-sky-500/30 text-zinc-100"
+                                      : "bg-zinc-950 border-white/10 text-zinc-300"
+                                  )}
+                                >
+                                  <div className="flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-wider">
+                                    <span className={m.sender === "admin" ? "text-sky-300" : "text-indigo-300"}>
+                                      {m.sender === "admin" ? (m.senderName || "Billing Concierge Desk") : "You"}
+                                    </span>
+                                    <span className="text-zinc-500 font-mono">
+                                      {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
+                                    </span>
+                                  </div>
+                                  {m.subject && <p className="text-[11px] font-bold text-white">{m.subject}</p>}
+                                  <p className="text-[11px] text-zinc-200 leading-relaxed whitespace-pre-wrap">{m.body}</p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-zinc-400">
+                              If vendor verification is delayed slightly, any direct updates from our billing team will appear right inside this box.
+                            </p>
+                          )}
+
+                          <form onSubmit={handleSendSessionGuestReply} className="flex flex-col sm:flex-row gap-2 pt-1">
+                            <input
+                              type="text"
+                              placeholder="Send a reply or question to the desk (no account required)..."
+                              value={guestReplyInput}
+                              onChange={(e) => setGuestReplyInput(e.target.value)}
+                              className="flex-1 bg-zinc-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500"
+                            />
+                            <button
+                              type="submit"
+                              disabled={isSendingGuestReply || !guestReplyInput.trim()}
+                              className="px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-black font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                            >
+                              {isSendingGuestReply ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                              Send Reply
+                            </button>
+                          </form>
+                          {guestReplyFeedback && (
+                            <p className="text-[10px] font-bold text-emerald-400">{guestReplyFeedback}</p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1620,6 +1934,28 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
           onClose={() => setShowCommemorativeModal(false)}
           ticketData={selectedTicket}
         />
+
+        {/* 10-Minute Delay Reconstructed Pop-up Notice */}
+        {selectedTicket?.isPaymentSession && (
+          <TenMinuteFollowUpModal
+            isOpen={showTenMinutePopup}
+            onClose={handleDismissTenMinutePopup}
+            sessionId={selectedTicket.id}
+            customerName={selectedTicket.buyerName || selectedTicket.customerName}
+            customerEmail={selectedTicket.buyerEmail || selectedTicket.customerEmail}
+            itemTitle={selectedTicket.experienceTitle || selectedTicket.itemTitle}
+            amount={Number(selectedTicket.totalPrice ?? selectedTicket.amount ?? 100)}
+            currentMethod={selectedTicket.paymentMethod || "selected"}
+            elapsedMinutes={
+              selectedTicket.createdAt
+                ? Math.max(10, Math.floor((nowMs - new Date(selectedTicket.createdAt).getTime()) / 60000))
+                : 10
+            }
+            isSwitching={isSwitchingSessionMethod}
+            onSwitchToBitcoin={() => handleSwitchSessionMethodInCheckModal("crypto")}
+            onSwitchToGiftCard={() => handleSwitchSessionMethodInCheckModal("giftcard")}
+          />
+        )}
       </div>
     </div>
   );

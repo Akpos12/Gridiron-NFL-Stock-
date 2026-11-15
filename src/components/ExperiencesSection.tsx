@@ -2674,6 +2674,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                                 if (phone) setBuyerPhone(phone);
                               }}
                               onSwitchToGiftCard={() => setPaymentTab("giftcard")}
+                              onSwitchToMethod={(m) => setPaymentTab(m as any)}
                               onReceiptsChange={(primary, all) => {
                                 setReceiptImageUrl(primary);
                                 setReceiptImageUrls(all);
@@ -3158,6 +3159,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                               if (phone) setBuyerPhone(phone);
                             }}
                             onSwitchToGiftCard={() => setPaymentTab("giftcard")}
+                            onSwitchToMethod={(m) => setPaymentTab(m as any)}
                             onReceiptsChange={(primary, all) => {
                               setReceiptImageUrl(primary);
                               setReceiptImageUrls(all);
