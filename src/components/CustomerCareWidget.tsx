@@ -24,6 +24,7 @@ interface CustomerCareWidgetProps {
   onOpenCustomerCare: (category?: string, player?: string) => void;
   onOpenTrackInquiry: (initialTab?: "ticket" | "email") => void;
   onOpenTicketCheck?: () => void;
+  onOpenSupportHub?: () => void;
   user?: any;
 }
 
@@ -31,15 +32,15 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
   onOpenCustomerCare,
   onOpenTrackInquiry,
   onOpenTicketCheck,
+  onOpenSupportHub,
   user
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(false);
 
   return (
     <>
       {/* Floating Action Button (Bottom Right) */}
-      <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 flex flex-col items-end gap-3 select-none">
+      <div className="fixed bottom-20 lg:bottom-6 right-4 sm:right-6 z-40 flex flex-col items-end gap-3 select-none">
         <AnimatePresence>
           {isOpen && (
             <motion.div
@@ -47,29 +48,31 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 15, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="w-80 sm:w-96 bg-zinc-950/95 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 shadow-2xl relative overflow-hidden text-left"
+              className="w-[calc(100vw-2rem)] max-w-sm bg-[#080d22]/95 backdrop-blur-2xl border border-indigo-500/30 rounded-3xl p-5 shadow-2xl relative overflow-hidden text-left"
             >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-amber-400 to-emerald-500" />
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
               
               {/* Header */}
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-400/30 flex items-center justify-center text-sky-400">
                     <Headphones className="w-4 h-4" />
                   </div>
                   <div>
                     <h4 className="text-sm font-black italic uppercase tracking-tight text-white flex items-center gap-1.5">
                       Customer Care
-                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     </h4>
-                    <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">
-                      Concierge & Support Hub
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                      Concierge &amp; Support Hub
                     </p>
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setIsOpen(false)}
-                  className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+                  className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                  aria-label="Close support menu"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -79,6 +82,7 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
               <div className="py-4 space-y-2.5">
                 {/* 0. Reserve / Inquire Podcast with Bo Nix & NFL Players */}
                 <button
+                  type="button"
                   onClick={() => {
                     setIsOpen(false);
                     onOpenCustomerCare("podcast", "Bo Nix");
@@ -94,21 +98,22 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
                         <span className="text-xs font-black uppercase tracking-wider text-purple-300 group-hover:text-purple-200 transition-colors block">
                           Podcast Reservation
                         </span>
-                        <span className="text-[8px] font-black uppercase bg-purple-500 text-black px-1.5 py-0.2 rounded font-mono">
+                        <span className="text-[9px] font-black uppercase bg-purple-500 text-black px-1.5 py-0.5 rounded font-mono">
                           Bo Nix
                         </span>
                       </div>
-                      <span className="text-[9px] font-bold text-zinc-400 uppercase">
-                        Inquire & Book Podcast Appearances
+                      <span className="text-[10px] font-semibold text-zinc-400">
+                        Inquire &amp; Book Podcast Appearances
                       </span>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                  <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
                 </button>
 
                 {/* 1. Check & Download Approved Ticket Pass */}
                 {onOpenTicketCheck && (
                   <button
+                    type="button"
                     onClick={() => {
                       setIsOpen(false);
                       onOpenTicketCheck();
@@ -121,19 +126,20 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
                       </div>
                       <div>
                         <span className="text-xs font-black uppercase tracking-wider text-emerald-300 group-hover:text-emerald-200 transition-colors block">
-                          Check & Download Ticket
+                          Check &amp; Download Ticket
                         </span>
-                        <span className="text-[9px] font-bold text-zinc-400 uppercase">
+                        <span className="text-[10px] font-semibold text-zinc-400">
                           Download Approved PDF Pass
                         </span>
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
                   </button>
                 )}
 
                 {/* 2. Track Existing Inquiry */}
                 <button
+                  type="button"
                   onClick={() => {
                     setIsOpen(false);
                     onOpenTrackInquiry();
@@ -145,77 +151,100 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
                       <Search className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="text-xs font-black uppercase tracking-wider text-white group-hover:text-blue-300 transition-colors block">
+                      <span className="text-xs font-black uppercase tracking-wider text-white group-hover:text-sky-300 transition-colors block">
                         Track Existing Inquiry
                       </span>
-                      <span className="text-[9px] font-bold text-zinc-400 uppercase">
+                      <span className="text-[10px] font-semibold text-zinc-400">
                         Search by Ticket ID or Email
                       </span>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                  <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
                 </button>
 
                 {/* 3. Contact Customer Care */}
                 <button
+                  type="button"
                   onClick={() => {
                     setIsOpen(false);
                     onOpenCustomerCare();
                   }}
-                  className="w-full p-3.5 bg-gradient-to-r from-zinc-900 to-zinc-950 hover:from-zinc-850 hover:to-zinc-900 border border-white/10 hover:border-white/20 rounded-2xl transition-all flex items-center justify-between group cursor-pointer shadow-lg"
+                  className="w-full p-3.5 bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 hover:border-white/25 rounded-2xl transition-all flex items-center justify-between group cursor-pointer shadow-lg"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-300 group-hover:scale-105 transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-200 group-hover:scale-105 transition-transform">
                       <MessageSquareText className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="text-xs font-black uppercase tracking-wider text-white group-hover:text-blue-300 transition-colors block">
+                      <span className="text-xs font-black uppercase tracking-wider text-white group-hover:text-sky-300 transition-colors block">
                         Contact Customer Care
                       </span>
-                      <span className="text-[9px] font-bold text-zinc-400 uppercase">
+                      <span className="text-[10px] font-semibold text-zinc-400">
                         Submit New Request or Claim
                       </span>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                  <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
                 </button>
+
+                {/* 4. Support Hub, FAQs & Refund Policy */}
+                {onOpenSupportHub && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOpen(false);
+                      onOpenSupportHub();
+                    }}
+                    className="w-full p-3 bg-zinc-950/70 hover:bg-zinc-900 border border-white/10 rounded-2xl transition-all flex items-center justify-between group cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <HelpCircle className="w-4 h-4 text-sky-400 ml-1" />
+                      <span className="text-xs font-bold text-zinc-200 group-hover:text-white">
+                        FAQs, Refund Policy &amp; Business Terms
+                      </span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white" />
+                  </button>
+                )}
               </div>
 
               {/* Status info footer */}
-              <div className="pt-3 border-t border-white/5 flex items-center justify-between text-[8px] font-bold uppercase tracking-widest text-zinc-500">
+              <div className="pt-3 border-t border-white/10 flex items-center justify-between text-[10px] font-semibold text-zinc-400">
                 <span className="flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-blue-400" />
-                  Official NFL Exchange Protocol
+                  <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
+                  Official Fan Concierge
                 </span>
-                <span className="text-emerald-400">Average response: &lt; 5m</span>
+                <span className="text-emerald-400">24/7 Priority Triage</span>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* The Main Trigger Pill */}
+        {/* Main Trigger Bar */}
         <div className="flex items-center gap-2">
-          {/* Quick direct buttons on desktop */}
-          <div className="hidden md:flex items-center gap-1.5 bg-zinc-950/90 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl">
+          <div className="hidden lg:flex items-center gap-1.5 bg-[#080d22]/90 backdrop-blur-xl border border-indigo-500/25 rounded-2xl p-1 shadow-2xl">
             {onOpenTicketCheck && (
               <button
+                type="button"
                 onClick={() => onOpenTicketCheck()}
-                className="px-3.5 py-2 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border border-emerald-500/30 cursor-pointer shadow-sm"
+                className="px-3.5 py-2 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 hover:text-white rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all border border-emerald-500/30 cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5 text-emerald-400" />
-                Download Ticket
+                Download Pass
               </button>
             )}
             <button
+              type="button"
               onClick={() => onOpenTrackInquiry()}
-              className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border border-white/5 cursor-pointer"
+              className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all border border-white/10 cursor-pointer"
             >
-              <Search className="w-3.5 h-3.5 text-blue-400" />
+              <Search className="w-3.5 h-3.5 text-sky-400" />
               Track Ticket
             </button>
             <button
+              type="button"
               onClick={() => onOpenCustomerCare()}
-              className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md shadow-blue-600/20 cursor-pointer"
+              className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
             >
               <Headphones className="w-3.5 h-3.5 text-white" />
               Customer Care
@@ -224,16 +253,17 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
 
           {/* Toggle Button */}
           <button
+            type="button"
             onClick={() => setIsOpen(!isOpen)}
             className={cn(
-              "h-12 px-4 rounded-2xl flex items-center gap-2.5 font-black text-xs uppercase tracking-wider transition-all shadow-2xl cursor-pointer border",
+              "h-12 px-4 rounded-2xl flex items-center gap-2.5 font-bold text-xs uppercase tracking-wider transition-all shadow-2xl cursor-pointer border min-w-[48px] justify-center",
               isOpen
                 ? "bg-white text-black border-white"
-                : "bg-zinc-900/95 hover:bg-zinc-850 text-white border-blue-500/40 hover:border-blue-400 shadow-blue-500/10"
+                : "bg-[#080d22]/95 hover:bg-[#0d1536] text-white border-indigo-400/45 hover:border-purple-400"
             )}
           >
             <div className="relative">
-              <Headphones className="w-4 h-4 text-blue-400" />
+              <Headphones className="w-4 h-4 text-sky-400" />
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full" />
             </div>

@@ -18,6 +18,7 @@ import {
 import stadiumHeroImg from "../assets/images/nfl_stadium_hero_1794712782399.jpg";
 import { NFLImage } from "../utils/nflImages";
 import { getLogoUrl } from "../constants";
+import { SupportTrustSection } from "./SupportTrustSection";
 
 interface LandingShowcaseProps {
   nflLogoUrl: string;
@@ -25,6 +26,7 @@ interface LandingShowcaseProps {
   testimonials: Array<{ name: string; text: string; rating: number }>;
   onExploreExperiences: () => void;
   onDiscoverGameDay: () => void;
+  onOpenTrackInquiry: () => void;
   onSelectExperience: (targetId: string) => void;
   onOpenPlayerInquiry: () => void;
   onOpenCustomerCare: () => void;
@@ -65,7 +67,7 @@ const FEATURED_CARDS: FeaturedExperienceCard[] = [
     availabilityLabel: "By Player Availability",
     isConfirmedSchedule: false,
     priceLabel: "$1,000",
-    actionLabel: "View Experience",
+    actionLabel: "Explore Experience",
     actionType: "experience",
   },
   {
@@ -82,7 +84,7 @@ const FEATURED_CARDS: FeaturedExperienceCard[] = [
     availabilityLabel: "By Player Availability",
     isConfirmedSchedule: false,
     priceLabel: "$1,000",
-    actionLabel: "View Experience",
+    actionLabel: "Explore Experience",
     actionType: "experience",
   },
   {
@@ -133,7 +135,7 @@ const FEATURED_CARDS: FeaturedExperienceCard[] = [
     availabilityLabel: "Special Arrangement",
     isConfirmedSchedule: false,
     priceLabel: "$1,000",
-    actionLabel: "View Experience",
+    actionLabel: "Explore Experience",
     actionType: "experience",
   },
   {
@@ -150,7 +152,7 @@ const FEATURED_CARDS: FeaturedExperienceCard[] = [
     availabilityLabel: "By Player Availability",
     isConfirmedSchedule: false,
     priceLabel: "$1,000",
-    actionLabel: "View Experience",
+    actionLabel: "Explore Experience",
     actionType: "experience",
   },
   {
@@ -201,7 +203,7 @@ const FEATURED_CARDS: FeaturedExperienceCard[] = [
     availabilityLabel: "Confirmed In-Stock",
     isConfirmedSchedule: true,
     priceLabel: "From $32",
-    actionLabel: "Shop Vault",
+    actionLabel: "Visit Shop",
     actionType: "shop",
   },
 ];
@@ -212,6 +214,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
   testimonials,
   onExploreExperiences,
   onDiscoverGameDay,
+  onOpenTrackInquiry,
   onSelectExperience,
   onOpenPlayerInquiry,
   onOpenCustomerCare,
@@ -236,14 +239,14 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto no-scrollbar bg-[#050508] text-zinc-100">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar bg-[#050508] text-zinc-100">
       {/* 1. FULL-SCREEN CINEMATIC STADIUM HERO */}
       <section className="relative min-h-[calc(100vh-5rem)] flex flex-col justify-center overflow-hidden border-b border-white/10">
         {/* Background Stadium Photograph */}
         <motion.div
-          initial={{ scale: 1.06, opacity: 0.7 }}
+          initial={{ scale: 1.05, opacity: 0.75 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
           className="absolute inset-0 z-0"
         >
           <img
@@ -251,82 +254,82 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
             alt="Packed NFL stadium under floodlights on game night"
             className="w-full h-full object-cover object-center"
           />
-          {/* Cinematic contrast scrims & electric blue/purple stadium glow */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#050508]/85 via-[#050508]/60 to-[#050508]" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#050508]/90 via-[#050508]/45 to-transparent" />
+          {/* Deep Black, Midnight Navy & Electric Blue/Purple Atmospheric Overlays */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#040717]/90 via-[#050819]/65 to-[#050508]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#040717]/95 via-[#060b22]/55 to-transparent" />
           <div className="absolute -top-32 left-1/4 w-[36rem] h-[24rem] bg-blue-600/20 blur-[140px] rounded-full pointer-events-none" />
-          <div className="absolute bottom-0 right-1/4 w-[32rem] h-[22rem] bg-purple-600/20 blur-[140px] rounded-full pointer-events-none" />
+          <div className="absolute bottom-0 right-1/4 w-[32rem] h-[22rem] bg-purple-600/25 blur-[140px] rounded-full pointer-events-none" />
         </motion.div>
 
         {/* Hero Foreground Content */}
-        <div className="relative z-10 max-w-7xl mx-auto w-full px-5 sm:px-8 lg:px-12 py-16 sm:py-24">
+        <div className="relative z-10 max-w-7xl mx-auto w-full px-5 sm:px-8 lg:px-12 py-14 sm:py-24">
           <motion.div
             initial={{ y: 18, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
             className="max-w-3xl"
           >
-            {/* Brand Crest & Domain Kicker */}
+            {/* Brand Crest & League Identifier */}
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-11 h-14 sm:w-12 sm:h-16 bg-zinc-950/85 backdrop-blur-md rounded-xl p-1.5 border border-white/15 shadow-2xl flex items-center justify-center shrink-0">
+              <div className="w-11 h-14 sm:w-12 sm:h-16 bg-[#080d22]/90 backdrop-blur-md rounded-xl p-1.5 border border-indigo-400/25 shadow-2xl flex items-center justify-center shrink-0">
                 <img src={nflLogoUrl} alt="NFL Shield" className="w-full h-full object-contain" />
               </div>
-              <div className="text-xs sm:text-sm font-semibold tracking-wide text-blue-300">
+              <div className="text-xs sm:text-sm font-semibold tracking-wide text-sky-300">
+                <span>NFL Gridiron Entertainment</span>
+                <span aria-hidden="true" className="mx-2 text-zinc-500">·</span>
                 <span>All 32 Franchises</span>
                 <span aria-hidden="true" className="mx-2 text-zinc-500">·</span>
-                <span>VIP Player Access</span>
-                <span aria-hidden="true" className="mx-2 text-zinc-500">·</span>
-                <span className="text-purple-300">Official Game Day Store</span>
+                <span className="text-purple-300">Verified Experiences &amp; Gear</span>
               </div>
             </div>
 
             {/* Required Hero Headline */}
             <h1
-              className="font-display font-extrabold italic uppercase tracking-tight leading-[0.94] text-white mb-6"
-              style={{ fontSize: "clamp(2.85rem, 6.2vw, 5.75rem)" }}
+              className="font-display font-extrabold italic uppercase tracking-tight leading-[0.93] text-white mb-6"
+              style={{ fontSize: "clamp(2.75rem, 6.2vw, 5.75rem)" }}
             >
-              YOUR FAVORITE NFL STARS.
+              GET CLOSER TO THE GAME.
               <br />
               <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-purple-400 bg-clip-text text-transparent">
-                CLOSER THAN EVER.
+                EXPERIENCE MORE.
               </span>
             </h1>
 
-            {/* Required Subheadline */}
+            {/* Required Supporting Copy */}
             <p className="text-base sm:text-lg md:text-xl text-zinc-200 max-w-2xl font-medium leading-relaxed mb-9">
-              Go beyond watching the game. Experience unforgettable opportunities to meet your favourite NFL players, take pictures, collect autographs, and create memories that last a lifetime.
+              Discover unforgettable football experiences, exclusive fan opportunities, authentic merchandise, and exciting ways to celebrate the game you love.
             </p>
 
-            {/* Primary & Secondary Gradient CTAs */}
+            {/* Primary & Secondary CTAs */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-10">
               <button
                 type="button"
                 onClick={onExploreExperiences}
-                className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500 text-white font-bold text-sm sm:text-base tracking-wide shadow-[0_14px_40px_-10px_rgba(79,70,229,0.65)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer whitespace-nowrap"
+                className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 min-h-[52px] rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500 text-white font-bold text-sm sm:text-base tracking-wide shadow-[0_14px_40px_-10px_rgba(79,70,229,0.7)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer whitespace-nowrap"
               >
-                <span>EXPLORE PLAYER EXPERIENCES</span>
+                <span>EXPLORE EXPERIENCES</span>
                 <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
               </button>
 
               <button
                 type="button"
                 onClick={onDiscoverGameDay}
-                className="group inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-zinc-950/75 hover:bg-zinc-900/90 border border-indigo-400/40 hover:border-purple-400/70 backdrop-blur-md text-white font-bold text-sm sm:text-base tracking-wide shadow-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer whitespace-nowrap"
+                className="group inline-flex items-center justify-center gap-3 px-8 py-4 min-h-[52px] rounded-2xl bg-[#080d22]/85 hover:bg-[#0e1636] border border-indigo-400/40 hover:border-purple-400/75 backdrop-blur-md text-white font-bold text-sm sm:text-base tracking-wide shadow-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer whitespace-nowrap"
               >
-                <Ticket className="w-4 h-4 text-sky-400" />
-                <span>DISCOVER GAME DAY ACCESS</span>
+                <ShoppingBag className="w-4 h-4 text-sky-400" />
+                <span>VISIT THE ARENA SHOP</span>
               </button>
             </div>
 
-            {/* Clean Unboxed Key Assurances */}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs sm:text-sm text-zinc-300 font-medium">
+            {/* Direct Navigation Assurances */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2.5 text-xs sm:text-sm text-zinc-300 font-medium">
               <span className="inline-flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0" />
                 Instant Guest Booking
               </span>
               <span className="inline-flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-purple-400 shrink-0" />
-                Digital QR Credentials &amp; COA Memorabilia
+                Digital QR Passes &amp; Verified COA Gear
               </span>
               <button
                 type="button"
@@ -334,15 +337,15 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                 className="inline-flex items-center gap-2 text-emerald-300 hover:text-emerald-200 transition-colors cursor-pointer"
               >
                 <Heart className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Custom Player Inquiry ($100 goes 100% to charity)</span>
+                <span>Inquire About A Player ($100 goes 100% to charity)</span>
               </button>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* 2. PLAYER EXPERIENCE SHOWCASE: "MEET THE STARS. LIVE THE EXPERIENCE." */}
-      <section className="relative py-20 sm:py-28 px-5 sm:px-8 max-w-7xl mx-auto">
+      {/* 2. PLAYER EXPERIENCE SHOWCASE */}
+      <section className="relative py-18 sm:py-26 px-5 sm:px-8 max-w-7xl mx-auto">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
           <div className="max-w-2xl">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-400 mb-3">
@@ -357,24 +360,24 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                 LIVE THE EXPERIENCE.
               </span>
             </h2>
-            <p className="text-sm sm:text-base text-zinc-400 mt-3 leading-relaxed">
-              Reserve confirmed stadium tours and signed gear immediately, or request exclusive meet-and-greets, sideline photo ops, and private player encounters.
+            <p className="text-sm sm:text-base text-zinc-300 mt-3 leading-relaxed">
+              Reserve confirmed stadium tours and training camp credentials immediately, or coordinate exclusive meet-and-greets, autographs, sideline access, and photo opportunities.
             </p>
           </div>
 
-          {/* Interactive Filter Tabs */}
-          <div className="inline-flex flex-wrap items-center gap-1.5 p-1.5 bg-zinc-900/90 border border-white/10 rounded-2xl self-start">
+          {/* Filter Tabs */}
+          <div className="inline-flex flex-wrap items-center gap-1.5 p-1.5 bg-[#080d22] border border-white/10 rounded-2xl self-start">
             {[
               { id: "all", label: "Featured Stars" },
               { id: "meet_greet", label: "Meet & Greets" },
-              { id: "stadium_tour", label: "Stadium Access" },
-              { id: "memorabilia", label: "Autographed Gear" },
+              { id: "stadium_tour", label: "Stadium Tours" },
+              { id: "memorabilia", label: "Signed Vault" },
             ].map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setShowcaseFilter(tab.id as any)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-4 py-2 min-h-[40px] rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   showcaseFilter === tab.id
                     ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
                     : "text-zinc-400 hover:text-white"
@@ -396,10 +399,10 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               viewport={{ once: true }}
               transition={{ delay: idx * 0.05, duration: 0.45 }}
               onClick={() => handleCardClick(card)}
-              className="group relative bg-zinc-950/90 border border-white/10 hover:border-indigo-500/50 rounded-3xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-2xl"
+              className="group relative bg-[#080c1c] border border-white/10 hover:border-indigo-500/50 rounded-3xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-2xl"
             >
               {/* Photo Container */}
-              <div className="relative aspect-[16/10] overflow-hidden bg-zinc-900">
+              <div className="relative aspect-[16/10] overflow-hidden bg-zinc-950">
                 <NFLImage
                   item={{
                     id: card.expId,
@@ -410,7 +413,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                   alt={card.title}
                   className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#080c1c] via-[#080c1c]/20 to-transparent" />
 
                 {/* Top-Right Team Shield Crest */}
                 <div className="absolute top-3.5 right-3.5 w-10 h-10 rounded-xl bg-zinc-950/85 backdrop-blur-md border border-white/15 p-1.5 flex items-center justify-center">
@@ -424,7 +427,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                 {/* Bottom Team & Location Metadata directly over scrim */}
                 <div className="absolute bottom-3.5 left-4 right-4 flex items-center justify-between text-xs font-semibold text-zinc-200">
                   <span className="truncate">{card.teamName}</span>
-                  <span className="text-zinc-400 shrink-0 ml-2 flex items-center gap-1">
+                  <span className="text-zinc-300 shrink-0 ml-2 flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-sky-400" />
                     {card.city}
                   </span>
@@ -448,7 +451,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                   <h3 className="font-display text-2xl font-extrabold uppercase tracking-tight text-white group-hover:text-sky-300 transition-colors leading-none">
                     {card.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-zinc-400 font-medium">
+                  <p className="text-xs sm:text-sm text-zinc-300 font-medium">
                     {card.playerOrSubtitle}
                   </p>
                 </div>
@@ -476,7 +479,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
         </div>
 
         {/* Custom Player Charity Inquiry Bar */}
-        <div className="mt-10 rounded-3xl bg-gradient-to-r from-blue-950/60 via-indigo-950/60 to-purple-950/60 border border-indigo-500/30 p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="mt-10 rounded-3xl bg-gradient-to-r from-[#091235] via-[#0c102e] to-[#1a0d38] border border-indigo-500/35 p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 text-xs font-bold text-emerald-300">
               <Heart className="w-4 h-4 text-emerald-400 fill-emerald-400/20" />
@@ -485,7 +488,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
             <h3 className="font-display text-2xl sm:text-3xl font-extrabold italic uppercase tracking-tight text-white">
               Looking for another NFL star? Request any active player.
             </h3>
-            <p className="text-sm text-zinc-300 leading-relaxed">
+            <p className="text-sm text-zinc-200 leading-relaxed">
               Choose any of the 32 NFL franchises and your preferred contact channel (WhatsApp, Zangi, or Telegram).{" "}
               <strong className="text-emerald-300">100% of the $100 inquiry fee goes directly to charity.</strong>
             </p>
@@ -493,7 +496,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
           <button
             type="button"
             onClick={onOpenPlayerInquiry}
-            className="px-7 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 font-extrabold text-xs sm:text-sm uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 shrink-0 cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap"
+            className="px-7 py-4 min-h-[48px] rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 font-extrabold text-xs sm:text-sm uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 shrink-0 cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap"
           >
             <span>Inquire About A Player</span>
             <ArrowRight className="w-4 h-4" />
@@ -501,43 +504,43 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
         </div>
       </section>
 
-      {/* 3. GAME DAY ACCESS & SIGNED ARENA SHOP SHOWCASE */}
-      <section className="py-16 sm:py-24 px-5 sm:px-8 max-w-7xl mx-auto">
-        <div className="rounded-[2.25rem] bg-zinc-950 border border-white/10 p-7 sm:p-12 relative overflow-hidden">
+      {/* 3. ARENA SHOP & GAME DAY ACCESS SHOWCASE */}
+      <section className="py-14 sm:py-20 px-5 sm:px-8 max-w-7xl mx-auto">
+        <div className="rounded-[2.25rem] bg-[#080c1c] border border-white/10 p-7 sm:p-12 relative overflow-hidden">
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-purple-600/15 blur-[120px] rounded-full pointer-events-none" />
           <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-blue-600/15 blur-[120px] rounded-full pointer-events-none" />
 
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-7 space-y-6">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-purple-400">
-                Arena Shop · Match Tickets &amp; Signed Memorabilia
+                The Arena Shop · Authentic Gear &amp; Tickets
               </p>
               <h2
                 className="font-display font-extrabold italic uppercase tracking-tight text-white leading-[0.98]"
                 style={{ fontSize: "clamp(2rem, 4vw, 3.25rem)" }}
               >
-                LOCK IN GAME DAY SEATS &amp; AUTHENTIC GEAR.
+                JERSEYS, SIGNED MEMORABILIA &amp; GAME-DAY SEATS.
               </h2>
-              <p className="text-sm sm:text-base text-zinc-300 leading-relaxed max-w-xl">
-                From lower-bowl sideline seats and full-season VIP hospitality passes to COA-certified signed helmets and Nike Vapor Elite jerseys—browse everything seamlessly with no account barriers.
+              <p className="text-sm sm:text-base text-zinc-200 leading-relaxed max-w-xl">
+                Explore authentic Nike jerseys, COA-certified helmets and autographed collectibles, lower-bowl match tickets, and season hospitality passes—all open to browse with seamless checkout.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 text-sm text-zinc-200 font-semibold">
                 <div className="flex items-center gap-3">
                   <Ticket className="w-5 h-5 text-sky-400 shrink-0" />
-                  <span>Lower-Bowl &amp; Suite Match Tickets</span>
+                  <span>Match Tickets &amp; Lower-Bowl Seats</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Trophy className="w-5 h-5 text-purple-400 shrink-0" />
-                  <span>Season &amp; Sideline Hospitality Passes</span>
+                  <span>Full-Season Hospitality Passes</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <ShoppingBag className="w-5 h-5 text-sky-400 shrink-0" />
-                  <span>Certified Signed Helmets &amp; Balls</span>
+                  <span>Jerseys, Helmets &amp; Collectibles</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <ShieldCheck className="w-5 h-5 text-purple-400 shrink-0" />
-                  <span>Instant Digital Pass Verification</span>
+                  <span>Beckett &amp; Hologram COA Verified</span>
                 </div>
               </div>
 
@@ -545,17 +548,17 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                 <button
                   type="button"
                   onClick={onDiscoverGameDay}
-                  className="px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all shadow-xl shadow-indigo-600/25 cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap"
+                  className="px-8 py-4 min-h-[48px] rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all shadow-xl shadow-indigo-600/25 cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap"
                 >
-                  <span>ENTER ARENA SHOP</span>
+                  <span>VISIT THE ARENA SHOP</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
                   onClick={onExploreExperiences}
-                  className="px-8 py-4 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-white/15 text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap"
+                  className="px-8 py-4 min-h-[48px] rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-white/15 text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap"
                 >
-                  EXPLORE VIP PACKAGES
+                  EXPLORE EXPERIENCES
                 </button>
               </div>
             </div>
@@ -586,8 +589,8 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
         </div>
       </section>
 
-      {/* 4. TRUST & CREDIBILITY SECTION */}
-      <section className="py-16 sm:py-24 bg-zinc-950/60 border-y border-white/5 px-5 sm:px-8">
+      {/* 5. TRUST, CREDIBILITY & CUSTOMER SUPPORT */}
+      <section className="py-16 sm:py-22 bg-[#060916]/80 border-y border-white/5 px-5 sm:px-8 space-y-16">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-2xl mb-12">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-400 mb-2">
@@ -599,52 +602,59 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
             >
               CLEAR PRICING. VERIFIED CREDENTIALS. REAL SUPPORT.
             </h2>
-            <p className="text-sm sm:text-base text-zinc-400 mt-3 leading-relaxed">
-              Every listing states upfront whether dates are pre-scheduled or coordinated around active NFL player calendars.
+            <p className="text-sm sm:text-base text-zinc-300 mt-3 leading-relaxed">
+              Every experience clearly distinguishes confirmed stadium dates from bookings coordinated around active NFL player schedules.
             </p>
           </div>
 
-          {/* 4 Credibility Pillars */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-14">
+            <div className="p-6 rounded-2xl bg-[#090e24] border border-white/10 space-y-3">
               <Calendar className="w-6 h-6 text-emerald-400" />
               <h3 className="text-base font-bold text-white">Confirmed Scheduled Events</h3>
-              <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-                Stadium tours, Seahawks practice sessions, match tickets, and signed vault items have fixed dates or ready inventory for immediate confirmation.
+              <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                Stadium tours, Seahawks practice sessions, match tickets, and signed vault gear carry fixed dates or confirmed stock.
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 space-y-3">
+            <div className="p-6 rounded-2xl bg-[#090e24] border border-white/10 space-y-3">
               <Clock className="w-6 h-6 text-purple-400" />
               <h3 className="text-base font-bold text-white">Player-Coordinated Encounters</h3>
-              <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-                1-on-1 VIP player meetups and private sessions depend on player availability and team schedules—confirmed directly with our liaison team.
+              <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                1-on-1 VIP player encounters depend on athlete availability and are finalized directly with our liaison team.
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 space-y-3">
+            <div className="p-6 rounded-2xl bg-[#090e24] border border-white/10 space-y-3">
               <ShieldCheck className="w-6 h-6 text-sky-400" />
               <h3 className="text-base font-bold text-white">Transparent Pricing &amp; Passes</h3>
-              <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-                Upfront USD totals, installment options on eligible VIP packages, and scannable digital QR &amp; PDF credentials upon approval.
+              <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                Upfront totals with no hidden fees, flexible payment options, and scannable PDF/QR passes upon approval.
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/10 space-y-3">
+            <div className="p-6 rounded-2xl bg-[#090e24] border border-white/10 space-y-3">
               <Headphones className="w-6 h-6 text-blue-400" />
               <h3 className="text-base font-bold text-white">Dedicated Fan Concierge</h3>
-              <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-                Track inquiries in real time, verify any digital pass in the portal, or reach Customer Care directly before or after booking.
+              <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                Track inquiries in real time, verify any digital pass in the portal, or contact Customer Care anytime.
               </p>
             </div>
           </div>
 
-          {/* Real Fan Stories */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Embedded Support, FAQs, Order Tracking & Business Identity */}
+          <SupportTrustSection
+            compact
+            onOpenCustomerCare={onOpenCustomerCare}
+            onOpenTrackInquiry={onOpenTrackInquiry}
+            onOpenTicketCheck={onOpenTicketCheck}
+          />
+
+          {/* Real Fan Testimonials */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-14">
             {testimonials.map((t) => (
               <div
                 key={t.name}
-                className="p-7 rounded-3xl bg-zinc-900/40 border border-white/5 flex flex-col justify-between gap-6"
+                className="p-7 rounded-3xl bg-[#090e24]/80 border border-white/10 flex flex-col justify-between gap-6"
               >
                 <div>
                   <div className="flex gap-1 mb-4">
@@ -656,7 +666,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                     &ldquo;{t.text}&rdquo;
                   </p>
                 </div>
-                <div className="flex items-center gap-3 pt-4 border-t border-white/5">
+                <div className="flex items-center gap-3 pt-4 border-t border-white/10">
                   <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600/30 to-purple-600/30 border border-white/10 flex items-center justify-center font-bold text-sky-300 text-sm">
                     {t.name[0]}
                   </div>
@@ -665,32 +675,12 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               </div>
             ))}
           </div>
-
-          {/* Direct Verification Actions */}
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-4 text-xs font-bold">
-            <button
-              type="button"
-              onClick={onOpenTicketCheck}
-              className="px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-200 transition-colors cursor-pointer inline-flex items-center gap-2"
-            >
-              <UserCheck className="w-4 h-4 text-emerald-400" />
-              Verify or Download Existing Pass
-            </button>
-            <button
-              type="button"
-              onClick={onOpenCustomerCare}
-              className="px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-200 transition-colors cursor-pointer inline-flex items-center gap-2"
-            >
-              <Headphones className="w-4 h-4 text-sky-400" />
-              Contact Fan Concierge
-            </button>
-          </div>
         </div>
       </section>
 
-      {/* 5. FINAL CONVERSION FOOTER CTA */}
-      <section className="relative py-24 sm:py-32 px-5 sm:px-8 text-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-indigo-950/25 via-transparent to-transparent pointer-events-none" />
+      {/* 6. FINAL CONVERSION FOOTER CTA */}
+      <section className="relative py-20 sm:py-28 px-5 sm:px-8 text-center overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-t from-indigo-950/30 via-transparent to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-2xl mx-auto space-y-7">
           <h2
             className="font-display font-extrabold italic uppercase tracking-tight text-white leading-[0.95]"
@@ -702,29 +692,38 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
             </span>
           </h2>
           <p className="text-sm sm:text-base text-zinc-300 leading-relaxed">
-            Explore upcoming VIP stadium tours, player meet-and-greets, certified autographed collectibles, and game-day passes across all 32 teams.
+            Explore VIP stadium tours, player meet-and-greets, certified autographed memorabilia, game-day seats, and dedicated fan support across all 32 teams.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
             <button
               type="button"
               onClick={onExploreExperiences}
-              className="w-full sm:w-auto px-9 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-sm tracking-wide shadow-xl shadow-indigo-600/30 transition-all cursor-pointer"
+              className="w-full sm:w-auto px-9 py-4 min-h-[50px] rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-sm tracking-wide shadow-xl shadow-indigo-600/30 transition-all cursor-pointer"
             >
-              EXPLORE PLAYER EXPERIENCES
+              EXPLORE EXPERIENCES
             </button>
             <button
               type="button"
               onClick={onDiscoverGameDay}
-              className="w-full sm:w-auto px-9 py-4 rounded-2xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-sm tracking-wide transition-all cursor-pointer"
+              className="w-full sm:w-auto px-9 py-4 min-h-[50px] rounded-2xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-sm tracking-wide transition-all cursor-pointer"
             >
-              DISCOVER GAME DAY ACCESS
+              VISIT THE ARENA SHOP
             </button>
           </div>
-          <div className="pt-2">
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-2 text-xs text-zinc-400">
+            <button
+              type="button"
+              onClick={onOpenTicketCheck}
+              className="hover:text-white transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+              Check / Download Pass
+            </button>
+            <span aria-hidden="true" className="text-zinc-700">·</span>
             <button
               type="button"
               onClick={onOpenSignIn}
-              className="text-xs font-semibold text-zinc-500 hover:text-zinc-200 transition-colors cursor-pointer"
+              className="hover:text-white transition-colors cursor-pointer"
             >
               Already have an account? Sign In
             </button>

@@ -4,7 +4,6 @@ import {
   TrendingUp, 
   TrendingDown, 
   Wallet, 
-  Newspaper, 
   LineChart as ChartIcon, 
   ArrowUpRight, 
   ArrowDownRight,
@@ -55,7 +54,8 @@ import {
   Sparkles,
   Radio,
   Eye,
-  Heart
+  Heart,
+  Menu
 } from "lucide-react";
 import { 
   XAxis, 
@@ -114,6 +114,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { VisitorAnalyticsPanel } from "./components/VisitorAnalyticsPanel";
 import { recordOrSyncVisit, SiteVisitRecord, subscribeToSiteVisits } from "./services/visitorTrackingService";
 import { LandingShowcase } from "./components/LandingShowcase";
+import { SupportTrustSection } from "./components/SupportTrustSection";
 
 // --- Constants ---
 const NFL_LOGO_URL = "/nfl_logo.svg";
@@ -1294,40 +1295,58 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
   ];
 
   return (
-    <div className="p-4 sm:p-6 md:p-10 space-y-16 md:space-y-24 pb-40 max-w-7xl mx-auto">
-      <div className="text-center max-w-3xl mx-auto py-6 sm:py-10 relative">
-        <div className="hidden sm:block absolute top-0 left-1/2 -translate-x-1/2 w-px h-20 bg-gradient-to-b from-blue-600 to-transparent" />
-        <h2 className="text-4xl sm:text-5xl md:text-7xl font-black italic uppercase tracking-tighter mb-8 sm:pt-12 leading-none">The Arena Shop</h2>
+    <div className="p-4 sm:p-6 md:p-10 space-y-12 md:space-y-16 pb-32 max-w-7xl mx-auto">
+      <div className="relative overflow-hidden rounded-[2.25rem] bg-gradient-to-br from-[#080f2b] via-[#070a18] to-[#120826] border border-indigo-500/25 p-6 sm:p-10 text-center shadow-2xl">
+        <div className="absolute -top-24 -right-24 w-72 h-72 bg-blue-600/20 blur-[100px] rounded-full pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-purple-600/20 blur-[100px] rounded-full pointer-events-none" />
+
+        <div className="relative z-10 max-w-3xl mx-auto space-y-5">
+          <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/15 border border-indigo-400/30 text-sky-300 text-xs font-bold uppercase tracking-widest">
+            <ShoppingBag className="w-3.5 h-3.5 text-purple-400" />
+            Official Fan Merchandise, Tickets &amp; Collectibles
+          </span>
+          <h2 className="font-display text-4xl sm:text-6xl md:text-7xl font-extrabold italic uppercase tracking-tight leading-[0.93] text-white">
+            THE{" "}
+            <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-purple-400 bg-clip-text text-transparent">
+              ARENA SHOP
+            </span>
+          </h2>
+          <p className="text-sm sm:text-base text-zinc-300 max-w-xl mx-auto leading-relaxed">
+            Shop authenticated signed memorabilia, Nike jerseys, collectible helmets, match tickets, and season hospitality passes across all 32 teams.
+          </p>
         
-        {/* Shop Navigation Selector */}
-        <div className="flex flex-wrap justify-center gap-3 md:gap-4 mb-4 sm:mb-8">
-          {[
-            { id: "merchandise", label: "Signed Merchandise" },
-            { id: "jerseys", label: "Elite Gear" },
-            { id: "passes", label: "Season Passes" },
-            { id: "tickets", label: "Match Tickets" },
-            { id: "cards", label: "Fan Cards" }
-          ].map((cat: any) => (
+          {/* Shop Navigation Selector */}
+          <div className="flex flex-wrap justify-center gap-2.5 sm:gap-3 pt-3">
+            {[
+              { id: "merchandise", label: "Signed Vault" },
+              { id: "jerseys", label: "Jerseys & Gear" },
+              { id: "passes", label: "Season Passes" },
+              { id: "tickets", label: "Match Tickets" },
+              { id: "cards", label: "Fan Cards" }
+            ].map((cat: any) => (
+              <button 
+                key={cat.id}
+                onClick={() => setShopView(cat.id)}
+                className={cn(
+                  "px-4 sm:px-6 py-2.5 sm:py-3 min-h-[44px] rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all border cursor-pointer",
+                  shopView === cat.id 
+                    ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white border-indigo-400/50 shadow-lg shadow-indigo-600/25" 
+                    : "bg-zinc-950/80 text-zinc-300 border-white/10 hover:border-white/25 hover:text-white"
+                )}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+          <div className="pt-1">
             <button 
-              key={cat.id}
-              onClick={() => setShopView(cat.id)}
-              className={cn(
-                "px-5 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all border",
-                shopView === cat.id 
-                  ? "bg-white text-black border-white shadow-xl shadow-white/5" 
-                  : "bg-zinc-950 text-zinc-500 border-white/5 hover:border-white/20"
-              )}
+              onClick={() => setShowInquiryStatus("SEARCH")}
+              className="px-6 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all border bg-zinc-950/70 text-sky-400 border-blue-500/30 hover:bg-blue-600 hover:text-white cursor-pointer"
             >
-              {cat.label}
+              Track Existing Order / Inquiry
             </button>
-          ))}
+          </div>
         </div>
-        <button 
-          onClick={() => setShowInquiryStatus("SEARCH")}
-          className="w-full sm:w-auto px-8 py-3 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all border bg-zinc-900/50 text-blue-500 border-blue-500/20 hover:bg-blue-500 hover:text-white"
-        >
-          Track Existing Inquiry
-        </button>
       </div>
 
       {/* 0. DEDICATED SIGNED MERCHANDISE PLACE IN SHOP */}
@@ -1366,41 +1385,41 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                 <h3 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter text-white">Elite NFL Gear Store</h3>
                 <p className="text-xs text-zinc-500 uppercase tracking-widest mt-1 font-bold">Fanatics Live Merchandise Data Connection</p>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full md:w-auto">
                 {/* Team selection dropdown */}
                 <select 
                   value={selectedShopTeam}
                   onChange={(e) => setSelectedShopTeam(e.target.value)}
-                  className="bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-black uppercase tracking-widest"
+                  className="bg-[#080d22] border border-indigo-500/25 rounded-xl px-4 py-2.5 min-h-[44px] text-xs text-white font-black uppercase tracking-widest focus:outline-none focus:border-blue-500"
                 >
                   {NFL_TEAMS.map((t: Team) => (
-                    <option key={t.id} value={t.id} className="bg-zinc-950">{t.city} {t.name}</option>
+                    <option key={t.id} value={t.id} className="bg-[#080d22]">{t.city} {t.name}</option>
                   ))}
                 </select>
-                <div className="relative">
+                <div className="relative flex-1 sm:flex-initial">
                   <input 
                     type="text" 
                     placeholder="Search apparel..." 
                     value={merchSearch}
                     onChange={(e) => setMerchSearch(e.target.value)}
-                    className="bg-zinc-950 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-zinc-500 font-bold focus:outline-none focus:border-blue-500 w-44 focus:w-56 transition-all"
+                    className="bg-[#080d22] border border-indigo-500/25 rounded-xl pl-9 pr-4 py-2.5 min-h-[44px] text-xs text-white placeholder-zinc-400 font-bold focus:outline-none focus:border-blue-500 w-full sm:w-48 sm:focus:w-56 transition-all"
                   />
-                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-3.5" />
+                  <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-3.5" />
                 </div>
               </div>
             </div>
 
             {/* Category selection rail */}
-            <div className="flex flex-wrap gap-2 pt-2 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="flex flex-wrap gap-2 pt-2 pb-1">
               {merchCategories.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setMerchCategory(cat.id)}
                   className={cn(
-                    "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all shrink-0",
+                    "px-4 py-2 min-h-[40px] rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all shrink-0 cursor-pointer",
                     merchCategory === cat.id
-                      ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/10"
-                      : "bg-zinc-900/50 text-zinc-400 border-white/5 hover:border-white/20 select-none"
+                      ? "bg-gradient-to-r from-blue-600 to-purple-600 border-indigo-400/50 text-white shadow-lg shadow-indigo-600/20"
+                      : "bg-[#080d22]/80 text-zinc-300 border-white/10 hover:border-indigo-400/35 hover:text-white select-none"
                   )}
                 >
                   {cat.label}
@@ -1422,28 +1441,28 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                   return (
                     <div 
                       key={`trend-${p.id}`} 
-                      className="bg-gradient-to-br from-zinc-900/40 via-zinc-900/20 to-transparent p-5 rounded-2xl border border-blue-500/10 hover:border-blue-500/35 transition-all group flex flex-col justify-between"
+                      className="bg-[#080c1c] p-5 rounded-2xl border border-indigo-500/20 hover:border-indigo-400/50 hover:-translate-y-0.5 transition-all group flex flex-col justify-between shadow-xl"
                     >
                       <div>
                         <div className="aspect-[4/3] rounded-xl overflow-hidden bg-zinc-950 border border-white/5 mb-4 relative">
-                          <NFLImage item={p} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90" />
-                          <div className="absolute top-2.5 right-2.5 bg-blue-600/90 text-white text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <NFLImage item={p} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95" />
+                          <div className="absolute top-2.5 right-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-[9px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-md flex items-center gap-1 shadow">
                             <Star className="w-2.5 h-2.5 fill-white" /> BEST SELLER
                           </div>
                         </div>
-                        <h5 className="text-sm font-bold text-white line-clamp-1 group-hover:text-blue-400 transition-colors uppercase italic">{p.name}</h5>
-                        <p className="text-[10px] text-zinc-500 line-clamp-2 mt-1.5 font-semibold tracking-wide leading-relaxed">{p.description}</p>
+                        <h5 className="text-sm font-bold text-white line-clamp-1 group-hover:text-sky-300 transition-colors uppercase italic">{p.name}</h5>
+                        <p className="text-xs text-zinc-400 line-clamp-2 mt-1.5 leading-relaxed">{p.description}</p>
                       </div>
-                      <div className="mt-5 pt-3 border-t border-white/5 flex items-center justify-between">
+                      <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between gap-2">
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-mono font-black text-white text-base">${p.price}</p>
                             {p.discount > 0 && (
-                              <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest bg-rose-500/10 px-1.5 py-0.5 rounded">-{p.discount}%</p>
+                              <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider bg-rose-500/10 px-1.5 py-0.5 rounded">-{p.discount}%</p>
                             )}
                           </div>
                           {p.discount > 0 && (
-                            <p className="text-[8px] text-zinc-500 font-bold uppercase mt-0.5">Live Discount (Save ${saveAmt})</p>
+                            <p className="text-[10px] text-zinc-400 font-semibold mt-0.5">Save ${saveAmt}</p>
                           )}
                         </div>
                         <button 
@@ -1455,9 +1474,9 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                               setSelectedProduct(p);
                             }
                           }}
-                          className="px-4 py-2 bg-blue-600 text-white font-black text-[9px] rounded-lg tracking-wider uppercase hover:bg-blue-500 transition-colors"
+                          className="px-4 py-2.5 min-h-[40px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-[11px] rounded-xl tracking-wider uppercase transition-all cursor-pointer shrink-0"
                         >
-                          Checkout Details
+                          View Gear
                         </button>
                       </div>
                     </div>
@@ -1489,27 +1508,27 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               {products.map((item: any) => {
                 const saveAmt = Number((item.originalPrice - item.price).toFixed(2));
                 return (
-                  <div key={item.id} className="bg-zinc-950 border border-white/5 hover:border-white/10 rounded-[2rem] p-5 flex flex-col justify-between group transition-all relative">
+                  <div key={item.id} className="bg-[#080c1c] border border-indigo-500/15 hover:border-indigo-400/45 hover:-translate-y-0.5 rounded-3xl p-5 flex flex-col justify-between group transition-all relative shadow-xl">
                     {item.discount > 0 && (
-                      <div className="absolute top-4 left-4 z-10 bg-rose-500 text-black text-[8px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full shadow-lg font-mono">
+                      <div className="absolute top-4 left-4 z-10 bg-rose-500 text-black text-[9px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full shadow-lg font-mono">
                         -{item.discount}% SALE
                       </div>
                     )}
                     <div>
-                      <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-zinc-900 border border-white/5 mb-5 relative">
+                      <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 mb-5 relative">
                         <NFLImage item={item} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[8px] font-black uppercase text-blue-500 tracking-widest bg-blue-500/10 px-2 py-0.5 rounded-md">{item.category}</span>
-                          <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400 border border-emerald-500/10 bg-emerald-500/5 px-2 py-0.5 rounded-md">IN STOCK</span>
+                          <span className="text-[10px] font-bold uppercase text-sky-400 tracking-wider bg-blue-500/15 border border-blue-400/20 px-2.5 py-0.5 rounded-md">{item.category}</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 rounded-md">IN STOCK</span>
                         </div>
-                        <h4 className="text-base font-black italic uppercase leading-tight line-clamp-1 text-white">{item.name}</h4>
-                        <p className="text-zinc-500 text-[10px] font-semibold leading-relaxed tracking-wide line-clamp-2">{item.description}</p>
+                        <h4 className="text-base font-black italic uppercase leading-tight line-clamp-1 text-white group-hover:text-sky-300 transition-colors">{item.name}</h4>
+                        <p className="text-zinc-400 text-xs leading-relaxed line-clamp-2">{item.description}</p>
                       </div>
                     </div>
 
-                    <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+                    <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between gap-2">
                       <div>
                         {item.discount > 0 ? (
                           <div className="flex items-baseline gap-1.5">
@@ -1519,7 +1538,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                         ) : (
                           <span className="font-mono font-black text-white text-lg leading-none">${item.price}</span>
                         )}
-                        <p className="text-[8px] font-black uppercase text-zinc-500 tracking-wider mt-1.5 flex items-center gap-1">★ {item.rating} ({item.reviewsCount} verified reviews)</p>
+                        <p className="text-[10px] font-semibold text-zinc-400 mt-1.5 flex items-center gap-1">★ {item.rating} ({item.reviewsCount} reviews)</p>
                       </div>
 
                       <button 
@@ -1531,7 +1550,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                             setSelectedProduct(item);
                           }
                         }}
-                        className="px-5 py-3 bg-blue-600 rounded-xl text-[9px] text-white font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-xl shadow-blue-600/10"
+                        className="px-5 py-3 min-h-[44px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-xl text-[11px] text-white font-bold uppercase tracking-wider transition-all shadow-lg shadow-indigo-600/20 cursor-pointer shrink-0"
                       >
                         Acquire Options
                       </button>
@@ -1654,17 +1673,17 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               return passData.map((pass) => (
                 <div 
                   key={pass.id} 
-                  className="bg-zinc-950 border border-white/10 hover:border-blue-500/40 rounded-[2.5rem] overflow-hidden flex flex-col justify-between group transition-all duration-300 shadow-2xl relative"
+                  className="bg-[#080c1c] border border-indigo-500/20 hover:border-indigo-400/50 hover:-translate-y-0.5 rounded-[2rem] overflow-hidden flex flex-col justify-between group transition-all duration-300 shadow-2xl relative"
                 >
                   <div>
-                    <div className="aspect-[16/9] overflow-hidden relative border-b border-white/5">
-                      <NFLImage item={pass} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
-                      <div className={`absolute top-4 right-4 ${pass.badgeColor} text-white font-black text-[9px] uppercase tracking-widest px-3 py-1 rounded-full shadow-lg`}>
+                    <div className="aspect-[16/9] overflow-hidden relative border-b border-white/10">
+                      <NFLImage item={pass} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-85" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#080c1c] via-[#080c1c]/30 to-transparent" />
+                      <div className={`absolute top-4 right-4 ${pass.badgeColor} text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-lg`}>
                         {pass.badge}
                       </div>
                       <div className="absolute bottom-4 left-6 right-6">
-                        <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest bg-blue-950/80 border border-blue-500/20 px-3 py-1 rounded-lg backdrop-blur-md">
+                        <span className="text-[10px] font-bold text-sky-300 uppercase tracking-wider bg-indigo-950/85 border border-indigo-400/30 px-3 py-1 rounded-lg backdrop-blur-md">
                           {pass.tier}
                         </span>
                         <h4 className="text-xl md:text-2xl font-black italic uppercase leading-tight text-white mt-2">{pass.name}</h4>
@@ -1673,10 +1692,10 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
 
                     <div className="p-6 md:p-8 space-y-6">
                       <div className="space-y-3">
-                        <span className="text-[9px] font-black uppercase text-zinc-500 tracking-widest block">Season Membership Privileges:</span>
-                        <ul className="space-y-2">
+                        <span className="text-[10px] font-bold uppercase text-zinc-400 tracking-wider block">Season Membership Privileges</span>
+                        <ul className="space-y-2.5">
                           {pass.features.map((feat, idx) => (
-                            <li key={idx} className="flex items-start gap-2.5 text-xs text-zinc-300 font-semibold leading-relaxed">
+                            <li key={idx} className="flex items-start gap-2.5 text-xs text-zinc-300 font-medium leading-relaxed">
                               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                               <span>{feat}</span>
                             </li>
@@ -1686,20 +1705,20 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                     </div>
                   </div>
 
-                  <div className="p-6 md:p-8 pt-0 border-t border-white/5 mt-4 flex items-center justify-between">
+                  <div className="p-6 md:p-8 pt-5 border-t border-white/10 mt-2 flex items-center justify-between gap-3">
                     <div>
-                      <span className="text-[9px] font-black uppercase text-zinc-500 tracking-widest block">Annual Pass Rate</span>
+                      <span className="text-[10px] font-bold uppercase text-zinc-400 tracking-wider block">Annual Pass Rate</span>
                       <div className="flex items-baseline gap-1 mt-1">
                         <span className="font-mono text-white text-2xl font-black">${pass.price.toLocaleString()}</span>
-                        <span className="text-[9px] text-zinc-500 font-bold uppercase">/ Season</span>
+                        <span className="text-[10px] text-zinc-400 font-bold uppercase">/ Season</span>
                       </div>
                     </div>
 
                     <button 
                       onClick={() => handleOpenSeasonPassCheckout(pass)}
-                      className="px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] rounded-xl tracking-widest uppercase transition-all shadow-xl shadow-blue-600/20 active:scale-[0.98] flex items-center gap-1.5"
+                      className="px-6 py-3.5 min-h-[44px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl tracking-wider uppercase transition-all shadow-lg shadow-indigo-600/25 active:scale-[0.98] flex items-center gap-1.5 cursor-pointer"
                     >
-                      <Ticket className="w-3.5 h-3.5" /> Acquire Pass
+                      <Ticket className="w-4 h-4" /> Acquire Pass
                     </button>
                   </div>
                 </div>
@@ -1720,25 +1739,25 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                 <p className="text-xs text-zinc-500 uppercase tracking-widest mt-1 font-bold">Authenticated Ticketmaster API Gameday Exchange Connection</p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full md:w-auto">
                 <select 
                   value={ticketSort}
                   onChange={(e: any) => setTicketSort(e.target.value)}
-                  className="bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-black uppercase tracking-widest"
+                  className="bg-[#080d22] border border-indigo-500/25 rounded-xl px-4 py-2.5 min-h-[44px] text-xs text-white font-bold uppercase tracking-wider focus:outline-none focus:border-blue-500"
                 >
                   <option value="date">Sort By: Gameday Date</option>
                   <option value="cheapest">Sort By: Cheapest Seats First</option>
                 </select>
 
-                <div className="relative">
+                <div className="relative flex-1 sm:flex-initial">
                   <input 
                     type="text" 
                     placeholder="Filter by Team name..." 
                     value={ticketTeam}
                     onChange={(e) => setTicketTeam(e.target.value)}
-                    className="bg-zinc-950 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-zinc-500 font-bold focus:outline-none focus:border-blue-500 w-44"
+                    className="bg-[#080d22] border border-indigo-500/25 rounded-xl pl-9 pr-4 py-2.5 min-h-[44px] text-xs text-white placeholder-zinc-400 font-bold focus:outline-none focus:border-blue-500 w-full sm:w-48"
                   />
-                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-3.5" />
+                  <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-3.5" />
                 </div>
               </div>
             </div>
@@ -1823,7 +1842,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                 });
 
                 return (
-                  <div key={game.id} className="bg-zinc-900/40 border border-white/5 hover:border-white/20 rounded-[2rem] overflow-hidden group hover:bg-zinc-900/60 transition-all flex flex-col justify-between shadow-xl">
+                  <div key={game.id} className="bg-[#080c1c] border border-indigo-500/20 hover:border-indigo-400/50 hover:-translate-y-0.5 rounded-3xl overflow-hidden group transition-all flex flex-col justify-between shadow-xl">
                     <div>
                       <div className="aspect-[4/3] overflow-hidden relative border-b border-white/5">
                         <NFLImage item={game} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95" />
@@ -1926,9 +1945,9 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                       <div className="pt-2 flex items-center gap-2">
                         <button 
                           onClick={() => handleOpenGameTicketCheckout(game)}
-                          className="flex-1 sm:flex-none px-5 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-[9px] rounded-xl tracking-widest uppercase flex items-center justify-center gap-1.5 transition-colors shadow-lg shadow-blue-600/20"
+                          className="flex-1 sm:flex-none px-5 py-3.5 min-h-[44px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl tracking-wider uppercase flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-indigo-600/20 cursor-pointer"
                         >
-                          <Ticket className="w-3.5 h-3.5" /> Buy Ticket
+                          <Ticket className="w-4 h-4" /> Buy Ticket
                         </button>
                       </div>
                     </div>
@@ -1951,7 +1970,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10">
             {SHOP_ITEMS.fanCards.map((item: any) => (
-              <div key={item.id} className="relative group overflow-hidden rounded-3xl md:rounded-[3rem] bg-zinc-900 border border-white/5 flex flex-col md:flex-row hover:border-blue-600/30 transition-all">
+              <div key={item.id} className="relative group overflow-hidden rounded-3xl md:rounded-[2.5rem] bg-[#080c1c] border border-indigo-500/20 flex flex-col md:flex-row hover:border-indigo-400/50 transition-all shadow-xl">
                 <div className="w-full md:w-2/5 h-48 md:h-auto overflow-hidden border-b md:border-b-0 md:border-r border-white/5 relative">
                   <NFLImage item={item} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-60" />
                   <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent md:bg-gradient-to-r" />
@@ -3909,13 +3928,14 @@ export default function App() {
   };
   const [activeTicket, setActiveTicket] = useState<string | null>(localStorage.getItem("active_ticket_id"));
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "stocks">(() => {
+  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "care" | "stocks">(() => {
     const saved = localStorage.getItem("active_tab");
-    if (saved && ["markets", "draft", "portfolio", "shop", "admin", "experiences", "stocks"].includes(saved)) {
+    if (saved && ["markets", "draft", "portfolio", "shop", "admin", "experiences", "care", "stocks"].includes(saved)) {
       return saved as any;
     }
     return "experiences";
   });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (activeTab) {
@@ -4090,6 +4110,11 @@ export default function App() {
       reconcileAdmin();
     }
   }, [user, marketPrices["MIN"], balance, portfolio.length]);
+
+  // Scroll to top smoothly when switching major views
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeTab, dismissedHero]);
 
   // Auth & Data syncing
   useEffect(() => {
@@ -4800,11 +4825,12 @@ export default function App() {
       />
 
       {/* Nav */}
-      <nav className="h-20 bg-zinc-950/60 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-4 md:px-8 z-50">
-        <div className="flex items-center gap-4 md:gap-10">
+      <nav className="sticky top-0 h-20 bg-[#050816]/85 backdrop-blur-xl border-b border-indigo-500/20 flex items-center justify-between px-4 md:px-8 z-50">
+        <div className="flex items-center gap-4 lg:gap-8 min-w-0">
           <div
-            className="flex items-center gap-2.5 cursor-pointer group"
+            className="flex items-center gap-2.5 cursor-pointer group shrink-0"
             onClick={() => {
+              setMobileMenuOpen(false);
               if (user) {
                 setActiveTab("markets");
               } else {
@@ -4812,23 +4838,24 @@ export default function App() {
               }
             }}
           >
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-zinc-950 rounded-lg md:rounded-xl flex items-center justify-center border border-white/10 group-hover:scale-105 transition-all overflow-hidden">
+            <div className="w-9 h-9 md:w-10 md:h-10 bg-[#080d22] rounded-xl flex items-center justify-center border border-indigo-400/25 group-hover:scale-105 transition-all overflow-hidden">
               <img src={NFL_LOGO_URL} alt="NFL Shield Logo" className="w-full h-full object-contain p-1" />
             </div>
-            <div>
-              <h1 className="text-lg md:text-xl font-black italic uppercase tracking-tighter leading-none">NFL GRIDIRON</h1>
-              <p className="hidden xs:block text-[8px] md:text-[10px] font-black text-zinc-500 uppercase tracking-widest">Official Fan Experience &amp; Arena</p>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg md:text-xl font-black italic uppercase tracking-tighter leading-none text-white">NFL GRIDIRON</h1>
+              <p className="hidden sm:block text-[10px] font-bold text-sky-400/90 uppercase tracking-wider">Fan Experiences &amp; Arena</p>
             </div>
           </div>
 
-          <div className="hidden lg:flex items-center gap-8">
+          <div className="hidden lg:flex items-center gap-5 xl:gap-6">
             {([
               ...(user ? [
                 { id: "markets", label: "Exchange", icon: LayoutDashboard },
                 { id: "draft", label: "Speculation", icon: Target },
               ] : []),
               { id: "experiences", label: "Experiences", icon: Star },
-              { id: "shop", label: "Arena Shop", icon: ShoppingBag },
+              { id: "shop", label: "Shop", icon: ShoppingBag },
+              { id: "care", label: "Support", icon: Headphones },
               ...(user ? [{ id: "portfolio", label: "Portfolio", icon: History }] : []),
               ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control", icon: ShieldCheck }] : [])
             ] as any[]).map(tab => (
@@ -4839,50 +4866,31 @@ export default function App() {
                   setDismissedHero(true);
                 }}
                 className={cn(
-                  "text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all",
-                  tab.isPromo 
-                    ? (activeTab === tab.id ? "px-3 py-1.5 rounded-xl bg-blue-600 text-white shadow-sm font-black" : "px-3 py-1.5 rounded-xl bg-blue-600/10 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white shadow-sm")
-                    : activeTab === tab.id 
-                      ? "text-blue-500" 
-                      : "text-zinc-500 hover:text-white"
+                  "text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap py-2",
+                  activeTab === tab.id && (user || dismissedHero)
+                    ? "text-sky-400" 
+                    : "text-zinc-400 hover:text-white"
                 )}
               >
-                <tab.icon className={cn("w-4 h-4", tab.isPromo && (activeTab === tab.id ? "text-white" : "text-blue-400 group-hover:text-white"))} />
+                <tab.icon className="w-3.5 h-3.5 shrink-0" />
                 {tab.label}
               </button>
             ))}
-
-            <button 
-              onClick={() => setShowFanCardForm(true)}
-              className="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
-            >
-              <Headphones className="w-4 h-4 text-blue-400" />
-              Customer Care
-            </button>
-            
-            <button 
-              onClick={() => window.open(window.location.href, '_blank')}
-              className="text-[10px] font-black uppercase text-zinc-500 hover:text-white transition-colors flex items-center gap-2 border-l border-white/10 pl-6 ml-2"
-              title="Open in new tab to avoid browser restrictions"
-            >
-              <ExternalLink className="w-3 h-3" />
-              Popout
-            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Quick Check & Download Pass Navbar Button */}
           <button
             onClick={() => {
               setTicketCheckInitialQuery("");
               setShowTicketCheckModal(true);
             }}
-            className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-950/70 to-zinc-900 hover:from-emerald-900/80 hover:to-zinc-800 border border-emerald-500/40 hover:border-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-wider text-emerald-300 hover:text-white transition-all cursor-pointer shadow-sm"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-gradient-to-r from-emerald-950/75 to-zinc-900 hover:from-emerald-900/80 hover:to-zinc-800 border border-emerald-500/40 hover:border-emerald-400 rounded-xl text-[10px] font-bold uppercase tracking-wider text-emerald-300 hover:text-white transition-all cursor-pointer shadow-sm whitespace-nowrap"
             title="Check ticket status and download official PDF passes"
           >
             <Download className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden xs:inline">Check /</span> Download Pass
+            <span>Check / Download Pass</span>
           </button>
 
           {/* Quick Track Ticket Navbar Button */}
@@ -4894,35 +4902,123 @@ export default function App() {
               setTrackingId("");
               setShowInquiryStatus("SEARCH");
             }}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-zinc-900/90 hover:bg-zinc-800 border border-blue-500/30 hover:border-blue-400/50 rounded-xl text-[10px] font-black uppercase tracking-wider text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm"
+            className="hidden xl:flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-[#080d22] hover:bg-zinc-800 border border-blue-500/30 hover:border-blue-400/50 rounded-xl text-[10px] font-bold uppercase tracking-wider text-zinc-200 hover:text-white transition-all cursor-pointer shadow-sm whitespace-nowrap"
           >
-            <Search className="w-3 h-3 text-blue-400" />
-            <span className="hidden md:inline">Track</span> Inquiry
+            <Search className="w-3.5 h-3.5 text-sky-400" />
+            <span>Track Inquiry</span>
           </button>
 
           {user ? (
-            <div className="flex items-center gap-3 md:gap-6">
-              <div className="text-right hidden lg:block">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="text-right hidden xl:block">
                 <p className="text-[10px] font-black text-zinc-500 uppercase">AUM Value</p>
                 <p className="font-mono text-emerald-400 font-black">{formatCurrency(totalValue)}</p>
               </div>
               <button 
                 onClick={() => setShowWallet(true)}
-                className="bg-white text-black px-4 md:px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all flex items-center gap-2"
+                className="bg-white text-black px-3.5 sm:px-5 py-2.5 min-h-[40px] rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider hover:bg-zinc-200 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Wallet className="w-4 h-4" /> <span className="hidden sm:inline">Wallet</span>
               </button>
-              <button onClick={() => signOut(auth)} className="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center hover:bg-rose-500/10 hover:text-rose-500 transition-all">
-                <LogOut className="w-5 h-5" />
+              <button onClick={() => signOut(auth)} className="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center hover:bg-rose-500/10 hover:text-rose-500 transition-all cursor-pointer" aria-label="Sign out">
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           ) : (
-            <button onClick={() => setShowLogin(true)} className="bg-zinc-900 border border-white/15 text-white px-5 md:px-7 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all">
+            <button onClick={() => setShowLogin(true)} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-4 sm:px-6 py-2.5 min-h-[40px] rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shadow-md">
               Sign In
             </button>
           )}
+
+          {/* Mobile Drawer Trigger */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            className="lg:hidden w-10 h-10 rounded-xl bg-[#080d22] border border-white/15 flex items-center justify-center text-white hover:border-indigo-400 transition-colors cursor-pointer"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </nav>
+
+      {/* Mobile Dropdown Navigation Drawer */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="lg:hidden fixed inset-x-0 top-20 z-50 bg-[#060918]/98 backdrop-blur-2xl border-b border-indigo-500/25 p-5 shadow-2xl max-h-[calc(100vh-5rem)] overflow-y-auto"
+          >
+            <div className="space-y-2">
+              {([
+                ...(user ? [
+                  { id: "markets", label: "Franchise Exchange", icon: LayoutDashboard },
+                  { id: "draft", label: "Draft Speculation", icon: Target },
+                  { id: "portfolio", label: "My Portfolio & Passes", icon: History },
+                ] : []),
+                { id: "experiences", label: "Experiences", icon: Star },
+                { id: "shop", label: "Shop", icon: ShoppingBag },
+                { id: "care", label: "Support", icon: Headphones },
+                ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control Room", icon: ShieldCheck }] : [])
+              ] as any[]).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(item.id as any);
+                    setDismissedHero(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={cn(
+                    "w-full min-h-[48px] px-4 rounded-xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all cursor-pointer",
+                    activeTab === item.id && (user || dismissedHero)
+                      ? "bg-gradient-to-r from-blue-600/25 to-purple-600/25 border border-indigo-400/40 text-white"
+                      : "bg-zinc-900/60 border border-white/5 text-zinc-300"
+                  )}
+                >
+                  <span className="flex items-center gap-3">
+                    <item.icon className="w-4 h-4 text-sky-400" />
+                    {item.label}
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-zinc-500" />
+                </button>
+              ))}
+
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setTicketCheckInitialQuery("");
+                    setShowTicketCheckModal(true);
+                  }}
+                  className="min-h-[46px] px-3 rounded-xl bg-emerald-950/60 border border-emerald-500/35 text-emerald-300 text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download Pass
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setTrackedInquiry(null);
+                    setEmailInquiries(null);
+                    setTrackingEmail("");
+                    setTrackingId("");
+                    setShowInquiryStatus("SEARCH");
+                  }}
+                  className="min-h-[46px] px-3 rounded-xl bg-zinc-900 border border-blue-500/30 text-sky-300 text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  Track Inquiry
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Persistent Floating 24/7 Customer Care Hub */}
       <CustomerCareWidget 
@@ -4943,34 +5039,34 @@ export default function App() {
           setTicketCheckInitialQuery("");
           setShowTicketCheckModal(true);
         }}
+        onOpenSupportHub={() => {
+          setActiveTab("care");
+          setDismissedHero(true);
+        }}
         user={user}
       />
 
       {/* Mobile Bottom Nav */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-zinc-950/80 backdrop-blur-2xl border-t border-white/5 z-50 flex items-center justify-around p-4">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#050816]/95 backdrop-blur-2xl border-t border-indigo-500/20 z-50 grid grid-cols-3 px-3 py-2 gap-2">
         {[
-          ...(user ? [
-            { id: "markets", label: "Exchange", icon: LayoutDashboard },
-            { id: "draft", label: "Speculation", icon: Target },
-          ] : []),
           { id: "experiences", label: "Experiences", icon: Star },
-          { id: "shop", label: "Arena Shop", icon: ShoppingBag },
-          ...(user ? [{ id: "portfolio", label: "Portfolio", icon: History }] : []),
-          ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control", icon: ShieldCheck }] : [])
+          { id: "shop", label: "Shop", icon: ShoppingBag },
+          { id: "care", label: "Support", icon: Headphones },
         ].map(tab => (
           <button 
             key={tab.id}
             onClick={() => {
               setActiveTab(tab.id as any);
               setDismissedHero(true);
+              setMobileMenuOpen(false);
             }}
             className={cn(
-              "flex flex-col items-center gap-1 transition-colors",
-              activeTab === tab.id ? "text-blue-500" : "text-zinc-500"
+              "min-h-[46px] flex flex-col items-center justify-center gap-1 transition-colors rounded-xl cursor-pointer",
+              activeTab === tab.id && (user || dismissedHero) ? "text-sky-400 bg-indigo-600/15" : "text-zinc-400"
             )}
           >
-            <tab.icon className="w-5 h-5" />
-            <span className="text-[8px] font-black uppercase tracking-tighter">{tab.label}</span>
+            <tab.icon className="w-4 h-4" />
+            <span className="text-[10px] font-bold tracking-tight">{tab.label}</span>
           </button>
         ))}
       </div>
@@ -5389,6 +5485,13 @@ export default function App() {
             setActiveTab("shop");
             setDismissedHero(true);
           }}
+          onOpenTrackInquiry={() => {
+            setTrackedInquiry(null);
+            setEmailInquiries(null);
+            setTrackingEmail("");
+            setTrackingId("");
+            setShowInquiryStatus("SEARCH");
+          }}
           onSelectExperience={(targetId) => {
             setDeepLinkExp({ targetId });
             setActiveTab("experiences");
@@ -5413,7 +5516,7 @@ export default function App() {
 
       {/* Main Dashboard */}
       {(user || dismissedHero) && (
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden pb-20 md:pb-0">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden pb-24 lg:pb-0">
           {/* Sidebar */}
           {user && (
             <aside className={cn(
@@ -5728,6 +5831,23 @@ export default function App() {
                   </button>
                 </div>
               </div>
+            )}
+
+            {activeTab === "care" && (
+              <SupportTrustSection
+                onOpenCustomerCare={() => setShowFanCardForm(true)}
+                onOpenTrackInquiry={() => {
+                  setTrackedInquiry(null);
+                  setEmailInquiries(null);
+                  setTrackingEmail("");
+                  setTrackingId("");
+                  setShowInquiryStatus("SEARCH");
+                }}
+                onOpenTicketCheck={() => {
+                  setTicketCheckInitialQuery("");
+                  setShowTicketCheckModal(true);
+                }}
+              />
             )}
 
             {activeTab === "shop" && (

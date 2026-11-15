@@ -144,9 +144,10 @@ export const MerchandiseVaultSection: React.FC<MerchandiseVaultSectionProps> = (
       </div>
 
       {/* FLAGSHIP SHOWCASE: NEW ENGLAND PATRIOTS SIGNED MERCHANDISE */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-b from-zinc-900/90 via-zinc-950 to-zinc-950 border border-blue-500/30 p-6 sm:p-8 md:p-12 shadow-2xl">
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#080f2b] via-[#070a18] to-[#110824] border border-indigo-500/35 p-6 sm:p-8 md:p-12 shadow-2xl">
         {/* Glow backdrop accent */}
-        <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* Top Badges */}
         <div className="flex flex-wrap items-center justify-between gap-3 pb-8 border-b border-white/5 relative z-10">
@@ -418,10 +419,10 @@ export const MerchandiseVaultSection: React.FC<MerchandiseVaultSectionProps> = (
               <button
                 type="button"
                 onClick={() => onOpenPatriotsCheckout(patriotsProductObject, isPromoApplied ? "258025" : "")}
-                className="w-full py-4 sm:py-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs sm:text-sm uppercase tracking-widest rounded-2xl shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2.5 transition-all transform hover:-translate-y-0.5"
+                className="w-full py-4 sm:py-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black text-xs sm:text-sm uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-2.5 transition-all transform hover:-translate-y-0.5 cursor-pointer"
               >
                 <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-                ACQUIRE PATRIOTS SIGNED MERCHANDISE ({finalPrice.toFixed(2)}$)
+                ACQUIRE PATRIOTS SIGNED MERCHANDISE (${finalPrice.toFixed(2)})
                 <ArrowRight className="w-4 h-4" />
               </button>
 

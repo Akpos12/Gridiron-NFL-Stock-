@@ -1206,19 +1206,22 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   });
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 max-w-7xl mx-auto">
       {/* Experience Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-600/10 border border-blue-500/10 text-[9px] font-black uppercase tracking-widest text-blue-400 mb-4 animate-pulse">
-            <Sparkles className="w-3.5 h-3.5" />
-            Arena Experiences
+          <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-indigo-600/15 border border-indigo-400/30 text-[11px] font-bold uppercase tracking-widest text-sky-300 mb-4">
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            Verified NFL Experiences
           </span>
-          <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter text-white">
-            NFL EXPERIENCES
+          <h2 className="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold italic uppercase tracking-tight text-white leading-[0.95]">
+            NFL{" "}
+            <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-purple-400 bg-clip-text text-transparent">
+              EXPERIENCES
+            </span>
           </h2>
-          <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-2 max-w-xl">
-            Go past the ticket gate with premium stadium walkaways, elite player meet and greets, and bespoke luxury hosting packages.
+          <p className="text-zinc-300 text-xs sm:text-sm font-medium mt-2.5 max-w-xl leading-relaxed">
+            Book confirmed stadium tours and practice credentials or arrange 1-on-1 player meet-and-greets, autograph signings, photo sessions, and VIP hospitality.
           </p>
         </div>
 
@@ -1229,16 +1232,16 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
             { id: "player_inquiry", label: "Inquire About A Player" },
             { id: "stadium_tour", label: "Stadium Tours" },
             { id: "meet_greet", label: "Meet & Greets" },
-            { id: "private_tour", label: "Private Tours" }
+            { id: "private_tour", label: "VIP & Private" }
           ] as const).map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveType(tab.id)}
               className={cn(
-                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                "px-4 sm:px-5 py-2.5 min-h-[42px] rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer",
                 activeType === tab.id 
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" 
-                  : "bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                  ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-600/25" 
+                  : "bg-[#080c1c] border border-white/10 text-zinc-400 hover:text-white hover:border-white/25"
               )}
             >
               {tab.label}
@@ -1248,35 +1251,32 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       </div>
 
       {/* Hero Callout Banner: Inquire About Any NFL Player */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-blue-950 via-indigo-950 to-zinc-950 border border-blue-500/30 p-6 sm:p-8 shadow-2xl">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-[2.25rem] bg-gradient-to-r from-[#091235] via-[#0c102e] to-[#1a0d38] border border-indigo-500/35 p-6 sm:p-8 shadow-2xl">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-3 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-[9px] font-black uppercase tracking-widest">
-              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-sky-300 text-[10px] font-bold uppercase tracking-widest">
+              <Sparkles className="w-3.5 h-3.5 text-sky-400" />
               Direct Player Liaison Session · Any Active NFL Star
             </div>
-            <h3 className="text-xl sm:text-2xl lg:text-3xl font-black italic uppercase tracking-tight text-white leading-tight">
+            <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold italic uppercase tracking-tight text-white leading-tight">
               Looking for a Specific NFL Star Player?
             </h3>
-            <p className="text-xs sm:text-sm text-zinc-300 font-medium leading-relaxed">
-              Submit your contact information, select any of the 32 NFL teams &amp; your favorite player, and choose your preferred messaging platform (WhatsApp, Zangi, or Telegram) to receive verified player availability and scheduling details. <strong className="text-emerald-300">100% of the $100 inquiry fee goes directly to charity.</strong>
+            <p className="text-xs sm:text-sm text-zinc-200 font-medium leading-relaxed">
+              Submit your contact details, choose any of the 32 NFL franchises &amp; favorite player, and select your preferred messaging channel (WhatsApp, Zangi, or Telegram) for verified player availability.{" "}
+              <strong className="text-emerald-300">100% of the $100 inquiry fee goes directly to charity.</strong>
             </p>
-            <div className="flex flex-wrap items-center gap-3 pt-1 text-[9px] font-mono text-zinc-400">
-              <span className="flex items-center gap-1 text-emerald-400 font-bold">
-                <Heart className="w-3 h-3" /> 100% of $100 Fee Goes to Charity
+            <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-semibold text-zinc-300">
+              <span className="flex items-center gap-1.5 text-emerald-300">
+                <Heart className="w-3.5 h-3.5 text-emerald-400" /> 100% of $100 Fee Goes to Charity
               </span>
               <span className="text-zinc-600">·</span>
-              <span className="flex items-center gap-1 text-emerald-400 font-bold">
-                <CheckCircle2 className="w-3 h-3" /> All 32 Teams Supported
+              <span className="flex items-center gap-1.5 text-sky-300">
+                <CheckCircle2 className="w-3.5 h-3.5" /> All 32 Teams Supported
               </span>
               <span className="text-zinc-600">·</span>
-              <span className="flex items-center gap-1 text-blue-400 font-bold">
-                <Smartphone className="w-3 h-3" /> WhatsApp · Zangi · Telegram
-              </span>
-              <span className="text-zinc-600">·</span>
-              <span className="flex items-center gap-1 text-purple-400 font-bold">
-                <ShieldCheck className="w-3 h-3" /> Verified Player Management
+              <span className="flex items-center gap-1.5 text-purple-300">
+                <Smartphone className="w-3.5 h-3.5" /> WhatsApp · Zangi · Telegram
               </span>
             </div>
           </div>
@@ -1286,7 +1286,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
               setInquiryInitialTeam(undefined);
               setIsPlayerInquiryOpen(true);
             }}
-            className="px-8 py-5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2.5 shadow-2xl shadow-blue-600/40 transition-all hover:scale-[1.02] active:scale-95 shrink-0 cursor-pointer"
+            className="px-8 py-4 min-h-[48px] rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2.5 shadow-2xl shadow-indigo-600/35 transition-all hover:scale-[1.02] active:scale-95 shrink-0 cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
             <span>Inquire About A Player</span>
@@ -1295,36 +1295,45 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         </div>
       </div>
 
-
-
       {/* Search Input Filter */}
       <div className="relative max-w-lg">
-        <SlidersHorizontal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+        <SlidersHorizontal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
         <input
           type="text"
-          placeholder="Filter tours, elite stadiums, or player rosters..."
+          placeholder="Search stadium tours, cities, or NFL player names..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl pl-12 pr-6 py-3.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-600 font-bold placeholder-zinc-600"
+          className="w-full bg-[#080c1c] border border-white/10 rounded-2xl pl-12 pr-6 py-3.5 text-xs sm:text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium placeholder-zinc-500"
         />
       </div>
 
       {/* Experiences Grid */}
       {loading ? (
-        <div className="py-24 text-center">
-          <div className="w-12 h-12 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Constructing experience lists...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-[460px] rounded-3xl bg-zinc-900/50 border border-white/5 animate-pulse" />
+          ))}
         </div>
       ) : filteredExps.length === 0 ? (
-        <div className="py-24 text-center border border-dashed border-white/5 rounded-[2rem] bg-zinc-900/10">
-          <Compass className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-          <p className="text-sm font-black uppercase text-white tracking-widest">No Premium Encounters Match Your Filter</p>
-          <p className="text-[10px] text-zinc-500 font-bold uppercase mt-1">Try resetting the search parameter</p>
+        <div className="py-24 text-center border border-dashed border-white/10 rounded-[2rem] bg-[#080c1c]/50">
+          <Compass className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+          <p className="text-sm font-bold uppercase text-white tracking-widest">No Experiences Match Your Filter</p>
+          <p className="text-xs text-zinc-400 mt-1">Try resetting your search or category filter</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
           {filteredExps.map((exp) => {
             const team = NFL_TEAMS.find(t => t.id === exp.teamId);
+            const hasConfirmedDates =
+              exp.type === "stadium_tour" ||
+              exp.id === "exp-sea-training" ||
+              (Array.isArray(exp.dates) &&
+                exp.dates.length > 0 &&
+                !String(exp.dates[0]).toLowerCase().includes("announced after") &&
+                !String(exp.dates[0]).toLowerCase().includes("coordinated"));
+
+            const isInquiryType = exp.id === "exp-player-inquiry-session" || exp.type === "player_inquiry";
+
             return (
               <motion.div
                 key={exp.id}
@@ -1332,32 +1341,50 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={cn(
-                  "flex flex-col bg-zinc-900/40 rounded-[2rem] border overflow-hidden hover:shadow-2xl transition-all group duration-300",
-                  exp.type === "private_tour" ? "border-amber-500/20 shadow-amber-950/5" : "border-white/5"
+                  "flex flex-col bg-[#080c1c] rounded-3xl border overflow-hidden hover:shadow-2xl transition-all group duration-300 hover:-translate-y-1",
+                  exp.type === "private_tour"
+                    ? "border-amber-500/35 hover:border-amber-400/60"
+                    : "border-white/10 hover:border-indigo-500/50"
                 )}
               >
                 {/* Image & Logo Overlay */}
-                <div className="relative aspect-video overflow-hidden bg-zinc-950">
+                <div className="relative aspect-[16/10] overflow-hidden bg-zinc-950">
                   <NFLImage 
                     item={exp}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80"
+                    className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                   />
-                  {exp.type === "private_tour" && (
-                    <div className="absolute top-4 left-4 inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500 text-zinc-950 text-[8px] font-black uppercase tracking-widest rounded-full shadow-lg">
-                      <Sparkles className="w-3 h-3" />
-                      LUXURY ELITE
-                    </div>
-                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#080c1c] via-[#080c1c]/20 to-transparent" />
+
+                  <div className="absolute top-3.5 left-3.5 flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border",
+                        isInquiryType
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
+                          : hasConfirmedDates
+                            ? "bg-blue-600/85 text-white border-sky-400/40"
+                            : "bg-purple-950/85 text-purple-200 border-purple-400/40"
+                      )}
+                    >
+                      {isInquiryType
+                        ? "100% Charity Liaison"
+                        : hasConfirmedDates
+                          ? "Confirmed Dates"
+                          : "By Player Availability"}
+                    </span>
+                  </div>
 
                   {team && (
-                    <div className="absolute top-4 right-4 w-10 h-10 bg-zinc-950/80 backdrop-blur-md rounded-xl p-2 border border-white/10 flex items-center justify-center">
+                    <div className="absolute top-3.5 right-3.5 w-10 h-10 bg-zinc-950/85 backdrop-blur-md rounded-xl p-1.5 border border-white/15 flex items-center justify-center">
                       <img src={getLogoUrl(team.id)} alt={team.id} className="w-full h-full object-contain" />
                     </div>
                   )}
 
-                  <div className="absolute bottom-4 left-4 bg-zinc-950/80 backdrop-blur-md border border-white/10 rounded-lg px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-red-500" />
-                    {exp.location}
+                  <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between gap-2 text-xs text-zinc-200 font-medium">
+                    <span className="truncate flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                      <span className="truncate">{exp.location}</span>
+                    </span>
                   </div>
                 </div>
 
@@ -1365,52 +1392,52 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                 <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black uppercase tracking-wider text-zinc-500 font-mono">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-sky-400">
                         {exp.category}
                       </span>
                       <div className="flex items-center gap-1 text-amber-400">
-                        <Star className="w-3 h-3 fill-current" />
-                        <span className="text-[10px] font-bold font-mono">{exp.rating}</span>
-                        <span className="text-[8px] text-zinc-600 font-mono">({exp.reviewsCount})</span>
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                        <span className="text-xs font-bold font-mono">{exp.rating}</span>
+                        <span className="text-[11px] text-zinc-400 font-mono">({exp.reviewsCount})</span>
                       </div>
                     </div>
 
-                    <h3 className="text-md font-black uppercase tracking-tight text-white group-hover:text-blue-400 transition-colors line-clamp-1">
+                    <h3 className="font-display text-2xl font-extrabold uppercase tracking-tight text-white group-hover:text-sky-300 transition-colors line-clamp-2 leading-tight">
                       {exp.title}
                     </h3>
-                    <p className="text-[11px] font-bold text-zinc-500 leading-normal line-clamp-3">
+                    <p className="text-xs text-zinc-300 font-medium leading-relaxed line-clamp-3">
                       {exp.description}
                     </p>
                   </div>
 
-                  {/* Highlights Bullet List */}
-                  <div className="bg-zinc-950/30 rounded-xl p-3 border border-white/[0.02] space-y-1.5">
+                  {/* Inclusions & Booking Requirements */}
+                  <div className="bg-zinc-950/70 rounded-2xl p-3.5 border border-white/5 space-y-2 text-xs">
                     {(exp.features || []).slice(0, 2).map((feat, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-wide text-zinc-400">
-                        <span className="w-1 h-1 rounded-full bg-blue-500 shrink-0" />
-                        <span className="truncate">{feat}</span>
+                      <div key={idx} className="flex items-start gap-2 text-zinc-300">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
+                        <span className="line-clamp-1">{feat}</span>
                       </div>
                     ))}
-                    <div className="flex items-center gap-1.5 text-[8px] font-mono text-emerald-400/90 pt-1 border-t border-white/[0.03]">
-                      <Building2 className="w-2.5 h-2.5 shrink-0" />
-                      <span className="truncate">
+                    <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-1 text-[11px]">
+                      <span className="text-zinc-400">Req: Valid Photo ID · Age 18+ / Adult Supervision</span>
+                      <span className="text-emerald-400 font-mono truncate">
                         {exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre")
                           ? "Crypto (5% OFF) · Gift Card"
                           : exp.id === "exp-bo-nix-meet" || exp.id === "exp-brock-purdy-meet" || ((exp.title?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("brock purdy")) && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private")))
                             ? "Cash App · Crypto (5% OFF) · Gift Card"
                             : exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast")
-                              ? "Live Podcast · Remote / Denver Studio · Crypto (5% OFF)"
+                              ? "Remote / Denver Studio · Crypto (5% OFF)"
                               : "BMO Bank · Cash App · Venmo · Zelle · Crypto"}
                       </span>
                     </div>
                   </div>
 
                   {/* Pricing and Action */}
-                  <div className="pt-2 flex items-center justify-between border-t border-white/5">
+                  <div className="pt-3 flex items-center justify-between border-t border-white/10">
                     <div>
-                      <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest leading-none">
-                        {exp.id === "exp-player-inquiry-session" || exp.type === "player_inquiry"
-                          ? "Direct Liaison"
+                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider leading-none">
+                        {isInquiryType
+                          ? "Charity Inquiry Fee"
                           : exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.id === "exp-brock-purdy-meet" || exp.player?.toLowerCase().includes("pitre") || ((exp.title?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("brock purdy")) && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private"))) 
                             ? "Platinum Ticket"
                             : exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast")
@@ -1419,9 +1446,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                                 ? "Pass Price" 
                                 : "Starting from"}
                       </p>
-                      {exp.id === "exp-player-inquiry-session" || exp.type === "player_inquiry" ? (
-                        <p className="text-xs font-mono font-black text-emerald-400 mt-1 uppercase tracking-wider">
-                          Inquire for Details
+                      {isInquiryType ? (
+                        <p className="text-sm font-mono font-black text-emerald-400 mt-1">
+                          $100 (100% Charity)
                         </p>
                       ) : (
                         <p className={cn(
@@ -1436,17 +1463,17 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                     <button
                       onClick={() => openBookingModal(exp)}
                       className={cn(
-                        "px-4.5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all inline-flex items-center gap-1.5 transform active:scale-95 duration-150",
+                        "px-5 py-3 min-h-[44px] rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all inline-flex items-center gap-1.5 transform active:scale-95 duration-150 cursor-pointer",
                         exp.type === "private_tour" 
-                          ? "bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold" 
+                          ? "bg-amber-500 hover:bg-amber-400 text-zinc-950 font-extrabold" 
                           : exp.type === "player_inquiry"
-                            ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black shadow-lg shadow-blue-600/30"
-                            : "bg-blue-600 hover:bg-blue-700 text-white"
+                            ? "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 font-extrabold shadow-lg shadow-emerald-600/25"
+                            : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/20"
                       )}
                     >
-                      {exp.id === "exp-player-inquiry-session" || exp.type === "player_inquiry" 
-                        ? "Inquire About Player" 
-                        : (exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast") ? "Book Podcast" : "Book Ticket")}
+                      {isInquiryType
+                        ? "Inquire Player" 
+                        : (exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast") ? "Book Podcast" : "Book Pass")}
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
