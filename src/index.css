@@ -1,26 +1,39 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  
+
   --color-nfl-blue: #013369;
   --color-nfl-red: #D50A0A;
 }
 
 @layer base {
   body {
-    @apply bg-zinc-950 text-zinc-100 font-sans selection:bg-nfl-blue/30 selection:text-white;
+    @apply bg-[#050508] text-zinc-100 font-sans selection:bg-indigo-600/40 selection:text-white antialiased;
   }
 }
 
+.font-display {
+  font-family: var(--font-display);
+}
+
 .market-gradient {
-  background: radial-gradient(circle at top right, rgba(1, 51, 105, 0.15), transparent),
-              radial-gradient(circle at bottom left, rgba(213, 10, 10, 0.1), transparent);
+  background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.14), transparent),
+              radial-gradient(circle at bottom left, rgba(124, 58, 237, 0.12), transparent);
 }
 
 .glass-card {
   @apply bg-zinc-900/50 border border-white/5 backdrop-blur-sm;
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

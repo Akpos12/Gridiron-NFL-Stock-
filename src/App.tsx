@@ -113,36 +113,10 @@ import { NFLImage } from "./utils/nflImages";
 import { QRCodeSVG } from "qrcode.react";
 import { VisitorAnalyticsPanel } from "./components/VisitorAnalyticsPanel";
 import { recordOrSyncVisit, SiteVisitRecord, subscribeToSiteVisits } from "./services/visitorTrackingService";
+import { LandingShowcase } from "./components/LandingShowcase";
 
 // --- Constants ---
 const NFL_LOGO_URL = "/nfl_logo.svg";
-
-const LANDING_NEWS = [
-  {
-    category: "VIP SIDELINE ACCESS",
-    title: "Tunnel Walkouts, Pre-Game Field Passes & Locker Room Tours",
-    source: "Official Fan Experiences",
-    time: "All 32 Stadiums",
-    targetTab: "experiences" as const,
-    image: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800"
-  },
-  {
-    category: "ARENA SHOP & TICKETS",
-    title: "Lower-Bowl Match Tickets, Season Passes & Signed Vault Gear",
-    source: "Instant Digital Pass",
-    time: "Verified Authentic",
-    targetTab: "shop" as const,
-    image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800"
-  },
-  {
-    category: "GIVE BACK FOR A CAUSE",
-    title: "Inquire About Any NFL Star — 100% of $100 Fee Goes to Charity",
-    source: "Player Liaison & Charity",
-    time: "Direct Outreach",
-    targetTab: "experiences" as const,
-    image: "https://images.unsplash.com/photo-1610444583731-9ef82ba39235?auto=format&fit=crop&q=80&w=800"
-  }
-];
 
 const TESTIMONIALS = [
   {
@@ -185,40 +159,12 @@ const SHOP_ITEMS = {
 
 const BackgroundRotator = ({ isLanding }: { isLanding?: boolean }) => {
   return (
-    <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden bg-zinc-950">
-      {/* Background Image for Landing */}
+    <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden bg-[#050508]">
+      {/* Cinematic Stadium Blue & Purple Floodlight Glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[140%] h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-purple-950/10 to-[#050508]" />
       {isLanding && (
-        <div 
-          className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
-          style={{ 
-            backgroundImage: `url("https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=100&w=3840")`,
-          }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/60 to-black" />
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-[#050508]/80 to-[#050508]" />
       )}
-
-      {/* Cinematic Stadium Light Effect */}
-      {!isLanding && (
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-full bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-zinc-950/90 to-zinc-950" />
-      )}
-      
-      {/* Large Watermark Logo */}
-      <div 
-        className={cn(
-          "absolute inset-0 flex items-center justify-center transition-opacity duration-1000",
-          isLanding ? "opacity-[0.05] scale-100" : "opacity-[0.03] scale-75"
-        )}
-        style={{ 
-          backgroundImage: `url("${NFL_LOGO_URL}")`,
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'center',
-          backgroundSize: 'contain'
-        }}
-      />
-
-      {/* Grid Pattern Overlay - Reduced for clarity */}
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.01]" />
     </div>
   );
 };
@@ -4856,7 +4802,16 @@ export default function App() {
       {/* Nav */}
       <nav className="h-20 bg-zinc-950/60 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-4 md:px-8 z-50">
         <div className="flex items-center gap-4 md:gap-10">
-          <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setActiveTab(user ? "markets" : "experiences")}>
+          <div
+            className="flex items-center gap-2.5 cursor-pointer group"
+            onClick={() => {
+              if (user) {
+                setActiveTab("markets");
+              } else {
+                setDismissedHero(false);
+              }
+            }}
+          >
             <div className="w-8 h-8 md:w-10 md:h-10 bg-zinc-950 rounded-lg md:rounded-xl flex items-center justify-center border border-white/10 group-hover:scale-105 transition-all overflow-hidden">
               <img src={NFL_LOGO_URL} alt="NFL Shield Logo" className="w-full h-full object-contain p-1" />
             </div>
@@ -5421,239 +5376,39 @@ export default function App() {
 
       {/* Hero / Landing (If not logged in) */}
       {!user && !dismissedHero && !showLogin && (
-        <div className="flex-1 overflow-y-auto no-scrollbar bg-black/40">
-          {/* Hero Section */}
-          <section className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 text-center relative overflow-hidden">
-            <motion.div 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="max-w-4xl w-full flex flex-col items-center"
-            >
-              <div className="w-20 h-28 md:w-28 md:h-36 bg-zinc-950 rounded-2xl p-2.5 border border-white/10 mb-6 shadow-2xl overflow-hidden flex items-center justify-center">
-                <img src={NFL_LOGO_URL} alt="NFL Logo" className="w-full h-full object-contain" />
-              </div>
-              <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.28em] text-blue-400 mb-3">
-                All 32 Franchises · Sideline Access · Official Arena Store
-              </p>
-              <h1 className="text-4xl xs:text-5xl sm:text-6xl md:text-8xl font-black italic uppercase tracking-tighter mb-6 md:mb-8 leading-[0.95]">
-                LIVE GAME DAY.<br/>
-                <span className="text-blue-500">BEYOND THE STANDS.</span>
-              </h1>
-              <p className="text-sm sm:text-lg md:text-xl text-zinc-300 mb-8 md:mb-10 max-w-2xl mx-auto font-bold leading-relaxed">
-                Step onto the field with VIP sideline passes, private stadium tours, certified autographed gear, and charity-backed NFL player encounters—instant guest booking with zero account required.
-              </p>
-              <div className="flex flex-col sm:flex-row justify-center gap-4 mb-10 px-4 w-full sm:w-auto">
-                <button
-                  onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-7 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest transition-all shadow-2xl shadow-blue-600/30 whitespace-nowrap flex items-center justify-center gap-2.5 cursor-pointer"
-                >
-                  <Star className="w-4 h-4" /> EXPLORE FAN EXPERIENCES
-                </button>
-                <button
-                  onClick={() => { setActiveTab("shop"); setDismissedHero(true); }}
-                  className="bg-white text-black px-7 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl whitespace-nowrap flex items-center justify-center gap-2.5 cursor-pointer"
-                >
-                  <ShoppingBag className="w-4 h-4 text-blue-600" /> SHOP TICKETS &amp; GEAR
-                </button>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-zinc-400 mb-14">
-                <span>Instant Guest Checkout</span>
-                <span aria-hidden="true" className="text-zinc-600">·</span>
-                <span>Official Match &amp; Season Passes</span>
-                <span aria-hidden="true" className="text-zinc-600">·</span>
-                <span className="text-emerald-400 inline-flex items-center gap-1">
-                  <Heart className="w-3.5 h-3.5" /> $100 Player Inquiries Go 100% to Charity
-                </span>
-              </div>
-            </motion.div>
-            
-            {/* Scroll Indicator */}
-            <motion.div 
-              animate={{ y: [0, 10, 0] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="absolute bottom-8 left-1/2 -translate-x-1/2 text-zinc-500"
-            >
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-2">Inside The Fan Pass</p>
-              <div className="w-px h-10 bg-gradient-to-b from-blue-600 to-transparent mx-auto" />
-            </motion.div>
-          </section>
-
-          {/* Featured Fan Experiences & Shop Highlights */}
-          <section className="py-16 md:py-28 px-4 md:px-8 max-w-7xl mx-auto">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
-              <div>
-                <h2 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter">Unforgettable Game-Day Access</h2>
-                <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] md:text-xs mt-1">From tunnel walkouts to signed collectibles — ready to book in seconds</p>
-              </div>
-              <button
-                onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }}
-                className="text-xs font-black uppercase tracking-widest text-blue-400 hover:text-white transition-colors inline-flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
-              >
-                View All Experiences <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
-              {LANDING_NEWS.map((news, i) => (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  key={news.title}
-                  onClick={() => { setActiveTab(news.targetTab); setDismissedHero(true); }}
-                  className="group cursor-pointer"
-                >
-                  <div className="relative aspect-[16/10] overflow-hidden rounded-3xl mb-6 border border-white/10">
-                    <NFLImage item={news} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-75 group-hover:opacity-100" />
-                  </div>
-                  <div className="flex items-center gap-2 text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">
-                    <span>{news.category}</span>
-                    <span aria-hidden="true" className="text-zinc-600">·</span>
-                    <span className="text-zinc-400">{news.time}</span>
-                  </div>
-                  <h3 className="text-lg font-black italic uppercase tracking-tight mb-3 group-hover:text-blue-400 transition-colors leading-tight">
-                    {news.title}
-                  </h3>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white transition-colors">
-                    {news.source} <ArrowUpRight className="w-3.5 h-3.5" />
-                  </span>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Shop & Fan Pass Showcase */}
-            <div className="bg-zinc-900 shadow-2xl rounded-3xl md:rounded-[3rem] p-6 sm:p-10 md:p-12 border border-white/10 relative overflow-hidden">
-               <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-600/10 blur-[100px] rounded-full" />
-               <div className="relative z-10">
-                 <div className="flex flex-col lg:flex-row items-center justify-between gap-10 md:gap-12">
-                   <div className="max-w-xl text-center lg:text-left">
-                     <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-2">
-                       Direct Fan Access · No Membership Required
-                     </p>
-                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 md:mb-6 leading-tight">The Official Arena Shop</h2>
-                     <p className="text-zinc-300 text-sm sm:text-base md:text-lg font-medium mb-8 md:mb-10 leading-relaxed">
-                       Lock in lower-bowl match tickets, full season VIP hospitality passes, Nike Vapor jerseys, and certified autographed helmets with instant digital pass delivery.
-                     </p>
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-10">
-                       <div className="flex items-center justify-center lg:justify-start gap-3.5">
-                         <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center"><Ticket className="w-5 h-5 text-blue-500" /></div>
-                         <p className="text-xs font-black uppercase tracking-wider">Matchday &amp; Season Passes</p>
-                       </div>
-                       <div className="flex items-center justify-center lg:justify-start gap-3.5">
-                         <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center"><ShoppingBag className="w-5 h-5 text-blue-500" /></div>
-                         <p className="text-xs font-black uppercase tracking-wider">Jerseys &amp; Signed Gear</p>
-                       </div>
-                     </div>
-                     <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
-                       <button onClick={() => { setActiveTab("shop"); setDismissedHero(true); }} className="bg-white text-black px-9 py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all cursor-pointer w-full sm:w-auto">
-                          ENTER ARENA SHOP
-                       </button>
-                       <button onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }} className="bg-zinc-950 border border-white/15 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all cursor-pointer w-full sm:w-auto">
-                          VIEW VIP TOURS
-                       </button>
-                     </div>
-                   </div>
-                   <div className="grid grid-cols-2 gap-4 w-full sm:w-auto">
-                      {(SHOP_ITEMS?.tickets || []).slice(0, 2).map((item, i) => (
-                        <div key={item.id} onClick={() => { setActiveTab("shop"); setDismissedHero(true); }} className={cn("flex-1 aspect-[3/4] w-full sm:w-48 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 cursor-pointer", i === 1 && "mt-8 sm:mt-12")}>
-                          <NFLImage item={item} className="w-full h-full object-cover hover:scale-105 transition-all duration-700" />
-                        </div>
-                      ))}
-                   </div>
-                 </div>
-               </div>
-            </div>
-
-            {/* Charity Player Inquiry Spotlight */}
-            <div className="mt-10 bg-gradient-to-r from-emerald-950/60 via-zinc-900 to-blue-950/60 border border-emerald-500/25 rounded-3xl p-6 sm:p-10 flex flex-col lg:flex-row items-center justify-between gap-6">
-              <div className="space-y-2 text-center lg:text-left max-w-2xl">
-                <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                  <Heart className="w-4 h-4 fill-emerald-400/30" />
-                  <span>100% Charity Player Liaison</span>
-                </div>
-                <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tight text-white">
-                  Want to Meet Your Favorite NFL Star?
-                </h3>
-                <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-                  Request a 1-on-1 meet &amp; greet, podcast appearance, or custom shoutout from any star across all 32 teams. <strong className="text-emerald-300">100% of the $100 inquiry fee goes directly to charity.</strong>
-                </p>
-              </div>
-              <button
-                onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }}
-                className="px-8 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-emerald-500/20 whitespace-nowrap cursor-pointer"
-              >
-                Inquire About A Player
-              </button>
-            </div>
-          </section>
-
-          {/* Fan Reviews section */}
-          <section className="py-16 md:py-28 bg-zinc-950/40 border-y border-white/5">
-            <div className="max-w-7xl mx-auto px-4 md:px-8">
-              <div className="text-center mb-12 md:mb-16">
-                <h2 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter mb-3">Loved By Gridiron Fans</h2>
-                <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] md:text-xs">Verified stories from game-day attendees &amp; collectors</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-                {TESTIMONIALS.map((t, i) => (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.1 }}
-                    key={t.name}
-                    className="p-6 md:p-10 bg-zinc-900/50 rounded-2xl md:rounded-[2.5rem] border border-white/5 relative group hover:border-blue-600/30 transition-all"
-                  >
-                    <div className="flex gap-1 mb-6">
-                      {[...Array(t.rating)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-blue-600 text-blue-600" />
-                      ))}
-                    </div>
-                    <p className="text-base md:text-lg font-bold italic mb-8 leading-relaxed text-zinc-200">
-                      &ldquo;{t.text}&rdquo;
-                    </p>
-                    <div className="flex items-center gap-4 border-t border-white/5 pt-6">
-                      <div className="w-11 h-11 bg-zinc-800 rounded-2xl flex items-center justify-center font-black text-blue-500 italic uppercase">
-                        {t.name[0]}
-                      </div>
-                      <div>
-                        <p className="text-xs font-black uppercase tracking-tight">{t.name}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Footer CTA */}
-          <section className="py-20 md:py-36 text-center px-4 md:px-8">
-            <div className="max-w-2xl mx-auto">
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600 rounded-2xl md:rounded-3xl mx-auto flex items-center justify-center mb-8 md:mb-10 shadow-2xl shadow-blue-600/40">
-                <Trophy className="w-8 h-8 md:w-10 md:h-10 text-white" />
-              </div>
-              <h2 className="text-4xl sm:text-5xl md:text-6xl font-black italic uppercase tracking-tighter mb-5 md:mb-6 leading-none">
-                READY FOR<br/>KICKOFF?
-              </h2>
-              <p className="text-zinc-300 font-medium text-sm md:text-base mb-10 px-4">
-                Reserve sideline stadium passes, grab game-day tickets and official team gear, or reach out to meet your favorite NFL player for charity.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-                <button onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-10 md:px-12 py-4 md:py-5 rounded-2xl text-xs md:text-sm font-black uppercase tracking-widest transition-all shadow-2xl shadow-blue-600/30 flex items-center gap-2 cursor-pointer w-full sm:w-auto justify-center">
-                  EXPLORE EXPERIENCES
-                </button>
-                <button onClick={() => { setActiveTab("shop"); setDismissedHero(true); }} className="bg-white text-black px-10 md:px-12 py-4 md:py-5 rounded-2xl text-xs md:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all cursor-pointer w-full sm:w-auto">
-                  SHOP TICKETS &amp; GEAR
-                </button>
-              </div>
-              <button onClick={() => { setIsSignUp(false); setShowLogin(true); }} className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors cursor-pointer">
-                Already have an account? Sign In
-              </button>
-            </div>
-          </section>
-        </div>
+        <LandingShowcase
+          nflLogoUrl={NFL_LOGO_URL}
+          shopItems={SHOP_ITEMS?.tickets || []}
+          testimonials={TESTIMONIALS}
+          onExploreExperiences={() => {
+            setDeepLinkExp(null);
+            setActiveTab("experiences");
+            setDismissedHero(true);
+          }}
+          onDiscoverGameDay={() => {
+            setActiveTab("shop");
+            setDismissedHero(true);
+          }}
+          onSelectExperience={(targetId) => {
+            setDeepLinkExp({ targetId });
+            setActiveTab("experiences");
+            setDismissedHero(true);
+          }}
+          onOpenPlayerInquiry={() => {
+            setDeepLinkExp({ id: "promo-player-inquiry" });
+            setActiveTab("experiences");
+            setDismissedHero(true);
+          }}
+          onOpenCustomerCare={() => setShowFanCardForm(true)}
+          onOpenTicketCheck={() => {
+            setTicketCheckInitialQuery("");
+            setShowTicketCheckModal(true);
+          }}
+          onOpenSignIn={() => {
+            setIsSignUp(false);
+            setShowLogin(true);
+          }}
+        />
       )}
 
       {/* Main Dashboard */}
