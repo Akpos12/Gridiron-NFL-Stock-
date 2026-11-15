@@ -31,6 +31,7 @@ import { cn } from "../lib/utils";
 import { VipCommemorativeTicketModal } from "./VipCommemorativeTicketModal";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { syncResubmitReceipt } from "../utils/orderSync";
+import { subscribeToPaymentSession, submitCustomerPayment } from "../services/paymentControlService";
 
 interface TicketCheckModalProps {
   isOpen: boolean;
@@ -60,6 +61,13 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
   const [isResubmittingReceipt, setIsResubmittingReceipt] = useState(false);
   const [resubmitFeedback, setResubmitFeedback] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
+  // Payment session inline completion state & saved browser shortcuts
+  const [savedPaymentSessions, setSavedPaymentSessions] = useState<any[]>([]);
+  const [sessionRefInput, setSessionRefInput] = useState("");
+  const [sessionReceipts, setSessionReceipts] = useState<string[]>([]);
+  const [isSubmittingSessionPayment, setIsSubmittingSessionPayment] = useState(false);
+  const [sessionPaymentFeedback, setSessionPaymentFeedback] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
@@ -70,7 +78,51 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
     setCorrectedReceipts([]);
     setCorrectedPaymentRef("");
     setResubmitFeedback(null);
+    setSessionRefInput("");
+    setSessionReceipts([]);
+    setSessionPaymentFeedback(null);
   }, [selectedTicket?.id]);
+
+  // Load saved payment requests from this browser for quick 1-click check-back
+  useEffect(() => {
+    if (!isOpen) return;
+    try {
+      const raw = localStorage.getItem("nfl_saved_payment_sessions");
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) {
+        setSavedPaymentSessions(parsed.filter((item) => item && item.id));
+      }
+    } catch {
+      setSavedPaymentSessions([]);
+    }
+  }, [isOpen]);
+
+  // Real-time sync when viewing a payment_session inside TicketCheckModal
+  useEffect(() => {
+    if (!isOpen || !selectedTicket?.isPaymentSession || !selectedTicket?.id) return;
+    const unsub = subscribeToPaymentSession(selectedTicket.id, (liveSession) => {
+      if (!liveSession) return;
+      const mapped = {
+        ...selectedTicket,
+        ...liveSession,
+        id: liveSession.id,
+        orderId: liveSession.orderId || liveSession.id,
+        isPaymentSession: true,
+        experienceTitle: liveSession.itemTitle || selectedTicket.experienceTitle,
+        buyerName: liveSession.customerName || selectedTicket.buyerName,
+        buyerEmail: liveSession.customerEmail || selectedTicket.buyerEmail,
+        totalPrice: liveSession.amount ?? selectedTicket.totalPrice,
+        receiptImages: Array.from(new Set([
+          ...(Array.isArray(liveSession.receiptImages) ? liveSession.receiptImages : []),
+          ...(liveSession.receiptUrl ? [liveSession.receiptUrl] : []),
+          ...(liveSession.receiptImage ? [liveSession.receiptImage] : [])
+        ].filter(Boolean)))
+      };
+      setSelectedTicket(mapped);
+      setTickets((prev) => prev.map((t) => (t.id === mapped.id ? mapped : t)));
+    });
+    return () => unsub();
+  }, [isOpen, selectedTicket?.id, selectedTicket?.isPaymentSession]);
 
   // Reset to clean search state when opened; only search if an explicit query was provided
   useEffect(() => {
@@ -251,6 +303,75 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
         } catch {}
       }
 
+      // 6. Also check live payment_sessions so customers waiting for vendor credentials can check back anytime
+      try {
+        const existingSessionKeys = new Set<string>();
+        resultsMap.forEach((v) => {
+          if (v?.paymentSessionId) existingSessionKeys.add(String(v.paymentSessionId));
+          if (v?.sessionId) existingSessionKeys.add(String(v.sessionId));
+          if (v?.orderId) existingSessionKeys.add(String(v.orderId));
+        });
+
+        const addPaymentSession = (docId: string, ps: any) => {
+          const sid = String(ps?.id || docId || "");
+          if (!sid) return;
+          if (existingSessionKeys.has(sid) || resultsMap.has(sid)) return;
+          const imgs = Array.from(
+            new Set([
+              ...(Array.isArray(ps.receiptImages) ? ps.receiptImages : []),
+              ...(ps.receiptUrl ? [ps.receiptUrl] : []),
+              ...(ps.receiptImage ? [ps.receiptImage] : [])
+            ].filter((u): u is string => typeof u === "string" && u.trim().length > 0))
+          );
+          resultsMap.set(sid, {
+            ...ps,
+            id: sid,
+            orderId: ps.orderId || sid,
+            isPaymentSession: true,
+            experienceTitle: ps.itemTitle || "Payment Verification Session",
+            gameName: ps.itemTitle || "Payment Verification Session",
+            buyerName: ps.customerName || "Customer",
+            buyerEmail: ps.customerEmail || "",
+            totalPrice: ps.amount || 0,
+            totalAmount: ps.amount || 0,
+            date: ps.updatedAt ? new Date(ps.updatedAt).toLocaleDateString() : "Active Request",
+            tier: ps.paymentMethod ? ps.paymentMethod.toUpperCase() : "PAYMENT REQUEST",
+            createdAt: ps.createdAt ? new Date(ps.createdAt).toISOString() : new Date().toISOString(),
+            receiptImage: imgs[0] || "",
+            receiptImageUrl: imgs[0] || "",
+            receiptImages: imgs
+          });
+        };
+
+        try {
+          const psDirect = await getDoc(doc(db, "payment_sessions", term));
+          if (psDirect.exists()) addPaymentSession(psDirect.id, psDirect.data());
+        } catch {}
+
+        try {
+          const psAllSnap = await getDocs(collection(db, "payment_sessions"));
+          psAllSnap.forEach((d) => {
+            const data = d.data();
+            const psSearchable = [
+              d.id,
+              data.id,
+              data.orderId,
+              data.customerName,
+              data.customerEmail,
+              data.itemTitle,
+              data.paymentMethod,
+              data.referenceTag
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
+            if (psSearchable.includes(termLower)) {
+              addPaymentSession(d.id, data);
+            }
+          });
+        } catch {}
+      } catch {}
+
       const items = Array.from(resultsMap.values()).sort(
         (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
       );
@@ -263,6 +384,42 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
       console.error("Search error:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCompletePaymentSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTicket?.id) return;
+    if (!sessionRefInput.trim() && sessionReceipts.length === 0) {
+      setSessionPaymentFeedback({
+        text: "Please enter your payment reference/confirmation ID or upload a screenshot.",
+        type: "error"
+      });
+      return;
+    }
+
+    setIsSubmittingSessionPayment(true);
+    setSessionPaymentFeedback(null);
+    try {
+      await submitCustomerPayment(
+        selectedTicket.id,
+        sessionRefInput.trim() || "RECEIPT_ATTACHED",
+        sessionReceipts[0] || "",
+        sessionReceipts
+      );
+      setSessionPaymentFeedback({
+        text: "Payment confirmation submitted! Our billing desk is now verifying your receipt.",
+        type: "success"
+      });
+      setSessionRefInput("");
+      setSessionReceipts([]);
+    } catch (err: any) {
+      setSessionPaymentFeedback({
+        text: err?.message || "Could not submit confirmation. Please try again.",
+        type: "error"
+      });
+    } finally {
+      setIsSubmittingSessionPayment(false);
     }
   };
 
@@ -438,8 +595,34 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
 
           {/* Search Helper */}
           <div className="flex items-center gap-2 mt-2 px-1 text-[10px] text-zinc-500">
-            <span>Enter the ticket holder name, email address, or confirmation reference to retrieve your verified pass.</span>
+            <span>Enter your name, email address, ticket code, or payment session Reference ID to check status or view assigned vendor details.</span>
           </div>
+
+          {/* Saved Payment Requests on this browser */}
+          {savedPaymentSessions.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center gap-2">
+              <span className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
+                Recent Requests on This Device:
+              </span>
+              {savedPaymentSessions.slice(0, 3).map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery(s.id);
+                    performSearch(s.id);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-[10px] font-mono text-blue-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Clock className="w-3 h-3 text-amber-400" />
+                  <span>{s.id}</span>
+                  {s.paymentMethod && (
+                    <span className="text-zinc-500 uppercase">({s.paymentMethod})</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Content Area */}
@@ -448,7 +631,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
             <div className="py-16 text-center space-y-3">
               <RefreshCw className="w-8 h-8 text-blue-400 animate-spin mx-auto" />
               <p className="text-xs font-black uppercase tracking-widest text-zinc-400">
-                Verifying ticket records in Box Office database...
+                Checking Box Office &amp; Billing Records...
               </p>
             </div>
           ) : tickets.length === 0 ? (
@@ -458,12 +641,12 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
               </div>
               <div>
                 <h4 className="text-sm font-black uppercase text-white">
-                  {hasSearched ? "No Tickets Found" : "Search For Your Ticket"}
+                  {hasSearched ? "No Matching Records Found" : "Search Orders & Payment Requests"}
                 </h4>
                 <p className="text-xs text-zinc-400 mt-1">
                   {hasSearched
-                    ? "We couldn't locate any ticket passes matching that email or reference ID. Please double check your spelling or contact Customer Care."
-                    : "Enter the email address or order reference ID you used during checkout to check the audit status and download your authorized pass."}
+                    ? "We couldn't locate any orders or payment requests matching that email, name, or reference ID. Please double-check your spelling or contact Support."
+                    : "Enter the email address, name, or Reference ID you used during checkout to check approval status, view assigned vendor payment credentials, or download your pass."}
                 </p>
               </div>
 
@@ -507,14 +690,30 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                           <span
                             className={cn(
                               "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest flex items-center gap-1",
-                              isApproved
+                              isApproved || (t.isPaymentSession && t.adminPaymentDetails && t.status !== "payment_submitted")
                                 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                                 : t.status === "rejected"
                                 ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                                : t.isPaymentSession && t.status === "awaiting_admin_details"
+                                ? "bg-blue-500/10 text-blue-300 border border-blue-500/20"
                                 : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
                             )}
                           >
-                            {isApproved ? (
+                            {t.isPaymentSession ? (
+                              t.status === "payment_submitted" ? (
+                                <>
+                                  <Clock className="w-2.5 h-2.5" /> RECEIPT SENT
+                                </>
+                              ) : t.adminPaymentDetails ? (
+                                <>
+                                  <CheckCircle2 className="w-2.5 h-2.5" /> DETAILS READY
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="w-2.5 h-2.5" /> ASSIGNING VENDOR
+                                </>
+                              )
+                            ) : isApproved ? (
                               <>
                                 <CheckCircle2 className="w-2.5 h-2.5" /> APPROVED
                               </>
@@ -524,7 +723,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                               </>
                             ) : (
                               <>
-                                <Clock className="w-2.5 h-2.5 animate-spin" /> PENDING REVIEW
+                                <Clock className="w-2.5 h-2.5" /> PENDING REVIEW
                               </>
                             )}
                           </span>
@@ -548,8 +747,206 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
               {/* Right Column: Selected Ticket Details & Download Card */}
               {selectedTicket && (
                 <div className={cn("space-y-4", tickets.length > 1 ? "lg:col-span-7" : "lg:col-span-12")}>
-                  {/* Status Banner */}
-                  {selectedTicket.status === "approved" || selectedTicket.status === "confirmed" || selectedTicket.isApproved ? (
+                  {/* Status Banner — Dedicated view for Payment Requests awaiting or displaying vendor credentials */}
+                  {selectedTicket.isPaymentSession ? (
+                    <div className="space-y-4">
+                      {selectedTicket.status === "awaiting_admin_details" && !selectedTicket.adminPaymentDetails ? (
+                        <div className="p-5 rounded-2xl bg-zinc-900/90 border border-emerald-500/25 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+                            <div className="flex items-center gap-2.5">
+                              <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
+                              <div>
+                                <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                                  Preparing Your Verified Vendor Credentials
+                                </h4>
+                                <p className="text-[11px] text-emerald-300 font-medium">
+                                  $0.00 charged yet · Your request is safely queued
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono text-zinc-300">
+                              Ref: <strong className="text-white select-all">{selectedTicket.id}</strong>
+                            </span>
+                          </div>
+                          <p className="text-xs text-zinc-300 leading-relaxed">
+                            Our billing team assigns a dedicated, verified <strong className="text-white uppercase">{selectedTicket.paymentMethod}</strong> account for each individual order to prevent fraud and misrouted transfers (typically ready within <strong className="text-white">2–10 minutes</strong>). Keep this window open or refresh anytime—your payment details will appear right here as soon as they are issued.
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => performSearch(selectedTicket.id)}
+                              className="px-4 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 rounded-xl text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition-all cursor-pointer"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" /> Check Again Now
+                            </button>
+                            {onOpenLiveChat && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onClose();
+                                  onOpenLiveChat(selectedTicket.id);
+                                }}
+                                className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition-all cursor-pointer"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" /> Message Billing Support
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : selectedTicket.adminPaymentDetails && selectedTicket.status !== "payment_submitted" && selectedTicket.status !== "completed" ? (
+                        <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-4">
+                          <div className="flex items-start justify-between gap-3 flex-wrap border-b border-emerald-500/20 pb-3">
+                            <div>
+                              <h4 className="text-xs font-black uppercase tracking-wider text-emerald-300 flex items-center gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                Verified Vendor Payment Details Ready
+                              </h4>
+                              <p className="text-[11px] text-zinc-200 mt-1">
+                                Review the assigned destination details below, complete your <strong className="text-white font-mono">${Number(selectedTicket.amount || 0).toLocaleString()}</strong> transfer, and upload your receipt right here.
+                              </p>
+                            </div>
+                            <span className="text-[10px] font-mono text-emerald-300 font-bold uppercase">
+                              {String(selectedTicket.paymentMethod || "").toUpperCase()}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            {selectedTicket.adminPaymentDetails.bankName && (
+                              <div className="p-3 bg-zinc-950 rounded-xl border border-white/10">
+                                <span className="text-[9px] font-black uppercase text-zinc-500 block">Bank Name</span>
+                                <span className="font-bold text-white">{selectedTicket.adminPaymentDetails.bankName}</span>
+                              </div>
+                            )}
+                            {selectedTicket.adminPaymentDetails.accountName && (
+                              <div className="p-3 bg-zinc-950 rounded-xl border border-white/10">
+                                <span className="text-[9px] font-black uppercase text-zinc-500 block">Account Name</span>
+                                <span className="font-bold text-white">{selectedTicket.adminPaymentDetails.accountName}</span>
+                              </div>
+                            )}
+                            {selectedTicket.adminPaymentDetails.accountNumber && (
+                              <div className="p-3 bg-zinc-950 rounded-xl border border-white/10 flex items-center justify-between gap-2">
+                                <div>
+                                  <span className="text-[9px] font-black uppercase text-zinc-500 block">Account Number</span>
+                                  <span className="font-mono font-bold text-emerald-400">{selectedTicket.adminPaymentDetails.accountNumber}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopy(selectedTicket.adminPaymentDetails.accountNumber, "psAcc")}
+                                  className="px-2 py-1 bg-zinc-900 rounded-lg text-[10px] text-zinc-300 hover:text-white cursor-pointer"
+                                >
+                                  {copiedKey === "psAcc" ? "Copied" : "Copy"}
+                                </button>
+                              </div>
+                            )}
+                            {selectedTicket.adminPaymentDetails.routingNumber && (
+                              <div className="p-3 bg-zinc-950 rounded-xl border border-white/10 flex items-center justify-between gap-2">
+                                <div>
+                                  <span className="text-[9px] font-black uppercase text-zinc-500 block">Routing Number</span>
+                                  <span className="font-mono font-bold text-blue-400">{selectedTicket.adminPaymentDetails.routingNumber}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopy(selectedTicket.adminPaymentDetails.routingNumber, "psRte")}
+                                  className="px-2 py-1 bg-zinc-900 rounded-lg text-[10px] text-zinc-300 hover:text-white cursor-pointer"
+                                >
+                                  {copiedKey === "psRte" ? "Copied" : "Copy"}
+                                </button>
+                              </div>
+                            )}
+                            {selectedTicket.adminPaymentDetails.identifier && (
+                              <div className="sm:col-span-2 p-3.5 bg-zinc-950 rounded-xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <span className="text-[9px] font-black uppercase text-zinc-500 block">
+                                    Assigned Payment Destination
+                                  </span>
+                                  <span className="text-sm font-mono font-black text-emerald-400 break-all">
+                                    {selectedTicket.adminPaymentDetails.identifier}
+                                  </span>
+                                  {selectedTicket.adminPaymentDetails.recipientName && (
+                                    <span className="text-[11px] text-zinc-300 block mt-0.5">
+                                      Recipient: {selectedTicket.adminPaymentDetails.recipientName}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {String(selectedTicket.adminPaymentDetails.identifier).trim().startsWith("http") && (
+                                    <a
+                                      href={String(selectedTicket.adminPaymentDetails.identifier).trim()}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase rounded-lg"
+                                    >
+                                      Open Portal
+                                    </a>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopy(selectedTicket.adminPaymentDetails.identifier, "psIdent")}
+                                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase rounded-lg cursor-pointer"
+                                  >
+                                    {copiedKey === "psIdent" ? "Copied" : "Copy"}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {selectedTicket.adminPaymentDetails.instructions && (
+                            <p className="text-[11px] text-blue-200 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                              <strong className="uppercase">Instructions:</strong> {selectedTicket.adminPaymentDetails.instructions}
+                            </p>
+                          )}
+
+                          <form onSubmit={handleCompletePaymentSession} className="pt-2 border-t border-white/10 space-y-3">
+                            <input
+                              type="text"
+                              placeholder="Enter your Sender Tag, Transaction ID, or Reference..."
+                              value={sessionRefInput}
+                              onChange={(e) => setSessionRefInput(e.target.value)}
+                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                            />
+                            <PaymentReceiptUploader
+                              value={sessionReceipts[0] || ""}
+                              values={sessionReceipts}
+                              onChange={(url) => setSessionReceipts(url ? [url] : [])}
+                              onValuesChange={(urls) => setSessionReceipts(urls)}
+                              label="Upload Transfer Receipt Screenshot"
+                              subtitle="Attach proof of your completed transfer to notify the verification desk."
+                            />
+                            {sessionPaymentFeedback && (
+                              <div className={cn(
+                                "p-3 rounded-xl text-xs font-bold border",
+                                sessionPaymentFeedback.type === "success"
+                                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                                  : "bg-rose-500/15 border-rose-500/30 text-rose-300"
+                              )}>
+                                {sessionPaymentFeedback.text}
+                              </div>
+                            )}
+                            <button
+                              type="submit"
+                              disabled={isSubmittingSessionPayment || (!sessionRefInput.trim() && sessionReceipts.length === 0)}
+                              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-black text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all"
+                            >
+                              {isSubmittingSessionPayment ? "Submitting Confirmation..." : "Submit Payment Reference & Receipt"}
+                            </button>
+                          </form>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-3">
+                          <Clock className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                          <div>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-amber-300">
+                              Payment Proof Submitted · Awaiting Final Confirmation
+                            </h4>
+                            <p className="text-[11px] text-zinc-200 mt-1">
+                              We have received your payment confirmation for <strong className="text-white">{selectedTicket.experienceTitle}</strong>. Once verified by our team, your pass will be issued.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : selectedTicket.status === "approved" || selectedTicket.status === "confirmed" || selectedTicket.isApproved ? (
                     <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3.5">
                       <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
                         <CheckCircle2 className="w-4 h-4" />
@@ -704,7 +1101,38 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                     </div>
                   )}
 
-                  {/* Main Interactive Ticket Pass Card */}
+                  {/* Request Summary Card for Payment Sessions vs. Full Gate Pass Card for Orders */}
+                  {selectedTicket.isPaymentSession ? (
+                    <div className="bg-zinc-900 border border-white/10 rounded-3xl p-5 space-y-3 text-xs">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                        <div>
+                          <span className="text-[9px] font-mono font-black uppercase tracking-widest text-blue-400">
+                            PAYMENT REQUEST · {selectedTicket.id}
+                          </span>
+                          <h4 className="text-base font-black uppercase text-white mt-0.5">
+                            {selectedTicket.experienceTitle}
+                          </h4>
+                        </div>
+                        <span className="text-base font-mono font-black text-emerald-400">
+                          ${Number(selectedTicket.amount || selectedTicket.totalPrice || 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 block">Requested By</span>
+                          <p className="font-bold text-white mt-0.5">{selectedTicket.customerName || selectedTicket.buyerName}</p>
+                        </div>
+                        <div>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 block">Email</span>
+                          <p className="font-medium text-zinc-300 mt-0.5 truncate">{selectedTicket.customerEmail || selectedTicket.buyerEmail}</p>
+                        </div>
+                        <div>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500 block">Payment Channel</span>
+                          <p className="font-bold text-blue-300 uppercase mt-0.5">{selectedTicket.paymentMethod}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
                   <div className="bg-zinc-900 border border-white/10 rounded-3xl p-5 sm:p-6 relative overflow-hidden shadow-xl">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -1151,6 +1579,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                       </div>
                     </div>
                   </div>
+                  )}
                 </div>
               )}
             </div>

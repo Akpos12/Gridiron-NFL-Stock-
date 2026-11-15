@@ -80,6 +80,8 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
     btcAddress: "",
     ethAddress: "",
     usdtAddress: "",
+    cardPaymentLink: "",
+    cardLabel: "Credit / Debit Card Portal",
     defaultInstructions: "",
     autoDispatchEnabled: true
   });
@@ -168,6 +170,10 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
       setIdentifier(p.btcAddress || p.usdtAddress || p.ethAddress || "");
       setMode(p.btcAddress ? "Bitcoin (BTC)" : "Crypto / USDT");
       setInstructions(p.defaultInstructions || "Send exact equivalent to the verified deposit address.");
+    } else if (m === "card") {
+      setIdentifier(p.cardPaymentLink || "");
+      setMode(p.cardLabel || "Secure Credit / Debit Card Portal");
+      setInstructions(p.defaultInstructions || "Complete your card payment via the verified portal link below and upload your confirmation receipt.");
     }
   };
 
@@ -838,7 +844,7 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
               )}
 
               {/* Dynamic Inputs depending on payment method */}
-              {(method === "cashapp" || method === "zelle" || method === "paypal" || method === "venmo" || method === "crypto") && (
+              {(method === "cashapp" || method === "zelle" || method === "paypal" || method === "venmo" || method === "crypto" || method === "card") && (
                 <div className="space-y-1">
                   <label className="text-[9px] font-black uppercase text-zinc-400 block">
                     {method === "cashapp" && "Official Cashtag * (e.g. $YourCashtag)"}
@@ -846,6 +852,7 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                     {method === "paypal" && "PayPal Recipient Email *"}
                     {method === "venmo" && "Venmo Handle * (e.g. @YourHandle)"}
                     {method === "crypto" && "Cryptocurrency Deposit Address *"}
+                    {method === "card" && "Credit / Debit Card Checkout Link or Instructions *"}
                   </label>
                   <input
                     type="text"
@@ -854,7 +861,8 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                       method === "cashapp" ? "$MickoTag" :
                       method === "zelle" ? "pay@example.com / (555) 000-0000" :
                       method === "paypal" ? "paypal@domain.com" :
-                      method === "venmo" ? "@Username" : "0x... / bc1..."
+                      method === "venmo" ? "@Username" :
+                      method === "card" ? "https://checkout.domain.com/... or Invoice Portal ID" : "0x... / bc1..."
                     }
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
@@ -1059,40 +1067,6 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                 </div>
               </div>
 
-              {/* Bank Preset */}
-              <div className="p-3 bg-zinc-950 rounded-xl border border-white/5 space-y-2">
-                <span className="text-[10px] font-black uppercase text-blue-400 block">Bank Wire / ACH Preset</span>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Bank Name (e.g. BMO Bank)"
-                    value={presetForm.bankName || ""}
-                    onChange={(e) => setPresetForm({ ...presetForm, bankName: e.target.value })}
-                    className="bg-zinc-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-white"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Account Name"
-                    value={presetForm.bankAccountName || ""}
-                    onChange={(e) => setPresetForm({ ...presetForm, bankAccountName: e.target.value })}
-                    className="bg-zinc-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-white"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Account Number"
-                    value={presetForm.bankAccountNumber || ""}
-                    onChange={(e) => setPresetForm({ ...presetForm, bankAccountNumber: e.target.value })}
-                    className="bg-zinc-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-white"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Routing Number"
-                    value={presetForm.bankRoutingNumber || ""}
-                    onChange={(e) => setPresetForm({ ...presetForm, bankRoutingNumber: e.target.value })}
-                    className="bg-zinc-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-white"
-                  />
-                </div>
-              </div>
 
               {/* PayPal Preset */}
               <div className="p-3 bg-zinc-950 rounded-xl border border-white/5 space-y-2">
@@ -1135,6 +1109,7 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                   />
                 </div>
               </div>
+
 
               {/* Default Special Instructions */}
               <div className="space-y-1">

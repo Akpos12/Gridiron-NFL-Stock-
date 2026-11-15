@@ -20,6 +20,7 @@ export type PaymentMethodType =
   | "zelle" 
   | "venmo" 
   | "bank" 
+  | "card"
   | "paypal" 
   | "crypto" 
   | "giftcard";
@@ -78,6 +79,8 @@ export interface ControlRoomPaymentPresets {
   btcAddress?: string;
   ethAddress?: string;
   usdtAddress?: string;
+  cardPaymentLink?: string;
+  cardLabel?: string;
   defaultInstructions?: string;
   autoDispatchEnabled?: boolean;
   updatedAt?: number;
@@ -174,6 +177,16 @@ export function buildAdminDetailsFromPresets(
       identifier: presets.venmoHandle.trim(),
       recipientName: presets.venmoName?.trim() || "",
       instructions: defaultNote || "Send via Venmo app.",
+      updatedAt: now
+    };
+  }
+
+  if (method === "card" && presets.cardPaymentLink?.trim()) {
+    return {
+      method: "card",
+      identifier: presets.cardPaymentLink.trim(),
+      mode: presets.cardLabel?.trim() || "Secure Credit / Debit Card Portal",
+      instructions: defaultNote || "Complete payment via the verified Credit / Debit Card portal link below and upload your confirmation receipt.",
       updatedAt: now
     };
   }

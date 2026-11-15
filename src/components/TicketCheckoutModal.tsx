@@ -154,7 +154,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   const [selectedTier, setSelectedTier] = useState<"general" | "lower_bowl" | "club" | "vip" | "season_pass" | "sideline_pass">(initialTier);
   const [quantity, setQuantity] = useState(1);
   const [sidelinePassCount, setSidelinePassCount] = useState<number>(0);
-  const [paymentTab, setPaymentTab] = useState<"bank" | "cashapp" | "paypal" | "venmo" | "zelle" | "crypto" | "giftcard">("cashapp");
+  const [paymentTab, setPaymentTab] = useState<"cashapp" | "paypal" | "venmo" | "zelle" | "crypto" | "giftcard">("cashapp");
   const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -1677,7 +1677,6 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     { id: "paypal", label: "PAYPAL", discount: "SAVE 5%", icon: CreditCard, color: "text-blue-400" },
                     { id: "venmo", label: "VENMO", discount: "SAVE 5%", icon: Smartphone, color: "text-sky-400" },
                     { id: "zelle", label: "ZELLE", discount: "SAVE 5%", icon: Smartphone, color: "text-purple-400" },
-                    { id: "bank", label: "BMO BANK (WIRE/ACH)", icon: Building2, color: "text-zinc-400" },
                     { id: "crypto", label: "CRYPTO (BTC/ETH/USDT)", discount: "SAVE 5%", icon: QrCode, color: "text-amber-400" },
                     { id: "giftcard", label: "GIFT CARDS", discount: "SAVE 5%", icon: Gift, color: "text-amber-400" }
                   ].map(tab => (

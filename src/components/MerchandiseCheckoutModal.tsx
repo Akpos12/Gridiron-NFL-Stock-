@@ -195,9 +195,9 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
         setFormError("Please enter the Gift Card claim code or upload clear photos of the card.");
         return;
       }
-    } else if (paymentMethod === "paypal") {
+    } else {
       if (!receiptImage && (!receiptImages || receiptImages.length === 0)) {
-        setFormError("Please attach a screenshot or confirmation receipt of your PayPal payment to authorize dispatch.");
+        setFormError(`Please attach a screenshot or confirmation receipt of your ${paymentMethod.toUpperCase()} payment to authorize dispatch.`);
         return;
       }
     }
@@ -673,7 +673,6 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                         { id: "paypal", label: "PAYPAL", discount: "SAVE 5%", icon: CreditCard, color: "text-blue-400" },
                         { id: "venmo", label: "VENMO", discount: "SAVE 5%", icon: Smartphone, color: "text-sky-400" },
                         { id: "zelle", label: "ZELLE", discount: "SAVE 5%", icon: Smartphone, color: "text-purple-400" },
-                        { id: "bank", label: "BMO BANK (WIRE/ACH)", icon: Building2, color: "text-zinc-400" },
                         { id: "crypto", label: "CRYPTO (BTC/ETH/USDT)", discount: "SAVE 5%", icon: QrCode, color: "text-amber-400" },
                         { id: "giftcard", label: "GIFT CARD", discount: "SAVE 5%", icon: Gift, color: "text-amber-400" }
                       ].map(method => {

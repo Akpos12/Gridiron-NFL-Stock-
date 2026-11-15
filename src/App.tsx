@@ -189,7 +189,7 @@ const WalletModal = ({
   const [copied, setCopied] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"deposit" | "withdraw" | "history">("withdraw");
   const [withdrawTab, setWithdrawTab] = useState<"fiat" | "crypto">("crypto");
-  const [depositMethod, setDepositMethod] = useState<"bank" | "cashapp" | "venmo" | "zelle" | "crypto">("bank");
+  const [depositMethod, setDepositMethod] = useState<"cashapp" | "paypal" | "venmo" | "zelle" | "crypto">("cashapp");
   const [selectedCurrency, setSelectedCurrency] = useState("USDT");
   const [selectedDepositCrypto, setSelectedDepositCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -400,7 +400,6 @@ const WalletModal = ({
                 { id: "paypal", label: "PayPal", icon: CreditCard },
                 { id: "venmo", label: "Venmo", icon: Smartphone },
                 { id: "zelle", label: "Zelle", icon: Smartphone },
-                { id: "bank", label: "BMO Bank (Wire/ACH)", icon: Building2 },
                 { id: "crypto", label: "Crypto", icon: QrCode }
               ].map(method => (
                 <button
@@ -486,7 +485,7 @@ const WalletModal = ({
                     required
                     value={depositReference}
                     onChange={(e) => setDepositReference(e.target.value)}
-                    placeholder="e.g. $MyCashtag, Wire #49281, Tx Hash"
+                    placeholder="e.g. $MyCashtag, PayPal/Zelle Email, or Tx Hash"
                     className="w-full p-3 bg-zinc-900 border border-white/10 rounded-xl text-sm font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500 transition-colors"
                   />
                 </div>
@@ -1914,7 +1913,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                           <div className="flex justify-between items-center">
                             <span className="text-zinc-500 font-bold uppercase tracking-wider">Payment Rails</span>
                             <span className="text-emerald-400 font-black uppercase tracking-wider text-[9px] bg-emerald-600/10 px-2 py-0.5 rounded">
-                              BMO Bank · Apps · Crypto
+                              Cash App · PayPal · Venmo · Zelle · Crypto
                             </span>
                           </div>
                         </div>
@@ -2073,10 +2072,10 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                     className="w-full py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 transition-all text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2 border border-blue-400/30"
                   >
                     <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-                    DIRECT TEAM VENDOR ACQUISITION (PAYPAL / GIFT CARD)
+                    DIRECT TEAM VENDOR ACQUISITION (ALL PAYMENT METHODS)
                   </button>
                   <p className="text-[9px] text-center text-emerald-400 font-bold uppercase tracking-wider mt-1.5">
-                    Official Team Vendor • PayPal & Gift Card • 5% Extra Savings
+                    Official Team Vendor • All Payment Systems Active • 5% Extra Savings
                   </p>
                 </div>
               )}
@@ -5576,8 +5575,8 @@ export default function App() {
             setActiveTab("experiences");
             setDismissedHero(true);
           }}
-          onOpenPlayerInquiry={() => {
-            setDeepLinkExp({ id: "promo-player-inquiry" });
+          onOpenPlayerInquiry={(prefill) => {
+            setDeepLinkExp({ id: "promo-player-inquiry", prefill, nonce: Date.now() });
             setActiveTab("experiences");
             setDismissedHero(true);
           }}

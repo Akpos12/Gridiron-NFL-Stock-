@@ -78,7 +78,6 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
   const [receiptUrls, setReceiptUrls] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   // Internal state for customer inputs so customer can fill details here or via parent
   const [internalName, setInternalName] = useState<string>(() => {
@@ -262,6 +261,35 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     const targetSessionId = activeSessionId || sessionId;
     if (!targetSessionId) return;
 
+    const saveLocalBookmark = (statusVal: string) => {
+      try {
+        const raw = localStorage.getItem("nfl_saved_payment_sessions");
+        const existing: any[] = raw ? JSON.parse(raw) : [];
+        const entry = {
+          id: targetSessionId,
+          orderId: orderReference || targetSessionId,
+          customerName: effectiveName,
+          customerEmail: effectiveEmail,
+          paymentMethod: selectedMethod,
+          itemTitle,
+          amount,
+          status: statusVal,
+          updatedAt: Date.now()
+        };
+        const filtered = Array.isArray(existing)
+          ? existing.filter((x) => x && x.id !== targetSessionId)
+          : [];
+        localStorage.setItem(
+          "nfl_saved_payment_sessions",
+          JSON.stringify([entry, ...filtered].slice(0, 6))
+        );
+      } catch {
+        // ignore storage quota errors
+      }
+    };
+
+    saveLocalBookmark("awaiting_admin_details");
+
     createOrUpdatePaymentSession({
       id: targetSessionId,
       orderId: orderReference || targetSessionId,
@@ -277,6 +305,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     const unsubscribe = subscribeToPaymentSession(targetSessionId, (updatedSession) => {
       if (updatedSession) {
         setSession(updatedSession);
+        saveLocalBookmark(updatedSession.status || "awaiting_admin_details");
         if (updatedSession.adminPaymentDetails && effectiveName) {
           const normName = effectiveName.trim().toLowerCase();
           const cacheKey = `nfl_dispatched_${selectedMethod}_${normName}`;
@@ -364,14 +393,6 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     amount
   ]);
 
-  // Elapsed timer for waiting experience
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsedSeconds(prev => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   const handleCopy = (text: string, key: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
@@ -449,14 +470,14 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
               </span>
             </div>
 
-            <div className="space-y-1">
-              <h4 className="text-xs font-black uppercase tracking-wider text-white">
-                Please Enter Your Name & Contact Information
-              </h4>
-              <p className="text-[11px] text-zinc-300 leading-relaxed">
-                Please fill in your details below before requesting official payment destination details. This allows our Control Room operator to identify your order. If you previously requested payment details with this name, your assigned destination details will <strong className="text-emerald-400">immediately pop up</strong>.
-              </p>
-            </div>
+              <div className="space-y-1">
+                <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                  Enter Your Name &amp; Email to Reserve Your Payment Details
+                </h4>
+                <p className="text-[11px] text-zinc-300 leading-relaxed">
+                  No payment is charged here. Entering your name and email creates a private reference so our billing desk can assign your verified destination details—and lets you check back anytime without losing your booking.
+                </p>
+              </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div className="space-y-1">
@@ -495,8 +516,8 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-              <p className="text-[10px] text-zinc-500">
-                Filling in your name allows the operator to verify your identity and send your official pass.
+              <p className="text-[10px] text-zinc-400">
+                Your details are used strictly to issue your payment reference and match your verification receipt.
               </p>
               {onSwitchToGiftCard && (
                 <button
@@ -510,74 +531,103 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
             </div>
           </motion.div>
         ) : !isDetailsAvailable ? (
-          /* STATE 1: AWAITING PAYMENT DETAILS FROM CONTROL ROOM (IDENTIFIED CUSTOMER) */
+          /* STATE 1: CALM, REASSURING VENDOR ASSIGNMENT STATE */
           <motion.div
             key="awaiting"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="p-5 bg-zinc-950 border border-amber-500/30 rounded-2xl space-y-4 relative overflow-hidden"
+            className="p-5 sm:p-6 bg-zinc-950 border border-emerald-500/25 rounded-2xl space-y-5 relative overflow-hidden"
           >
-            {/* Top Amber Glowing Radar Bar */}
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-                </span>
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
-                  Control Room Dispatch Terminal
-                </span>
-              </div>
-              <span className="text-[9px] font-mono font-bold text-zinc-400 uppercase bg-zinc-900 px-2 py-0.5 rounded border border-white/5">
-                Customer: <strong className="text-white">{effectiveName}</strong>
-              </span>
-            </div>
-
-            {/* Waiting Notice */}
-            <div className="space-y-2">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-                  <Clock className="w-5 h-5 animate-pulse" />
+            {/* Header & Zero-Charge Guarantee */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4 h-4" />
                 </div>
-                <div className="space-y-1">
+                <div>
                   <h4 className="text-xs font-black uppercase tracking-wider text-white">
-                    Awaiting Payment Details from Control Room
+                    Preparing Your Verified Vendor Credentials
                   </h4>
-                  <p className="text-[11px] text-zinc-300 leading-relaxed">
-                    Our Control Room operator has received your request for <strong className="text-white uppercase">{effectiveName}</strong> and is preparing verified destination payment details for your <strong className="text-amber-400 uppercase font-mono">${amount.toLocaleString()}</strong> order via <strong className="text-white uppercase">{selectedMethod}</strong>.
-                  </p>
-                  <p className="text-[10px] text-zinc-400">
-                    If you step away, your payment details will be waiting for you. Anytime you re-enter your name and choose <strong className="text-zinc-200 uppercase">{selectedMethod}</strong>, the operator's response will immediately pop up!
+                  <p className="text-[11px] text-emerald-300 font-medium">
+                    $0.00 charged yet · Nothing is deducted until you review and send payment
                   </p>
                 </div>
               </div>
 
-              {/* Status pill & timer */}
-              <div className="p-3 bg-zinc-900/90 rounded-xl border border-white/5 flex items-center justify-between text-[10px]">
-                <div className="flex items-center gap-2 text-zinc-400 font-bold">
-                  <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                  <span>Live Operator Channel Active ({elapsedSeconds}s)</span>
-                </div>
-                <span className="text-[9px] font-bold text-amber-400 uppercase tracking-wider">
-                  Auto-Updates When Dispatched
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <span className="text-[10px] font-mono text-zinc-300">
+                  Ref: <strong className="text-white select-all">{activeSessionId || sessionId}</strong>
                 </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(activeSessionId || sessionId, "sessionRef")}
+                  className="px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-[10px] font-bold text-zinc-200 flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  {copiedKey === "sessionRef" ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedKey === "sessionRef" ? "Copied" : "Copy Ref"}</span>
+                </button>
               </div>
             </div>
 
-            {/* Switch to Gift Card Instant Option */}
+            {/* 3-Step Clear Progress */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-emerald-300">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>1. Request Saved</span>
+                </div>
+                <p className="text-[11px] text-zinc-300 leading-snug">
+                  Logged for <strong className="text-white">{effectiveName}</strong> ({selectedMethod.toUpperCase()} · ${amount.toLocaleString()}).
+                </p>
+              </div>
+
+              <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-blue-300">
+                  <Clock className="w-3.5 h-3.5 text-blue-400" />
+                  <span>2. Assigning Vendor</span>
+                </div>
+                <p className="text-[11px] text-zinc-300 leading-snug">
+                  Billing desk is issuing your dedicated destination details (usually <strong className="text-white">2–10 mins</strong>).
+                </p>
+              </div>
+
+              <div className="p-3 bg-zinc-900/70 border border-white/10 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-zinc-300">
+                  <Lock className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>3. Review &amp; Pay Safely</span>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-snug">
+                  Inspect recipient details first, then send and upload your receipt.
+                </p>
+              </div>
+            </div>
+
+            {/* Honest Buyer-Protection & Check-Back Explanation */}
+            <div className="border-t border-white/10 pt-4 space-y-2.5 text-[11px] text-zinc-300 leading-relaxed">
+              <p>
+                <strong className="text-white">Why are credentials assigned individually?</strong>{" "}
+                For your security and payment protection, we do not expose public vendor accounts that can hit transfer limits or cause misrouted payments. Instead, a billing concierge assigns a dedicated, verified {selectedMethod.toUpperCase()} destination matched to your exact order.
+              </p>
+              <p>
+                <strong className="text-emerald-300">Safe to step away &amp; check back anytime:</strong>{" "}
+                You do not need to wait on this screen. Your request is saved under <span className="font-mono text-white">{activeSessionId || sessionId}</span> and <span className="text-white">{effectiveEmail}</span>. Whenever you return—either by opening <strong className="text-white">Check Ticket / Track Order</strong> with your email or Reference ID, or by re-entering your name &amp; email here—your assigned payment details will pop up immediately.
+              </p>
+            </div>
+
+            {/* Instant Gift Card Alternative */}
             {onSwitchToGiftCard && (
-              <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-3">
-                <span className="text-[10px] text-zinc-400 font-semibold">
-                  Don't want to wait for manual dispatch?
+              <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <span className="text-[11px] text-zinc-400">
+                  Need to finish right now without waiting a few minutes?
                 </span>
                 <button
                   type="button"
                   onClick={onSwitchToGiftCard}
-                  className="px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-400 hover:text-amber-300 font-black text-[9px] uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="px-3.5 py-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 hover:text-amber-200 font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto"
                 >
                   <Gift className="w-3.5 h-3.5" />
-                  Pay With Gift Card (Instant)
+                  Switch to Gift Card (No Wait)
                 </button>
               </div>
             )}
@@ -704,7 +754,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
                 </div>
               ) : null}
 
-              {/* Cashtag / Handle / Email / Address */}
+              {/* Cashtag / Handle / Email / Address / Card Link */}
               {details.identifier ? (
                 <div className="p-3.5 bg-zinc-900 rounded-xl border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="space-y-0.5">
@@ -714,7 +764,9 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
                       {selectedMethod === "venmo" && "Venmo Handle"}
                       {selectedMethod === "paypal" && "PayPal Email / Recipient"}
                       {selectedMethod === "crypto" && "Crypto Deposit Address"}
-                      {!["cashapp", "zelle", "venmo", "paypal", "crypto"].includes(selectedMethod) && "Payment Destination"}
+                      {selectedMethod === "card" && "Secure Card Payment Link / Portal"}
+                      {selectedMethod === "bank" && "Bank Transfer Reference"}
+                      {!["cashapp", "zelle", "venmo", "paypal", "crypto", "card", "bank"].includes(selectedMethod) && "Payment Destination"}
                     </span>
                     <span className="text-base font-mono font-black text-emerald-400 break-all">
                       {details.identifier}
@@ -731,14 +783,27 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
                     )}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(details.identifier!, "identifier")}
-                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer shadow-md"
-                  >
-                    {copiedKey === "identifier" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copiedKey === "identifier" ? "Copied" : "Copy"}
-                  </button>
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    {details.identifier.trim().startsWith("http") && (
+                      <a
+                        href={details.identifier.trim()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all shadow-md"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        Open Portal
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(details.identifier!, "identifier")}
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                    >
+                      {copiedKey === "identifier" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {copiedKey === "identifier" ? "Copied" : "Copy"}
+                    </button>
+                  </div>
                 </div>
               ) : null}
 
