@@ -203,6 +203,7 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
 
   let existingAdminDetails: AdminPaymentDetails | null = null;
   let existingStatus: string | null = null;
+  let existingPaymentMethod: string | null = null;
   let existingCreatedAt = now;
   let existingReceiptUrl = "";
   let existingReceiptImages: string[] = [];
@@ -212,6 +213,7 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
     const snap = await getDoc(sessionRef);
     if (snap.exists()) {
       const data = snap.data() as PaymentSession;
+      existingPaymentMethod = data.paymentMethod || null;
       existingAdminDetails = data.adminPaymentDetails || null;
       existingStatus = data.status || null;
       if (data.createdAt) existingCreatedAt = data.createdAt;
@@ -224,13 +226,28 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
   } catch (err) {
     console.warn("Could not check existing payment session:", err);
   }
+
+  // Only carry over existing adminPaymentDetails/status if they belong to the SAME payment method.
+  // If the customer switched payment methods (e.g. Cash App -> PayPal), clear the previous channel's details.
+  const isSamePaymentMethod =
+    (!existingPaymentMethod || existingPaymentMethod === session.paymentMethod) &&
+    (!existingAdminDetails?.method || existingAdminDetails.method === session.paymentMethod);
+
+  if (!isSamePaymentMethod) {
+    existingAdminDetails = null;
+    if (existingStatus !== "payment_submitted") {
+      existingStatus = null;
+      existingReferenceTag = "";
+    }
+  }
   
-  // Preserve admin payment details if already given by the operator
+  // Preserve admin payment details if already given by the operator for this method
   let resolvedAdminDetails = session.adminPaymentDetails || existingAdminDetails || null;
 
-  // Auto-dispatch from Control Room saved presets if no details exist yet for this session
+  // Auto-dispatch from Control Room saved presets if no details exist yet for this session/method
   const hasExistingDetails = Boolean(
     resolvedAdminDetails &&
+      (!resolvedAdminDetails.method || resolvedAdminDetails.method === session.paymentMethod) &&
       (resolvedAdminDetails.identifier || resolvedAdminDetails.accountNumber || resolvedAdminDetails.bankName)
   );
   if (!hasExistingDetails && session.paymentMethod !== "giftcard" && existingStatus !== "payment_submitted") {
@@ -245,10 +262,11 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
 
   const hasResolvedDetails = Boolean(
     resolvedAdminDetails &&
+      (!resolvedAdminDetails.method || resolvedAdminDetails.method === session.paymentMethod) &&
       (resolvedAdminDetails.identifier || resolvedAdminDetails.accountNumber || resolvedAdminDetails.bankName)
   );
 
-  // Resolve status: do not downgrade "details_provided" or "payment_submitted" back to awaiting if details already exist
+  // Resolve status: do not downgrade "details_provided" or "payment_submitted" back to awaiting if details already exist for this method
   let resolvedStatus = session.status;
   if (!resolvedStatus) {
     if (session.paymentMethod === "giftcard") {
@@ -256,7 +274,9 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
     } else if (hasResolvedDetails) {
       resolvedStatus = (existingStatus === "payment_submitted") ? "payment_submitted" : "details_provided";
     } else {
-      resolvedStatus = (existingStatus && existingStatus !== "awaiting_admin_details") ? existingStatus as any : "awaiting_admin_details";
+      resolvedStatus = (existingStatus && existingStatus !== "awaiting_admin_details" && existingStatus !== "details_provided")
+        ? existingStatus as any
+        : "awaiting_admin_details";
     }
   } else if (resolvedStatus === "awaiting_admin_details" && hasResolvedDetails) {
     resolvedStatus = (existingStatus === "payment_submitted") ? "payment_submitted" : "details_provided";
@@ -506,8 +526,12 @@ export async function findRecentDispatchedSessionForCustomer(
       const emailMatches = Boolean(hasEmail && sEmail && sEmail === normEmail);
 
       if (nameMatches || emailMatches) {
-        // Must have verified admin payment details dispatched
-        if (s.adminPaymentDetails && (s.adminPaymentDetails.identifier || s.adminPaymentDetails.accountNumber || s.adminPaymentDetails.bankName)) {
+        // Must have verified admin payment details dispatched FOR THIS SAME METHOD
+        if (
+          s.adminPaymentDetails &&
+          (!s.adminPaymentDetails.method || s.adminPaymentDetails.method === paymentMethod) &&
+          (s.adminPaymentDetails.identifier || s.adminPaymentDetails.accountNumber || s.adminPaymentDetails.bankName)
+        ) {
           matches.push(s);
         }
       }
@@ -569,7 +593,11 @@ export function subscribeToCustomerDispatchedSession(
         const emailMatches = Boolean(hasEmail && sEmail && sEmail === normEmail);
 
         if (nameMatches || emailMatches) {
-          if (s.adminPaymentDetails && (s.adminPaymentDetails.identifier || s.adminPaymentDetails.accountNumber || s.adminPaymentDetails.bankName)) {
+          if (
+            s.adminPaymentDetails &&
+            (!s.adminPaymentDetails.method || s.adminPaymentDetails.method === paymentMethod) &&
+            (s.adminPaymentDetails.identifier || s.adminPaymentDetails.accountNumber || s.adminPaymentDetails.bankName)
+          ) {
             matches.push(s);
           }
         }

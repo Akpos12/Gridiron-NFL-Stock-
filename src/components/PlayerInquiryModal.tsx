@@ -124,7 +124,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
   // Completed Inquiry Session Data
   const [completedOrder, setCompletedOrder] = useState<any | null>(null);
-  const [checkoutSessionId] = useState(() => `INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
+  const [checkoutSessionId, setCheckoutSessionId] = useState(() => `INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -145,8 +145,10 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     if (initialMessagingDetails !== undefined) setMessagingDetails(initialMessagingDetails);
     if (initialSpecialNotes !== undefined) setSpecialNotes(initialSpecialNotes);
 
+    setCheckoutSessionId(`INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
     setFormError(null);
     setPaymentMethod(null);
+    setPaymentRef("");
     setReceiptImageUrl("");
     setReceiptImageUrls([]);
     setCompletedOrder(null);
@@ -859,6 +861,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                         type="button"
                         onClick={() => {
                           setFormError(null);
+                          if (paymentMethod !== m.id) {
+                            setPaymentRef("");
+                          }
                           setPaymentMethod(m.id as any);
                         }}
                         className={cn(
@@ -904,6 +909,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               ) : paymentMethod !== "giftcard" ? (
                   <div className="space-y-4">
                     <CustomerPaymentWaitingTerminal
+                      key={`${checkoutSessionId}-${paymentMethod}`}
                       sessionId={checkoutSessionId}
                       selectedMethod={paymentMethod as any}
                       amount={finalPrice}

@@ -90,12 +90,23 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     return customerPhone || localStorage.getItem("nfl_guest_buyer_phone") || "";
   });
 
-  // Sync activeSessionId if sessionId prop changes
+  // Sync activeSessionId & clear stale method state whenever sessionId or selectedMethod changes
   useEffect(() => {
     if (sessionId) {
       setActiveSessionId(sessionId);
     }
-  }, [sessionId]);
+    setRecoveredFromPrevious(false);
+    setSubmitError(null);
+    setCopiedKey(null);
+    setReferenceTag("");
+    setSession((prev) => {
+      if (!prev) return null;
+      const matchesMethod =
+        prev.paymentMethod === selectedMethod &&
+        (!prev.adminPaymentDetails?.method || prev.adminPaymentDetails.method === selectedMethod);
+      return matchesMethod ? prev : null;
+    });
+  }, [sessionId, selectedMethod]);
 
   const isGeneric = (name?: string) => {
     if (!name) return true;
@@ -170,9 +181,10 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed && (parsed.identifier || parsed.accountNumber || parsed.bankName)) {
+        const cacheMatchesMethod = !parsed?.method || parsed.method === selectedMethod;
+        if (parsed && cacheMatchesMethod && (parsed.identifier || parsed.accountNumber || parsed.bankName)) {
           setSession({
-            id: activeSessionId || sessionId,
+            id: sessionId || activeSessionId,
             orderId: orderReference || sessionId,
             customerName: effectiveName,
             customerEmail: effectiveEmail,
@@ -187,7 +199,11 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
             updatedAt: Date.now()
           });
           setRecoveredFromPrevious(true);
+        } else {
+          setRecoveredFromPrevious(false);
         }
+      } else {
+        setRecoveredFromPrevious(false);
       }
     } catch (e) {
       // ignore cache parse error
@@ -304,17 +320,30 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
 
     const unsubscribe = subscribeToPaymentSession(targetSessionId, (updatedSession) => {
       if (updatedSession) {
-        setSession(updatedSession);
-        saveLocalBookmark(updatedSession.status || "awaiting_admin_details");
-        if (updatedSession.adminPaymentDetails && effectiveName) {
+        // Guard against stale snapshots belonging to a previously selected payment method
+        const sessionMethodMatches = !updatedSession.paymentMethod || updatedSession.paymentMethod === selectedMethod;
+        const detailsMethodMatches = !updatedSession.adminPaymentDetails?.method || updatedSession.adminPaymentDetails.method === selectedMethod;
+        if (!sessionMethodMatches) {
+          return;
+        }
+        const safeSession: PaymentSession = detailsMethodMatches
+          ? updatedSession
+          : {
+              ...updatedSession,
+              adminPaymentDetails: null,
+              status: updatedSession.status === "payment_submitted" ? "payment_submitted" : "awaiting_admin_details"
+            };
+        setSession(safeSession);
+        saveLocalBookmark(safeSession.status || "awaiting_admin_details");
+        if (safeSession.adminPaymentDetails && effectiveName) {
           const normName = effectiveName.trim().toLowerCase();
           const cacheKey = `nfl_dispatched_${selectedMethod}_${normName}`;
-          localStorage.setItem(cacheKey, JSON.stringify(updatedSession.adminPaymentDetails));
+          localStorage.setItem(cacheKey, JSON.stringify(safeSession.adminPaymentDetails));
         }
         const sessionImgs = Array.from(new Set([
-          ...(Array.isArray(updatedSession.receiptImages) ? updatedSession.receiptImages : []),
-          ...(updatedSession.receiptUrl ? [updatedSession.receiptUrl] : []),
-          ...(updatedSession.receiptImage ? [updatedSession.receiptImage] : [])
+          ...(Array.isArray(safeSession.receiptImages) ? safeSession.receiptImages : []),
+          ...(safeSession.receiptUrl ? [safeSession.receiptUrl] : []),
+          ...(safeSession.receiptImage ? [safeSession.receiptImage] : [])
         ].filter((u): u is string => typeof u === "string" && u.trim().length > 0)));
         if (sessionImgs.length > 0 && receiptUrls.length === 0) {
           setReceiptUrls(sessionImgs);
@@ -334,7 +363,9 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     if (!targetSessionId) return;
 
     const alreadyHasDetails = Boolean(
+      session?.paymentMethod === selectedMethod &&
       session?.adminPaymentDetails &&
+        (!session.adminPaymentDetails.method || session.adminPaymentDetails.method === selectedMethod) &&
         (session.adminPaymentDetails.identifier ||
           session.adminPaymentDetails.accountNumber ||
           session.adminPaymentDetails.bankName)
@@ -347,13 +378,15 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
       if (!presetDetails) return;
 
       setSession((prev) => {
-        const hasDetails = Boolean(
+        const hasDetailsForCurrentMethod = Boolean(
+          prev?.paymentMethod === selectedMethod &&
           prev?.adminPaymentDetails &&
+            (!prev.adminPaymentDetails.method || prev.adminPaymentDetails.method === selectedMethod) &&
             (prev.adminPaymentDetails.identifier ||
               prev.adminPaymentDetails.accountNumber ||
               prev.adminPaymentDetails.bankName)
         );
-        if (hasDetails || prev?.status === "payment_submitted") return prev;
+        if (hasDetailsForCurrentMethod || (prev?.paymentMethod === selectedMethod && prev?.status === "payment_submitted")) return prev;
         return {
           id: targetSessionId,
           orderId: orderReference || targetSessionId,
@@ -440,7 +473,13 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     }
   };
 
-  const details: AdminPaymentDetails | undefined | null = session?.adminPaymentDetails;
+  const rawDetails: AdminPaymentDetails | undefined | null = session?.adminPaymentDetails;
+  const detailsMatchSelectedMethod = Boolean(
+    rawDetails &&
+      (!session?.paymentMethod || session.paymentMethod === selectedMethod) &&
+      (!rawDetails.method || rawDetails.method === selectedMethod)
+  );
+  const details: AdminPaymentDetails | undefined | null = detailsMatchSelectedMethod ? rawDetails : null;
   const isDetailsAvailable = Boolean(details && (details.identifier || details.accountNumber || details.bankName));
 
   return (

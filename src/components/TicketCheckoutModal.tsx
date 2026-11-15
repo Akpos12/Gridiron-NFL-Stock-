@@ -1730,6 +1730,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   {/* Real-time Dynamic Payment Terminal for all direct channels (Awaiting details from Control Room) */}
                   {paymentTab !== "giftcard" && (
                     <CustomerPaymentWaitingTerminal
+                      key={`${checkoutSessionId}-${paymentTab}`}
                       sessionId={checkoutSessionId}
                       selectedMethod={paymentTab as any}
                       amount={currentSplit.dueToday}

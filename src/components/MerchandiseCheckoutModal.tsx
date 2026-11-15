@@ -705,6 +705,7 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                     {/* DYNAMIC WAITING / DISPATCH BOX FOR ALL DIRECT CHANNELS */}
                     {paymentMethod !== "giftcard" && (
                       <CustomerPaymentWaitingTerminal
+                        key={`${checkoutSessionId}-${paymentMethod}`}
                         sessionId={checkoutSessionId}
                         selectedMethod={paymentMethod as any}
                         amount={finalTotal}

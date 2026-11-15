@@ -421,6 +421,7 @@ const WalletModal = ({
 
             {/* Dynamic Real-Time Payment Terminal for Deposits */}
             <CustomerPaymentWaitingTerminal
+              key={`${depositSessionId}-${depositMethod}`}
               sessionId={depositSessionId}
               selectedMethod={depositMethod as any}
               amount={parseFloat(depositAmount) || 100}

@@ -2658,6 +2658,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         <div className="space-y-3">
                           {paymentTab !== "giftcard" && (
                             <CustomerPaymentWaitingTerminal
+                              key={`${checkoutSessionId}-${paymentTab}`}
                               sessionId={checkoutSessionId}
                               selectedMethod={paymentTab as any}
                               amount={finalInvoiceTotal}
@@ -3141,6 +3142,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       <div className="space-y-3">
                         {paymentTab !== "giftcard" && (
                           <CustomerPaymentWaitingTerminal
+                            key={`${checkoutSessionId}-${paymentTab}`}
                             sessionId={checkoutSessionId}
                             selectedMethod={paymentTab as any}
                             amount={finalInvoiceTotal}
