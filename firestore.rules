@@ -142,6 +142,44 @@ service cloud.firestore {
       allow read, list: if true;
       allow create, update, delete: if true;
     }
+
+    // Site Visitor Analytics Rules
+    function isValidSiteVisit(data) {
+      return data.keys().hasOnly([
+        'sessionId', 'visitorId', 'visitNumber', 'firstSeenAt', 'lastSeenAt',
+        'dateKey', 'currentTab', 'tabsViewed', 'entryPath', 'lastPath',
+        'referrer', 'deviceType', 'browser', 'os', 'screenSize',
+        'timezone', 'language', 'isAuthenticated', 'userEmail', 'isAdmin'
+      ])
+      && data.sessionId is string && data.sessionId.size() > 0 && data.sessionId.size() <= 48
+      && data.visitorId is string && data.visitorId.size() > 0 && data.visitorId.size() <= 48
+      && data.visitNumber is number && data.visitNumber >= 1 && data.visitNumber <= 999999
+      && data.firstSeenAt is number
+      && data.lastSeenAt is number
+      && data.dateKey is string && data.dateKey.size() <= 16
+      && data.currentTab is string && data.currentTab.size() <= 40
+      && data.tabsViewed is list && data.tabsViewed.size() <= 20
+      && data.entryPath is string && data.entryPath.size() <= 180
+      && data.lastPath is string && data.lastPath.size() <= 180
+      && data.referrer is string && data.referrer.size() <= 120
+      && data.deviceType in ['Mobile', 'Tablet', 'Desktop']
+      && data.browser is string && data.browser.size() <= 40
+      && data.os is string && data.os.size() <= 40
+      && data.screenSize is string && data.screenSize.size() <= 24
+      && data.timezone is string && data.timezone.size() <= 64
+      && data.language is string && data.language.size() <= 24
+      && data.isAuthenticated is bool
+      && data.userEmail is string && data.userEmail.size() <= 120
+      && data.isAdmin is bool;
+    }
+
+    match /site_visits/{sessionId} {
+      allow read, list: if true;
+      allow create, update: if sessionId.size() > 0 && sessionId.size() <= 48
+        && isValidSiteVisit(request.resource.data)
+        && request.resource.data.sessionId == sessionId;
+      allow delete: if true;
+    }
   }
 }
 

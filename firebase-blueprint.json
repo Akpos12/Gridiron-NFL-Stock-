@@ -434,6 +434,36 @@
         "required": ["email"]
       },
       "description": "Authorized administrators"
+    },
+    "site_visits/{sessionId}": {
+      "schema": {
+        "title": "Site Visitor Session",
+        "type": "object",
+        "properties": {
+          "sessionId": { "type": "string" },
+          "visitorId": { "type": "string" },
+          "visitNumber": { "type": "number" },
+          "firstSeenAt": { "type": "number" },
+          "lastSeenAt": { "type": "number" },
+          "dateKey": { "type": "string" },
+          "currentTab": { "type": "string" },
+          "tabsViewed": { "type": "array", "items": { "type": "string" } },
+          "entryPath": { "type": "string" },
+          "lastPath": { "type": "string" },
+          "referrer": { "type": "string" },
+          "deviceType": { "type": "string", "enum": ["Mobile", "Tablet", "Desktop"] },
+          "browser": { "type": "string" },
+          "os": { "type": "string" },
+          "screenSize": { "type": "string" },
+          "timezone": { "type": "string" },
+          "language": { "type": "string" },
+          "isAuthenticated": { "type": "boolean" },
+          "userEmail": { "type": "string" },
+          "isAdmin": { "type": "boolean" }
+        },
+        "required": ["sessionId", "visitorId", "firstSeenAt", "lastSeenAt", "currentTab"]
+      },
+      "description": "Real-time anonymous and authenticated website visitor sessions"
     }
   }
 }

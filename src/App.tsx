@@ -110,6 +110,8 @@ import { VipCommemorativeTicketModal } from "./components/VipCommemorativeTicket
 import { generateTicketPDF } from "./utils/ticketPdfGenerator";
 import { NFLImage } from "./utils/nflImages";
 import { QRCodeSVG } from "qrcode.react";
+import { VisitorAnalyticsPanel } from "./components/VisitorAnalyticsPanel";
+import { recordOrSyncVisit, SiteVisitRecord, subscribeToSiteVisits } from "./services/visitorTrackingService";
 
 // --- Constants ---
 const NFL_LOGO_URL = "/nfl_logo.svg";
@@ -2167,9 +2169,10 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [orders, setOrders] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences" | "payments">(() => {
+  const [siteVisits, setSiteVisits] = useState<SiteVisitRecord[]>([]);
+  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences" | "payments" | "visitors">(() => {
     const saved = localStorage.getItem("admin_subtab");
-    if (saved && ["inquiries", "orders", "users", "transactions", "experiences", "payments"].includes(saved)) {
+    if (saved && ["inquiries", "orders", "users", "transactions", "experiences", "payments", "visitors"].includes(saved)) {
       return saved as any;
     }
     return "inquiries";
@@ -2604,6 +2607,12 @@ const AdminPortal = ({ user }: { user: any }) => {
       console.error("Transactions Listen Error:", err);
     });
 
+    const unsubVisitors = subscribeToSiteVisits((visitsList) => {
+      setSiteVisits(visitsList);
+    }, (err) => {
+      console.warn("Site Visits Listen Error:", err);
+    });
+
     return () => { 
       unsubInquiries(); 
       unsubStoreOrders(); 
@@ -2611,7 +2620,8 @@ const AdminPortal = ({ user }: { user: any }) => {
       unsubBookings(); 
       unsubPaymentSessions();
       unsubUsers(); 
-      unsubTransactions(); 
+      unsubTransactions();
+      unsubVisitors();
     };
   }, [user]);
 
@@ -2886,6 +2896,13 @@ const AdminPortal = ({ user }: { user: any }) => {
             <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
             Live Payment Dispatcher
           </button>
+          <button 
+            onClick={() => { setActiveSubTab("visitors"); setSearchTerm(""); }}
+            className={cn("px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2", activeSubTab === "visitors" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "bg-zinc-900 text-zinc-500 hover:text-white")}
+          >
+            <Eye className="w-3.5 h-3.5 text-emerald-400" />
+            Visitors ({siteVisits.filter(v => !v.isAdmin).length})
+          </button>
         </div>
       </div>
 
@@ -2897,7 +2914,9 @@ const AdminPortal = ({ user }: { user: any }) => {
       )}
 
       <div className="bg-zinc-900/50 border border-white/5 rounded-[2.5rem] overflow-hidden">
-        {activeSubTab === "payments" ? (
+        {activeSubTab === "visitors" ? (
+          <VisitorAnalyticsPanel visits={siteVisits} searchTerm={searchTerm} />
+        ) : activeSubTab === "payments" ? (
           <div className="p-6 sm:p-8">
             <ControlRoomPaymentDispatcher />
           </div>
@@ -3953,6 +3972,29 @@ export default function App() {
       localStorage.setItem("active_tab", activeTab);
     }
   }, [activeTab]);
+
+  // Real-time anonymous & signed-in website visitor tracking (works even without purchases/inquiries)
+  useEffect(() => {
+    recordOrSyncVisit({ tab: activeTab, user });
+
+    const interval = setInterval(() => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        recordOrSyncVisit({ tab: activeTab, user });
+      }
+    }, 45000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        recordOrSyncVisit({ tab: activeTab, user });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [activeTab, user?.uid, user?.email]);
   const [dismissedHero, setDismissedHero] = useState(false);
   const [deepLinkExp, setDeepLinkExp] = useState<any | null>(null);
   const [userBookings, setUserBookings] = useState<any[]>([]);
