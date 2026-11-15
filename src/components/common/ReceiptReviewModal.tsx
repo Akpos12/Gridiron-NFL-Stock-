@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   X, 
   CheckCircle2, 
@@ -28,12 +28,17 @@ import {
   Hash,
   Send,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  MessageSquare
 } from "lucide-react";
-import { doc, updateDoc, setDoc } from "firebase/firestore";
-import { db } from "../../lib/firebase";
 import { formatCurrency, cn } from "../../lib/utils";
 import { QRCodeSVG } from "qrcode.react";
+import {
+  syncApproveOrder,
+  syncRejectOrder,
+  syncMarkNotificationSent,
+  buildMessagingDispatchLinks
+} from "../../utils/orderSync";
 
 export interface BookingAuditItem {
   id: string;
@@ -47,6 +52,7 @@ export interface BookingAuditItem {
   buyerPhone?: string;
   experienceId?: string;
   experienceTitle?: string;
+  experienceType?: string;
   itemName?: string;
   itemType?: string;
   teamId?: string;
@@ -73,6 +79,18 @@ export interface BookingAuditItem {
   qrCode?: string;
   ticketCode?: string;
   managementNotes?: string;
+  messagingPlatform?: string;
+  messagingDetails?: string;
+  favoritePlayer?: string;
+  inquiryObjective?: string;
+  specialNotes?: string;
+  rejectReason?: string;
+  rejectionReason?: string;
+  notificationStatus?: string;
+  notifiedAt?: string;
+  notifiedChannel?: string;
+  approvalNotificationMessage?: string;
+  _sourceDocs?: Array<{ col: string; docId: string }>;
 }
 
 interface ReceiptReviewModalProps {
@@ -83,6 +101,12 @@ interface ReceiptReviewModalProps {
   onApprove?: (bookingId: string, issuedCode?: string) => Promise<void> | void;
   onReject?: (bookingId: string, reason: string) => Promise<void> | void;
 }
+
+const REJECT_PRESETS = [
+  "Unclear or blurry receipt image — please upload a clearer photo.",
+  "Transaction amount or reference ID is not visible — please upload the complete receipt.",
+  "Invalid proof of payment — please complete the required payment and upload a valid receipt."
+];
 
 export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
   booking,
@@ -101,6 +125,21 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
   const [customTicketCode, setCustomTicketCode] = useState<string>("");
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [localStatus, setLocalStatus] = useState<string | undefined>(booking?.status);
+  const [localRejectReason, setLocalRejectReason] = useState<string>(booking?.rejectReason || booking?.rejectionReason || "");
+  const [notificationSent, setNotificationSent] = useState<boolean>(booking?.notificationStatus === "sent");
+  const [customNotifyMessage, setCustomNotifyMessage] = useState<string>("");
+
+  useEffect(() => {
+    setLocalStatus(booking?.status);
+    setLocalRejectReason(booking?.rejectReason || booking?.rejectionReason || "");
+    setNotificationSent(booking?.notificationStatus === "sent");
+    setCustomNotifyMessage("");
+    setShowRejectBox(false);
+    setRejectReason("");
+    setCustomTicketCode("");
+    setActiveImageIdx(0);
+  }, [booking?.id, isOpen]);
 
   if (!isOpen || !booking) return null;
 
@@ -150,32 +189,22 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
     setIsUpdating(true);
     try {
       const finalCode = currentTicketCode;
-      
+
       if (onApprove) {
         await onApprove(booking.id, finalCode);
       } else {
-        const payload = {
-          status: "approved",
-          isApproved: true,
-          qrCode: finalCode,
-          ticketCode: finalCode,
-          approvedAt: new Date().toISOString(),
+        await syncApproveOrder({
+          item: booking,
+          issuedCode: finalCode,
           reviewedBy: "Control Room Box Office Management"
-        };
-
-        // 1. Update store_orders
-        await setDoc(doc(db, "store_orders", booking.id), payload, { merge: true }).catch(() => {});
-        // 2. Update bookings
-        await setDoc(doc(db, "bookings", booking.id), payload, { merge: true }).catch(() => {});
-        // 3. Update ticket_orders
-        await setDoc(doc(db, "ticket_orders", booking.id), { ...payload, status: "confirmed" }, { merge: true }).catch(() => {});
+        });
       }
 
-      showFeedback(`✅ Payment confirmed! Pass issued with Code: ${finalCode}`, "success");
+      setLocalStatus("approved");
+      setLocalRejectReason("");
+      setShowRejectBox(false);
+      showFeedback(`Receipt verified & approved (${finalCode}). Use the messaging dispatcher below to notify the customer.`, "success");
       if (onStatusUpdated) onStatusUpdated();
-      setTimeout(() => {
-        onClose();
-      }, 1200);
     } catch (err: any) {
       console.error("Approval error:", err);
       showFeedback("Error updating status: " + err.message, "error");
@@ -192,27 +221,22 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
 
     setIsUpdating(true);
     try {
+      const reasonText = rejectReason.trim();
       if (onReject) {
-        await onReject(booking.id, rejectReason.trim());
+        await onReject(booking.id, reasonText);
       } else {
-        const payload = {
-          status: "rejected",
-          isApproved: false,
-          rejectReason: rejectReason.trim(),
-          rejectedAt: new Date().toISOString(),
+        await syncRejectOrder({
+          item: booking,
+          reason: reasonText,
           reviewedBy: "Control Room Box Office Management"
-        };
-
-        await setDoc(doc(db, "store_orders", booking.id), payload, { merge: true }).catch(() => {});
-        await setDoc(doc(db, "bookings", booking.id), payload, { merge: true }).catch(() => {});
-        await setDoc(doc(db, "ticket_orders", booking.id), payload, { merge: true }).catch(() => {});
+        });
       }
 
-      showFeedback(`Status updated to Rejected: "${rejectReason.trim()}".`, "info");
+      setLocalStatus("rejected");
+      setLocalRejectReason(reasonText);
+      setShowRejectBox(false);
+      showFeedback(`Receipt rejected: "${reasonText}". Customer can now re-upload a corrected receipt.`, "info");
       if (onStatusUpdated) onStatusUpdated();
-      setTimeout(() => {
-        onClose();
-      }, 1200);
     } catch (err: any) {
       console.error("Reject error:", err);
       showFeedback("Error: " + err.message, "error");
@@ -220,6 +244,37 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
       setIsUpdating(false);
     }
   };
+
+  const handleMarkCustomerNotified = async (channel: string, msgText: string) => {
+    try {
+      await syncMarkNotificationSent({
+        item: booking,
+        channel,
+        message: msgText
+      });
+      setNotificationSent(true);
+      showFeedback(`Logged customer notification via ${channel}.`, "success");
+      if (onStatusUpdated) onStatusUpdated();
+    } catch (err: any) {
+      console.warn("Mark notified error:", err);
+    }
+  };
+
+  const effectiveStatus = localStatus || booking.status || "pending";
+  const isEffectiveApproved = effectiveStatus === "approved" || effectiveStatus === "confirmed";
+  const isEffectiveRejected = effectiveStatus === "rejected";
+  const dispatchInfo = buildMessagingDispatchLinks({
+    platform: booking.messagingPlatform,
+    handle: booking.messagingDetails,
+    phone: booking.buyerPhone,
+    customerName: attendeeName,
+    itemTitle: eventTitle,
+    favoritePlayer: booking.favoritePlayer,
+    ticketCode: currentTicketCode,
+    status: isEffectiveRejected ? "rejected" : "approved",
+    rejectReason: localRejectReason || rejectReason
+  });
+  const activeNotifyMessage = customNotifyMessage || dispatchInfo.message;
 
   const handlePrintReceipt = () => {
     window.print();
@@ -232,24 +287,29 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
         {/* Header */}
         <div className="flex items-start justify-between border-b border-white/5 pb-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 text-amber-300 border border-amber-500/20 rounded-full text-[9px] font-black uppercase tracking-widest">
                 <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                MANAGEMENT AUDIT & TICKET ISSUANCE DESK
+                MANAGEMENT AUDIT &amp; VERIFICATION DESK
               </span>
               <span className={cn(
                 "px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider",
-                booking.status === "approved" || booking.status === "confirmed"
+                isEffectiveApproved
                   ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                  : booking.status === "rejected"
+                  : isEffectiveRejected
                   ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
                   : "bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse"
               )}>
-                {booking.status === "approved" || booking.status === "confirmed" ? "✓ APPROVED / TICKET ISSUED" : booking.status === "rejected" ? "REJECTED" : "PENDING AUDIT"}
+                {isEffectiveApproved ? "✓ APPROVED / VERIFIED" : isEffectiveRejected ? "REJECTED · RE-UPLOAD NEEDED" : "PENDING AUDIT"}
               </span>
+              {notificationSent && (
+                <span className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                  Customer Notified
+                </span>
+              )}
             </div>
             <h3 className="text-2xl font-black italic uppercase tracking-tight text-white flex items-center gap-2">
-              <span>ORDER & TICKET AUDIT</span>
+              <span>ORDER &amp; RECEIPT AUDIT</span>
               <span className="text-zinc-600 font-mono text-sm">#{bookingIdStr.slice(-8)}</span>
             </h3>
           </div>
@@ -443,6 +503,29 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
                     <span className="font-mono text-zinc-200">{attendeePhone}</span>
                   </div>
 
+                  {(booking.messagingPlatform || booking.messagingDetails) && (
+                    <div className="flex items-center gap-2 pt-1 border-t border-white/5">
+                      <MessageSquare className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="text-zinc-400">Preferred Messaging:</span>
+                      <span className="font-mono font-bold text-emerald-300 uppercase">
+                        {booking.messagingPlatform || "Direct"}
+                      </span>
+                      {booking.messagingDetails && (
+                        <span className="font-mono text-white select-all">
+                          ({booking.messagingDetails})
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {booking.favoritePlayer && (
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span className="text-zinc-400">Inquired Player:</span>
+                      <span className="font-black text-white uppercase">{booking.favoritePlayer}</span>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 pt-1 border-t border-white/5">
                     <Ticket className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                     <span className="text-zinc-400">Package:</span>
@@ -470,15 +553,110 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
                 </div>
               </div>
 
+              {/* Approval / Rejection Messaging App Notification Dispatcher */}
+              {(isEffectiveApproved || isEffectiveRejected) && (
+                <div className={cn(
+                  "p-4 rounded-2xl border space-y-3 text-left",
+                  isEffectiveApproved
+                    ? "bg-emerald-500/10 border-emerald-500/30"
+                    : "bg-rose-500/10 border-rose-500/30"
+                )}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={cn(
+                      "text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5",
+                      isEffectiveApproved ? "text-emerald-300" : "text-rose-300"
+                    )}>
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      {isEffectiveApproved
+                        ? `Notify Customer via ${dispatchInfo.platform} (Approved)`
+                        : `Notify Customer via ${dispatchInfo.platform} (Corrected Receipt Requested)`}
+                    </span>
+                    {notificationSent && (
+                      <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500 text-black">
+                        Notified ✓
+                      </span>
+                    )}
+                  </div>
+
+                  {dispatchInfo.handle && (
+                    <div className="text-[10px] font-mono text-zinc-300 flex items-center justify-between bg-zinc-950/70 px-3 py-2 rounded-xl border border-white/10">
+                      <span>Recipient ({dispatchInfo.platform}): <strong className="text-white select-all">{dispatchInfo.handle}</strong></span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(dispatchInfo.handle, "Recipient Handle")}
+                        className="text-blue-400 hover:text-white font-black uppercase text-[9px] cursor-pointer"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  )}
+
+                  <textarea
+                    rows={3}
+                    value={activeNotifyMessage}
+                    onChange={(e) => setCustomNotifyMessage(e.target.value)}
+                    className="w-full bg-zinc-950 border border-white/10 rounded-xl p-2.5 text-[11px] text-zinc-200 focus:outline-none focus:border-blue-500"
+                  />
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {dispatchInfo.href && (
+                      <a
+                        href={dispatchInfo.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => handleMarkCustomerNotified(dispatchInfo.platform, activeNotifyMessage)}
+                        className="flex-1 min-w-[160px] py-2.5 px-3 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase text-[9px] tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>{dispatchInfo.actionLabel}</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleCopy(activeNotifyMessage, "Notification Message");
+                        handleMarkCustomerNotified(dispatchInfo.platform, activeNotifyMessage);
+                      }}
+                      className="flex-1 min-w-[140px] py-2.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-white font-black uppercase text-[9px] tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Copy &amp; Mark Sent</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-4 py-2.5 bg-zinc-950 hover:bg-zinc-800 border border-white/10 text-zinc-300 font-black uppercase text-[9px] tracking-wider rounded-xl cursor-pointer"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Reject Reason Input */}
               {showRejectBox && (
-                <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl space-y-2 text-left animate-in fade-in duration-100">
+                <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl space-y-2.5 text-left animate-in fade-in duration-100">
                   <label className="text-[9px] font-black uppercase text-rose-300 block">
-                    State Reason for Rejection / Re-upload Request:
+                    State Reason for Rejection / Corrected Receipt Request:
                   </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {REJECT_PRESETS.map((preset, pIdx) => (
+                      <button
+                        key={pIdx}
+                        type="button"
+                        onClick={() => setRejectReason(preset)}
+                        className="px-2 py-1 rounded-lg bg-zinc-950 hover:bg-rose-500/20 border border-rose-500/30 text-[9px] text-rose-200 font-semibold text-left cursor-pointer"
+                      >
+                        {preset.split("—")[0].trim()}
+                      </button>
+                    ))}
+                  </div>
                   <input
                     type="text"
-                    placeholder="e.g. Reference not found in bank wire / Receipt illegible"
+                    placeholder="e.g. Unclear receipt screenshot — please upload a corrected receipt"
                     value={rejectReason}
                     onChange={(e) => setRejectReason(e.target.value)}
                     className="w-full bg-zinc-950 border border-rose-500/40 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
@@ -488,14 +666,14 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
                       type="button"
                       disabled={isUpdating}
                       onClick={handleRejectPayment}
-                      className="flex-1 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider cursor-pointer"
+                      className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider cursor-pointer"
                     >
-                      Confirm Rejection
+                      Confirm Rejection &amp; Request New Receipt
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowRejectBox(false)}
-                      className="px-3 py-2 bg-zinc-800 text-zinc-300 rounded-xl text-[9px] font-black uppercase cursor-pointer"
+                      className="px-3 py-2.5 bg-zinc-800 text-zinc-300 rounded-xl text-[9px] font-black uppercase cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -505,24 +683,26 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
 
               {/* Main Action Buttons */}
               <div className="space-y-2 pt-1">
-                <button
-                  type="button"
-                  disabled={isUpdating}
-                  onClick={handleApprovePayment}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-2 active:scale-95"
-                >
-                  {isUpdating ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ACTIVATING & ISSUING TICKET...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      APPROVE PAYMENT & ISSUE OFFICIAL PASS
-                    </>
-                  )}
-                </button>
+                {!isEffectiveApproved && (
+                  <button
+                    type="button"
+                    disabled={isUpdating}
+                    onClick={handleApprovePayment}
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    {isUpdating ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        VERIFYING RECEIPT &amp; APPROVING...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        APPROVE RECEIPT &amp; PREPARE NOTIFICATION
+                      </>
+                    )}
+                  </button>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -540,7 +720,7 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
                       className="py-2.5 bg-zinc-950 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1"
                     >
                       <AlertTriangle className="w-3.5 h-3.5" />
-                      Reject Transaction
+                      Reject &amp; Request New Receipt
                     </button>
                   )}
                 </div>

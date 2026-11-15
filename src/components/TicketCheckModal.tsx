@@ -29,6 +29,8 @@ import { db } from "../lib/firebase";
 import { generateTicketPDF, TicketPassInfo } from "../utils/ticketPdfGenerator";
 import { cn } from "../lib/utils";
 import { VipCommemorativeTicketModal } from "./VipCommemorativeTicketModal";
+import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
+import { syncResubmitReceipt } from "../utils/orderSync";
 
 interface TicketCheckModalProps {
   isOpen: boolean;
@@ -52,11 +54,23 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [showCommemorativeModal, setShowCommemorativeModal] = useState(false);
 
+  // Corrected receipt re-upload state when rejected
+  const [correctedReceipts, setCorrectedReceipts] = useState<string[]>([]);
+  const [correctedPaymentRef, setCorrectedPaymentRef] = useState("");
+  const [isResubmittingReceipt, setIsResubmittingReceipt] = useState(false);
+  const [resubmitFeedback, setResubmitFeedback] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2500);
   };
+
+  useEffect(() => {
+    setCorrectedReceipts([]);
+    setCorrectedPaymentRef("");
+    setResubmitFeedback(null);
+  }, [selectedTicket?.id]);
 
   // Reset to clean search state when opened; only search if an explicit query was provided
   useEffect(() => {
@@ -136,69 +150,106 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
         resultsMap.set(COMMEMORATIVE_VIP_TICKET.id, COMMEMORATIVE_VIP_TICKET);
       }
 
-      // 1. Direct ID lookup in bookings & ticket_orders
-      try {
-        const docSnap = await getDoc(doc(db, "bookings", term));
-        if (docSnap.exists()) {
-          resultsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
-        }
-      } catch (e) {}
+      const mergeResult = (docId: string, data: any) => {
+        const key = String(data?.orderId || data?.bookingId || docId || "").replace(/^order-/i, "").trim();
+        if (!key) return;
+        const existing = resultsMap.get(key) || {};
+        const combinedReceipts = Array.from(
+          new Set([
+            ...(Array.isArray(existing.receiptImages) ? existing.receiptImages : []),
+            ...(Array.isArray(data.receiptImages) ? data.receiptImages : []),
+            ...(existing.receiptImage ? [existing.receiptImage] : []),
+            ...(data.receiptImage ? [data.receiptImage] : []),
+            ...(data.receiptImageUrl ? [data.receiptImageUrl] : [])
+          ].filter((u): u is string => typeof u === "string" && u.trim().length > 0))
+        );
+        resultsMap.set(key, {
+          ...existing,
+          ...data,
+          id: existing.id || key || docId,
+          orderId: data.orderId || existing.orderId || key,
+          receiptImage: combinedReceipts[0] || "",
+          receiptImageUrl: combinedReceipts[0] || "",
+          receiptImages: combinedReceipts
+        });
+      };
 
-      try {
-        const orderSnap = await getDoc(doc(db, "ticket_orders", term));
-        if (orderSnap.exists()) {
-          resultsMap.set(orderSnap.id, { ...resultsMap.get(orderSnap.id), id: orderSnap.id, ...orderSnap.data() });
-        }
-      } catch (e) {}
+      // 1. Direct ID lookup across bookings, ticket_orders, customer_inquiries & store_orders
+      for (const colName of ["bookings", "ticket_orders", "customer_inquiries", "store_orders"] as const) {
+        try {
+          const snap = await getDoc(doc(db, colName, term));
+          if (snap.exists()) {
+            mergeResult(snap.id, snap.data());
+          }
+        } catch {}
+      }
 
-      // 2. Query bookings by email
+      // 2. Query bookings by email & orderId
       try {
         const emailSnap = await getDocs(query(collection(db, "bookings"), where("userEmail", "==", term)));
-        emailSnap.forEach(d => resultsMap.set(d.id, { id: d.id, ...d.data() }));
+        emailSnap.forEach(d => mergeResult(d.id, d.data()));
 
         const buyerEmailSnap = await getDocs(query(collection(db, "bookings"), where("buyerEmail", "==", term)));
-        buyerEmailSnap.forEach(d => resultsMap.set(d.id, { id: d.id, ...d.data() }));
-      } catch (e) {}
+        buyerEmailSnap.forEach(d => mergeResult(d.id, d.data()));
+      } catch {}
 
-      // 3. Query ticket_orders by buyerEmail
-      try {
-        const toEmailSnap = await getDocs(query(collection(db, "ticket_orders"), where("buyerEmail", "==", term)));
-        toEmailSnap.forEach(d => {
-          resultsMap.set(d.id, { ...resultsMap.get(d.id), id: d.id, ...d.data() });
-        });
-      } catch (e) {}
+      // 3. Query ticket_orders, customer_inquiries & store_orders by email or orderId
+      for (const colName of ["ticket_orders", "customer_inquiries", "store_orders"] as const) {
+        try {
+          const toEmailSnap = await getDocs(query(collection(db, colName), where("buyerEmail", "==", term)));
+          toEmailSnap.forEach(d => mergeResult(d.id, d.data()));
+        } catch {}
+        try {
+          const uEmailSnap = await getDocs(query(collection(db, colName), where("userEmail", "==", term)));
+          uEmailSnap.forEach(d => mergeResult(d.id, d.data()));
+        } catch {}
+        try {
+          const oIdSnap = await getDocs(query(collection(db, colName), where("orderId", "==", term)));
+          oIdSnap.forEach(d => mergeResult(d.id, d.data()));
+        } catch {}
+      }
 
       // 4. Query by qrCode or ticketCode
       try {
         const codeSnap = await getDocs(query(collection(db, "bookings"), where("qrCode", "==", term)));
-        codeSnap.forEach(d => resultsMap.set(d.id, { id: d.id, ...d.data() }));
+        codeSnap.forEach(d => mergeResult(d.id, d.data()));
 
         const tCodeSnap = await getDocs(query(collection(db, "bookings"), where("ticketCode", "==", term)));
-        tCodeSnap.forEach(d => resultsMap.set(d.id, { id: d.id, ...d.data() }));
-      } catch (e) {}
+        tCodeSnap.forEach(d => mergeResult(d.id, d.data()));
+      } catch {}
 
-      // 5. Broad text search across bookings and ticket orders
-      try {
-        const allSnap = await getDocs(collection(db, "bookings"));
-        allSnap.forEach(d => {
-          const data = d.data();
-          const str = JSON.stringify(data).toLowerCase();
-          if (str.includes(termLower)) {
-            resultsMap.set(d.id, { id: d.id, ...data });
-          }
-        });
-      } catch (e) {}
-
-      try {
-        const allOrdersSnap = await getDocs(collection(db, "ticket_orders"));
-        allOrdersSnap.forEach(d => {
-          const data = d.data();
-          const str = JSON.stringify(data).toLowerCase();
-          if (str.includes(termLower)) {
-            resultsMap.set(d.id, { ...resultsMap.get(d.id), id: d.id, ...data });
-          }
-        });
-      } catch (e) {}
+      // 5. Broad text search across bookings, ticket_orders, customer_inquiries, and store_orders
+      for (const colName of ["bookings", "ticket_orders", "customer_inquiries", "store_orders"] as const) {
+        try {
+          const allSnap = await getDocs(collection(db, colName));
+          allSnap.forEach(d => {
+            const data = d.data();
+            const searchable = [
+              d.id,
+              data.orderId,
+              data.ticketCode,
+              data.qrCode,
+              data.userEmail,
+              data.buyerEmail,
+              data.buyerName,
+              data.senderName,
+              data.userName,
+              data.favoritePlayer,
+              data.experienceTitle,
+              data.gameName,
+              data.itemName,
+              data.messagingDetails,
+              data.paymentRef
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
+            if (searchable.includes(termLower)) {
+              mergeResult(d.id, data);
+            }
+          });
+        } catch {}
+      }
 
       const items = Array.from(resultsMap.values()).sort(
         (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
@@ -212,6 +263,49 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
       console.error("Search error:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResubmitCorrectedReceipt = async () => {
+    if (!selectedTicket || correctedReceipts.length === 0) return;
+    setIsResubmittingReceipt(true);
+    setResubmitFeedback(null);
+    try {
+      await syncResubmitReceipt({
+        item: selectedTicket,
+        receiptImages: correctedReceipts,
+        paymentRef: correctedPaymentRef
+      });
+
+      const updatedTicket = {
+        ...selectedTicket,
+        status: "pending",
+        isApproved: false,
+        requiresReceiptReupload: false,
+        rejectReason: "",
+        rejectionReason: "",
+        receiptImage: correctedReceipts[0],
+        receiptImageUrl: correctedReceipts[0],
+        receiptImages: correctedReceipts,
+        ...(correctedPaymentRef.trim() ? { paymentRef: correctedPaymentRef.trim() } : {})
+      };
+
+      setSelectedTicket(updatedTicket);
+      setTickets(prev => prev.map(t => t.id === selectedTicket.id ? updatedTicket : t));
+      setCorrectedReceipts([]);
+      setCorrectedPaymentRef("");
+      setResubmitFeedback({
+        text: "Corrected payment receipt submitted! Your receipt is now awaiting administrator verification.",
+        type: "success"
+      });
+    } catch (err: any) {
+      console.error("Resubmit receipt error:", err);
+      setResubmitFeedback({
+        text: err?.message || "Failed to upload corrected receipt. Please try again.",
+        type: "error"
+      });
+    } finally {
+      setIsResubmittingReceipt(false);
     }
   };
 
@@ -461,42 +555,117 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                         <CheckCircle2 className="w-4 h-4" />
                       </div>
                       <div className="flex-1">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                           <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400">
-                            Ticket Approved & Pass Issued!
+                            {selectedTicket.favoritePlayer || selectedTicket.experienceType === "player_inquiry"
+                              ? "Payment Receipt Approved — You May Now Proceed!"
+                              : "Ticket Approved & Pass Issued!"}
                           </h4>
                           <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-emerald-400/20 text-emerald-300 font-mono">
-                            READY FOR ENTRY
+                            VERIFIED · READY TO PROCEED
                           </span>
                         </div>
-                        <p className="text-[10px] text-zinc-300 font-medium mt-1 leading-relaxed">
-                          Your payment receipt has been verified and authorized by Box Office Management. Your official PDF pass is ready to download.
+                        <p className="text-[11px] text-zinc-200 font-medium mt-1 leading-relaxed">
+                          Your payment receipt has been verified and approved by our administrator.{" "}
+                          {selectedTicket.messagingPlatform
+                            ? `Updates and coordination details are dispatched via ${selectedTicket.messagingPlatform}${selectedTicket.messagingDetails ? ` (${selectedTicket.messagingDetails})` : ""}.`
+                            : "Your official PDF pass is ready to download below."}
                         </p>
                       </div>
                     </div>
                   ) : selectedTicket.status === "rejected" ? (
-                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3.5">
-                      <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 mt-0.5">
-                        <AlertCircle className="w-4 h-4" />
+                    <div className="p-4 sm:p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-4">
+                      <div className="flex items-start gap-3.5">
+                        <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 mt-0.5">
+                          <AlertCircle className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-rose-400">
+                              Proof of Payment Rejected — Corrected Receipt Required
+                            </h4>
+                            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-mono">
+                              ACTION REQUIRED
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-zinc-200 font-medium mt-1 leading-relaxed">
+                            Administrator Note: <strong className="text-rose-200">{selectedTicket.rejectReason || selectedTicket.rejectionReason || "Your uploaded payment receipt was unclear or could not be verified. Please upload a clear corrected receipt below."}</strong>
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-rose-400">
-                          Payment Receipt Rejected
-                        </h4>
-                        <p className="text-[10px] text-zinc-300 font-medium mt-1 leading-relaxed">
-                          Reason: {selectedTicket.rejectReason || "Receipt could not be verified by Box Office management."}
-                        </p>
-                        {onOpenLiveChat && (
-                          <button
-                            onClick={() => {
-                              onClose();
-                              onOpenLiveChat(selectedTicket.id);
-                            }}
-                            className="mt-2.5 px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1 transition-colors"
-                          >
-                            <MessageSquare className="w-3 h-3" /> Contact Support for Assistance
-                          </button>
+
+                      {/* Interactive Re-upload Corrected Receipt Box */}
+                      <div className="bg-zinc-950/80 border border-rose-500/20 rounded-2xl p-4 space-y-3">
+                        <PaymentReceiptUploader
+                          required={true}
+                          maxFiles={4}
+                          label="Upload Corrected Proof of Payment (Required)"
+                          subtitle="Attach a clear screenshot showing transaction amount ($100+ contribution), date/time, and confirmation reference."
+                          values={correctedReceipts}
+                          value={correctedReceipts[0] || ""}
+                          onChange={(url) => {
+                            if (url) setCorrectedReceipts(prev => prev.includes(url) ? prev : [...prev, url]);
+                          }}
+                          onValuesChange={(urls) => setCorrectedReceipts(urls)}
+                        />
+
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block mb-1">
+                            Updated Transaction Hash / Reference (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Paste transaction ID, Apple card PIN note, or transfer ref..."
+                            value={correctedPaymentRef}
+                            onChange={(e) => setCorrectedPaymentRef(e.target.value)}
+                            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+
+                        {resubmitFeedback && (
+                          <div className={cn(
+                            "p-3 rounded-xl text-xs font-bold border",
+                            resubmitFeedback.type === "success"
+                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                              : "bg-rose-500/10 border-rose-500/30 text-rose-300"
+                          )}>
+                            {resubmitFeedback.text}
+                          </div>
                         )}
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={handleResubmitCorrectedReceipt}
+                            disabled={correctedReceipts.length === 0 || isResubmittingReceipt}
+                            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-lg"
+                          >
+                            {isResubmittingReceipt ? (
+                              <>
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                <span>Submitting Corrected Receipt...</span>
+                              </>
+                            ) : (
+                              <>
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                <span>Submit Corrected Receipt for Verification</span>
+                              </>
+                            )}
+                          </button>
+
+                          {onOpenLiveChat && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose();
+                                onOpenLiveChat(selectedTicket.id);
+                              }}
+                              className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1 transition-colors border border-white/10 cursor-pointer"
+                            >
+                              <MessageSquare className="w-3 h-3" /> Need Help? Live Support
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -505,22 +674,31 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                         <Clock className="w-4 h-4 animate-spin" />
                       </div>
                       <div className="flex-1">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                           <h4 className="text-xs font-black uppercase tracking-wider text-amber-400">
-                            Payment Under Box Office Review
+                            Payment Receipt Awaiting Verification
                           </h4>
                           <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 font-mono">
-                            AUDIT IN PROGRESS
+                            AWAITING ADMIN REVIEW
                           </span>
                         </div>
-                        <p className="text-[10px] text-zinc-300 font-medium mt-1 leading-relaxed">
-                          Your payment screenshot/receipt is currently being reviewed in the Control Room. As soon as management verifies your payment, your pass code and PDF download will unlock automatically here.
+                        <p className="text-[11px] text-zinc-200 font-medium mt-1 leading-relaxed">
+                          Your proof of payment has been received and is currently awaiting verification by our administrator.{" "}
+                          {selectedTicket.messagingPlatform
+                            ? `Once reviewed and approved, you will be notified directly via ${selectedTicket.messagingPlatform} so you know you can proceed.`
+                            : "Once verified, your approval status and downloadable pass will unlock here automatically."}
                         </p>
+                        {resubmitFeedback && resubmitFeedback.type === "success" && (
+                          <div className="mt-2 p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-bold text-emerald-300">
+                            {resubmitFeedback.text}
+                          </div>
+                        )}
                         <button
+                          type="button"
                           onClick={() => performSearch(searchQuery || selectedTicket.id)}
-                          className="mt-2 px-3 py-1 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black rounded-lg text-[8px] font-black uppercase tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer"
+                          className="mt-2.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black rounded-lg text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer"
                         >
-                          <RefreshCw className="w-2.5 h-2.5" /> Check Real-Time Update
+                          <RefreshCw className="w-3 h-3" /> Refresh Verification Status
                         </button>
                       </div>
                     </div>
@@ -670,11 +848,29 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                               <span className="text-[10px] font-black uppercase text-blue-400 flex items-center gap-1.5 tracking-wider">
                                 <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                                NFL Star Player Liaison Inquiry ($100 Paid)
+                                NFL Star Player Inquiry · $100 Charitable Contribution
                               </span>
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase font-mono">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                Awaiting Player Details
+                              <span className={cn(
+                                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase font-mono",
+                                selectedTicket.status === "approved" || selectedTicket.status === "confirmed" || selectedTicket.isApproved
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                                  : selectedTicket.status === "rejected"
+                                  ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                                  : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                              )}>
+                                <span className={cn(
+                                  "w-1.5 h-1.5 rounded-full animate-pulse",
+                                  selectedTicket.status === "approved" || selectedTicket.status === "confirmed" || selectedTicket.isApproved
+                                    ? "bg-emerald-400"
+                                    : selectedTicket.status === "rejected"
+                                    ? "bg-rose-400"
+                                    : "bg-amber-400"
+                                )} />
+                                {selectedTicket.status === "approved" || selectedTicket.status === "confirmed" || selectedTicket.isApproved
+                                  ? "Verified · Ready to Proceed"
+                                  : selectedTicket.status === "rejected"
+                                  ? "Corrected Receipt Required"
+                                  : "Receipt Awaiting Verification"}
                               </span>
                             </div>
                             
@@ -684,7 +880,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                                 <p className="text-sm font-black text-white mt-0.5">{selectedTicket.favoritePlayer} ({selectedTicket.teamId})</p>
                               </div>
                               <div className="bg-zinc-950/60 p-2.5 rounded-xl border border-white/5">
-                                <span className="text-[8px] font-black uppercase tracking-wider text-zinc-500 block">Messaging Channel & Handle:</span>
+                                <span className="text-[8px] font-black uppercase tracking-wider text-zinc-500 block">Preferred Notification Channel:</span>
                                 <p className="text-xs font-mono font-bold text-blue-300 mt-0.5 uppercase">
                                   {selectedTicket.messagingPlatform}: <span className="text-white font-normal lowercase">{selectedTicket.messagingDetails}</span>
                                 </p>
@@ -699,7 +895,11 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                             )}
 
                             <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[9px] text-blue-300 font-medium">
-                              Our NFL player operations coordinator will connect with the player's management and send private availability and liaison details directly via your selected messaging channel ({selectedTicket.messagingPlatform}).
+                              {selectedTicket.status === "approved" || selectedTicket.status === "confirmed" || selectedTicket.isApproved
+                                ? `Your $100 charitable contribution receipt is approved! Look out for direct coordination messages via ${selectedTicket.messagingPlatform || "your selected messaging app"}.`
+                                : selectedTicket.status === "rejected"
+                                ? "Please upload a clearer proof of your $100 charitable contribution above so our administrator can re-verify your inquiry."
+                                : `Your $100 charitable contribution receipt is awaiting administrator verification. Once approved, we will notify you via ${selectedTicket.messagingPlatform || "your messaging app"} so you know you can proceed.`}
                             </div>
                           </div>
                         )}

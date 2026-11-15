@@ -44,6 +44,7 @@ import { PromoBanner } from "./PromoSlider";
 import { NFLImage } from "../utils/nflImages";
 import { ReceiptReviewModal, BookingAuditItem } from "./common/ReceiptReviewModal";
 import { ControlRoomPaymentDispatcher } from "./common/ControlRoomPaymentDispatcher";
+import { syncApproveOrder, syncRejectOrder } from "../utils/orderSync";
 
 const PHOTO_PRESETS = [
   { label: "Drew Lock (QB)", url: "/postimages/Drew-Lock.jpg", tag: "Drew Lock" },
@@ -69,7 +70,7 @@ export const ExperienceAdmin: React.FC = () => {
   // Booking Receipt Review modal state
   const [selectedBookingForReview, setSelectedBookingForReview] = useState<BookingAuditItem | null>(null);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [bookingFilter, setBookingFilter] = useState<"all" | "pending" | "approved">("all");
+  const [bookingFilter, setBookingFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [bookingSearch, setBookingSearch] = useState("");
 
   // Experience addition states
@@ -1065,20 +1066,27 @@ export const ExperienceAdmin: React.FC = () => {
 
   const handleToggleBookingApproval = async (bId: string, currentStatus: string) => {
     try {
-      const nextStatus = currentStatus === "pending" ? "approved" : "pending";
-      await updateDoc(doc(db, "bookings", bId), { 
-        status: nextStatus,
-        reviewedAt: new Date().toISOString(),
-        reviewedBy: "NFL Gridiron Box Office Management"
-      });
-      // Also update ticket_orders if matching
-      try {
-        await updateDoc(doc(db, "ticket_orders", bId), {
-          status: nextStatus === "approved" ? "confirmed" : "pending",
-          isApproved: nextStatus === "approved"
+      const targetBooking = bookings.find(b => b.id === bId) || { id: bId, status: currentStatus };
+      if (currentStatus === "approved") {
+        await updateDoc(doc(db, "bookings", bId), {
+          status: "pending",
+          isApproved: false,
+          reviewedAt: new Date().toISOString(),
+          reviewedBy: "NFL Gridiron Box Office Management"
         });
-      } catch (e) {
-        // non-fatal
+        try {
+          await updateDoc(doc(db, "ticket_orders", bId), {
+            status: "pending",
+            isApproved: false
+          });
+        } catch {
+          // non-fatal
+        }
+      } else {
+        await syncApproveOrder({
+          item: targetBooking,
+          reviewedBy: "NFL Gridiron Box Office Management"
+        });
       }
     } catch (err: any) {
       console.error(err);
@@ -1086,64 +1094,83 @@ export const ExperienceAdmin: React.FC = () => {
   };
 
   const handleOpenReceiptReview = (b: Booking) => {
+    const raw = b as any;
+    const allReceipts: string[] = Array.from(new Set([
+      ...(Array.isArray(b.receiptImages) ? b.receiptImages : []),
+      ...(Array.isArray(raw.receiptImages) ? raw.receiptImages : []),
+      ...(b.receiptImage ? [b.receiptImage] : []),
+      ...(raw.receiptImageUrl ? [raw.receiptImageUrl] : [])
+    ].filter((u): u is string => typeof u === "string" && u.trim().length > 0)));
+
     setSelectedBookingForReview({
       id: b.id,
+      orderId: raw.orderId || b.id,
       userEmail: b.userEmail,
       userId: b.userId,
       experienceTitle: b.experienceTitle,
+      experienceType: b.experienceType || raw.experienceType,
+      teamId: raw.teamId,
       date: b.date,
       timeSlot: b.timeSlot,
       tier: b.tier,
       guestsCount: b.guestsCount,
       totalPrice: b.totalPrice,
       status: b.status,
-      receiptImage: b.receiptImage || (b as any).receiptImageUrl,
-      receiptImages: b.receiptImages || (b as any).receiptImages || (b.receiptImage ? [b.receiptImage] : []),
+      receiptImage: allReceipts[0] || "",
+      receiptImageUrl: allReceipts[0] || "",
+      receiptImages: allReceipts,
       paymentMethod: b.paymentMethod,
       paymentRef: b.paymentRef,
       senderName: b.senderName,
+      buyerName: b.senderName,
       buyerPhone: b.buyerPhone,
+      ticketCode: raw.ticketCode || raw.qrCode,
+      qrCode: raw.qrCode || raw.ticketCode,
+      messagingPlatform: raw.messagingPlatform,
+      messagingDetails: raw.messagingDetails,
+      favoritePlayer: raw.favoritePlayer,
+      inquiryObjective: raw.inquiryObjective,
+      specialNotes: raw.specialNotes,
+      rejectReason: raw.rejectReason || raw.rejectionReason,
+      rejectionReason: raw.rejectionReason || raw.rejectReason,
+      notificationStatus: raw.notificationStatus,
+      notifiedAt: raw.notifiedAt,
+      notifiedChannel: raw.notifiedChannel,
       createdAt: b.createdAt
     });
     setReviewModalOpen(true);
   };
 
-  const handleApproveBookingFromModal = async (bookingId: string) => {
-    try {
-      await updateDoc(doc(db, "bookings", bookingId), {
-        status: "approved",
-        approvedAt: new Date().toISOString(),
-        approvedBy: "NFL Gridiron Manager (Box Office)"
-      });
-      try {
-        await updateDoc(doc(db, "ticket_orders", bookingId), {
-          status: "confirmed",
-          isApproved: true,
-          approvedAt: new Date().toISOString()
-        });
-      } catch (e) {}
-      setReviewModalOpen(false);
-      setSelectedBookingForReview(null);
-    } catch (err: any) {
-      console.error(err);
-      alert("Error approving pass: " + err.message);
-    }
+  const handleApproveBookingFromModal = async (bookingId: string, issuedCode?: string) => {
+    const target = bookings.find(b => b.id === bookingId) || selectedBookingForReview || { id: bookingId };
+    const result = await syncApproveOrder({
+      item: target,
+      issuedCode,
+      reviewedBy: "NFL Gridiron Manager (Box Office)"
+    });
+    setSelectedBookingForReview(prev => prev && prev.id === bookingId ? {
+      ...prev,
+      status: "approved",
+      ticketCode: result.finalCode,
+      qrCode: result.finalCode,
+      rejectReason: "",
+      rejectionReason: ""
+    } : prev);
   };
 
   const handleRejectBookingFromModal = async (bookingId: string, reason: string) => {
-    try {
-      await updateDoc(doc(db, "bookings", bookingId), {
-        status: "pending",
-        rejectionReason: reason,
-        reviewNotes: "Receipt rejected by management: " + reason,
-        reviewedAt: new Date().toISOString()
-      });
-      setReviewModalOpen(false);
-      setSelectedBookingForReview(null);
-    } catch (err: any) {
-      console.error(err);
-      alert("Error updating review: " + err.message);
-    }
+    const target = bookings.find(b => b.id === bookingId) || selectedBookingForReview || { id: bookingId };
+    const result = await syncRejectOrder({
+      item: target,
+      reason,
+      reviewedBy: "NFL Gridiron Manager (Box Office)"
+    });
+    setSelectedBookingForReview(prev => prev && prev.id === bookingId ? {
+      ...prev,
+      status: "rejected",
+      rejectReason: result.reason,
+      rejectionReason: result.reason
+    } : prev);
   };
 
   const handleCreatePromoBanner = async (e: React.FormEvent) => {
@@ -2021,21 +2048,27 @@ export const ExperienceAdmin: React.FC = () => {
 
             {/* Filter & Search Bar */}
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex bg-zinc-950 p-1 rounded-xl border border-white/5">
-                {(["all", "pending", "approved"] as const).map(tab => {
-                  const count = tab === "all" ? bookings.length : bookings.filter(b => b.status === tab).length;
+              <div className="flex bg-zinc-950 p-1 rounded-xl border border-white/5 flex-wrap">
+                {(["all", "pending", "approved", "rejected"] as const).map(tab => {
+                  const count = tab === "all"
+                    ? bookings.length
+                    : bookings.filter(b => b.status === tab).length;
                   return (
                     <button
                       key={tab}
                       onClick={() => setBookingFilter(tab)}
                       className={cn(
-                        "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                        "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer",
                         bookingFilter === tab 
-                          ? tab === "pending" ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-blue-600 text-white" 
+                          ? tab === "pending"
+                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                            : tab === "rejected"
+                            ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                            : "bg-blue-600 text-white" 
                           : "text-zinc-400 hover:text-white"
                       )}
                     >
-                      {tab === "all" ? "All" : tab === "pending" ? "Pending Review" : "Approved"} ({count})
+                      {tab === "all" ? "All" : tab === "pending" ? "Pending Review" : tab === "approved" ? "Approved" : "Rejected"} ({count})
                     </button>
                   );
                 })}
@@ -2076,6 +2109,7 @@ export const ExperienceAdmin: React.FC = () => {
                       b.id.toLowerCase().includes(searchLower) ||
                       b.userEmail.toLowerCase().includes(searchLower) ||
                       (b.senderName && b.senderName.toLowerCase().includes(searchLower)) ||
+                      ((b as any).favoritePlayer && String((b as any).favoritePlayer).toLowerCase().includes(searchLower)) ||
                       b.experienceTitle.toLowerCase().includes(searchLower);
                     return matchesFilter && matchesSearch;
                   });
@@ -2091,16 +2125,17 @@ export const ExperienceAdmin: React.FC = () => {
                   }
 
                   return filtered.map((b, bIdx) => {
+                    const rawB = b as any;
                     const receiptList: string[] = (b.receiptImages && b.receiptImages.length > 0)
                       ? b.receiptImages
-                      : ((b as any).receiptImages && (b as any).receiptImages.length > 0)
-                      ? (b as any).receiptImages
-                      : ((b.receiptImage || (b as any).receiptImageUrl) ? [b.receiptImage || (b as any).receiptImageUrl] : []);
+                      : (rawB.receiptImages && rawB.receiptImages.length > 0)
+                      ? rawB.receiptImages
+                      : ((b.receiptImage || rawB.receiptImageUrl) ? [b.receiptImage || rawB.receiptImageUrl] : []);
                     const hasReceipt = receiptList.length > 0;
                     const receiptUrl = receiptList[0];
 
                     return (
-                      <tr key={`${b.id || (b as any).orderId || bIdx}-${bIdx}`} className="border-b border-white/5 hover:bg-white/[0.01]">
+                      <tr key={`${b.id || rawB.orderId || bIdx}-${bIdx}`} className="border-b border-white/5 hover:bg-white/[0.01]">
                         <td className="p-4 sm:p-6 font-mono text-[9px] font-black text-zinc-400 select-all shrink-0">
                           {b.id}
                         </td>
@@ -2110,21 +2145,35 @@ export const ExperienceAdmin: React.FC = () => {
                           {b.buyerPhone && (
                             <p className="text-[9px] font-mono text-zinc-500">{b.buyerPhone}</p>
                           )}
+                          {rawB.messagingPlatform && (
+                            <p className="text-[9px] font-mono text-indigo-300 mt-0.5">
+                              {rawB.messagingPlatform}: {rawB.messagingDetails || "N/A"}
+                            </p>
+                          )}
                         </td>
                         <td className="p-4 sm:p-6">
-                          {(b.experienceType === "player_inquiry" || (b as any).favoritePlayer) ? (
+                          {(b.experienceType === "player_inquiry" || rawB.favoritePlayer) ? (
                             <div className="space-y-1">
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[8px] font-black uppercase tracking-wider">
-                                <Sparkles className="w-2.5 h-2.5" /> PLAYER INQUIRY ($100)
+                                <Sparkles className="w-2.5 h-2.5" /> CHARITY INQUIRY ($100)
                               </span>
                               <h4 className="text-xs font-black text-white uppercase">
-                                {(b as any).favoritePlayer || b.experienceTitle} ({(b as any).teamId || "NFL"})
+                                {rawB.favoritePlayer || b.experienceTitle} ({rawB.teamId || "NFL"})
                               </h4>
                               <p className="text-[9px] font-mono text-zinc-400">
-                                Channel: <strong className="text-emerald-400 uppercase">{(b as any).messagingPlatform || "Direct"}</strong> ({(b as any).messagingDetails || "N/A"})
+                                Channel: <strong className="text-emerald-400 uppercase">{rawB.messagingPlatform || "Direct"}</strong> ({rawB.messagingDetails || "N/A"})
                               </p>
-                              <p className="text-[8px] font-bold text-amber-400 uppercase tracking-wider">
-                                Status: Awaiting Player Details
+                              <p className={cn(
+                                "text-[8px] font-bold uppercase tracking-wider",
+                                b.status === "approved" ? "text-emerald-400" : b.status === "rejected" ? "text-rose-400" : "text-amber-400"
+                              )}>
+                                {b.status === "approved"
+                                  ? rawB.notificationStatus === "sent"
+                                    ? `Approved · Notified via ${rawB.notifiedChannel || rawB.messagingPlatform || "Messaging"}`
+                                    : "Receipt Approved · Ready to Notify Customer"
+                                  : b.status === "rejected"
+                                  ? "Receipt Rejected · Awaiting Re-upload"
+                                  : "Status: Receipt Awaiting Verification"}
                               </p>
                             </div>
                           ) : (
@@ -2175,14 +2224,28 @@ export const ExperienceAdmin: React.FC = () => {
                           {formatCurrency(b.totalPrice)}
                         </td>
                         <td className="p-4 sm:p-6 text-center">
-                          <span className={cn(
-                            "inline-flex px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
-                            b.status === "approved" 
-                              ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" 
-                              : "bg-amber-500/10 border border-amber-500/20 text-amber-400"
-                          )}>
-                            {b.status === "approved" ? "Approved / Pass Issued" : "Pending Review"}
-                          </span>
+                          <div className="flex flex-col items-center gap-1">
+                            <span className={cn(
+                              "inline-flex px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
+                              b.status === "approved" 
+                                ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" 
+                                : b.status === "rejected"
+                                ? "bg-rose-500/10 border border-rose-500/20 text-rose-400"
+                                : "bg-amber-500/10 border border-amber-500/20 text-amber-400"
+                            )}>
+                              {b.status === "approved" ? "Approved / Verified" : b.status === "rejected" ? "Receipt Rejected" : "Awaiting Verification"}
+                            </span>
+                            {rawB.notificationStatus === "sent" && (
+                              <span className="text-[8px] font-black uppercase text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">
+                                Notified ✓
+                              </span>
+                            )}
+                            {b.status === "rejected" && (rawB.rejectReason || rawB.rejectionReason) && (
+                              <span className="text-[8px] text-rose-300 max-w-[160px] truncate" title={rawB.rejectReason || rawB.rejectionReason}>
+                                {rawB.rejectReason || rawB.rejectionReason}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-4 sm:p-6 text-center">
                           <div className="flex items-center justify-center gap-2">
@@ -2192,7 +2255,7 @@ export const ExperienceAdmin: React.FC = () => {
                               className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
                             >
                               <Eye className="w-3 h-3 text-blue-400" />
-                              Review
+                              Review & Notify
                             </button>
 
                             <button

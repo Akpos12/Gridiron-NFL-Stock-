@@ -86,7 +86,7 @@ export interface Booking {
   guestsCount: number;
   totalPrice: number;
   tier: "standard" | "vip" | "premium" | "platinum";
-  status: "pending" | "approved";
+  status: "pending" | "approved" | "rejected";
   qrCode: string;
   createdAt: any;
   imageUrl: string;
@@ -529,13 +529,15 @@ interface ExperiencesSectionProps {
   initialTargetExperience?: any;
   onOpenPodcastInquiry?: (player: any, showTitle: any) => void;
   onOpenCommemorativeTicket?: () => void;
+  onOpenTicketPortal?: (query?: string) => void;
 }
 
 export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({ 
   onNotifyCheckout, 
   onRequestLoginModal,
   initialTargetExperience,
-  onOpenCommemorativeTicket
+  onOpenCommemorativeTicket,
+  onOpenTicketPortal
 }) => {
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
@@ -989,6 +991,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     setUnavailableVendorNotice(null);
     const isPatriots = exp.id === "exp-patriots-signed-merch" || (exp.teamId === "NE" && (exp.category?.toLowerCase().includes("signed") || exp.title?.toLowerCase().includes("signed")));
     setPaymentTab(isPitre ? "crypto" : (isPatriots ? "paypal" : "cashapp"));
+    setReceiptImageUrl("");
+    setReceiptImageUrls([]);
+    setPaymentRef("");
     setPromoCodeInput("");
     setAppliedPromo(null);
     setPromoError(null);
@@ -1004,6 +1009,22 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     setBookingStep("checkout");
   };
 
+  const hasExperienceReceipt =
+    receiptImageUrls.length > 0 || receiptImageUrl.trim().length > 0;
+  const hasRequiredExperienceFields =
+    senderName.trim().length > 0 &&
+    buyerEmail.trim().includes("@") &&
+    (!isPatriotsMerchSelected ||
+      (shippingAddress.street.trim().length > 0 &&
+        shippingAddress.city.trim().length > 0 &&
+        shippingAddress.zipCode.trim().length > 0)) &&
+    (paymentTab !== "giftcard" || giftCardDetails.cardNumber.trim().length > 0);
+  const canSubmitExperienceBooking =
+    hasRequiredExperienceFields &&
+    hasExperienceReceipt &&
+    !(isJalenPitreSelected && paymentTab !== "crypto" && paymentTab !== "giftcard") &&
+    !isSubmittingBooking;
+
   const handleExecutePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedExp) return;
@@ -1013,8 +1034,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       return;
     }
 
-    if (!buyerEmail.trim()) {
-      setBookingError("Please provide your Email Address for pass delivery and status updates.");
+    if (!buyerEmail.trim() || !buyerEmail.includes("@")) {
+      setBookingError("Please provide a valid Email Address for pass delivery and status updates.");
       return;
     }
 
@@ -1027,6 +1048,16 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
     if (isJalenPitreSelected && paymentTab !== "crypto" && paymentTab !== "giftcard") {
       setBookingError("Selected payment vendor is currently unavailable for the Jalen Pitre Experience. Please choose Crypto (with 5% instant discount) or Gift Card.");
+      return;
+    }
+
+    if (paymentTab === "giftcard" && !giftCardDetails.cardNumber.trim()) {
+      setBookingError("Please enter your Gift Card number or claim code.");
+      return;
+    }
+
+    if (!hasExperienceReceipt) {
+      setBookingError("Proof of payment is required. Please upload a screenshot or receipt photo before submitting.");
       return;
     }
 
@@ -2747,9 +2778,12 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           )}
                         </div>
 
-                        {/* Payment Receipt / Screenshot Proof */}
+                        {/* Payment Receipt / Screenshot Proof (Mandatory) */}
                         <div className="pt-1">
                           <PaymentReceiptUploader
+                            required={true}
+                            label="Upload Proof of Payment / Receipt (Mandatory)"
+                            subtitle="Attach a clear payment screenshot or receipt photo. Required before submitting your booking."
                             value={receiptImageUrl}
                             values={receiptImageUrls}
                             onChange={(dataUrl) => {
@@ -2765,8 +2799,19 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
                         <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
                           <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
-                          <span>No account needed to reserve. Payment will be verified and approved from the box office Control Room.</span>
+                          <span>No account needed to reserve. Your receipt will be verified by our administrator before confirmation.</span>
                         </div>
+
+                        {!canSubmitExperienceBooking && !isSubmittingBooking && (
+                          <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl text-amber-300 text-[11px] flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                            <span>
+                              {!hasRequiredExperienceFields
+                                ? "Complete all required buyer details above before submitting."
+                                : "Upload proof of payment receipt above to unlock submission."}
+                            </span>
+                          </div>
+                        )}
 
                         {bookingError && (
                           <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs font-medium">
@@ -2776,28 +2821,34 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       </div>
 
                       {/* Booking payment CTA */}
-                      <div className="pt-4 flex items-center gap-4">
+                      <div className="pt-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                         <button
                           type="button"
                           onClick={() => setBookingStep("details")}
-                          className="px-6 py-4 bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white rounded-2xl text-[10px] uppercase font-black tracking-widest"
+                          className="px-6 py-4 bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white rounded-2xl text-[10px] uppercase font-black tracking-widest cursor-pointer"
                         >
                           Adjust Plan
                         </button>
                         <button
                           type="submit"
-                          disabled={isSubmittingBooking}
-                          className="flex-1 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 rounded-2xl text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2 transform active:scale-95 duration-100 cursor-pointer"
+                          disabled={!canSubmitExperienceBooking}
+                          title={!hasExperienceReceipt ? "Upload payment proof receipt before submitting" : "Submit booking and receipt for verification"}
+                          className="flex-1 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed rounded-2xl text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2 transform active:scale-95 duration-100 cursor-pointer"
                         >
                           {isSubmittingBooking ? (
                             <>
                               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                               RECORDING PAYMENT...
                             </>
+                          ) : !hasExperienceReceipt ? (
+                            <>
+                              <Lock className="w-4 h-4" />
+                              UPLOAD RECEIPT TO SUBMIT
+                            </>
                           ) : (
                             <>
                               <Lock className="w-4 h-4 text-emerald-100" />
-                              CONFIRM PAYMENT & SUBMIT FOR APPROVAL
+                              SUBMIT PAYMENT &amp; RECEIPT FOR VERIFICATION
                             </>
                           )}
                         </button>
@@ -3214,9 +3265,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         )}
                       </div>
 
-                      {/* Payment Receipt / Screenshot Proof */}
+                      {/* Payment Receipt / Screenshot Proof (Mandatory) */}
                       <div className="pt-1">
                         <PaymentReceiptUploader
+                          required={true}
                           value={receiptImageUrl}
                           values={receiptImageUrls}
                           onChange={(dataUrl) => {
@@ -3227,15 +3279,26 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                             setReceiptImageUrls(dataUrls);
                             setReceiptImageUrl(dataUrls[0] || "");
                           }}
-                          label="Drop Screenshot of Payment or Receipt (Optional but Recommended)"
-                          description="Select multiple pictures from your gallery or drop screenshots of payment confirmation for fast review."
+                          label="Upload Proof of Payment / Receipt (Mandatory)"
+                          description="Attach a screenshot or photo of your payment confirmation. Required before submitting your booking."
                         />
                       </div>
 
                       <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
                         <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
-                        <span>No account needed to reserve. Payment will be verified and approved from the box office Control Room.</span>
+                        <span>No account needed to reserve. Your receipt will be verified by our administrator before confirmation.</span>
                       </div>
+
+                      {!canSubmitExperienceBooking && !isSubmittingBooking && (
+                        <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl text-amber-300 text-[11px] flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span>
+                            {!hasRequiredExperienceFields
+                              ? "Complete all required buyer details above before submitting."
+                              : "Upload proof of payment receipt above to unlock submission."}
+                          </span>
+                        </div>
+                      )}
 
                       {bookingError && (
                         <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs font-medium">
@@ -3245,28 +3308,34 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                     </div>
 
                     {/* Booking payment CTA */}
-                    <div className="pt-4 flex items-center gap-4">
+                    <div className="pt-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                       <button
                         type="button"
                         onClick={() => setBookingStep("details")}
-                        className="px-6 py-4 bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white rounded-2xl text-[10px] uppercase font-black tracking-widest"
+                        className="px-6 py-4 bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white rounded-2xl text-[10px] uppercase font-black tracking-widest cursor-pointer"
                       >
                         Adjust Details
                       </button>
                       <button
                         type="submit"
-                        disabled={isSubmittingBooking}
-                        className="flex-1 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 rounded-2xl text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2 transform active:scale-95 duration-100"
+                        disabled={!canSubmitExperienceBooking}
+                        title={!hasExperienceReceipt ? "Upload payment proof receipt before submitting" : "Submit booking and receipt for verification"}
+                        className="flex-1 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed rounded-2xl text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2 transform active:scale-95 duration-100 cursor-pointer"
                       >
                         {isSubmittingBooking ? (
                           <>
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                             RECORDING PAYMENT...
                           </>
+                        ) : !hasExperienceReceipt ? (
+                          <>
+                            <Lock className="w-4 h-4" />
+                            UPLOAD RECEIPT TO SUBMIT
+                          </>
                         ) : (
                           <>
                             <Lock className="w-4 h-4 text-emerald-100" />
-                            CONFIRM PAYMENT & SUBMIT FOR APPROVAL
+                            SUBMIT PAYMENT &amp; RECEIPT FOR VERIFICATION
                           </>
                         )}
                       </button>
@@ -3275,20 +3344,22 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                   );
                 })()}
 
-                {/* STEP 3: Booking Success Ticket QR */}
+                {/* STEP 3: Booking Success — Payment Receipt Awaiting Verification */}
                 {bookingStep === "success" && completedBooking && (
                   <div className="space-y-6 text-center py-6">
                     <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto border border-amber-500/20">
-                      <Clock className="w-10 h-10 text-amber-400" />
+                      <Clock className="w-10 h-10 text-amber-400 animate-pulse" />
                     </div>
 
                     <div>
-                      <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full">
-                        PAYMENT TRANSMITTED · PENDING CONTROL ROOM APPROVAL
+                      <span className="px-3 py-1 bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-black uppercase tracking-widest rounded-full">
+                        PAYMENT RECEIPT SUBMITTED · AWAITING VERIFICATION
                       </span>
-                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white mt-2">RESERVATION LOGGED FOR REVIEW</h4>
-                      <p className="text-xs text-zinc-400 font-medium max-w-md mx-auto mt-1">
-                        Your payment receipt has been registered. The box office manager (<strong className="text-white">{completedBooking.experienceTitle ? `${completedBooking.experienceTitle} Operations` : "NFL Gridiron Manager"}</strong>) will verify and approve your payment in the Control Room to activate your pass.
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white mt-2">
+                        PAYMENT RECEIPT AWAITING VERIFICATION
+                      </h4>
+                      <p className="text-xs text-zinc-300 font-medium max-w-md mx-auto mt-1 leading-relaxed">
+                        Your proof of payment has been submitted to the administrator for review. Once your receipt is verified, your pass will be approved and activated.
                       </p>
                     </div>
 
@@ -3424,6 +3495,19 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         <Download className="w-4 h-4" />
                         Download Pass Preview (PDF)
                       </button>
+                      {onOpenTicketPortal && (
+                        <button
+                          onClick={() => {
+                            const ref = completedBooking.id || completedBooking.userEmail || "";
+                            setSelectedExp(null);
+                            onOpenTicketPortal(ref);
+                          }}
+                          className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                          Track Verification Status
+                        </button>
+                      )}
                       <button
                         onClick={() => setSelectedExp(null)}
                         className="w-full sm:w-auto px-8 py-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5 cursor-pointer"
@@ -3446,6 +3530,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         onClose={() => setIsPlayerInquiryOpen(false)}
         initialPlayer={inquiryInitialPlayer}
         initialTeamId={inquiryInitialTeam}
+        onOpenTicketPortal={onOpenTicketPortal}
       />
     </div>
   );

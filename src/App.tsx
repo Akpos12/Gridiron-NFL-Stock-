@@ -115,6 +115,7 @@ import { VisitorAnalyticsPanel } from "./components/VisitorAnalyticsPanel";
 import { recordOrSyncVisit, SiteVisitRecord, subscribeToSiteVisits } from "./services/visitorTrackingService";
 import { LandingShowcase } from "./components/LandingShowcase";
 import { SupportTrustSection } from "./components/SupportTrustSection";
+import { syncApproveOrder, syncRejectOrder } from "./utils/orderSync";
 
 // --- Constants ---
 const NFL_LOGO_URL = "/nfl_logo.svg";
@@ -2244,48 +2245,74 @@ const AdminPortal = ({ user }: { user: any }) => {
   const handleApproveOrder = async (orderId: string, customCode?: string) => {
     try {
       setAdminLoading(true);
-      const target = orders.find(o => o.id === orderId) || {};
-      const orderIdStr = String(orderId || target.id || "ORD");
-      const finalCode = customCode || target.ticketCode || target.qrCode || `NFL-PASS-${orderIdStr.slice(-6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-      
-      const payload = {
+      const target = orders.find(o => o.id === orderId) || selectedOrderForReview || { id: orderId };
+      const result = await syncApproveOrder({
+        item: target,
+        issuedCode: customCode,
+        reviewedBy: user?.email || "Control Room Admin"
+      });
+
+      const orderIdStr = String(orderId || (target as any).id || "ORD");
+      const updateFields = {
         status: "approved",
         isApproved: true,
-        ticketCode: finalCode,
-        qrCode: finalCode,
-        approvedAt: new Date().toISOString(),
-        reviewedBy: user?.email || "Control Room Admin"
+        ticketCode: result.finalCode,
+        qrCode: result.finalCode,
+        approvedAt: result.approvedAt,
+        rejectReason: "",
+        rejectionReason: "",
+        requiresReceiptReupload: false,
+        orderStatus: "APPROVED · READY TO PROCEED"
       };
 
-      const sourceDocs: Array<{ col: string; docId: string }> = Array.isArray(target._sourceDocs) && target._sourceDocs.length > 0
-        ? target._sourceDocs
-        : [
-            { col: "store_orders", docId: orderId },
-            { col: "bookings", docId: orderId },
-            { col: "ticket_orders", docId: orderId }
-          ];
-
-      await Promise.all(
-        sourceDocs.map(({ col, docId }) =>
-          setDoc(
-            doc(db, col, docId),
-            col === "ticket_orders" ? { ...payload, status: "confirmed" } : payload,
-            { merge: true }
-          ).catch(() => {})
-        )
-      );
-
-      // Optimistic local update
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...payload } : o));
+      // Optimistic local update for table and currently open modal
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...updateFields } : o));
+      setSelectedOrderForReview(prev => prev && prev.id === orderId ? { ...prev, ...updateFields } : prev);
 
       setOrderActionFeedback({
-        text: `Order #${orderIdStr.slice(-6)} Approved! Pass Code Issued: ${finalCode}`,
+        text: `Order #${orderIdStr.slice(-6)} Approved! Pass Code Issued: ${result.finalCode}`,
         type: 'success'
       });
       setTimeout(() => setOrderActionFeedback(null), 4000);
     } catch (err: any) {
       console.error("Approve Order Error:", err);
       setOrderActionFeedback({ text: `Failed to approve order: ${err.message}`, type: 'error' });
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleRejectOrder = async (orderId: string, reason: string) => {
+    try {
+      setAdminLoading(true);
+      const target = orders.find(o => o.id === orderId) || selectedOrderForReview || { id: orderId };
+      const result = await syncRejectOrder({
+        item: target,
+        reason,
+        reviewedBy: user?.email || "Control Room Admin"
+      });
+
+      const orderIdStr = String(orderId || (target as any).id || "ORD");
+      const updateFields = {
+        status: "rejected",
+        isApproved: false,
+        requiresReceiptReupload: true,
+        rejectReason: result.reason,
+        rejectionReason: result.reason,
+        orderStatus: "RECEIPT REJECTED · RE-UPLOAD REQUIRED"
+      };
+
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...updateFields } : o));
+      setSelectedOrderForReview(prev => prev && prev.id === orderId ? { ...prev, ...updateFields } : prev);
+
+      setOrderActionFeedback({
+        text: `Order #${orderIdStr.slice(-6)} marked rejected. Customer can upload a corrected receipt.`,
+        type: 'info'
+      });
+      setTimeout(() => setOrderActionFeedback(null), 4000);
+    } catch (err: any) {
+      console.error("Reject Order Error:", err);
+      setOrderActionFeedback({ text: `Failed to reject receipt: ${err.message}`, type: 'error' });
     } finally {
       setAdminLoading(false);
     }
@@ -2311,6 +2338,8 @@ const AdminPortal = ({ user }: { user: any }) => {
       buyerPhone: item.buyerPhone || item.contactMethod,
       experienceId: item.experienceId || item.gameId,
       experienceTitle: item.experienceTitle || item.itemName || item.gameName || "NFL Official Experience / Match Pass",
+      experienceType: item.experienceType,
+      teamId: item.teamId,
       itemName: item.itemName || item.experienceTitle || item.gameName,
       gameName: item.gameName || item.experienceTitle || item.itemName,
       date: item.date,
@@ -2331,6 +2360,17 @@ const AdminPortal = ({ user }: { user: any }) => {
       status: item.status || "pending",
       qrCode: item.qrCode || item.ticketCode,
       ticketCode: item.ticketCode || item.qrCode,
+      messagingPlatform: item.messagingPlatform,
+      messagingDetails: item.messagingDetails,
+      favoritePlayer: item.favoritePlayer,
+      inquiryObjective: item.inquiryObjective,
+      specialNotes: item.specialNotes,
+      rejectReason: item.rejectReason || item.rejectionReason,
+      rejectionReason: item.rejectionReason || item.rejectReason,
+      notificationStatus: item.notificationStatus,
+      notifiedAt: item.notifiedAt,
+      notifiedChannel: item.notifiedChannel,
+      _sourceDocs: item._sourceDocs,
       timestamp: item.timestamp
     });
     setIsOrderReviewOpen(true);
@@ -2478,7 +2518,19 @@ const AdminPortal = ({ user }: { user: any }) => {
           paymentSessionId: v.paymentSessionId || v.sessionId || existing?.paymentSessionId || existing?.sessionId || "",
           paymentRef: v.paymentRef || v.paymentReference || existing?.paymentRef || existing?.paymentReference || "",
           buyerName: v.buyerName || v.senderName || v.userName || v.customerName || existing?.buyerName || existing?.senderName || existing?.userName || "",
-          buyerEmail: v.buyerEmail || v.userEmail || v.email || existing?.buyerEmail || existing?.userEmail || ""
+          buyerEmail: v.buyerEmail || v.userEmail || v.email || existing?.buyerEmail || existing?.userEmail || "",
+          messagingPlatform: v.messagingPlatform || existing?.messagingPlatform || "",
+          messagingDetails: v.messagingDetails || existing?.messagingDetails || "",
+          favoritePlayer: v.favoritePlayer || existing?.favoritePlayer || "",
+          inquiryObjective: v.inquiryObjective || existing?.inquiryObjective || "",
+          specialNotes: v.specialNotes || existing?.specialNotes || "",
+          experienceType: v.experienceType || existing?.experienceType || "",
+          teamId: v.teamId || existing?.teamId || "",
+          rejectReason: v.rejectReason ?? existing?.rejectReason ?? "",
+          rejectionReason: v.rejectionReason ?? existing?.rejectionReason ?? "",
+          notificationStatus: v.notificationStatus || existing?.notificationStatus || "",
+          notifiedAt: v.notifiedAt || existing?.notifiedAt || "",
+          notifiedChannel: v.notifiedChannel || existing?.notifiedChannel || ""
         });
       };
 
@@ -3108,16 +3160,25 @@ const AdminPortal = ({ user }: { user: any }) => {
                     <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" /> Pending Audit
                   </span>
                   <span className="text-xl font-mono font-black text-amber-300">
-                    {orders.filter(o => o.status === 'pending' || !o.isApproved).length}
+                    {orders.filter(o => o.status !== 'rejected' && (o.status === 'pending' || o.status === 'pending_approval' || !o.isApproved)).length}
                   </span>
                 </div>
                 <div className="h-8 w-px bg-white/10" />
                 <div>
                   <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 block flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" /> Approved & Issued
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" /> Approved &amp; Issued
                   </span>
                   <span className="text-xl font-mono font-black text-emerald-400">
                     {orders.filter(o => o.status === 'approved' || o.isApproved || o.status === 'confirmed').length}
+                  </span>
+                </div>
+                <div className="h-8 w-px bg-white/10" />
+                <div>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-rose-400 block flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-rose-400" /> Rejected
+                  </span>
+                  <span className="text-xl font-mono font-black text-rose-400">
+                    {orders.filter(o => o.status === 'rejected').length}
                   </span>
                 </div>
               </div>
@@ -3217,6 +3278,11 @@ const AdminPortal = ({ user }: { user: any }) => {
                             {item.buyerPhone && (
                               <p className="text-[9px] font-mono text-zinc-500">{item.buyerPhone}</p>
                             )}
+                            {item.messagingPlatform && (
+                              <p className="text-[9px] font-mono text-indigo-300 mt-0.5">
+                                {item.messagingPlatform}: {item.messagingDetails || "Handle provided"}
+                              </p>
+                            )}
                           </td>
 
                           <td className="p-6">
@@ -3280,18 +3346,30 @@ const AdminPortal = ({ user }: { user: any }) => {
                           </td>
 
                           <td className="p-6">
-                            <span className={cn(
-                              "px-3 py-1 text-[10px] font-black uppercase rounded-lg inline-flex items-center gap-1.5",
-                              isApproved ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20" :
-                              isPending ? "bg-amber-600/10 text-amber-400 border border-amber-500/20 animate-pulse" :
-                              "bg-rose-600/10 text-rose-400 border border-rose-500/20"
-                            )}>
+                            <div className="flex flex-col items-start gap-1">
                               <span className={cn(
-                                "w-1.5 h-1.5 rounded-full",
-                                isApproved ? "bg-emerald-400" : isPending ? "bg-amber-400" : "bg-rose-400"
-                              )} />
-                              {isApproved ? "Approved / Pass Issued" : isPending ? "Pending Review" : "Rejected"}
-                            </span>
+                                "px-3 py-1 text-[10px] font-black uppercase rounded-lg inline-flex items-center gap-1.5",
+                                isApproved ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20" :
+                                isPending ? "bg-amber-600/10 text-amber-400 border border-amber-500/20 animate-pulse" :
+                                "bg-rose-600/10 text-rose-400 border border-rose-500/20"
+                              )}>
+                                <span className={cn(
+                                  "w-1.5 h-1.5 rounded-full",
+                                  isApproved ? "bg-emerald-400" : isPending ? "bg-amber-400" : "bg-rose-400"
+                                )} />
+                                {isApproved ? "Approved / Pass Issued" : isPending ? "Awaiting Verification" : "Rejected"}
+                              </span>
+                              {item.notificationStatus === "sent" && (
+                                <span className="text-[8px] font-black uppercase text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">
+                                  Notified ✓ {item.notifiedChannel ? `(${item.notifiedChannel})` : ""}
+                                </span>
+                              )}
+                              {item.status === "rejected" && (item.rejectReason || item.rejectionReason) && (
+                                <span className="text-[9px] text-rose-300 max-w-[190px] truncate" title={item.rejectReason || item.rejectionReason}>
+                                  {item.rejectReason || item.rejectionReason}
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           <td className="p-6 text-right">
@@ -3869,6 +3947,7 @@ const AdminPortal = ({ user }: { user: any }) => {
           }}
           booking={selectedOrderForReview}
           onApprove={(orderId, issuedCode) => handleApproveOrder(orderId, issuedCode)}
+          onReject={(orderId, reason) => handleRejectOrder(orderId, reason)}
           onStatusUpdated={() => {
             // Real-time Firestore snapshot listeners automatically sync state
           }}
@@ -5890,6 +5969,10 @@ export default function App() {
                     setShowFanCardForm(true);
                   }}
                   onOpenCommemorativeTicket={() => setShowVipCommemorativeModal(true)}
+                  onOpenTicketPortal={(queryText) => {
+                    setTicketCheckInitialQuery(queryText || "");
+                    setShowTicketCheckModal(true);
+                  }}
                 />
               </div>
             )}
