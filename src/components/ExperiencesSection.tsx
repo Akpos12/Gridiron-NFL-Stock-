@@ -36,7 +36,8 @@ import {
   UserCheck,
   Radio,
   Mic,
-  Award
+  Award,
+  Heart
 } from "lucide-react";
 import { collection, onSnapshot, getDocs, setDoc, doc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { db, auth, safeSetDoc, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -127,7 +128,7 @@ const SEED_EXPERIENCES: Experience[] = [
   {
     id: "exp-player-inquiry-session",
     title: "NFL STAR PLAYER INQUIRY & LIAISON SESSION",
-    description: "Direct inquiry session for ANY active NFL player across all 32 teams. Submit your favorite star player, team, and preferred messaging platform (WhatsApp, Zangi, or Telegram). Following liaison review, our verified player coordinator connects with player management and supplies you with private availability, schedule, and encounter details.",
+    description: "Direct inquiry session for ANY active NFL player across all 32 teams. Submit your favorite star player, team, and preferred messaging platform (WhatsApp, Zangi, or Telegram). 100% of the $100 inquiry fee goes directly to charity while our coordinator connects with player representation.",
     type: "player_inquiry",
     category: "Player Inquiry Session",
     price: 100,
@@ -140,11 +141,11 @@ const SEED_EXPERIENCES: Experience[] = [
     dates: ["Direct On-Demand Inquiry (Active Daily)"],
     timeSlots: ["Awaiting Player Details"],
     features: [
+      "100% of the $100 inquiry fee goes directly to charity",
       "Direct inquiry access for any active player across all 32 NFL franchises",
       "Customer chooses preferred messaging app (WhatsApp, Zangi, or Telegram)",
       "Official liaison verification & direct outreach to player management",
-      "Digital VIP Clearance Pass & QR Code issued immediately upon confirmation",
-      "Status tracking: Awaiting Player Details with direct notification"
+      "Digital VIP Clearance Pass & QR Code issued immediately upon confirmation"
     ],
     rating: 5.0,
     reviewsCount: 128
@@ -1259,9 +1260,13 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
               Looking for a Specific NFL Star Player?
             </h3>
             <p className="text-xs sm:text-sm text-zinc-300 font-medium leading-relaxed">
-              Submit your contact information, select any of the 32 NFL teams & your favorite player, and choose your preferred messaging platform (WhatsApp, Zangi, or Telegram) to receive verified player availability and scheduling details.
+              Submit your contact information, select any of the 32 NFL teams &amp; your favorite player, and choose your preferred messaging platform (WhatsApp, Zangi, or Telegram) to receive verified player availability and scheduling details. <strong className="text-emerald-300">100% of the $100 inquiry fee goes directly to charity.</strong>
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-1 text-[9px] font-mono text-zinc-400">
+              <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                <Heart className="w-3 h-3" /> 100% of $100 Fee Goes to Charity
+              </span>
+              <span className="text-zinc-600">·</span>
               <span className="flex items-center gap-1 text-emerald-400 font-bold">
                 <CheckCircle2 className="w-3 h-3" /> All 32 Teams Supported
               </span>

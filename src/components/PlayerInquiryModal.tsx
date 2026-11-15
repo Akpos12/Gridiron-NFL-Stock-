@@ -23,7 +23,8 @@ import {
   Smartphone, 
   Radio, 
   Layers, 
-  Lock 
+  Lock,
+  Heart
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -264,7 +265,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         features: [
           `Target Player Inquired: ${favoritePlayer.trim()}`,
           `Franchise: ${selectedTeam.city} ${selectedTeam.name}`,
-          `Official $100 talent liaison deposit logged`,
+          `100% of the $100 inquiry fee goes directly to charity`,
           `Contact channel: ${platformName} (${messagingDetails.trim()})`,
           `Awaiting direct player schedule & booking availability packet`,
           `Concierge liaison outreach active`
@@ -395,13 +396,14 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
         {/* Modal Banner Header */}
         <div className="relative p-6 sm:p-8 bg-gradient-to-r from-blue-900/60 via-indigo-950/60 to-zinc-950 border-b border-white/10">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-[9px] font-black uppercase tracking-widest text-blue-400 animate-pulse">
+          <div className="flex items-center flex-wrap gap-2 mb-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-[9px] font-black uppercase tracking-widest text-blue-400">
               <Sparkles className="w-3.5 h-3.5" />
               NFL Roster Concierge
             </span>
-            <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-mono font-black text-emerald-400">
-              $100 FLAT SESSION FEE
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[9px] font-mono font-black text-emerald-300">
+              <Heart className="w-3 h-3 fill-emerald-400/30" />
+              $100 FEE · 100% GOES TO CHARITY
             </span>
           </div>
 
@@ -409,7 +411,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
             CUSTOM NFL PLAYER INQUIRY & LIAISON
           </h3>
           <p className="text-xs text-zinc-400 mt-1 max-w-lg font-medium leading-relaxed">
-            Inquire about any active NFL superstar or roster talent across all 32 franchises. Submit your target player and preferred messaging contact to receive verified player availability and scheduling details.
+            Inquire about any active NFL superstar or roster talent across all 32 franchises. <strong className="text-emerald-300">100% of your $100 inquiry fee goes directly to charity</strong> while our team connects with player representation.
           </p>
 
           {/* Stepper indicator */}
@@ -663,19 +665,17 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                 </div>
               </div>
 
-              {/* Bottom Proceed CTA - $100 fee is displayed in Step 2 after selection */}
-              <div className="p-5 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 rounded-3xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* Bottom Proceed CTA - highlights that the $100 fee goes to charity */}
+              <div className="p-5 bg-gradient-to-r from-emerald-950/40 via-zinc-900 to-zinc-950 rounded-3xl border border-emerald-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-black uppercase text-zinc-400 tracking-wider">
-                      Official Talent Liaison Inquiry
-                    </span>
-                    <span className="text-[8px] font-black uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-mono">
-                      DIRECT AGENT OUTREACH
+                  <div className="flex items-center flex-wrap gap-2">
+                    <span className="text-[9px] font-black uppercase text-emerald-300 tracking-wider inline-flex items-center gap-1.5">
+                      <Heart className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20" />
+                      100% Charity Commitment ($100 Inquiry Fee)
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-300 font-medium">
-                    Review agency liaison terms & process deposit payment after confirming your player selection.
+                  <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                    Every dollar of the $100 player inquiry fee goes directly to charity—proceed to complete your inquiry and unlock direct player liaison outreach.
                   </p>
                 </div>
 
@@ -715,9 +715,17 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                 </div>
 
                 <div className="text-right">
-                  <span className="text-[9px] font-mono text-zinc-500 uppercase block">Fee Due</span>
+                  <span className="text-[9px] font-mono text-zinc-500 uppercase block">Charity Inquiry Fee</span>
                   <span className="text-xl font-mono font-black text-emerald-400">${finalPrice} USD</span>
                 </div>
+              </div>
+
+              {/* Charity Transparency Banner */}
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-3">
+                <Heart className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5 fill-emerald-400/20" />
+                <p className="text-xs text-emerald-100 leading-relaxed">
+                  <strong className="text-emerald-300 uppercase tracking-wide">100% Goes to Charity:</strong> Your ${finalPrice} USD player inquiry fee is donated directly to charity—helping fund youth football &amp; community outreach initiatives.
+                </p>
               </div>
 
               {/* Payment Methods Tabs */}
@@ -913,14 +921,14 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               </div>
 
               <div>
-                <span className="px-3.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full">
-                  $100 PAYMENT TRANSMITTED · AWAITING PLAYER DETAILS
+                <span className="px-3.5 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-black uppercase tracking-widest rounded-full">
+                  $100 CHARITY CONTRIBUTION LOGGED · AWAITING PLAYER DETAILS
                 </span>
                 <h4 className="text-2xl font-black italic uppercase tracking-tighter text-white mt-2">
                   INQUIRY ACTIVE FOR {completedOrder.player}
                 </h4>
-                <p className="text-xs text-zinc-400 font-medium max-w-md mx-auto mt-1 leading-relaxed">
-                  Your $100 talent clearance fee is logged! Our concierge liaison is currently contacting representation for <strong className="text-white">{completedOrder.player}</strong> ({completedOrder.teamName}).
+                <p className="text-xs text-zinc-300 font-medium max-w-md mx-auto mt-1 leading-relaxed">
+                  Thank you! <strong className="text-emerald-300">100% of your $100 inquiry fee goes directly to charity</strong>, and our concierge liaison is now contacting representation for <strong className="text-white">{completedOrder.player}</strong> ({completedOrder.teamName}).
                 </p>
               </div>
 

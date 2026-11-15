@@ -54,7 +54,8 @@ import {
   Zap,
   Sparkles,
   Radio,
-  Eye
+  Eye,
+  Heart
 } from "lucide-react";
 import { 
   XAxis, 
@@ -118,42 +119,45 @@ const NFL_LOGO_URL = "/nfl_logo.svg";
 
 const LANDING_NEWS = [
   {
-    category: "ROSTER EQUITY",
-    title: "Free Agency Frenzy: How Star Signings Shift Franchise Valuation",
-    source: "Gridiron Exchange Analytics",
-    time: "12m ago",
+    category: "VIP SIDELINE ACCESS",
+    title: "Tunnel Walkouts, Pre-Game Field Passes & Locker Room Tours",
+    source: "Official Fan Experiences",
+    time: "All 32 Stadiums",
+    targetTab: "experiences" as const,
     image: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800"
   },
   {
-    category: "DRAFT SPECULATION",
-    title: "Top Prospects' Draft Stock Hits New Highs as Combine Data Leaks",
-    source: "Sports Business Journal",
-    time: "1h ago",
+    category: "ARENA SHOP & TICKETS",
+    title: "Lower-Bowl Match Tickets, Season Passes & Signed Vault Gear",
+    source: "Instant Digital Pass",
+    time: "Verified Authentic",
+    targetTab: "shop" as const,
     image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800"
   },
   {
-    category: "CAPITAL FLOW",
-    title: "Quarterback Liquidity: The Rising Cost of Franchise Protection",
-    source: "Bloomberg Sports",
-    time: "4h ago",
+    category: "GIVE BACK FOR A CAUSE",
+    title: "Inquire About Any NFL Star — 100% of $100 Fee Goes to Charity",
+    source: "Player Liaison & Charity",
+    time: "Direct Outreach",
+    targetTab: "experiences" as const,
     image: "https://images.unsplash.com/photo-1610444583731-9ef82ba39235?auto=format&fit=crop&q=80&w=800"
   }
 ];
 
 const TESTIMONIALS = [
   {
-    name: "Marcus V.",
-    text: "The precision of the execution and the liquidity provided by NFL EXCHANGE GRIDIRON is unmatched in the sports equity space.",
+    name: "Marcus V. · Seattle",
+    text: "Stepping onto the Lumen Field sidelines before kickoff was unreal. Our digital passes arrived right after approval with zero stress.",
     rating: 5
   },
   {
-    name: "Sarah L.",
-    text: "Being able to trade draft speculation before the official draft has revolutionized how we hedge team risk.",
+    name: "Sarah L. · Boston",
+    text: "Ordered a Patriots signed memorabilia vault piece and Club Level game tickets—fastest checkout and authentic COA included.",
     rating: 5
   },
   {
-    name: "Michael T.",
-    text: "A sophisticated terminal for a sophisticated class of assets. The only way I manage my franchise holdings.",
+    name: "Michael T. · Denver",
+    text: "Used Inquire About a Player for my son's birthday surprise—knowing the $100 liaison fee went straight to charity made it even better.",
     rating: 5
   }
 ];
@@ -4857,19 +4861,17 @@ export default function App() {
               <img src={NFL_LOGO_URL} alt="NFL Shield Logo" className="w-full h-full object-contain p-1" />
             </div>
             <div>
-              <h1 className="text-lg md:text-xl font-black italic uppercase tracking-tighter leading-none">NFL EXCHANGE</h1>
-              <p className="hidden xs:block text-[8px] md:text-[10px] font-black text-zinc-500 uppercase tracking-widest">Digital Asset Terminal</p>
+              <h1 className="text-lg md:text-xl font-black italic uppercase tracking-tighter leading-none">NFL GRIDIRON</h1>
+              <p className="hidden xs:block text-[8px] md:text-[10px] font-black text-zinc-500 uppercase tracking-widest">Official Fan Experience &amp; Arena</p>
             </div>
           </div>
 
           <div className="hidden lg:flex items-center gap-8">
             {([
-              ...(!user ? [
-                { id: "stocks", label: "Buy Team Stocks", icon: Lock, isPromo: true },
-              ] : [
+              ...(user ? [
                 { id: "markets", label: "Exchange", icon: LayoutDashboard },
                 { id: "draft", label: "Speculation", icon: Target },
-              ]),
+              ] : []),
               { id: "experiences", label: "Experiences", icon: Star },
               { id: "shop", label: "Arena Shop", icon: ShoppingBag },
               ...(user ? [{ id: "portfolio", label: "Portfolio", icon: History }] : []),
@@ -4960,8 +4962,8 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <button onClick={() => setShowLogin(true)} className="bg-blue-600 text-white px-5 md:px-8 py-3 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20">
-              Investor Portal
+            <button onClick={() => setShowLogin(true)} className="bg-zinc-900 border border-white/15 text-white px-5 md:px-7 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all">
+              Sign In
             </button>
           )}
         </div>
@@ -4992,14 +4994,12 @@ export default function App() {
       {/* Mobile Bottom Nav */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-zinc-950/80 backdrop-blur-2xl border-t border-white/5 z-50 flex items-center justify-around p-4">
         {[
-          ...(!user ? [
-            { id: "stocks", label: "Buy Stocks", icon: Lock, isPromo: true },
-          ] : [
+          ...(user ? [
             { id: "markets", label: "Exchange", icon: LayoutDashboard },
             { id: "draft", label: "Speculation", icon: Target },
-          ]),
+          ] : []),
           { id: "experiences", label: "Experiences", icon: Star },
-          { id: "shop", label: "Shop", icon: ShoppingBag },
+          { id: "shop", label: "Arena Shop", icon: ShoppingBag },
           ...(user ? [{ id: "portfolio", label: "Portfolio", icon: History }] : []),
           ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control", icon: ShieldCheck }] : [])
         ].map(tab => (
@@ -5011,14 +5011,10 @@ export default function App() {
             }}
             className={cn(
               "flex flex-col items-center gap-1 transition-colors",
-              tab.isPromo 
-                ? (activeTab === tab.id ? "text-blue-400 font-black scale-105" : "text-blue-400/80")
-                : activeTab === tab.id 
-                  ? "text-blue-500" 
-                  : "text-zinc-500"
+              activeTab === tab.id ? "text-blue-500" : "text-zinc-500"
             )}
           >
-            <tab.icon className={cn("w-5 h-5", tab.isPromo && (activeTab === tab.id ? "text-blue-400" : "text-blue-400/80"))} />
+            <tab.icon className="w-5 h-5" />
             <span className="text-[8px] font-black uppercase tracking-tighter">{tab.label}</span>
           </button>
         ))}
@@ -5436,19 +5432,38 @@ export default function App() {
               <div className="w-20 h-28 md:w-28 md:h-36 bg-zinc-950 rounded-2xl p-2.5 border border-white/10 mb-6 shadow-2xl overflow-hidden flex items-center justify-center">
                 <img src={NFL_LOGO_URL} alt="NFL Logo" className="w-full h-full object-contain" />
               </div>
-              <h1 className="text-4xl xs:text-5xl sm:text-6xl md:text-8xl font-black italic uppercase tracking-tighter mb-6 md:mb-8 leading-none">
-                THE <span className="text-blue-600">NFL</span><br/>EXCHANGE
-              </h1>
-              <p className="text-sm sm:text-lg md:text-xl text-zinc-400 mb-8 md:mb-12 max-w-2xl mx-auto font-black italic uppercase tracking-widest leading-relaxed">
-                Create an account to buy & trade official NFL team stocks with real-time equity valuation and institutional execution
+              <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.28em] text-blue-400 mb-3">
+                All 32 Franchises · Sideline Access · Official Arena Store
               </p>
-              <div className="flex flex-col sm:flex-row justify-center gap-4 mb-20 px-4 w-full sm:w-auto">
-                <button onClick={() => { setIsSignUp(true); setShowLogin(true); }} className="bg-white text-black px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl shadow-white/5 whitespace-nowrap flex items-center justify-center gap-2">
-                  <Lock className="w-4 h-4 text-blue-600" /> CREATE ACCOUNT TO BUY STOCKS
+              <h1 className="text-4xl xs:text-5xl sm:text-6xl md:text-8xl font-black italic uppercase tracking-tighter mb-6 md:mb-8 leading-[0.95]">
+                LIVE GAME DAY.<br/>
+                <span className="text-blue-500">BEYOND THE STANDS.</span>
+              </h1>
+              <p className="text-sm sm:text-lg md:text-xl text-zinc-300 mb-8 md:mb-10 max-w-2xl mx-auto font-bold leading-relaxed">
+                Step onto the field with VIP sideline passes, private stadium tours, certified autographed gear, and charity-backed NFL player encounters—instant guest booking with zero account required.
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center gap-4 mb-10 px-4 w-full sm:w-auto">
+                <button
+                  onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-7 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest transition-all shadow-2xl shadow-blue-600/30 whitespace-nowrap flex items-center justify-center gap-2.5 cursor-pointer"
+                >
+                  <Star className="w-4 h-4" /> EXPLORE FAN EXPERIENCES
                 </button>
-                <button onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }} className="bg-zinc-900 border border-white/10 text-white px-6 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-2xl whitespace-nowrap">
-                  EXPLORE EXPERIENCES
+                <button
+                  onClick={() => { setActiveTab("shop"); setDismissedHero(true); }}
+                  className="bg-white text-black px-7 sm:px-12 py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl whitespace-nowrap flex items-center justify-center gap-2.5 cursor-pointer"
+                >
+                  <ShoppingBag className="w-4 h-4 text-blue-600" /> SHOP TICKETS &amp; GEAR
                 </button>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-zinc-400 mb-14">
+                <span>Instant Guest Checkout</span>
+                <span aria-hidden="true" className="text-zinc-600">·</span>
+                <span>Official Match &amp; Season Passes</span>
+                <span aria-hidden="true" className="text-zinc-600">·</span>
+                <span className="text-emerald-400 inline-flex items-center gap-1">
+                  <Heart className="w-3.5 h-3.5" /> $100 Player Inquiries Go 100% to Charity
+                </span>
               </div>
             </motion.div>
             
@@ -5456,24 +5471,26 @@ export default function App() {
             <motion.div 
               animate={{ y: [0, 10, 0] }}
               transition={{ repeat: Infinity, duration: 2 }}
-              className="absolute bottom-10 left-1/2 -translate-x-1/2 text-zinc-500"
+              className="absolute bottom-8 left-1/2 -translate-x-1/2 text-zinc-500"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-2">Explore Market</p>
-              <div className="w-px h-12 bg-gradient-to-b from-blue-600 to-transparent mx-auto" />
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-2">Inside The Fan Pass</p>
+              <div className="w-px h-10 bg-gradient-to-b from-blue-600 to-transparent mx-auto" />
             </motion.div>
           </section>
 
-          {/* Breaking News Section */}
-          <section className="py-16 md:py-32 px-4 md:px-8 max-w-7xl mx-auto">
+          {/* Featured Fan Experiences & Shop Highlights */}
+          <section className="py-16 md:py-28 px-4 md:px-8 max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
               <div>
-                <h2 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter">Market Intelligence</h2>
-                <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] md:text-xs">Proprietary news and real-time analysis</p>
+                <h2 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter">Unforgettable Game-Day Access</h2>
+                <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] md:text-xs mt-1">From tunnel walkouts to signed collectibles — ready to book in seconds</p>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-blue-500">Live Terminal Feed</span>
-              </div>
+              <button
+                onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }}
+                className="text-xs font-black uppercase tracking-widest text-blue-400 hover:text-white transition-colors inline-flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+              >
+                View All Experiences <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
@@ -5483,67 +5500,100 @@ export default function App() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
-                  key={news.title} 
+                  key={news.title}
+                  onClick={() => { setActiveTab(news.targetTab); setDismissedHero(true); }}
                   className="group cursor-pointer"
                 >
-                  <div className="relative aspect-[16/10] overflow-hidden rounded-3xl mb-6 border border-white/5">
-                    <NFLImage item={news} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-60 group-hover:opacity-100" />
-                    <div className="absolute top-4 left-4 bg-blue-600 px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest">
-                      {news.category}
-                    </div>
+                  <div className="relative aspect-[16/10] overflow-hidden rounded-3xl mb-6 border border-white/10">
+                    <NFLImage item={news} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-75 group-hover:opacity-100" />
                   </div>
-                  <h3 className="text-lg font-black italic uppercase tracking-tight mb-4 group-hover:text-blue-500 transition-colors leading-tight">
+                  <div className="flex items-center gap-2 text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">
+                    <span>{news.category}</span>
+                    <span aria-hidden="true" className="text-zinc-600">·</span>
+                    <span className="text-zinc-400">{news.time}</span>
+                  </div>
+                  <h3 className="text-lg font-black italic uppercase tracking-tight mb-3 group-hover:text-blue-400 transition-colors leading-tight">
                     {news.title}
                   </h3>
-                  <div className="flex items-center gap-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                    <span>{news.source}</span>
-                    <span className="w-1 h-1 rounded-full bg-zinc-800" />
-                    <span>{news.time}</span>
-                  </div>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-white transition-colors">
+                    {news.source} <ArrowUpRight className="w-3.5 h-3.5" />
+                  </span>
                 </motion.div>
               ))}
             </div>
 
-            {/* Shop Highlights for landing */}
-            <div className="bg-zinc-900 shadow-2xl rounded-3xl md:rounded-[3rem] p-6 sm:p-10 md:p-12 border border-white/5 relative overflow-hidden">
+            {/* Shop & Fan Pass Showcase */}
+            <div className="bg-zinc-900 shadow-2xl rounded-3xl md:rounded-[3rem] p-6 sm:p-10 md:p-12 border border-white/10 relative overflow-hidden">
                <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-600/10 blur-[100px] rounded-full" />
                <div className="relative z-10">
                  <div className="flex flex-col lg:flex-row items-center justify-between gap-10 md:gap-12">
                    <div className="max-w-xl text-center lg:text-left">
-                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 md:mb-6 leading-tight">The Arena Shop</h2>
-                     <p className="text-zinc-400 text-sm sm:text-base md:text-lg font-bold uppercase tracking-tight mb-8 md:mb-10 italic">Secure matching tickets, authentic franchise gear, and exclusive fan membership cards directly through our secure portal.</p>
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-10">
-                       <div className="flex items-center justify-center lg:justify-start gap-4">
+                     <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-2">
+                       Direct Fan Access · No Membership Required
+                     </p>
+                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-black italic uppercase tracking-tighter mb-4 md:mb-6 leading-tight">The Official Arena Shop</h2>
+                     <p className="text-zinc-300 text-sm sm:text-base md:text-lg font-medium mb-8 md:mb-10 leading-relaxed">
+                       Lock in lower-bowl match tickets, full season VIP hospitality passes, Nike Vapor jerseys, and certified autographed helmets with instant digital pass delivery.
+                     </p>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-10">
+                       <div className="flex items-center justify-center lg:justify-start gap-3.5">
                          <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center"><Ticket className="w-5 h-5 text-blue-500" /></div>
-                         <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Match Tickets</p>
+                         <p className="text-xs font-black uppercase tracking-wider">Matchday &amp; Season Passes</p>
                        </div>
-                       <div className="flex items-center justify-center lg:justify-start gap-4">
+                       <div className="flex items-center justify-center lg:justify-start gap-3.5">
                          <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center"><ShoppingBag className="w-5 h-5 text-blue-500" /></div>
-                         <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Official Jerseys</p>
+                         <p className="text-xs font-black uppercase tracking-wider">Jerseys &amp; Signed Gear</p>
                        </div>
                      </div>
-                     <button onClick={() => setActiveTab("shop")} className="bg-white text-black px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all">
-                        ENTER SHOP
-                     </button>
+                     <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
+                       <button onClick={() => { setActiveTab("shop"); setDismissedHero(true); }} className="bg-white text-black px-9 py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-zinc-200 transition-all cursor-pointer w-full sm:w-auto">
+                          ENTER ARENA SHOP
+                       </button>
+                       <button onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }} className="bg-zinc-950 border border-white/15 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all cursor-pointer w-full sm:w-auto">
+                          VIEW VIP TOURS
+                       </button>
+                     </div>
                    </div>
                    <div className="grid grid-cols-2 gap-4 w-full sm:w-auto">
                       {(SHOP_ITEMS?.tickets || []).slice(0, 2).map((item, i) => (
-                        <div key={item.id} className={cn("flex-1 aspect-[3/4] w-full sm:w-48 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5", i === 1 && "mt-8 sm:mt-12")}>
-                          <NFLImage item={item} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700" />
+                        <div key={item.id} onClick={() => { setActiveTab("shop"); setDismissedHero(true); }} className={cn("flex-1 aspect-[3/4] w-full sm:w-48 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 cursor-pointer", i === 1 && "mt-8 sm:mt-12")}>
+                          <NFLImage item={item} className="w-full h-full object-cover hover:scale-105 transition-all duration-700" />
                         </div>
                       ))}
                    </div>
                  </div>
                </div>
             </div>
+
+            {/* Charity Player Inquiry Spotlight */}
+            <div className="mt-10 bg-gradient-to-r from-emerald-950/60 via-zinc-900 to-blue-950/60 border border-emerald-500/25 rounded-3xl p-6 sm:p-10 flex flex-col lg:flex-row items-center justify-between gap-6">
+              <div className="space-y-2 text-center lg:text-left max-w-2xl">
+                <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                  <Heart className="w-4 h-4 fill-emerald-400/30" />
+                  <span>100% Charity Player Liaison</span>
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tight text-white">
+                  Want to Meet Your Favorite NFL Star?
+                </h3>
+                <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                  Request a 1-on-1 meet &amp; greet, podcast appearance, or custom shoutout from any star across all 32 teams. <strong className="text-emerald-300">100% of the $100 inquiry fee goes directly to charity.</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }}
+                className="px-8 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-emerald-500/20 whitespace-nowrap cursor-pointer"
+              >
+                Inquire About A Player
+              </button>
+            </div>
           </section>
 
-          {/* Testimonials section */}
-          <section className="py-16 md:py-32 bg-zinc-950/40 border-y border-white/5">
+          {/* Fan Reviews section */}
+          <section className="py-16 md:py-28 bg-zinc-950/40 border-y border-white/5">
             <div className="max-w-7xl mx-auto px-4 md:px-8">
-              <div className="text-center mb-12 md:20">
-                <h2 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter mb-4">Institutional Trust</h2>
-                <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] md:text-xs">Verified feedback from major equity holders</p>
+              <div className="text-center mb-12 md:mb-16">
+                <h2 className="text-3xl md:text-4xl font-black italic uppercase tracking-tighter mb-3">Loved By Gridiron Fans</h2>
+                <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] md:text-xs">Verified stories from game-day attendees &amp; collectors</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
@@ -5561,11 +5611,11 @@ export default function App() {
                         <Star key={i} className="w-4 h-4 fill-blue-600 text-blue-600" />
                       ))}
                     </div>
-                    <p className="text-lg font-black italic uppercase mb-8 leading-relaxed text-zinc-200">
-                      "{t.text}"
+                    <p className="text-base md:text-lg font-bold italic mb-8 leading-relaxed text-zinc-200">
+                      &ldquo;{t.text}&rdquo;
                     </p>
-                    <div className="flex items-center gap-4 border-t border-white/5 pt-8">
-                      <div className="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center font-black text-blue-500 italic uppercase">
+                    <div className="flex items-center gap-4 border-t border-white/5 pt-6">
+                      <div className="w-11 h-11 bg-zinc-800 rounded-2xl flex items-center justify-center font-black text-blue-500 italic uppercase">
                         {t.name[0]}
                       </div>
                       <div>
@@ -5579,25 +5629,28 @@ export default function App() {
           </section>
 
           {/* Footer CTA */}
-          <section className="py-20 md:py-40 text-center px-4 md:px-8">
+          <section className="py-20 md:py-36 text-center px-4 md:px-8">
             <div className="max-w-2xl mx-auto">
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600 rounded-2xl md:rounded-3xl mx-auto flex items-center justify-center mb-10 md:12 shadow-2xl shadow-blue-600/40">
-                <ShieldCheck className="w-8 h-8 md:w-10 md:h-10 text-white" />
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600 rounded-2xl md:rounded-3xl mx-auto flex items-center justify-center mb-8 md:mb-10 shadow-2xl shadow-blue-600/40">
+                <Trophy className="w-8 h-8 md:w-10 md:h-10 text-white" />
               </div>
-              <h2 className="text-4xl sm:text-5xl md:text-6xl font-black italic uppercase tracking-tighter mb-6 md:mb-8 leading-none">
-                READY TO BUY<br/>TEAM STOCKS?
+              <h2 className="text-4xl sm:text-5xl md:text-6xl font-black italic uppercase tracking-tighter mb-5 md:mb-6 leading-none">
+                READY FOR<br/>KICKOFF?
               </h2>
-              <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] md:text-sm mb-10 md:12 italic px-4">
-                Create an investor account to buy and trade NFL franchise equity shares with instant liquidity
+              <p className="text-zinc-300 font-medium text-sm md:text-base mb-10 px-4">
+                Reserve sideline stadium passes, grab game-day tickets and official team gear, or reach out to meet your favorite NFL player for charity.
               </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <button onClick={() => { setIsSignUp(true); setShowLogin(true); }} className="bg-white text-black px-10 md:px-12 py-4 md:py-5 rounded-2xl text-[10px] md:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-2xl shadow-white/10 flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-blue-600" /> CREATE ACCOUNT TO BUY STOCKS
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+                <button onClick={() => { setActiveTab("experiences"); setDismissedHero(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-10 md:px-12 py-4 md:py-5 rounded-2xl text-xs md:text-sm font-black uppercase tracking-widest transition-all shadow-2xl shadow-blue-600/30 flex items-center gap-2 cursor-pointer w-full sm:w-auto justify-center">
+                  EXPLORE EXPERIENCES
                 </button>
-                <button onClick={() => { setIsSignUp(false); setShowLogin(true); }} className="bg-zinc-900 border border-white/10 text-white px-8 md:px-10 py-4 md:py-5 rounded-2xl text-[10px] md:text-sm font-black uppercase tracking-widest hover:bg-zinc-800 transition-all">
-                  SIGN IN
+                <button onClick={() => { setActiveTab("shop"); setDismissedHero(true); }} className="bg-white text-black px-10 md:px-12 py-4 md:py-5 rounded-2xl text-xs md:text-sm font-black uppercase tracking-widest hover:bg-zinc-200 transition-all cursor-pointer w-full sm:w-auto">
+                  SHOP TICKETS &amp; GEAR
                 </button>
               </div>
+              <button onClick={() => { setIsSignUp(false); setShowLogin(true); }} className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors cursor-pointer">
+                Already have an account? Sign In
+              </button>
             </div>
           </section>
         </div>
