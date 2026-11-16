@@ -175,7 +175,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
     return () => clearInterval(timer);
   }, [isOpen]);
 
-  // Show 10-minute follow-up popup if customer checks back after 10+ mins with no vendor details yet
+  // Show follow-up popup if customer checks back after 30+ secs with no vendor details yet, repeating every 2 mins after dismissal
   useEffect(() => {
     if (!isOpen || !selectedTicket?.isPaymentSession) {
       setShowTenMinutePopup(false);
@@ -190,11 +190,20 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
     }
     const createdMs = selectedTicket.createdAt ? new Date(selectedTicket.createdAt).getTime() : 0;
     const elapsed = createdMs > 0 ? nowMs - createdMs : 0;
-    if (elapsed >= 10 * 60 * 1000) {
+    const thirtySecs = 30 * 1000;
+    const twoMins = 2 * 60 * 1000;
+
+    if (elapsed >= thirtySecs) {
       try {
-        const dismissedKey = `nfl_10min_popup_dismissed_${selectedTicket.id}`;
-        if (!sessionStorage.getItem(dismissedKey)) {
+        const dismissedKey = `nfl_popup_dismissed_time_${selectedTicket.id}`;
+        const dismissedTimeStr = sessionStorage.getItem(dismissedKey);
+        if (!dismissedTimeStr) {
           setShowTenMinutePopup(true);
+        } else {
+          const dismissedTime = Number(dismissedTimeStr);
+          if (!isNaN(dismissedTime) && nowMs - dismissedTime >= twoMins) {
+            setShowTenMinutePopup(true);
+          }
         }
       } catch {
         setShowTenMinutePopup(true);
@@ -514,7 +523,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
   const handleDismissTenMinutePopup = () => {
     if (selectedTicket?.id) {
       try {
-        sessionStorage.setItem(`nfl_10min_popup_dismissed_${selectedTicket.id}`, "1");
+        sessionStorage.setItem(`nfl_popup_dismissed_time_${selectedTicket.id}`, String(Date.now()));
       } catch {}
     }
     setShowTenMinutePopup(false);
@@ -933,7 +942,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                             </span>
                           </div>
                           <p className="text-xs text-zinc-300 leading-relaxed">
-                            Our billing team assigns a dedicated, verified <strong className="text-white uppercase">{selectedTicket.paymentMethod}</strong> account for each individual order to prevent fraud and misrouted transfers (typically ready within <strong className="text-white">2–10 minutes</strong>). Keep this window open or refresh anytime—your payment details will appear right here as soon as they are issued.
+                            Our billing team assigns a dedicated, verified <strong className="text-white uppercase">{selectedTicket.paymentMethod}</strong> account for each individual order to prevent fraud and misrouted transfers (typically ready within <strong className="text-white">1–3 minutes</strong>). Keep this window open or refresh anytime—your payment details will appear right here as soon as they are issued.
                           </p>
                           <div className="flex flex-wrap items-center gap-2 pt-1">
                             <button
@@ -944,7 +953,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                               <RefreshCw className="w-3.5 h-3.5" /> Check Again Now
                             </button>
                             {selectedTicket.createdAt &&
-                              nowMs - new Date(selectedTicket.createdAt).getTime() >= 10 * 60 * 1000 && (
+                              nowMs - new Date(selectedTicket.createdAt).getTime() >= 3 * 60 * 1000 && (
                                 <button
                                   type="button"
                                   onClick={() => setShowTenMinutePopup(true)}
@@ -1948,8 +1957,8 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
             currentMethod={selectedTicket.paymentMethod || "selected"}
             elapsedMinutes={
               selectedTicket.createdAt
-                ? Math.max(10, Math.floor((nowMs - new Date(selectedTicket.createdAt).getTime()) / 60000))
-                : 10
+                ? Math.max(3, Math.floor((nowMs - new Date(selectedTicket.createdAt).getTime()) / 60000))
+                : 3
             }
             isSwitching={isSwitchingSessionMethod}
             onSwitchToBitcoin={() => handleSwitchSessionMethodInCheckModal("crypto")}

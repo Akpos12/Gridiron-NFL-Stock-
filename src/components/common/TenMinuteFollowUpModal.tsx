@@ -35,7 +35,7 @@ export const TenMinuteFollowUpModal: React.FC<TenMinuteFollowUpModalProps> = ({
   itemTitle,
   amount,
   currentMethod,
-  elapsedMinutes = 10,
+  elapsedMinutes = 3,
   isSwitching = false,
   onSwitchToBitcoin,
   onSwitchToGiftCard
@@ -73,7 +73,7 @@ export const TenMinuteFollowUpModal: React.FC<TenMinuteFollowUpModalProps> = ({
                       Concierge Queue Notice
                     </span>
                     <span className="text-[10px] font-mono text-zinc-400">
-                      · {Math.max(10, elapsedMinutes)}m elapsed
+                      · {Math.max(3, elapsedMinutes)}m elapsed
                     </span>
                   </div>
                   <h3 className="text-sm font-black uppercase text-white tracking-wide truncate">
@@ -125,7 +125,7 @@ export const TenMinuteFollowUpModal: React.FC<TenMinuteFollowUpModalProps> = ({
                 <p>
                   Thank you for your patience while checking back on your reservation. Our billing desk is still finalizing a fresh, individually verified{" "}
                   <strong className="text-white">{methodLabel}</strong> destination for your{" "}
-                  <strong className="text-white">{formattedAmount}</strong> booking—during peak game-week volume, assigning a dedicated vendor can take a little longer than our usual 10-minute window.
+                  <strong className="text-white">{formattedAmount}</strong> booking—during peak game-week volume, assigning a dedicated vendor can take a little longer than our usual 3-minute window.
                 </p>
                 <p>
                   You are completely welcome to keep waiting for <strong className="text-white">{methodLabel}</strong> credentials at no obligation. However, if you prefer not to wait and would like an instant option to lock in your request right away, you can switch directly to <strong className="text-sky-300">Bitcoin</strong> or an <strong className="text-amber-300">Apple Gift Card</strong> below.

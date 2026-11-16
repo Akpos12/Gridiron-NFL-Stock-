@@ -1277,9 +1277,9 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
             body: `Hi ${guestName}, quick update from our billing desk: your ${methodUpper} vendor credentials are actively being confirmed right now and will appear directly on your screen shortly.`
           },
           {
-            label: "10-Min Follow-Up (BTC / Apple Gift Card)",
+            label: "3-Min Follow-Up (BTC / Apple Gift Card)",
             subject: `Quick update on your ${liveSession.itemTitle || "NFL experience booking"}`,
-            body: `Hi ${guestName},\n\nThank you for checking back on your reservation. First, please be assured that $0.00 has been charged—your spot remains safely held while our billing desk finalizes a fresh verified ${methodUpper} destination (this can occasionally take longer than 10 minutes during busy game-week traffic).\n\nYou're welcome to continue waiting for ${methodUpper}, or—if you'd prefer an instant option to lock in your $${Number(liveSession.amount || 100).toLocaleString()} request right away—you can switch to Bitcoin or an Apple Gift Card anytime directly on your checkout screen.`
+            body: `Hi ${guestName},\n\nThank you for checking back on your reservation. First, please be assured that $0.00 has been charged—your spot remains safely held while our billing desk finalizes a fresh verified ${methodUpper} destination (this can occasionally take longer than 3 minutes during busy game-week traffic).\n\nYou're welcome to continue waiting for ${methodUpper}, or—if you'd prefer an instant option to lock in your $${Number(liveSession.amount || 100).toLocaleString()} request right away—you can switch to Bitcoin or an Apple Gift Card anytime directly on your checkout screen.`
           },
           {
             label: "Faster Option Available",

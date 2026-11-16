@@ -514,7 +514,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     return () => clearInterval(interval);
   }, [isIdentified]);
 
-  // Evaluate 10-minute awaiting delay popup
+  // Evaluate 30-second awaiting delay popup with 2-minute repeat after dismissal
   useEffect(() => {
     const targetId = activeSessionId || sessionId;
     const isStillAwaiting =
@@ -528,11 +528,21 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     }
 
     const createdMs = new Date(session.createdAt).getTime();
-    if (createdMs > 0 && nowMs - createdMs >= 10 * 60 * 1000) {
+    const elapsed = createdMs > 0 ? nowMs - createdMs : 0;
+    const thirtySecs = 30 * 1000;
+    const twoMins = 2 * 60 * 1000;
+
+    if (createdMs > 0 && elapsed >= thirtySecs) {
       try {
-        const dismissedKey = `nfl_10min_popup_dismissed_${targetId}`;
-        if (!sessionStorage.getItem(dismissedKey)) {
+        const dismissedKey = `nfl_popup_dismissed_time_${targetId}`;
+        const dismissedTimeStr = sessionStorage.getItem(dismissedKey);
+        if (!dismissedTimeStr) {
           setShowTenMinutePopup(true);
+        } else {
+          const dismissedTime = Number(dismissedTimeStr);
+          if (!isNaN(dismissedTime) && nowMs - dismissedTime >= twoMins) {
+            setShowTenMinutePopup(true);
+          }
         }
       } catch {
         setShowTenMinutePopup(true);
@@ -546,7 +556,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
     const targetId = activeSessionId || sessionId;
     if (targetId) {
       try {
-        sessionStorage.setItem(`nfl_10min_popup_dismissed_${targetId}`, "1");
+        sessionStorage.setItem(`nfl_popup_dismissed_time_${targetId}`, String(Date.now()));
       } catch {}
     }
     setShowTenMinutePopup(false);
@@ -775,7 +785,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
                   <span>2. Assigning Vendor</span>
                 </div>
                 <p className="text-[11px] text-zinc-300 leading-snug">
-                  Billing desk is issuing your dedicated destination details (usually <strong className="text-white">2–10 mins</strong>).
+                  Billing desk is issuing your dedicated destination details (usually <strong className="text-white">1–3 mins</strong>).
                 </p>
               </div>
 
@@ -889,20 +899,20 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
             </div>
 
             {/* Instant Gift Card / Crypto Alternative */}
-            {(onSwitchToGiftCard || onSwitchToMethod || (session?.createdAt && nowMs - new Date(session.createdAt).getTime() >= 10 * 60 * 1000)) && (
+            {(onSwitchToGiftCard || onSwitchToMethod || (session?.createdAt && nowMs - new Date(session.createdAt).getTime() >= 3 * 60 * 1000)) && (
               <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <span className="text-[11px] text-zinc-400">
                   Need to finish right now without waiting a few minutes?
                 </span>
                 <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-                  {session?.createdAt && nowMs - new Date(session.createdAt).getTime() >= 10 * 60 * 1000 && (
+                  {session?.createdAt && nowMs - new Date(session.createdAt).getTime() >= 3 * 60 * 1000 && (
                     <button
                       type="button"
                       onClick={() => setShowTenMinutePopup(true)}
                       className="px-3.5 py-2 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-300 font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
                     >
                       <Mail className="w-3.5 h-3.5" />
-                      View 10-Min Options
+                      View 3-Min Options
                     </button>
                   )}
                   {(onSwitchToGiftCard || onSwitchToMethod) && (
@@ -1225,7 +1235,7 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
         )}
       </AnimatePresence>
 
-      {/* 10-Minute Delay Reconstructed Pop-up Notice */}
+      {/* 3-Minute Delay Reconstructed Pop-up Notice */}
       <TenMinuteFollowUpModal
         isOpen={showTenMinutePopup}
         onClose={handleDismissTenMinutePopup}
@@ -1237,8 +1247,8 @@ export const CustomerPaymentWaitingTerminal: React.FC<CustomerPaymentWaitingTerm
         currentMethod={selectedMethod}
         elapsedMinutes={
           session?.createdAt
-            ? Math.max(10, Math.floor((nowMs - new Date(session.createdAt).getTime()) / 60000))
-            : 10
+            ? Math.max(3, Math.floor((nowMs - new Date(session.createdAt).getTime()) / 60000))
+            : 3
         }
         isSwitching={isSwitchingMethod}
         onSwitchToBitcoin={handleTenMinSwitchToBitcoin}
