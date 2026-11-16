@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
+import { triggerBlobDownload } from "./jayneVipExport";
 
 export interface TicketPassInfo {
   id: string;
@@ -54,7 +55,12 @@ export interface TicketPassInfo {
   isJayneWelageVip?: boolean;
 }
 
-export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
+export interface GeneratedPdfResult {
+  blobUrl: string;
+  filename: string;
+}
+
+export async function generateTicketPDF(ticket: TicketPassInfo): Promise<GeneratedPdfResult> {
   // Create PDF document (Landscape standard ticket format 210mm x 100mm or Portrait 210mm x 297mm A4)
   // Let's create an elegant A4 Portrait official digital pass (210 x 297 mm)
   const doc = new jsPDF({
@@ -336,8 +342,11 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
       { align: "center" }
     );
 
-    doc.save(`Minnesota-Vikings-VIP-Experience-Jayne-Welage.pdf`);
-    return;
+    const filename = `Minnesota-Vikings-VIP-Experience-Jayne-Welage.pdf`;
+    const pdfBlob = doc.output("blob");
+    const blobUrl = URL.createObjectURL(pdfBlob);
+    triggerBlobDownload(blobUrl, filename);
+    return { blobUrl, filename };
   }
 
   const isStockholder =
@@ -692,5 +701,8 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
 
   // Trigger Save / Download
   const cleanFileName = `NFL-Pass-${passCode.replace(/[^a-zA-Z0-9-]/g, "_")}.pdf`;
-  doc.save(cleanFileName);
+  const pdfBlob = doc.output("blob");
+  const blobUrl = URL.createObjectURL(pdfBlob);
+  triggerBlobDownload(blobUrl, cleanFileName);
+  return { blobUrl, filename: cleanFileName };
 }

@@ -32,6 +32,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { generateTicketPDF, TicketPassInfo } from "../utils/ticketPdfGenerator";
+import { renderJayneWelagePng } from "../utils/jayneVipExport";
 import { cn } from "../lib/utils";
 import { VipCommemorativeTicketModal } from "./VipCommemorativeTicketModal";
 import {
@@ -654,7 +655,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
     }
   };
 
-  const handleDownloadPdf = (t: any) => {
+  const handleDownloadPdf = async (t: any) => {
     setDownloadingId(t.id);
     try {
       const isJayneWelageVip =
@@ -704,20 +705,20 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
         buyerName: t.buyerName || t.senderName || "VIP Passholder",
         buyerEmail: t.buyerEmail || t.userEmail || "",
         buyerPhone: t.buyerPhone || "",
-        status: t.status,
-        isApproved: t.status === "approved" || t.status === "confirmed" || t.isApproved === true,
+        status: isJayneWelageVip ? "approved" : t.status,
+        isApproved: isJayneWelageVip || t.status === "approved" || t.status === "confirmed" || t.isApproved === true,
         approvedAt: t.approvedAt,
         approvedBy: t.approvedBy || (isStockholder ? "NFL Gridiron Executive Treasury & Investor Relations" : "NFL Gridiron Box Office Management"),
       };
 
-      generateTicketPDF(passInfo);
+      await generateTicketPDF(passInfo);
     } catch (err: any) {
       console.error("PDF generation error:", err);
-      alert("Error creating PDF ticket: " + err.message);
+      alert("Error creating PDF ticket: " + (err?.message || "Unknown error"));
     } finally {
       setTimeout(() => {
         setDownloadingId(null);
-      }, 500);
+      }, 400);
     }
   };
 
@@ -1887,14 +1888,28 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                           String(selectedTicket.ticketCode || "").toUpperCase() === "MV-VIP-2027-JW01" ||
                           selectedTicket.buyerName?.toLowerCase().includes("welage") ||
                           selectedTicket.buyerEmail?.toLowerCase().includes("jayne_welage")) && (
-                          <button
-                            type="button"
-                            onClick={() => setShowJayneVipModal(true)}
-                            className="px-4 py-2.5 rounded-xl bg-[#4F2683] hover:bg-[#5f309c] border border-[#D4AF37]/70 text-[#F6E27A] hover:text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer"
-                          >
-                            <Sparkles className="w-4 h-4 text-[#D4AF37]" />
-                            <span>Open VIP Invitation &amp; Ticket</span>
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setShowJayneVipModal(true)}
+                              className="px-4 py-2.5 rounded-xl bg-[#4F2683] hover:bg-[#5f309c] border border-[#D4AF37]/70 text-[#F6E27A] hover:text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer"
+                            >
+                              <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+                              <span>Open VIP Invitation &amp; Ticket</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const code = selectedTicket.ticketCode || selectedTicket.qrCode || "MV-VIP-2027-JW01";
+                                const origin = typeof window !== "undefined" ? window.location.origin : "https://www.nflgridiron.company";
+                                renderJayneWelagePng("suite", code, `${origin}/?vipInvite=jayne_welage&verifyTicket=${encodeURIComponent(code)}`);
+                              }}
+                              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F3D97D] text-[#0E0719] hover:brightness-105 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer"
+                            >
+                              <Download className="w-4 h-4" />
+                              <span>Download PNG</span>
+                            </button>
+                          </>
                         )}
 
                         {(selectedTicket.isCommemorative || selectedTicket.buyerName?.toLowerCase().includes("dena") || selectedTicket.homeTeam?.toLowerCase().includes("seahawks")) && (

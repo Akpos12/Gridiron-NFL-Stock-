@@ -12,8 +12,8 @@ import {
   Sparkles
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import html2canvas from "html2canvas";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
+import { renderJayneWelagePng, GeneratedFileResult } from "../utils/jayneVipExport";
 import { cn } from "../lib/utils";
 
 export const JAYNE_WELAGE_PASS_DATA = {
@@ -210,6 +210,9 @@ export const JayneWelageVipTicketModal: React.FC<JayneWelageVipTicketModalProps>
   const [copied, setCopied] = useState(false);
   const [isDownloadingPng, setIsDownloadingPng] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [readyFile, setReadyFile] = useState<(GeneratedFileResult & { kind: "png" | "pdf" }) | { blobUrl: string; filename: string; kind: "pdf"; dataUrl?: string } | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [showInlinePreview, setShowInlinePreview] = useState(false);
   const captureRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
@@ -230,29 +233,14 @@ export const JayneWelageVipTicketModal: React.FC<JayneWelageVipTicketModalProps>
   };
 
   const handleDownloadPng = async () => {
-    if (!captureRef.current) return;
     try {
       setIsDownloadingPng(true);
-      const canvas = await html2canvas(captureRef.current, {
-        scale: 2.5,
-        useCORS: true,
-        backgroundColor: "#07050A",
-        logging: false
-      });
-      const dataUrl = canvas.toDataURL("image/png", 1.0);
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download =
-        activeView === "ticket"
-          ? "Minnesota-Vikings-VIP-Ticket-Jayne-Welage.png"
-          : activeView === "invitation"
-          ? "Minnesota-Vikings-VIP-Invitation-Jayne-Welage.png"
-          : "Minnesota-Vikings-Ultimate-VIP-Experience-Jayne-Welage.png";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
+      setDownloadError(null);
+      const result = await renderJayneWelagePng(activeView, passCode, qrValue);
+      setReadyFile({ ...result, kind: "png" });
+    } catch (err: any) {
       console.error("Failed to export VIP ticket PNG:", err);
+      setDownloadError(err?.message || "Could not generate PNG image. Please try Print or PDF.");
     } finally {
       setIsDownloadingPng(false);
     }
@@ -261,7 +249,8 @@ export const JayneWelageVipTicketModal: React.FC<JayneWelageVipTicketModalProps>
   const handleDownloadPdf = async () => {
     try {
       setIsDownloadingPdf(true);
-      await generateTicketPDF({
+      setDownloadError(null);
+      const pdfResult = await generateTicketPDF({
         ...JAYNE_WELAGE_PASS_DATA,
         ...ticketData,
         ticketCode: passCode,
@@ -272,8 +261,12 @@ export const JayneWelageVipTicketModal: React.FC<JayneWelageVipTicketModalProps>
         status: "approved",
         isApproved: true
       });
-    } catch (err) {
+      if (pdfResult) {
+        setReadyFile({ ...pdfResult, kind: "pdf" });
+      }
+    } catch (err: any) {
       console.error("PDF generation failed:", err);
+      setDownloadError(err?.message || "Could not generate PDF ticket. Please try PNG or Print.");
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -713,6 +706,61 @@ export const JayneWelageVipTicketModal: React.FC<JayneWelageVipTicketModalProps>
               <span>Print Invitation &amp; Ticket</span>
             </button>
           </div>
+
+          {downloadError && (
+            <div className="no-print p-3.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-xs flex items-center justify-between gap-3">
+              <span>{downloadError}</span>
+              <button
+                type="button"
+                onClick={() => setDownloadError(null)}
+                className="text-xs font-bold uppercase text-rose-300 hover:text-white cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {readyFile && (
+            <div className="no-print p-4 rounded-2xl bg-[#1A0830]/90 border border-[#D4AF37]/50 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#F6E27A]">
+                    {readyFile.kind === "png" ? "High-Res PNG Ticket Ready" : "Print-Ready PDF Ready"}
+                  </p>
+                  <p className="text-[11px] text-zinc-300">
+                    File: <span className="font-mono text-white">{readyFile.filename}</span> — if your browser blocked auto-save inside the preview frame, use <strong className="text-white">Save File</strong> or open the inline image preview to long-press &amp; save.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <a
+                    href={readyFile.blobUrl}
+                    download={readyFile.filename}
+                    className="min-h-[40px] px-4 py-2 rounded-xl bg-[#D4AF37] hover:bg-[#F3D97D] text-[#0E0719] font-extrabold uppercase text-[11px] tracking-wider flex items-center gap-1.5 transition-all"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Save File
+                  </a>
+                  {readyFile.dataUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setShowInlinePreview((prev) => !prev)}
+                      className="min-h-[40px] px-4 py-2 rounded-xl bg-black/50 hover:bg-black/75 border border-[#D4AF37]/40 text-[#F6E27A] font-bold uppercase text-[11px] tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      {showInlinePreview ? "Hide Preview" : "Show Saveable Image"}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {showInlinePreview && readyFile.dataUrl && (
+                <div className="pt-2 border-t border-[#D4AF37]/25">
+                  <img
+                    src={readyFile.dataUrl}
+                    alt={readyFile.filename}
+                    className="w-full max-w-2xl mx-auto rounded-xl border border-[#D4AF37]/40 shadow-2xl"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
