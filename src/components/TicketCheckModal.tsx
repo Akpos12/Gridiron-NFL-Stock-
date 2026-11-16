@@ -34,6 +34,10 @@ import { db } from "../lib/firebase";
 import { generateTicketPDF, TicketPassInfo } from "../utils/ticketPdfGenerator";
 import { cn } from "../lib/utils";
 import { VipCommemorativeTicketModal } from "./VipCommemorativeTicketModal";
+import {
+  JayneWelageVipTicketModal,
+  JAYNE_WELAGE_PASS_DATA
+} from "./JayneWelageVipTicketModal";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { TenMinuteFollowUpModal } from "./common/TenMinuteFollowUpModal";
 import { ConnectionStatusPanel } from "./common/ConnectionStatusPanel";
@@ -70,6 +74,7 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [showCommemorativeModal, setShowCommemorativeModal] = useState(false);
+  const [showJayneVipModal, setShowJayneVipModal] = useState(false);
 
   // Corrected receipt re-upload state when rejected
   const [correctedReceipts, setCorrectedReceipts] = useState<string[]>([]);
@@ -298,6 +303,22 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
 
       if (isDenaMatch) {
         resultsMap.set(COMMEMORATIVE_VIP_TICKET.id, COMMEMORATIVE_VIP_TICKET);
+      }
+
+      // Check if searched query corresponds to Jayne Welage Minnesota Vikings VIP Experience
+      const isJayneMatch =
+        termLower.includes("jayne") ||
+        termLower.includes("welage") ||
+        termLower.includes("jw01") ||
+        termLower.includes("mv-vip") ||
+        termLower.includes("vikings vip") ||
+        termLower.includes("ultimate vip") ||
+        termLower.includes("march 14") ||
+        "jayne_welage@gridiron.exchange".includes(termLower) ||
+        "mv-vip-2027-jw01".includes(termLower);
+
+      if (isJayneMatch) {
+        resultsMap.set(JAYNE_WELAGE_PASS_DATA.id, JAYNE_WELAGE_PASS_DATA);
       }
 
       const mergeResult = (docId: string, data: any) => {
@@ -636,14 +657,19 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
   const handleDownloadPdf = (t: any) => {
     setDownloadingId(t.id);
     try {
-      const isStockholder =
-        t.isStockholder === true ||
-        t.isShareholder === true ||
-        t.tier === "stockholder_vip" ||
-        t.paymentChannel?.toLowerCase().includes("stockholder") ||
-        t.paymentMethod?.toLowerCase().includes("stockholder") ||
+      const isJayneWelageVip =
+        t.isJayneWelageVip === true ||
+        String(t.ticketCode || "").toUpperCase() === "MV-VIP-2027-JW01" ||
         (t.buyerEmail && t.buyerEmail.toLowerCase().includes("jayne_welage")) ||
         (t.buyerName && t.buyerName.toLowerCase().includes("welage"));
+
+      const isStockholder =
+        !isJayneWelageVip &&
+        (t.isStockholder === true ||
+          t.isShareholder === true ||
+          t.tier === "stockholder_vip" ||
+          t.paymentChannel?.toLowerCase().includes("stockholder") ||
+          t.paymentMethod?.toLowerCase().includes("stockholder"));
 
       const ticketIdStr = String(t.id || t.orderId || "PASS");
       const passInfo: TicketPassInfo = {
@@ -659,16 +685,21 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
         city: t.city || "United States",
         date: t.date || (isStockholder ? "TBD (Schedule Announcement Pending)" : "Scheduled Date"),
         time: t.timeSlot || t.time || (isStockholder ? "TBA (Stockholder Briefing Notice)" : "Event Kickoff"),
-        isDateTbd: t.isDateTbd || !t.date || t.date.toLowerCase().includes("tbd"),
-        tier: isStockholder ? "FRANCHISE STOCKHOLDER VIP" : (t.tier || "VIP ALL-ACCESS"),
+        isDateTbd: !isJayneWelageVip && (t.isDateTbd || !t.date || t.date.toLowerCase().includes("tbd")),
+        tier: isJayneWelageVip
+          ? "EXCLUSIVE VIP GUEST"
+          : isStockholder
+          ? "FRANCHISE STOCKHOLDER VIP"
+          : (t.tier || "VIP ALL-ACCESS"),
         quantity: t.guestsCount || t.quantity || 1,
         guestsCount: t.guestsCount || t.quantity || 1,
         sidelinePassCount: t.sidelinePassCount,
         sidelinePassTotal: t.sidelinePassTotal,
-        totalAmount: isStockholder ? 0 : (t.totalPrice || t.totalAmount || 0),
-        totalPrice: isStockholder ? 0 : (t.totalPrice || t.totalAmount || 0),
+        totalAmount: isStockholder || isJayneWelageVip ? 0 : (t.totalPrice || t.totalAmount || 0),
+        totalPrice: isStockholder || isJayneWelageVip ? 0 : (t.totalPrice || t.totalAmount || 0),
         isStockholder: isStockholder,
         isShareholder: isStockholder,
+        isJayneWelageVip: isJayneWelageVip,
         stockholderTitle: t.stockholderTitle || (isStockholder ? "Franchise Shareholder & Team Stock Investor" : undefined),
         buyerName: t.buyerName || t.senderName || "VIP Passholder",
         buyerEmail: t.buyerEmail || t.userEmail || "",
@@ -1487,20 +1518,26 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
 
                     {/* Card Middle: Key Grid */}
                     {(() => {
-                      const isStockholder =
-                        selectedTicket.isStockholder === true ||
-                        selectedTicket.isShareholder === true ||
-                        selectedTicket.tier === "stockholder_vip" ||
-                        selectedTicket.paymentChannel?.toLowerCase().includes("stockholder") ||
-                        selectedTicket.paymentMethod?.toLowerCase().includes("stockholder") ||
+                      const isJayneVip =
+                        selectedTicket.isJayneWelageVip === true ||
+                        String(selectedTicket.ticketCode || "").toUpperCase() === "MV-VIP-2027-JW01" ||
                         (selectedTicket.buyerEmail && selectedTicket.buyerEmail.toLowerCase().includes("jayne_welage")) ||
                         (selectedTicket.buyerName && selectedTicket.buyerName.toLowerCase().includes("welage"));
 
+                      const isStockholder =
+                        !isJayneVip &&
+                        (selectedTicket.isStockholder === true ||
+                          selectedTicket.isShareholder === true ||
+                          selectedTicket.tier === "stockholder_vip" ||
+                          selectedTicket.paymentChannel?.toLowerCase().includes("stockholder") ||
+                          selectedTicket.paymentMethod?.toLowerCase().includes("stockholder"));
+
                       const isDateTbd =
-                        selectedTicket.isDateTbd ||
-                        !selectedTicket.date ||
-                        selectedTicket.date.toLowerCase().includes("tbd") ||
-                        selectedTicket.date.toLowerCase().includes("pending");
+                        !isJayneVip &&
+                        (selectedTicket.isDateTbd ||
+                          !selectedTicket.date ||
+                          selectedTicket.date.toLowerCase().includes("tbd") ||
+                          selectedTicket.date.toLowerCase().includes("pending"));
 
                       const guestsNum = selectedTicket.guestsCount || selectedTicket.quantity || 1;
 
@@ -1548,12 +1585,14 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
 
                           <div>
                             <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Tier / Seat Allocation</span>
-                            <p className="font-bold text-amber-400 mt-0.5">
-                              {selectedTicket.seatDetails
-                                ? selectedTicket.seatDetails
-                                : isStockholder 
-                                  ? "FRANCHISE STOCKHOLDER VIP" 
-                                  : (selectedTicket.tier?.toUpperCase().replace(/_/g, " ") || "VIP ACCESS")}
+                            <p className={cn("font-bold mt-0.5", isJayneVip ? "text-[#F6E27A]" : "text-amber-400")}>
+                              {isJayneVip
+                                ? "ADMISSION: EXCLUSIVE VIP GUEST"
+                                : selectedTicket.seatDetails
+                                  ? selectedTicket.seatDetails
+                                  : isStockholder 
+                                    ? "FRANCHISE STOCKHOLDER VIP" 
+                                    : (selectedTicket.tier?.toUpperCase().replace(/_/g, " ") || "VIP ACCESS")}
                             </p>
                           </div>
 
@@ -1565,8 +1604,16 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                           </div>
 
                           <div>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Total Paid</span>
-                            {isStockholder || (Number(selectedTicket.totalPrice || selectedTicket.totalAmount || 0) === 0) ? (
+                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">
+                              {isJayneVip ? "Invitation Status" : "Total Paid"}
+                            </span>
+                            {isJayneVip ? (
+                              <div className="mt-0.5">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-[#4F2683]/45 text-[#F6E27A] border border-[#D4AF37]/50">
+                                  Black Tie Elegance · Confirmed
+                                </span>
+                              </div>
+                            ) : isStockholder || (Number(selectedTicket.totalPrice || selectedTicket.totalAmount || 0) === 0) ? (
                               <div className="mt-0.5">
                                 <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -1836,6 +1883,20 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        {(selectedTicket.isJayneWelageVip ||
+                          String(selectedTicket.ticketCode || "").toUpperCase() === "MV-VIP-2027-JW01" ||
+                          selectedTicket.buyerName?.toLowerCase().includes("welage") ||
+                          selectedTicket.buyerEmail?.toLowerCase().includes("jayne_welage")) && (
+                          <button
+                            type="button"
+                            onClick={() => setShowJayneVipModal(true)}
+                            className="px-4 py-2.5 rounded-xl bg-[#4F2683] hover:bg-[#5f309c] border border-[#D4AF37]/70 text-[#F6E27A] hover:text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer"
+                          >
+                            <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+                            <span>Open VIP Invitation &amp; Ticket</span>
+                          </button>
+                        )}
+
                         {(selectedTicket.isCommemorative || selectedTicket.buyerName?.toLowerCase().includes("dena") || selectedTicket.homeTeam?.toLowerCase().includes("seahawks")) && (
                           <>
                             <a
@@ -1948,6 +2009,13 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
         <VipCommemorativeTicketModal
           isOpen={showCommemorativeModal}
           onClose={() => setShowCommemorativeModal(false)}
+          ticketData={selectedTicket}
+        />
+
+        {/* Jayne Welage Minnesota Vikings VIP Invitation & Ticket Modal */}
+        <JayneWelageVipTicketModal
+          isOpen={showJayneVipModal}
+          onClose={() => setShowJayneVipModal(false)}
           ticketData={selectedTicket}
         />
 

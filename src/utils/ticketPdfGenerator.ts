@@ -51,6 +51,7 @@ export interface TicketPassInfo {
   installmentDueToday?: number | string;
   isCommemorative?: boolean;
   commemorativeDesign?: boolean;
+  isJayneWelageVip?: boolean;
 }
 
 export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
@@ -66,14 +67,285 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
   const margin = 14;
   const contentWidth = pageWidth - margin * 2;
 
+  const isJayneWelageVip =
+    ticket.isJayneWelageVip === true ||
+    (ticket.ticketCode && ticket.ticketCode.toUpperCase() === "MV-VIP-2027-JW01") ||
+    (ticket.buyerEmail && ticket.buyerEmail.toLowerCase().includes("jayne_welage")) ||
+    (ticket.buyerName && ticket.buyerName.toLowerCase().includes("welage"));
+
+  if (isJayneWelageVip) {
+    const purple: [number, number, number] = [79, 38, 131]; // #4F2683 Deep Minnesota Vikings Purple
+    const deepPlum: [number, number, number] = [26, 8, 48]; // #1A0830
+    const obsidian: [number, number, number] = [7, 5, 10]; // #07050A
+    const gold: [number, number, number] = [212, 175, 55]; // #D4AF37
+    const brightGold: [number, number, number] = [246, 226, 122]; // #F6E27A
+    const warmWhite: [number, number, number] = [247, 244, 236];
+
+    const vipCode = ticket.ticketCode || ticket.qrCode || "MV-VIP-2027-JW01";
+
+    // Page background
+    doc.setFillColor(...obsidian);
+    doc.rect(0, 0, 210, 297, "F");
+
+    // Top & Bottom Vikings Purple + Gold ribbons
+    doc.setFillColor(...purple);
+    doc.rect(0, 0, 210, 5, "F");
+    doc.setFillColor(...gold);
+    doc.rect(0, 5, 210, 0.8, "F");
+
+    // === UPPER SECTION: LUXURY VIP EVENT TICKET ===
+    const tY = 14;
+    const tH = 128;
+    doc.setFillColor(...deepPlum);
+    doc.roundedRect(margin, tY, contentWidth, tH, 4, 4, "F");
+    doc.setDrawColor(...gold);
+    doc.setLineWidth(0.7);
+    doc.roundedRect(margin, tY, contentWidth, tH, 4, 4, "S");
+    doc.setLineWidth(0.25);
+    doc.roundedRect(margin + 2.5, tY + 2.5, contentWidth - 5, tH - 5, 3, 3, "S");
+
+    // Subtle stadium architectural wireframe silhouette behind header
+    doc.setDrawColor(145, 115, 45);
+    doc.setLineWidth(0.25);
+    doc.line(margin + 18, tY + 46, pageWidth / 2, tY + 24);
+    doc.line(pageWidth / 2, tY + 24, pageWidth - margin - 18, tY + 46);
+    doc.line(margin + 32, tY + 48, pageWidth / 2, tY + 34);
+    doc.line(pageWidth / 2, tY + 34, pageWidth - margin - 32, tY + 48);
+
+    // Top Header
+    doc.setTextColor(...brightGold);
+    doc.setFont("times", "bold");
+    doc.setFontSize(8);
+    doc.text("THE ULTIMATE VIP EXPERIENCE  ·  ONE MONTH AFTER SUPER BOWL LXI", pageWidth / 2, tY + 13, {
+      align: "center",
+    });
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("times", "bold");
+    doc.setFontSize(17);
+    doc.text("MINNESOTA VIKINGS VIP EXPERIENCE", pageWidth / 2, tY + 22, { align: "center" });
+
+    doc.setDrawColor(...gold);
+    doc.setLineWidth(0.35);
+    doc.line(margin + 22, tY + 26.5, pageWidth - margin - 22, tY + 26.5);
+
+    // Left / Center Guest Focus + Right QR Stub
+    const leftCenterX = margin + 62;
+
+    doc.setTextColor(...gold);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.text("DISTINGUISHED VIP GUEST OF HONOR", leftCenterX, tY + 41, { align: "center" });
+
+    doc.setTextColor(...brightGold);
+    doc.setFont("times", "bold");
+    doc.setFontSize(26);
+    doc.text("JAYNE WELAGE", leftCenterX, tY + 54, { align: "center" });
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.text("PRIVATE MEET & GREET", leftCenterX, tY + 66, { align: "center" });
+
+    doc.setTextColor(...gold);
+    doc.setFont("times", "italic");
+    doc.setFontSize(13);
+    doc.text("+", leftCenterX, tY + 72.5, { align: "center" });
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.text("INVESTMENT & NETWORKING PARTY", leftCenterX, tY + 79, { align: "center" });
+
+    // Subtle football crest motif
+    doc.setDrawColor(...gold);
+    doc.setLineWidth(0.45);
+    doc.ellipse(leftCenterX, tY + 90, 9, 4.5, "S");
+    doc.line(leftCenterX - 4, tY + 90, leftCenterX + 4, tY + 90);
+    doc.line(leftCenterX - 2, tY + 88.3, leftCenterX - 2, tY + 91.7);
+    doc.line(leftCenterX, tY + 88.3, leftCenterX, tY + 91.7);
+    doc.line(leftCenterX + 2, tY + 88.3, leftCenterX + 2, tY + 91.7);
+
+    // Vertical Perforation Divider before QR Stub
+    const stubX = pageWidth - margin - 52;
+    doc.setDrawColor(...gold);
+    doc.setLineDashPattern([1.6, 1.6], 0);
+    doc.line(stubX, tY + 30, stubX, tY + tH - 6);
+    doc.setLineDashPattern([], 0);
+
+    // Right QR Code Stub
+    const origin =
+      typeof window !== "undefined" && window.location.origin
+        ? window.location.origin
+        : "https://www.nflgridiron.company";
+    const vipQrUrl = `${origin}/?vipInvite=jayne_welage&verifyTicket=${encodeURIComponent(vipCode)}`;
+    const qrBoxSize = 33;
+    const qrX = stubX + 9.5;
+    const qrY = tY + 41;
+
+    try {
+      const qrDataUrl = await QRCode.toDataURL(vipQrUrl, {
+        margin: 1,
+        width: 450,
+        errorCorrectionLevel: "H",
+        color: {
+          dark: "#1A0830",
+          light: "#F7F4EC",
+        },
+      });
+      doc.setFillColor(...warmWhite);
+      doc.setDrawColor(...gold);
+      doc.setLineWidth(0.75);
+      doc.roundedRect(qrX - 3, qrY - 3, qrBoxSize + 6, qrBoxSize + 13, 2, 2, "FD");
+      doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrBoxSize, qrBoxSize);
+
+      doc.setTextColor(26, 8, 48);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text("VIP EVENT ACCESS", qrX + qrBoxSize / 2, qrY + qrBoxSize + 6.5, { align: "center" });
+    } catch (err) {
+      console.error("VIP QR error:", err);
+    }
+
+    doc.setTextColor(...brightGold);
+    doc.setFont("courier", "bold");
+    doc.setFontSize(7.5);
+    doc.text(vipCode, stubX + 26, tY + 96, { align: "center" });
+
+    // Bottom Strip inside Ticket
+    doc.setDrawColor(...gold);
+    doc.setLineWidth(0.3);
+    doc.line(margin + 8, tY + 102, stubX - 5, tY + 102);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(...gold);
+    doc.text("DATE & TIME", margin + 10, tY + 109);
+    doc.text("DRESS CODE", margin + 56, tY + 109);
+    doc.text("ADMISSION", margin + 10, tY + 119);
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8.5);
+    doc.text("MARCH 14, 2027  ·  5:30 PM", margin + 10, tY + 113.5);
+    doc.text("BLACK TIE ELEGANCE", margin + 56, tY + 113.5);
+    doc.setTextColor(...brightGold);
+    doc.text("ADMISSION: EXCLUSIVE VIP GUEST", margin + 10, tY + 123.5);
+
+    // === LOWER SECTION: FORMAL VIP INVITATION DOSSIER ===
+    const invY = tY + tH + 10;
+    const invH = 128;
+    doc.setFillColor(16, 7, 29);
+    doc.roundedRect(margin, invY, contentWidth, invH, 4, 4, "F");
+    doc.setDrawColor(...gold);
+    doc.setLineWidth(0.55);
+    doc.roundedRect(margin, invY, contentWidth, invH, 4, 4, "S");
+
+    doc.setTextColor(...gold);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("OFFICIAL INVITATION DOSSIER", pageWidth / 2, invY + 11, { align: "center" });
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("times", "bold");
+    doc.setFontSize(15);
+    doc.text("THE ULTIMATE VIP EXPERIENCE", pageWidth / 2, invY + 19, { align: "center" });
+
+    doc.setTextColor(225, 222, 232);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    const introText = doc.splitTextToSize(
+      "Prepared exclusively for JAYNE WELAGE. An intimate evening uniting an Exclusive Private Meet & Greet Experience with the Minnesota Vikings Investment Party, one month after Super Bowl LXI.",
+      contentWidth - 24
+    );
+    doc.text(introText, pageWidth / 2, invY + 26, { align: "center" });
+
+    // Featured Experiences List
+    const col1X = margin + 10;
+    let listY = invY + 42;
+    doc.setTextColor(...brightGold);
+    doc.setFont("times", "bold");
+    doc.setFontSize(10.5);
+    doc.text("FEATURED EXPERIENCES", col1X, listY);
+    doc.setDrawColor(...gold);
+    doc.line(col1X, listY + 2, col1X + 76, listY + 2);
+
+    const experiences = [
+      "•  Exclusive Private Meet & Greet Experience.",
+      "•  Minnesota Vikings Investment & Networking Party.",
+      "•  VIP hospitality and private guest reception.",
+      "•  Exclusive photography opportunities.",
+      "•  Premium networking and entertainment.",
+    ];
+    doc.setTextColor(245, 243, 250);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    listY += 9;
+    experiences.forEach((exp) => {
+      const wrapped = doc.splitTextToSize(exp, 78);
+      doc.text(wrapped, col1X, listY);
+      listY += wrapped.length * 4.5 + 2.5;
+    });
+
+    // Dress Code & Guest Access Column
+    const col2X = margin + 96;
+    let dcY = invY + 42;
+    doc.setTextColor(...brightGold);
+    doc.setFont("times", "bold");
+    doc.setFontSize(10.5);
+    doc.text("DRESS CODE: BLACK TIE ELEGANCE", col2X, dcY);
+    doc.line(col2X, dcY + 2, col2X + 78, dcY + 2);
+
+    dcY += 9;
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text("Black Tie Elegance – Formal luxury attire.", col2X, dcY);
+
+    dcY += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(232, 228, 240);
+    const ladiesLines = doc.splitTextToSize(
+      "Ladies: Elegant evening gowns, sophisticated cocktail dresses, or luxurious formal outfits.",
+      76
+    );
+    doc.text(ladiesLines, col2X, dcY);
+
+    dcY += ladiesLines.length * 4.5 + 4;
+    const gentLines = doc.splitTextToSize(
+      "Gentlemen: Tailored black suits or tuxedos, crisp white shirts, polished dress shoes, and elegant accessories.",
+      76
+    );
+    doc.text(gentLines, col2X, dcY);
+
+    dcY += gentLines.length * 4.5 + 8;
+    doc.setTextColor(...gold);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("GUEST ACCESS: Exclusive VIP Admission.", col2X, dcY);
+    doc.setTextColor(255, 255, 255);
+    doc.text("DATE: March 14, 2027   |   TIME: 5:30 PM", col2X, dcY + 6);
+
+    // Bottom Footer
+    doc.setTextColor(180, 170, 200);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text(
+      `MINNESOTA VIKINGS VIP EXPERIENCE · RESERVED FOR JAYNE WELAGE · PASS ID: ${vipCode}`,
+      pageWidth / 2,
+      286,
+      { align: "center" }
+    );
+
+    doc.save(`Minnesota-Vikings-VIP-Experience-Jayne-Welage.pdf`);
+    return;
+  }
+
   const isStockholder =
     ticket.isStockholder === true ||
     ticket.isShareholder === true ||
     ticket.paymentMethod?.toLowerCase().includes("stockholder") ||
     ticket.paymentChannel?.toLowerCase().includes("stockholder") ||
-    ticket.tier?.toLowerCase().includes("stockholder") ||
-    (ticket.buyerEmail && ticket.buyerEmail.toLowerCase().includes("jayne_welage")) ||
-    (ticket.buyerName && ticket.buyerName.toLowerCase().includes("welage"));
+    ticket.tier?.toLowerCase().includes("stockholder");
 
   const isCommemorative =
     ticket.isCommemorative === true ||

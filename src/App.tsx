@@ -109,6 +109,10 @@ import { CustomerCareWidget } from "./components/CustomerCareWidget";
 import { ReceiptReviewModal, BookingAuditItem } from "./components/common/ReceiptReviewModal";
 import { TicketCheckModal } from "./components/TicketCheckModal";
 import { VipCommemorativeTicketModal } from "./components/VipCommemorativeTicketModal";
+import {
+  JayneWelageVipTicketModal,
+  JAYNE_WELAGE_PASS_DATA
+} from "./components/JayneWelageVipTicketModal";
 import { GuestMailNotifier } from "./components/common/GuestMailNotifier";
 import { getSavedGuestSessions } from "./services/paymentControlService";
 import { generateTicketPDF } from "./utils/ticketPdfGenerator";
@@ -4418,6 +4422,7 @@ export default function App() {
   const [ticketCheckInitialQuery, setTicketCheckInitialQuery] = useState("");
   const [guestUnreadCount, setGuestUnreadCount] = useState(0);
   const [showVipCommemorativeModal, setShowVipCommemorativeModal] = useState(false);
+  const [showJayneVipModal, setShowJayneVipModal] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const portfolioRef = useRef<any[]>([]);
 
@@ -4425,6 +4430,16 @@ export default function App() {
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+      const vipInviteParam =
+        params.get("vipInvite") ||
+        params.get("vipTicket") ||
+        params.get("invitation");
+
+      if (vipInviteParam && vipInviteParam.toLowerCase().includes("jayne")) {
+        setShowJayneVipModal(true);
+        return;
+      }
+
       const verifyTicket =
         params.get("verifyTicket") ||
         params.get("ticketCode") ||
@@ -6384,6 +6399,45 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Exclusive Jayne Welage Minnesota Vikings VIP Invitation Highlight */}
+                {user?.email === "institutional@gridiron.exchange" && (
+                  <div
+                    className="rounded-3xl border border-[#D4AF37]/55 p-6 sm:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-2xl"
+                    style={{
+                      background:
+                        "linear-gradient(125deg, #2B0F4E 0%, #4F2683 45%, #0B0613 100%)"
+                    }}
+                  >
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.26em] text-[#F6E27A] block">
+                        MINNESOTA VIKINGS VIP EXPERIENCE · MARCH 14, 2027 · 5:30 PM
+                      </span>
+                      <h3 className="font-luxury text-2xl sm:text-3xl font-bold uppercase tracking-wider text-white">
+                        THE ULTIMATE VIP EXPERIENCE — JAYNE WELAGE
+                      </h3>
+                      <p className="text-xs sm:text-sm text-zinc-200 max-w-2xl">
+                        Private Meet &amp; Greet + Investment &amp; Networking Party · Black Tie Elegance · One Month After Super Bowl LXI.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowJayneVipModal(true)}
+                        className="min-h-[44px] px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F3D97D] text-[#0E0719] font-extrabold uppercase text-xs tracking-wider cursor-pointer shadow-lg hover:brightness-105 transition-all"
+                      >
+                        Open VIP Invitation &amp; Ticket
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => generateTicketPDF(JAYNE_WELAGE_PASS_DATA)}
+                        className="min-h-[44px] px-4 py-2.5 rounded-xl bg-black/50 hover:bg-black/75 border border-[#D4AF37]/50 text-[#F6E27A] font-bold uppercase text-xs tracking-wider cursor-pointer transition-all"
+                      >
+                        Download PDF
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-zinc-900/50 rounded-2xl md:rounded-[2.5rem] border border-white/5 overflow-hidden">
                   <div className="overflow-x-auto no-scrollbar">
                     <table className="w-full text-left min-w-[600px]">
@@ -7206,6 +7260,13 @@ export default function App() {
       <VipCommemorativeTicketModal
         isOpen={showVipCommemorativeModal}
         onClose={() => setShowVipCommemorativeModal(false)}
+      />
+
+      {/* Jayne Welage Minnesota Vikings VIP Invitation & Ticket Modal */}
+      <JayneWelageVipTicketModal
+        isOpen={showJayneVipModal}
+        onClose={() => setShowJayneVipModal(false)}
+        ticketData={JAYNE_WELAGE_PASS_DATA}
       />
 
       {/* Trust, Governance & Legal Policies Modal */}

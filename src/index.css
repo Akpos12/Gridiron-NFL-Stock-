@@ -1,8 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-display: "Barlow Condensed", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-luxury: "Cormorant Garamond", Georgia, "Times New Roman", serif;
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
@@ -28,6 +29,17 @@
 
 .font-display {
   font-family: var(--font-display);
+}
+
+.font-luxury {
+  font-family: var(--font-luxury);
+}
+
+.vip-gold-text {
+  background: linear-gradient(135deg, #FFF3B0 0%, #D4AF37 38%, #F6E27A 65%, #AA7C11 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .market-gradient {
@@ -70,3 +82,34 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.vip-invite-printing > *:not(.vip-invite-print-portal) {
+    display: none !important;
+  }
+
+  body.vip-invite-printing .vip-invite-print-portal {
+    position: static !important;
+    inset: auto !important;
+    padding: 0 !important;
+    background: #07050A !important;
+    overflow: visible !important;
+  }
+
+  body.vip-invite-printing .vip-invite-print-portal > div {
+    max-height: none !important;
+    overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
