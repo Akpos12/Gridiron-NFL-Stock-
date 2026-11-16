@@ -924,7 +924,28 @@ export const TicketCheckModal: React.FC<TicketCheckModalProps> = ({
                   {selectedTicket.isPaymentSession ? (
                     <div className="space-y-4">
                       {selectedTicket.status === "awaiting_admin_details" && !selectedTicket.adminPaymentDetails ? (
-                        <div className="p-5 rounded-2xl bg-zinc-900/90 border border-emerald-500/25 space-y-3">
+                        <div className="p-5 rounded-2xl bg-zinc-900/90 border border-sky-500/35 space-y-4 shadow-xl">
+                          {/* Prominent Active Processing Beacon Banner */}
+                          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-600/20 via-indigo-600/20 to-emerald-500/20 border border-sky-400/40 flex items-center justify-between gap-3 shadow-md">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="relative flex h-3.5 w-3.5 shrink-0">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-sky-500"></span>
+                              </span>
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-sky-300 block truncate">
+                                  ACTIVE PROCESSING IN QUEUE · VENDOR ASSIGNMENT UNDERWAY
+                                </span>
+                                <p className="text-xs text-white font-bold truncate">
+                                  Your request has been successfully processed and logged for priority desk review.
+                                </p>
+                              </div>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-xl bg-sky-500/20 border border-sky-400/30 text-sky-200 font-mono text-[10px] font-bold shrink-0">
+                              LIVE SYNC
+                            </span>
+                          </div>
+
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
                             <div className="flex items-center gap-2.5">
                               <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
