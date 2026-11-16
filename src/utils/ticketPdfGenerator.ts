@@ -111,7 +111,7 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
     ? "PLAYER DESIGNATED WINDOW"
     : (isDateTbd ? "TBA (Stockholder Briefing Notice)" : (ticket.time || ticket.timeSlot || "Kickoff Time (TBA)"));
 
-  const venue = ticket.stadium || (ticket.city ? `${ticket.city} Stadium Arena` : "Official NFL Stadium");
+  const venue = ticket.stadium || (ticket.city ? `${ticket.city} Stadium Arena` : "Event Stadium Arena");
   const venueLocation = ticket.city || "United States";
   
   const baseTierName = isStockholder
@@ -126,7 +126,7 @@ export async function generateTicketPDF(ticket: TicketPassInfo): Promise<void> {
 
   const guests = ticket.quantity || ticket.guestsCount || 1;
   const totalPaid = ticket.totalAmount ?? ticket.totalPrice ?? (isCommemorative ? 1000 : 0);
-  const approvedBy = ticket.approvedBy || (isStockholder ? "NFL Gridiron Executive Treasury & Investor Relations" : isCommemorative ? "NFL Official VIP Concierge Desk" : "NFL Gridiron Box Office Management");
+  const approvedBy = ticket.approvedBy || (isStockholder ? "Gridiron Treasury & Investor Relations" : isCommemorative ? "Gridiron VIP Concierge Desk" : "Gridiron Box Office Hospitality");
   const approvalDate = ticket.approvedAt ? new Date(ticket.approvedAt).toLocaleDateString() : new Date().toLocaleDateString();
 
   // Background Canvas

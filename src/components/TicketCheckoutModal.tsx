@@ -819,7 +819,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     {game.name}
                   </h2>
                   <p className="text-xs text-zinc-400 mt-1 font-medium">
-                    Official NFL Box Office Match Tickets & Full Season Pass Reservations
+                    Gridiron Hospitality Match Tickets &amp; Season Pass Reservations
                   </p>
                 </div>
 

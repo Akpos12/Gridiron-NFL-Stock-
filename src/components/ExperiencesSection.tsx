@@ -127,25 +127,25 @@ const TODAY_ISO = "2026-08-18";
 const SEED_EXPERIENCES: Experience[] = [
   {
     id: "exp-player-inquiry-session",
-    title: "NFL STAR PLAYER INQUIRY & LIAISON SESSION",
-    description: "Direct inquiry session for ANY active NFL player across all 32 teams. Submit your favorite star player, team, and preferred messaging platform (WhatsApp, Zangi, or Telegram). 100% of the $100 inquiry fee goes directly to charity while our coordinator connects with player representation.",
+    title: "PLAYER MEET & GREET INVITATION REQUEST ($100)",
+    description: "Submit your request for an opportunity to attend an exclusive meet-and-greet experience with the player you admire. Invitations are subject to player availability, confirmed events, and authorized arrangements. Includes a $75 coordination fee and $25 earmarked contribution to Boys & Girls Clubs of America.",
     type: "player_inquiry",
-    category: "Player Inquiry Session",
+    category: "Meet & Greet Invitation",
     price: 100,
     vipPrice: 100,
     premiumPrice: 100,
     teamId: "NFL",
-    imageUrl: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=1200",
-    player: "Any NFL Star Player (All 32 Teams)",
-    location: "Official NFL Liaison Network · Direct Messaging",
-    dates: ["Direct On-Demand Inquiry (Active Daily)"],
-    timeSlots: ["Awaiting Player Details"],
+    imageUrl: "/postimages/IMG-0463.jpg",
+    player: "Preferred Roster Player (All 32 Teams)",
+    location: "Gridiron Fan Hospitality · Direct Messaging",
+    dates: ["Subject to Player Availability & Confirmed Events"],
+    timeSlots: ["Direct Notification When Invite Opens"],
     features: [
-      "100% of the $100 inquiry fee goes directly to charity",
-      "Direct inquiry access for any active player across all 32 NFL franchises",
-      "Customer chooses preferred messaging app (WhatsApp, Zangi, or Telegram)",
-      "Official liaison verification & direct outreach to player management",
-      "Digital VIP Clearance Pass & QR Code issued immediately upon confirmation"
+      "$75 Hospitality Coordination Fee + $25 Boys & Girls Clubs of America allocation",
+      "Direct message notification when your requested player invitation opens",
+      "Choose your preferred contact channel (WhatsApp, Zangi, or Telegram)",
+      "Secure hosted checkout and verified digital receipt upon payment",
+      "Digital Guest Pass issued upon coordinator confirmation"
     ],
     rating: 5.0,
     reviewsCount: 128
@@ -530,6 +530,8 @@ interface ExperiencesSectionProps {
   onOpenPodcastInquiry?: (player: any, showTitle: any) => void;
   onOpenCommemorativeTicket?: () => void;
   onOpenTicketPortal?: (query?: string) => void;
+  onOpenSupport?: () => void;
+  onOpenLegalModal?: (tab?: "about" | "contact" | "charity" | "privacy" | "terms" | "refund") => void;
 }
 
 export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({ 
@@ -537,7 +539,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   onRequestLoginModal,
   initialTargetExperience,
   onOpenCommemorativeTicket,
-  onOpenTicketPortal
+  onOpenTicketPortal,
+  onOpenSupport,
+  onOpenLegalModal
 }) => {
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1295,7 +1299,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           {([
             { id: "all", label: "All Events" },
-            { id: "player_inquiry", label: "Inquire About A Player" },
+            { id: "player_inquiry", label: "Meet & Greet Invites" },
             { id: "stadium_tour", label: "Stadium Tours" },
             { id: "meet_greet", label: "Meet & Greets" },
             { id: "private_tour", label: "VIP & Private" }
@@ -1306,8 +1310,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
               className={cn(
                 "px-4 sm:px-5 py-2.5 min-h-[42px] rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer",
                 activeType === tab.id 
-                  ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-600/25" 
-                  : "bg-[#080c1c] border border-white/10 text-zinc-400 hover:text-white hover:border-white/25"
+                  ? "bg-gradient-to-r from-[#013369] via-[#1D4ED8] to-[#2563EB] text-white border border-blue-400/35 shadow-lg shadow-blue-900/35" 
+                  : "bg-[#050816] border border-white/10 text-zinc-400 hover:text-white hover:border-blue-400/50"
               )}
             >
               {tab.label}
@@ -1316,33 +1320,32 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         </div>
       </div>
 
-      {/* Hero Callout Banner: Inquire About Any NFL Player */}
-      <div className="relative overflow-hidden rounded-[2.25rem] bg-gradient-to-r from-[#091235] via-[#0c102e] to-[#1a0d38] border border-indigo-500/35 p-6 sm:p-8 shadow-2xl">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+      {/* Hero Callout Banner: $100 Meet & Greet Invitation */}
+      <div className="relative overflow-hidden rounded-[2.25rem] bg-gradient-to-r from-[#050816] via-[#013369]/45 to-[#08112B] border border-[#013369]/60 p-6 sm:p-8 shadow-2xl">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-3 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-sky-300 text-[10px] font-bold uppercase tracking-widest">
-              <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-              Direct Player Liaison Session · Any Active NFL Star
+            <div className="inline-flex items-center gap-2 text-sky-400 text-xs font-bold uppercase tracking-widest">
+              <Sparkles className="w-3.5 h-3.5 text-[#EF4444]" />
+              <span>$100 Meet &amp; Greet Invitation · Direct Notification</span>
             </div>
-            <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold italic uppercase tracking-tight text-white leading-tight">
-              Looking for a Specific NFL Star Player?
+            <h3 className="font-display text-xl sm:text-2xl lg:text-3xl font-extrabold uppercase tracking-tight text-white leading-tight">
+              GET AN INVITATION TO YOUR FAVORITE PLAYER&apos;S MEET &amp; GREET FOR JUST $100
             </h3>
             <p className="text-xs sm:text-sm text-zinc-200 font-medium leading-relaxed">
-              Submit your contact details, choose any of the 32 NFL franchises &amp; favorite player, and select your preferred messaging channel (WhatsApp, Zangi, or Telegram) for verified player availability.{" "}
-              <strong className="text-emerald-300">100% of the $100 inquiry fee goes directly to charity.</strong>
+              Your favorite player could be closer than you think! Submit your request for an opportunity to attend an exclusive meet-and-greet experience with the player you admire. Choose your favorite player and let our team guide you through the invitation process. Invitations are subject to player availability, confirmed events, and authorized arrangements—a message will be sent to you for the next invite.
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-semibold text-zinc-300">
               <span className="flex items-center gap-1.5 text-emerald-300">
-                <Heart className="w-3.5 h-3.5 text-emerald-400" /> 100% of $100 Fee Goes to Charity
+                <Heart className="w-3.5 h-3.5 text-emerald-400" /> $75 Coordination Fee + $25 Boys &amp; Girls Clubs of America
               </span>
               <span className="text-zinc-600">·</span>
               <span className="flex items-center gap-1.5 text-sky-300">
                 <CheckCircle2 className="w-3.5 h-3.5" /> All 32 Teams Supported
               </span>
               <span className="text-zinc-600">·</span>
-              <span className="flex items-center gap-1.5 text-purple-300">
-                <Smartphone className="w-3.5 h-3.5" /> WhatsApp · Zangi · Telegram
+              <span className="flex items-center gap-1.5 text-zinc-200">
+                <Smartphone className="w-3.5 h-3.5 text-sky-400" /> WhatsApp · Zangi · Telegram
               </span>
             </div>
           </div>
@@ -1357,10 +1360,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                 setInquiryInitialMode("new");
                 setIsPlayerInquiryOpen(true);
               }}
-              className="px-7 py-4 min-h-[48px] rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2.5 shadow-2xl shadow-indigo-600/35 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+              className="px-7 py-4 min-h-[48px] rounded-xl bg-[#D50A0A] hover:bg-[#B91C1C] text-white font-extrabold uppercase tracking-wider text-xs flex items-center justify-center gap-2.5 shadow-2xl shadow-[#D50A0A]/30 border border-white/15 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
             >
-              <Sparkles className="w-4 h-4" />
-              <span>Inquire About A Player</span>
+              <span>GET YOUR INVITATION – $100</span>
               <ArrowRight className="w-4 h-4" />
             </button>
             <button
@@ -1373,7 +1375,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                 setInquiryInitialMode("check_existing");
                 setIsPlayerInquiryOpen(true);
               }}
-              className="px-5 py-4 min-h-[48px] rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/40 text-emerald-200 font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="px-5 py-4 min-h-[48px] rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/40 text-emerald-200 font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <Clock className="w-4 h-4 text-emerald-400" />
               <span>Already Started? Check Details</span>
@@ -1454,7 +1456,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       )}
                     >
                       {isInquiryType
-                        ? "100% Charity Liaison"
+                        ? "$100 Meet & Greet"
                         : hasConfirmedDates
                           ? "Confirmed Dates"
                           : "By Player Availability"}
@@ -1514,7 +1516,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                             ? "Cash App · Crypto (5% OFF) · Gift Card"
                             : exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast")
                               ? "Remote / Denver Studio · Crypto (5% OFF)"
-                              : "Cash App · PayPal · Venmo · Zelle · Crypto"}
+                              : "Visa / Mastercard · Zelle · Cash App · Crypto"}
                       </span>
                     </div>
                   </div>
@@ -1524,7 +1526,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                     <div>
                       <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider leading-none">
                         {isInquiryType
-                          ? "Charity Inquiry Fee"
+                          ? "Invitation Fee ($25 Charity)"
                           : exp.id === "exp-jalen-pitre-meet" || exp.id === "exp-bo-nix-meet" || exp.id === "exp-brock-purdy-meet" || exp.player?.toLowerCase().includes("pitre") || ((exp.title?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("brock purdy")) && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private"))) 
                             ? "Platinum Ticket"
                             : exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast")
@@ -1534,13 +1536,13 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                                 : "Starting from"}
                       </p>
                       {isInquiryType ? (
-                        <p className="text-sm font-mono font-black text-emerald-400 mt-1">
-                          $100 (100% Charity)
+                        <p className="text-sm font-mono font-black text-sky-400 mt-1">
+                          $100 ($75 Fee · $25 BGCA)
                         </p>
                       ) : (
                         <p className={cn(
                           "text-lg font-mono font-black mt-1",
-                          exp.type === "private_tour" ? "text-amber-400" : "text-white"
+                          exp.type === "private_tour" ? "text-sky-300" : "text-white"
                         )}>
                           {formatCurrency(exp.price)}
                         </p>
@@ -1552,14 +1554,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       className={cn(
                         "px-5 py-3 min-h-[44px] rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all inline-flex items-center gap-1.5 transform active:scale-95 duration-150 cursor-pointer",
                         exp.type === "private_tour" 
-                          ? "bg-amber-500 hover:bg-amber-400 text-zinc-950 font-extrabold" 
+                          ? "bg-[#013369] hover:bg-[#1D4ED8] text-white font-extrabold border border-blue-400/30" 
                           : exp.type === "player_inquiry"
-                            ? "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 font-extrabold shadow-lg shadow-emerald-600/25"
-                            : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/20"
+                            ? "bg-[#D50A0A] hover:bg-[#B91C1C] text-white font-extrabold shadow-lg shadow-[#D50A0A]/25 border border-white/15"
+                            : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-600/20"
                       )}
                     >
                       {isInquiryType
-                        ? "Inquire Player" 
+                        ? "GET YOUR INVITATION – $100" 
                         : (exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast") ? "Book Podcast" : "Book Pass")}
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
@@ -3550,6 +3552,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
         initialPaymentMethod={inquiryInitialPaymentMethod}
         initialMode={inquiryInitialMode}
         onOpenTicketPortal={onOpenTicketPortal}
+        onOpenSupport={onOpenSupport}
+        onOpenLegalModal={onOpenLegalModal}
       />
     </div>
   );

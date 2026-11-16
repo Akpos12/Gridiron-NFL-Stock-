@@ -25,6 +25,7 @@ import {
   Layers, 
   Lock,
   Heart,
+  HeartHandshake,
   Building2,
   CreditCard,
   RefreshCw,
@@ -36,6 +37,13 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth, safeSetDoc } from "../lib/firebase";
 import { NFL_TEAMS, getLogoUrl } from "../constants";
 import { cn } from "../lib/utils";
+import stadiumVipImg from "../assets/images/stadium_vip_hospitality_1794821884684.jpg";
+import { CHARITY_ALLOCATION } from "./common/GridironBrandMark";
+import { ConnectionStatusPanel } from "./common/ConnectionStatusPanel";
+import {
+  StripeCardCheckoutPanel,
+  VerifiedStripePaymentReceipt
+} from "./common/StripeCardCheckoutPanel";
 import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingTerminal";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
@@ -63,6 +71,8 @@ interface PlayerInquiryModalProps {
   initialPaymentMethod?: PaymentMethodType | null;
   initialMode?: "new" | "check_existing";
   onOpenTicketPortal?: (query?: string) => void;
+  onOpenSupport?: () => void;
+  onOpenLegalModal?: (tab?: "about" | "contact" | "charity" | "privacy" | "terms" | "refund") => void;
 }
 
 const MESSAGING_PLATFORMS = [
@@ -113,7 +123,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
   initialSessionId,
   initialPaymentMethod,
   initialMode,
-  onOpenTicketPortal
+  onOpenTicketPortal,
+  onOpenSupport,
+  onOpenLegalModal
 }) => {
   const [modalMode, setModalMode] = useState<"new" | "check_existing">(initialMode || "new");
   const [step, setStep] = useState<"details" | "payment" | "success">("details");
@@ -138,8 +150,6 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
   const [giftCardDetails, setGiftCardDetails] = useState({ brand: "Apple", cardNumber: "", pin: "", amount: "100" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [isCardProcessing, setIsCardProcessing] = useState(false);
-  const [cardGatewayError, setCardGatewayError] = useState(false);
 
   // Completed & Existing Inquiry Lookup State
   const [completedOrder, setCompletedOrder] = useState<any | null>(null);
@@ -227,7 +237,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
     const freshId = `INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     setCheckoutSessionId(freshId);
-    setPaymentMethod(null);
+    setPaymentMethod("card");
 
     const canStartOnPayment =
       initialStep === "payment" &&
@@ -371,7 +381,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       }
     }
 
-    setPaymentMethod(null);
+    setPaymentMethod("card");
     setStep("payment");
   };
 
@@ -436,35 +446,35 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         qrCode: passCode,
         passCode: passCode,
         rfidCode: rfidCode,
-        securitySignature: "SHA-256 PLAYER INQUIRY $100 CHARITABLE CONTRIBUTION",
+        securitySignature: "SHA-256 MEET & GREET INVITATION REQUEST ($100)",
         experienceId: "exp-player-inquiry-session",
         gameId: "exp-player-inquiry-session",
-        experienceTitle: `NFL STAR PLAYER INQUIRY: ${favoritePlayer.toUpperCase()} (${selectedTeam.city} ${selectedTeam.name})`,
-        gameName: `NFL Player Inquiry Session: ${favoritePlayer}`,
-        eventTitle: `NFL Player Inquiry Session: ${favoritePlayer}`,
-        itemName: `NFL Player Inquiry Session (${favoritePlayer}) - $100 Charitable Contribution`,
+        experienceTitle: `MEET & GREET INVITATION REQUEST: ${favoritePlayer.toUpperCase()} (${selectedTeam.city} ${selectedTeam.name})`,
+        gameName: `Player Meet & Greet Invitation: ${favoritePlayer}`,
+        eventTitle: `Player Meet & Greet Invitation: ${favoritePlayer}`,
+        itemName: `Meet & Greet Invitation Request (${favoritePlayer}) - $100 ($75 Coordination + $25 BGCA Support)`,
         experienceType: "player_inquiry",
         player: favoritePlayer.trim(),
         favoritePlayer: favoritePlayer.trim(),
         teamId: selectedTeam.id,
         teamName: `${selectedTeam.city} ${selectedTeam.name}`,
         homeTeam: `${selectedTeam.city} ${selectedTeam.name}`,
-        awayTeam: "Custom Talent Liaison",
-        stadium: "Executive Talent Concierge (Private Roster Clearing)",
-        venue: "NFL Player Liaison Concierge",
-        location: "Private Direct Channels & Agency Liaison",
+        awayTeam: "Concierge Coordination",
+        stadium: "Hospitality Concierge Scheduling Queue",
+        venue: "Gridiron Fan Hospitality Concierge",
+        location: "Subject to player availability, confirmed events & authorized arrangements",
         city: selectedTeam.city,
         state: "US",
-        date: "Coordinated once payment receipt is verified",
+        date: "Next invite update sent once availability is confirmed",
         eventDate: "Awaiting Receipt Verification",
-        displayDate: "Coordinated after receipt verification",
+        displayDate: "Subject to Player Availability",
         formattedDate: "Awaiting Receipt Verification",
-        time: "24/7 Rapid Liaison Dispatch",
-        timeSlot: "24/7 Rapid Liaison Dispatch",
-        admissionTime: "Player Scheduled Window",
+        time: "Priority Concierge Review",
+        timeSlot: "Next Invite Notification",
+        admissionTime: "Upon Confirmed Arrangement",
         tier: "standard",
-        tierName: "PLAYER INQUIRY CLEARANCE PASS",
-        seatDetails: `Target Player: ${favoritePlayer.trim()} · Preferred Contact: ${platformName} (${messagingDetails.trim()})`,
+        tierName: "MEET & GREET INVITATION REQUEST",
+        seatDetails: `Requested Player: ${favoritePlayer.trim()} · Preferred Contact: ${platformName} (${messagingDetails.trim()})`,
         quantity: 1,
         guestsCount: 1,
         unitPrice: 100,
@@ -472,9 +482,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         totalPrice: finalPrice,
         totalAmount: finalPrice,
         dueToday: finalPrice,
+        coordinationFeeUsd: CHARITY_ALLOCATION.coordinationFeeUsd,
+        charitableAllocationUsd: CHARITY_ALLOCATION.charitableContributionUsd,
+        charityBeneficiary: CHARITY_ALLOCATION.beneficiary,
         currency: "USD",
         isCharityContribution: true,
-        charityNote: "100% of the $100 charitable contribution goes directly to charity",
+        charityNote: `$${CHARITY_ALLOCATION.coordinationFeeUsd} concierge coordination fee + $${CHARITY_ALLOCATION.charitableContributionUsd} earmarked charitable contribution toward ${CHARITY_ALLOCATION.beneficiary}`,
         messagingPlatform: platformName,
         messagingDetails: messagingDetails.trim(),
         inquiryObjective: inquiryObjective,
@@ -490,11 +503,11 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         email: email.trim(),
         userId: auth.currentUser?.uid || `guest_${Date.now()}`,
         buyerPhone: phone.trim() || messagingDetails.trim(),
-        status: "pending", // Payment receipt awaiting administrator verification
+        status: "pending", // Never mark manual proof inquiries paid until verified by admin
         orderStatus: "PAYMENT RECEIPT AWAITING VERIFICATION",
         approvalStatus: "RECEIPT UPLOADED ($100) · AWAITING ADMIN VERIFICATION",
         isApproved: false,
-        verificationNotice: `AUDITED BY NFL GRIDIRON EXECUTIVE TREASURY · $100 CHARITABLE CONTRIBUTION RECEIPT SUBMITTED FOR ${favoritePlayer.toUpperCase()}`,
+        verificationNotice: `AUDITED BY GRIDIRON FAN HOSPITALITY · $100 INVITATION REQUEST RECEIPT SUBMITTED FOR ${favoritePlayer.toUpperCase()}`,
         paymentMethod: paymentMethod,
         paymentSessionId: checkoutSessionId,
         paymentReference: paymentRef || `INQ-${checkoutSessionId}`,
@@ -506,15 +519,15 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         ...(paymentMethod === "giftcard" ? { giftCardDetails } : {}),
         createdAt: nowIso,
         updatedAt: nowIso,
-        imageUrl: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=1200",
-        ticketImageUrl: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=1200",
+        imageUrl: stadiumVipImg,
+        ticketImageUrl: stadiumVipImg,
         features: [
-          `Target Player Inquired: ${favoritePlayer.trim()}`,
-          `Franchise: ${selectedTeam.city} ${selectedTeam.name}`,
-          `100% of the $100 inquiry fee goes directly to charity`,
-          `Contact channel: ${platformName} (${messagingDetails.trim()})`,
-          `Awaiting direct player schedule & booking availability packet`,
-          `Concierge liaison outreach active`
+          `Requested Athlete: ${favoritePlayer.trim()}`,
+          `Preferred Franchise: ${selectedTeam.city} ${selectedTeam.name}`,
+          `Transparent Breakdown: $${CHARITY_ALLOCATION.coordinationFeeUsd} coordination fee + $${CHARITY_ALLOCATION.charitableContributionUsd} earmarked for ${CHARITY_ALLOCATION.beneficiary}`,
+          `Contact Channel: ${platformName} (${messagingDetails.trim()})`,
+          `Invitations are subject to player availability, confirmed events & authorized arrangements`,
+          `A direct message will be sent to you for the next available invite`
         ]
       };
 
@@ -643,23 +656,24 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         </button>
 
         {/* Modal Banner Header */}
-        <div className="relative p-6 sm:p-8 bg-gradient-to-r from-blue-900/60 via-indigo-950/60 to-zinc-950 border-b border-white/10">
-          <div className="flex items-center flex-wrap gap-2 mb-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-[9px] font-black uppercase tracking-widest text-blue-400">
-              <Sparkles className="w-3.5 h-3.5" />
-              NFL Roster Concierge
+        <div className="relative p-6 sm:p-8 bg-gradient-to-r from-[#050816] via-[#08112B] to-[#03050C] border-b border-[#013369]/60">
+          <div className="flex items-center flex-wrap gap-3 mb-2 text-xs font-bold text-sky-400">
+            <span className="inline-flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+              Meet &amp; Greet Invitation Request
             </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[9px] font-mono font-black text-emerald-300">
-              <Heart className="w-3 h-3 fill-emerald-400/30" />
-              $100 FEE · 100% GOES TO CHARITY
+            <span aria-hidden="true" className="text-zinc-600">·</span>
+            <span className="inline-flex items-center gap-1.5 font-mono text-white">
+              <HeartHandshake className="w-3.5 h-3.5 text-sky-400" />
+              $100 ($75 Fee + $25 BGCA Support)
             </span>
           </div>
 
-          <h3 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter text-white">
-            CUSTOM NFL PLAYER INQUIRY & LIAISON
+          <h3 className="text-xl sm:text-2xl font-extrabold uppercase tracking-tight text-white leading-tight">
+            GET AN INVITATION TO YOUR FAVORITE PLAYER&apos;S MEET &amp; GREET FOR JUST <span className="text-sky-400">$100</span>
           </h3>
-          <p className="text-xs text-zinc-400 mt-1 max-w-lg font-medium leading-relaxed">
-            Inquire about any active NFL superstar or roster talent across all 32 franchises. <strong className="text-emerald-300">100% of your $100 inquiry fee goes directly to charity</strong> while our team connects with player representation.
+          <p className="text-xs text-zinc-300 mt-1.5 max-w-lg font-medium leading-relaxed">
+            Your favorite player could be closer than you think! Submit your request for an opportunity to attend an exclusive meet-and-greet experience with the player you admire. Invitations are subject to player availability, confirmed events, and authorized arrangements — a direct message will be sent to you for the next available invite.
           </p>
 
           {/* Mode Switcher: New Inquiry vs Already Started? Check Awaiting Details */}
@@ -1193,42 +1207,52 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                 </div>
               </div>
 
-              {/* Pre-Payment $100 Charitable Contribution Explanation & Submission Rules */}
-              <div className="p-5 bg-gradient-to-br from-emerald-950/50 via-zinc-900 to-zinc-950 rounded-3xl border border-emerald-500/30 space-y-4">
+              {/* Transparent $100 Invitation Fee & Charitable Allocation Disclosure */}
+              <div className="p-5 bg-gradient-to-br from-[#050816] via-[#08112B] to-[#03050C] rounded-3xl border border-[#013369]/60 space-y-4">
                 <div className="space-y-2">
-                  <span className="text-[10px] font-black uppercase text-emerald-300 tracking-wider inline-flex items-center gap-1.5">
-                    <Heart className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20" />
-                    Before You Begin Payment: Required $100 Charitable Contribution
+                  <span className="text-[10px] font-black uppercase text-sky-400 tracking-wider inline-flex items-center gap-1.5">
+                    <HeartHandshake className="w-3.5 h-3.5 text-sky-400" />
+                    Invitation Process &amp; Transparent $100 Breakdown
                   </span>
                   <h4 className="text-sm font-black uppercase tracking-tight text-white">
-                    100% of Your $100 Contribution Goes to Charity
+                    $75.00 Concierge Coordination Fee + $25.00 Charitable Allocation
                   </h4>
                   <p className="text-xs text-zinc-300 font-medium leading-relaxed">
-                    To submit an official NFL player inquiry, customers must complete a mandatory <strong className="text-emerald-300">$100 charitable contribution</strong> before submission. Every dollar directly supports youth athletics and community outreach programs.
+                    Every <strong className="text-white">$100</strong> invitation request includes a <strong className="text-white">$75.00</strong> coordination and processing fee plus a <strong className="text-emerald-400">$25.00</strong> contribution earmarked toward{" "}
+                    <strong className="text-white">{CHARITY_ALLOCATION.beneficiary}</strong> youth education and mentorship initiatives. Invitations remain subject to player availability, confirmed events, and authorized arrangements, and our team will message you for the next available invite.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
-                  <div className="p-3 rounded-2xl bg-zinc-950/80 border border-white/10">
-                    <span className="text-[9px] font-mono font-black uppercase text-blue-400 block">Step 1 · Contribute $100</span>
-                    <p className="text-zinc-300 mt-0.5 leading-snug">Complete the $100 contribution via Cash App, PayPal, Venmo, Zelle, Crypto, or Gift Card.</p>
+                  <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
+                    <span className="text-[9px] font-mono font-black uppercase text-sky-400 block">Step 1 · Select Payment</span>
+                    <p className="text-zinc-300 mt-0.5 leading-snug">Pay securely via Hosted Card Checkout (Visa / Mastercard) or choose Zelle, Cash App, Venmo, PayPal, Crypto, or Gift Card.</p>
                   </div>
-                  <div className="p-3 rounded-2xl bg-zinc-950/80 border border-white/10">
-                    <span className="text-[9px] font-mono font-black uppercase text-amber-400 block">Step 2 · Upload Receipt</span>
-                    <p className="text-zinc-300 mt-0.5 leading-snug">Attach a valid receipt or screenshot before submitting your inquiry.</p>
+                  <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
+                    <span className="text-[9px] font-mono font-black uppercase text-sky-400 block">Step 2 · Verify Transaction</span>
+                    <p className="text-zinc-300 mt-0.5 leading-snug">Card payments confirm automatically; manual transfers require genuine receipt upload before verification.</p>
                   </div>
-                  <div className="p-3 rounded-2xl bg-zinc-950/80 border border-white/10">
-                    <span className="text-[9px] font-mono font-black uppercase text-emerald-400 block">Step 3 · Verify & Notify</span>
-                    <p className="text-zinc-300 mt-0.5 leading-snug">Once verified by our admin, we notify you on WhatsApp, Zangi, or Telegram to proceed.</p>
+                  <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
+                    <span className="text-[9px] font-mono font-black uppercase text-emerald-400 block">Step 3 · Next Invite Update</span>
+                    <p className="text-zinc-300 mt-0.5 leading-snug">Once confirmed, our concierge messages you via {MESSAGING_PLATFORMS.find(p => p.id === messagingPlatform)?.name || "your chosen app"} &amp; email when an invite window opens.</p>
                   </div>
                 </div>
 
-                <div className="pt-1 flex justify-end">
+                <div className="pt-1 flex flex-wrap items-center justify-between gap-3">
+                  {onOpenLegalModal && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenLegalModal("charity")}
+                      className="text-xs font-semibold text-sky-400 hover:text-white hover:underline cursor-pointer"
+                    >
+                      View Charitable Initiative &amp; Refund Policy Disclosures →
+                    </button>
+                  )}
                   <button
                     type="submit"
-                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl transition-all shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2.5 transform active:scale-95 cursor-pointer"
+                    className="w-full sm:w-auto px-8 py-4 bg-[#D50A0A] hover:bg-[#B91C1C] text-white border border-white/15 font-extrabold uppercase text-xs tracking-wider rounded-2xl transition-all shadow-lg shadow-red-900/30 flex items-center justify-center gap-2.5 cursor-pointer"
                   >
-                    <span>Continue to $100 Payment & Receipt Upload</span>
+                    <span>GET YOUR INVITATION – $100</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -1281,16 +1305,23 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                 </div>
 
                 <div className="text-right">
-                  <span className="text-[9px] font-mono text-zinc-500 uppercase block">Charity Inquiry Fee</span>
-                  <span className="text-xl font-mono font-black text-emerald-400">${finalPrice} USD</span>
+                  <span className="text-[9px] font-mono text-zinc-400 uppercase block">Invitation Fee</span>
+                  <span className="text-xl font-mono font-black text-white">${finalPrice}.00 USD</span>
                 </div>
               </div>
 
-              {/* Charity Transparency Banner */}
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-3">
-                <Heart className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5 fill-emerald-400/20" />
-                <p className="text-xs text-emerald-100 leading-relaxed">
-                  <strong className="text-emerald-300 uppercase tracking-wide">100% Goes to Charity:</strong> Your ${finalPrice} USD player inquiry fee is donated directly to charity—helping fund youth football &amp; community outreach initiatives.
+              <ConnectionStatusPanel
+                compact
+                paymentStatusLabel={`Request ${checkoutSessionId}`}
+              />
+
+              {/* Fee vs Charitable Contribution Transparency Banner */}
+              <div className="p-4 rounded-2xl bg-[#050816] border border-[#013369]/60 flex items-start gap-3">
+                <HeartHandshake className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-zinc-200 leading-relaxed">
+                  <strong className="text-sky-400 uppercase tracking-wide">Fee &amp; Charity Transparency:</strong> Of your ${finalPrice}.00 total,{" "}
+                  <strong className="text-white">$25.00</strong> is allocated toward{" "}
+                  <strong className="text-white">{CHARITY_ALLOCATION.beneficiary}</strong> youth mentorship programs, and the remaining balance covers hospitality coordination and processing. No official partnership with BGCA is claimed.
                 </p>
               </div>
 
@@ -1364,131 +1395,115 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   </p>
                 </div>
               ) : paymentMethod === "card" ? (
-                <div className="p-5 sm:p-6 bg-zinc-900/95 border border-blue-500/30 rounded-3xl space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="w-5 h-5 text-blue-400" />
-                      <div>
-                        <h4 className="text-xs font-black uppercase text-white">Secure Debit &amp; Credit Card Checkout</h4>
-                        <p className="text-[10px] text-zinc-400">Encrypted 3D Secure 2.0 SSL Gateway</p>
-                      </div>
-                    </div>
-                    <span className="text-xs font-mono font-black text-emerald-400">${finalPrice}.00 USD</span>
-                  </div>
+                <StripeCardCheckoutPanel
+                  amountUsd={100}
+                  itemName={`Meet & Greet Invitation — ${favoritePlayer || "Selected Player"}`}
+                  itemDescription={`Invitation request for ${favoritePlayer || "Selected Player"} (${selectedTeam.city} ${selectedTeam.name}). Includes $75.00 coordination fee + $25.00 earmarked support for Boys & Girls Clubs of America.`}
+                  sessionId={checkoutSessionId}
+                  customerName={fullName}
+                  customerEmail={email}
+                  customerPhone={phone || messagingDetails}
+                  playerName={favoritePlayer}
+                  isCharityEligible={true}
+                  onReturnToOptions={() => setPaymentMethod("zelle")}
+                  onContactSupport={() => {
+                    onClose();
+                    if (onOpenSupport) {
+                      onOpenSupport();
+                    } else if (onOpenTicketPortal) {
+                      onOpenTicketPortal(checkoutSessionId);
+                    }
+                  }}
+                  onVerifiedSuccess={async (receipt: VerifiedStripePaymentReceipt) => {
+                    const orderId = `ORD-STRIPE-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+                    const passCode = `PASS-INQ-${Date.now().toString(36).toUpperCase()}`;
+                    const nowIso = new Date().toISOString();
+                    const platformObj = MESSAGING_PLATFORMS.find(p => p.id === messagingPlatform);
+                    const platformName = platformObj?.name || messagingPlatform.toUpperCase();
 
-                  {isCardProcessing ? (
-                    <div className="py-12 text-center space-y-3">
-                      <Loader2 className="w-8 h-8 text-blue-400 animate-spin mx-auto" />
-                      <p className="text-xs font-bold uppercase tracking-wider text-white">
-                        Connecting to secure 3D Secure / Bank Gateway...
-                      </p>
-                      <p className="text-[11px] text-zinc-400">Authenticating with your issuing bank...</p>
-                    </div>
-                  ) : cardGatewayError ? (
-                    <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/35 space-y-3 text-xs">
-                      <div className="flex items-center gap-2 text-amber-300 font-black uppercase">
-                        <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                        <span>Temporary Banking Gateway Notice (Error 504 / Gateway Timeout)</span>
-                      </div>
-                      <p className="text-zinc-200 leading-relaxed text-[11px]">
-                        High traffic on Visa/Mastercard secure gateway. To ensure your player inquiry spot or reservation isn&apos;t lost during this temporary banking timeout, please select one of our instant alternate contribution channels below:
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => { setCardGatewayError(false); setPaymentMethod("zelle"); }}
-                          className="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-wider cursor-pointer"
-                        >
-                          Switch to Zelle (Instant)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setCardGatewayError(false); setPaymentMethod("cashapp"); }}
-                          className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] uppercase tracking-wider cursor-pointer"
-                        >
-                          Switch to Cash App
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setCardGatewayError(false); setPaymentMethod("crypto"); }}
-                          className="p-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-[10px] uppercase tracking-wider cursor-pointer"
-                        >
-                          Switch to Bitcoin (5% Off)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setCardGatewayError(false); setPaymentMethod("giftcard"); }}
-                          className="p-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-zinc-950 font-black text-[10px] uppercase tracking-wider cursor-pointer"
-                        >
-                          Switch to Gift Card
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        setIsCardProcessing(true);
-                        setTimeout(() => {
-                          setIsCardProcessing(false);
-                          setCardGatewayError(true);
-                        }, 2500);
-                      }}
-                      className="space-y-3 text-xs"
-                    >
-                      <div>
-                        <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Cardholder Name</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Name on card"
-                          defaultValue={fullName}
-                          className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Card Number</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="4000 1234 5678 9010"
-                          defaultValue="4532 7810 9923 4190"
-                          className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 font-mono text-white"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Expiration</label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="MM/YY"
-                            defaultValue="08/28"
-                            className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 font-mono text-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">CVV / CVC</label>
-                          <input
-                            type="password"
-                            required
-                            maxLength={4}
-                            placeholder="123"
-                            defaultValue="884"
-                            className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 font-mono text-white"
-                          />
-                        </div>
-                      </div>
-                      <button
-                        type="submit"
-                        className="w-full mt-2 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
-                      >
-                        <ShieldCheck className="w-4 h-4 text-sky-400" />
-                        <span>Pay ${finalPrice}.00 Securely via Card</span>
-                      </button>
-                    </form>
-                  )}
-                </div>
+                    const verifiedData: any = {
+                      id: orderId,
+                      orderId,
+                      bookingId: orderId,
+                      shortId: `INQ-${selectedTeam.id}-${favoritePlayer.replace(/\s+/g, "").slice(0, 6).toUpperCase()}`,
+                      ticketCode: passCode,
+                      qrCode: passCode,
+                      passCode,
+                      experienceId: "exp-player-inquiry-session",
+                      experienceTitle: `MEET & GREET INVITATION: ${favoritePlayer.toUpperCase()} (${selectedTeam.city} ${selectedTeam.name})`,
+                      gameName: `Meet & Greet Invitation: ${favoritePlayer}`,
+                      eventTitle: `Meet & Greet Invitation: ${favoritePlayer}`,
+                      itemName: `Meet & Greet Invitation (${favoritePlayer}) - Stripe Verified`,
+                      experienceType: "player_inquiry",
+                      player: favoritePlayer.trim() || "Selected Player",
+                      favoritePlayer: favoritePlayer.trim() || "Selected Player",
+                      teamId: selectedTeam.id,
+                      teamName: `${selectedTeam.city} ${selectedTeam.name}`,
+                      stadium: "Hospitality Concierge Scheduling Queue",
+                      city: selectedTeam.city,
+                      date: "Subject to player availability & confirmed events",
+                      tier: "standard",
+                      tierName: "MEET & GREET INVITATION REQUEST",
+                      quantity: 1,
+                      guestsCount: 1,
+                      unitPrice: receipt.amountTotal,
+                      price: receipt.amountTotal,
+                      totalPrice: receipt.amountTotal,
+                      totalAmount: receipt.amountTotal,
+                      coordinationFeeUsd: CHARITY_ALLOCATION.coordinationFeeUsd,
+                      charitableAllocationUsd: CHARITY_ALLOCATION.charitableContributionUsd,
+                      charityBeneficiary: CHARITY_ALLOCATION.beneficiary,
+                      buyerName: receipt.customerName || fullName.trim() || "VIP Guest",
+                      senderName: receipt.customerName || fullName.trim() || "VIP Guest",
+                      buyerEmail: receipt.customerEmail || email.trim(),
+                      userEmail: receipt.customerEmail || email.trim(),
+                      buyerPhone: phone.trim() || messagingDetails.trim(),
+                      messagingPlatform: platformName,
+                      messagingDetails: messagingDetails.trim(),
+                      status: "paid_verified",
+                      orderStatus: "STRIPE PAYMENT VERIFIED · INVITATION QUEUED",
+                      approvalStatus: "STRIPE CHECKOUT VERIFIED · NEXT INVITE SCHEDULED",
+                      isApproved: false,
+                      paymentMethod: "card",
+                      paymentSessionId: receipt.sessionId,
+                      paymentReference: receipt.sessionId,
+                      paymentRef: receipt.sessionId,
+                      paymentChannel: "STRIPE CARD CHECKOUT",
+                      imageUrl: stadiumVipImg,
+                      createdAt: nowIso,
+                      updatedAt: nowIso,
+                    };
+
+                    try {
+                      await safeSetDoc(doc(db, "bookings", orderId), verifiedData);
+                      await safeSetDoc(doc(db, "customer_inquiries", orderId), {
+                        id: orderId,
+                        orderId,
+                        sessionId: receipt.sessionId,
+                        type: "player_inquiry",
+                        category: "player_inquiry",
+                        customerName: verifiedData.buyerName,
+                        customerEmail: verifiedData.buyerEmail,
+                        customerPhone: verifiedData.buyerPhone,
+                        teamId: selectedTeam.id,
+                        teamName: `${selectedTeam.city} ${selectedTeam.name}`,
+                        favoritePlayer: verifiedData.player,
+                        messagingPlatform: platformName,
+                        messagingDetails: messagingDetails.trim(),
+                        feePaid: receipt.amountTotal,
+                        paymentMethod: "card",
+                        paymentRef: receipt.sessionId,
+                        status: "paid_verified",
+                        orderStatus: "STRIPE PAYMENT VERIFIED",
+                        isApproved: false,
+                        createdAt: nowIso,
+                      });
+                    } catch {
+                      // Receipt card remains displayed to user even if optional extra log fails
+                    }
+                    setCompletedOrder(verifiedData);
+                  }}
+                />
               ) : paymentMethod !== "giftcard" ? (
                   <div className="space-y-4">
                     <CustomerPaymentWaitingTerminal
@@ -1607,161 +1622,176 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                 </div>
               )}
 
-              {/* Pre-Submission Verification Checklist */}
-              <div className="p-4 rounded-2xl bg-zinc-900/70 border border-white/10 space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-zinc-300">
-                    Submission Requirements Checklist
-                  </span>
-                  <span className={cn(
-                    "text-[9px] font-mono font-black uppercase",
-                    canSubmitInquiry ? "text-emerald-400" : "text-amber-400"
-                  )}>
-                    {canSubmitInquiry ? "Ready to Submit" : "Action Required"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px]">
-                  <div className={cn(
-                    "px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5",
-                    hasRequiredProfileFields ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-zinc-950 border-white/10 text-zinc-400"
-                  )}>
-                    <CheckCircle2 className={cn("w-3.5 h-3.5 shrink-0", hasRequiredProfileFields ? "text-emerald-400" : "text-zinc-600")} />
-                    <span>All Required Info</span>
+              {paymentMethod && paymentMethod !== "card" && (
+                <>
+                  {/* Pre-Submission Verification Checklist */}
+                  <div className="p-4 rounded-2xl bg-zinc-900/70 border border-white/10 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-zinc-300">
+                        Submission Requirements Checklist
+                      </span>
+                      <span className={cn(
+                        "text-[9px] font-mono font-black uppercase",
+                        canSubmitInquiry ? "text-emerald-400" : "text-amber-400"
+                      )}>
+                        {canSubmitInquiry ? "Ready to Submit" : "Action Required"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px]">
+                      <div className={cn(
+                        "px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5",
+                        hasRequiredProfileFields ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-zinc-950 border-white/10 text-zinc-400"
+                      )}>
+                        <CheckCircle2 className={cn("w-3.5 h-3.5 shrink-0", hasRequiredProfileFields ? "text-emerald-400" : "text-zinc-600")} />
+                        <span>All Required Info</span>
+                      </div>
+                      <div className={cn(
+                        "px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5",
+                        hasSelectedSupportedPayment && hasValidGiftCard ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-zinc-950 border-white/10 text-zinc-400"
+                      )}>
+                        <CheckCircle2 className={cn("w-3.5 h-3.5 shrink-0", hasSelectedSupportedPayment && hasValidGiftCard ? "text-emerald-400" : "text-zinc-600")} />
+                        <span>$100 Payment Method</span>
+                      </div>
+                      <div className={cn(
+                        "px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5",
+                        hasReceiptProof ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                      )}>
+                        {hasReceiptProof ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                        ) : (
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                        )}
+                        <span>{hasReceiptProof ? "Receipt Uploaded" : "Upload Receipt *"}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className={cn(
-                    "px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5",
-                    hasSelectedSupportedPayment && hasValidGiftCard ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-zinc-950 border-white/10 text-zinc-400"
-                  )}>
-                    <CheckCircle2 className={cn("w-3.5 h-3.5 shrink-0", hasSelectedSupportedPayment && hasValidGiftCard ? "text-emerald-400" : "text-zinc-600")} />
-                    <span>$100 Payment Method</span>
-                  </div>
-                  <div className={cn(
-                    "px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5",
-                    hasReceiptProof ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-amber-500/10 border-amber-500/30 text-amber-300"
-                  )}>
-                    {hasReceiptProof ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
-                    ) : (
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
-                    )}
-                    <span>{hasReceiptProof ? "Receipt Uploaded" : "Upload Receipt *"}</span>
-                  </div>
-                </div>
-              </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-white/5">
-                <button
-                  type="button"
-                  onClick={() => setStep("details")}
-                  className="px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
-                >
-                  ← Back to Details
-                </button>
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => setStep("details")}
+                      className="px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                    >
+                      ← Back to Details
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleFinalizeInquiry()}
-                  disabled={!canSubmitInquiry}
-                  title={!hasReceiptProof ? "Upload proof of payment receipt before submitting" : "Submit your inquiry and payment receipt for admin verification"}
-                  className="px-8 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-black font-black uppercase text-[10px] tracking-widest rounded-2xl transition-all shadow-lg shadow-emerald-500/20 disabled:shadow-none flex items-center justify-center gap-2 transform active:scale-95 cursor-pointer"
-                >
-                  {isSubmitting ? (
-                    <span>Submitting Inquiry & Receipt...</span>
-                  ) : !hasReceiptProof ? (
-                    <>
-                      <Lock className="w-4 h-4" />
-                      <span>Upload Receipt to Submit Inquiry</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Submit Inquiry & Payment Proof (${finalPrice})</span>
-                      <Check className="w-4 h-4 text-black" />
-                    </>
-                  )}
-                </button>
-              </div>
+                    <button
+                      type="button"
+                      onClick={() => handleFinalizeInquiry()}
+                      disabled={!canSubmitInquiry}
+                      title={!hasReceiptProof ? "Upload proof of payment receipt before submitting" : "Submit your inquiry and payment receipt for admin verification"}
+                      className="px-8 py-3.5 bg-[#D50A0A] hover:bg-[#B91C1C] disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white border border-white/15 font-extrabold uppercase text-[11px] tracking-wider rounded-2xl transition-all shadow-lg shadow-red-900/25 disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {isSubmitting ? (
+                        <span>Submitting Inquiry &amp; Receipt...</span>
+                      ) : !hasReceiptProof ? (
+                        <>
+                          <Lock className="w-4 h-4" />
+                          <span>Upload Receipt to Submit Inquiry</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Submit Request &amp; Payment Proof (${finalPrice})</span>
+                          <Check className="w-4 h-4 text-white" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+              {paymentMethod === "card" && (
+                <div className="flex items-center justify-start pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setStep("details")}
+                    className="px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
+                  >
+                    ← Back to Request Details
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
           {/* STEP 3: RECEIPT SUBMITTED — AWAITING VERIFICATION */}
           {modalMode === "new" && step === "success" && completedOrder && (
             <div className="space-y-6 text-center py-4">
-              <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400 shadow-xl shadow-amber-500/10">
-                <Clock className="w-8 h-8 animate-pulse" />
+              <div className="w-16 h-16 rounded-full bg-[#013369]/30 border border-blue-500/40 flex items-center justify-center mx-auto text-sky-400 shadow-xl">
+                <Clock className="w-8 h-8" />
               </div>
 
               <div>
-                <span className="px-3.5 py-1 bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-black uppercase tracking-widest rounded-full">
+                <span className="px-3.5 py-1 bg-[#013369]/35 border border-blue-500/35 text-sky-300 text-[10px] font-black uppercase tracking-widest rounded-full">
                   PAYMENT RECEIPT SUBMITTED · AWAITING VERIFICATION
                 </span>
-                <h4 className="text-2xl font-black italic uppercase tracking-tighter text-white mt-2">
+                <h4 className="text-2xl font-black uppercase tracking-tight text-white mt-2">
                   PAYMENT RECEIPT AWAITING VERIFICATION
                 </h4>
                 <p className="text-xs text-zinc-300 font-medium max-w-md mx-auto mt-1.5 leading-relaxed">
-                  Thank you! Your <strong className="text-emerald-300">${completedOrder.totalPrice} charitable contribution</strong> and payment receipt for <strong className="text-white">{completedOrder.player}</strong> have been submitted and are <strong className="text-amber-300">awaiting administrator verification</strong>. Once verified and approved, we will notify you via <strong className="text-blue-300">{completedOrder.messagingPlatform}</strong> so you can proceed.
+                  Thank you! Your <strong className="text-white">${completedOrder.totalPrice}.00 invitation request</strong> and payment receipt for <strong className="text-white">{completedOrder.player}</strong> have been logged and are <strong className="text-sky-400">awaiting administrator verification</strong>. Invitations are subject to player availability and confirmed events; once verified, we will message you via <strong className="text-white">{completedOrder.messagingPlatform}</strong> for the next available invite.
                 </p>
               </div>
 
-              {/* Virtual Clearance Pass Card */}
-              <div className="max-w-md mx-auto bg-zinc-900 rounded-[2.5rem] border border-blue-500/20 overflow-hidden shadow-2xl text-left">
+              {/* Virtual Request Confirmation Card */}
+              <div className="max-w-md mx-auto bg-[#050816] rounded-3xl border border-[#013369]/60 overflow-hidden shadow-2xl text-left">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-blue-700 via-indigo-800 to-zinc-950 p-5 flex items-center justify-between">
+                <div className="bg-gradient-to-r from-[#08112B] to-[#03050C] p-5 border-b border-white/10 flex items-center justify-between">
                   <div>
-                    <span className="text-[8px] font-black text-blue-200 uppercase tracking-widest">
-                      OFFICIAL PLAYER INQUIRY PASS
+                    <span className="text-[9px] font-bold text-sky-400 uppercase tracking-widest">
+                      MEET &amp; GREET INVITATION REQUEST
                     </span>
                     <h5 className="text-sm font-black uppercase text-white mt-0.5">
                       {completedOrder.player} · {completedOrder.teamId}
                     </h5>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full text-[8px] font-black uppercase bg-amber-400 text-black">
+                  <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase bg-[#013369] border border-blue-400/35 text-white">
                     Awaiting Verification
                   </span>
                 </div>
 
                 {/* Body details */}
                 <div className="p-6 space-y-4">
-                  <div className="grid grid-cols-2 gap-3 text-xs border-b border-white/5 pb-3 font-mono">
+                  <div className="grid grid-cols-2 gap-3 text-xs border-b border-white/10 pb-3 font-mono">
                     <div>
-                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Attendee</span>
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Guest</span>
                       <span className="text-white font-bold text-xs truncate block">{completedOrder.buyerName}</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Inquiry Reference</span>
-                      <span className="text-emerald-400 font-bold text-xs select-all">{completedOrder.ticketCode}</span>
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Request Reference</span>
+                      <span className="text-sky-400 font-bold text-xs select-all">{completedOrder.ticketCode}</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Notification App</span>
-                      <span className="text-blue-400 font-bold text-xs">{completedOrder.messagingPlatform}</span>
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Notification App</span>
+                      <span className="text-white font-bold text-xs">{completedOrder.messagingPlatform}</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Handle / Number</span>
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Handle / Number</span>
                       <span className="text-white font-bold text-xs truncate block">{completedOrder.messagingDetails}</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Charity Contribution</span>
-                      <span className="text-emerald-400 font-bold text-xs">${completedOrder.totalPrice} USD</span>
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Total Breakdown</span>
+                      <span className="text-emerald-400 font-bold text-xs">${completedOrder.totalPrice}.00 ($25 BGCA)</span>
                     </div>
                     <div>
-                      <span className="text-[8px] font-black text-zinc-500 uppercase tracking-wider block">Receipt Status</span>
-                      <span className="text-amber-400 font-bold text-xs">Awaiting Verification</span>
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Receipt Status</span>
+                      <span className="text-sky-400 font-bold text-xs">Awaiting Verification</span>
                     </div>
                   </div>
 
                   {/* Verification & Notification Notice Banner */}
-                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-start gap-3">
-                    <Clock className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-zinc-200 leading-relaxed font-medium">
-                      Your uploaded receipt is under administrator review. Once verified, you will receive an approval notification on <strong className="text-white">{completedOrder.messagingPlatform}</strong> (<strong className="text-blue-300 font-mono">{completedOrder.messagingDetails}</strong>) letting you know you can proceed. If a corrected receipt is needed, you can re-upload anytime in the Ticket &amp; Inquiry Portal.
+                  <div className="p-3.5 bg-[#03050C] border border-[#013369]/60 rounded-2xl flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-zinc-200 leading-relaxed font-medium">
+                      Your uploaded receipt is under administrator review. Once verified, you will receive an update on <strong className="text-white">{completedOrder.messagingPlatform}</strong> (<strong className="text-sky-400 font-mono">{completedOrder.messagingDetails}</strong>) as soon as the next invitation window opens.
                     </p>
                   </div>
 
                   {/* Scannable QR Pass */}
-                  <div className="p-4 bg-zinc-950 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-2">
-                    <div className="p-2.5 bg-white rounded-xl shadow-md border-2 border-emerald-500/20">
+                  <div className="p-4 bg-[#03050C] rounded-2xl border border-white/10 flex flex-col items-center justify-center gap-2">
+                    <div className="p-2.5 bg-white rounded-xl shadow-md border-2 border-[#013369]/60">
                       <QRCodeSVG
-                        value={`https://nfl-gridiron-exchange.com/?verifyPass=${encodeURIComponent(completedOrder.ticketCode)}`}
+                        value={`https://www.nflgridiron.company/?verifyPass=${encodeURIComponent(completedOrder.ticketCode)}`}
                         size={120}
                         level="H"
                       />

@@ -548,9 +548,9 @@ export const ExperienceAdmin: React.FC = () => {
             vipPrice: 100,
             premiumPrice: 100,
             teamId: "NFL",
-            imageUrl: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=1200",
-            player: "Any NFL Star Player (All 32 Teams)",
-            location: "Official NFL Liaison Network · Direct Messaging",
+            imageUrl: "/postimages/IMG-0463.jpg",
+            player: "Any Roster Player (All 32 Teams)",
+            location: "Gridiron Fan Hospitality · Direct Messaging",
             dates: ["Direct On-Demand Inquiry (Active Daily)"],
             timeSlots: ["Awaiting Player Details"],
             features: [
@@ -664,7 +664,7 @@ export const ExperienceAdmin: React.FC = () => {
         premiumPrice: Number(premiumPrice),
         teamId,
         location,
-        imageUrl: imageUrl || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+        imageUrl: imageUrl || "/postimages/IMG-0463.jpg",
         dates: datesInput.split(",").map(s => s.trim()).filter(Boolean),
         timeSlots: timeSlotsInput.split(",").map(s => s.trim()).filter(Boolean),
         features: featuresInput.split(",").map(s => s.trim()).filter(Boolean),
@@ -737,9 +737,9 @@ export const ExperienceAdmin: React.FC = () => {
           vipPrice: 100,
           premiumPrice: 100,
           teamId: "NFL",
-          imageUrl: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=1200",
-          player: "Any NFL Star Player (All 32 Teams)",
-          location: "Official NFL Liaison Network · Direct Messaging",
+          imageUrl: "/postimages/IMG-0463.jpg",
+          player: "Any Roster Player (All 32 Teams)",
+          location: "Gridiron Fan Hospitality · Direct Messaging",
           dates: ["Direct On-Demand Inquiry (Active Daily)"],
           timeSlots: ["Awaiting Player Details"],
           features: [
@@ -1181,7 +1181,7 @@ export const ExperienceAdmin: React.FC = () => {
         title: bannerTitle,
         subtitle: bannerSubtitle,
         description: bannerDesc,
-        imageUrl: bannerImage || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=1200",
+        imageUrl: bannerImage || "/postimages/IMG-0463.jpg",
         badge: bannerBadge || "PROMOTION",
         linkText: bannerLink || "BOOK NOW",
         accentColor: "from-blue-600 to-indigo-600 animate-pulse",
@@ -1266,7 +1266,7 @@ export const ExperienceAdmin: React.FC = () => {
             <div className="bg-zinc-900/40 p-6 rounded-[2rem] border border-white/5">
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">AGGREGATE REVENUE</p>
               <h4 className="text-3xl font-mono font-black text-white">{formatCurrency(totalBookingsValue)}</h4>
-              <p className="text-[9px] text-green-400 font-bold mt-2 font-mono">↑ 100% SECURE TRANSACTIONS</p>
+              <p className="text-[9px] text-green-400 font-bold mt-2 font-mono">VERIFIED PLATFORM LEDGER</p>
             </div>
             <div className="bg-zinc-900/40 p-6 rounded-[2rem] border border-white/5">
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">TICKETS DISPATCHED</p>
@@ -2352,7 +2352,7 @@ export const ExperienceAdmin: React.FC = () => {
                 <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Widescreen Image URL</label>
                 <input
                   type="text"
-                  placeholder="https://images.unsplash.com/photo-..."
+                  placeholder="/postimages/IMG-0463.jpg"
                   value={bannerImage}
                   onChange={(e) => setBannerImage(e.target.value)}
                   className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-2 text-xs text-white"

@@ -480,6 +480,30 @@
         "required": ["sessionId", "visitorId", "firstSeenAt", "lastSeenAt", "currentTab"]
       },
       "description": "Real-time anonymous and authenticated website visitor sessions"
+    },
+    "charity_records/{recordId}": {
+      "schema": {
+        "title": "Charitable Contribution & Disbursement Record",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "beneficiary": { "type": "string" },
+          "periodLabel": { "type": "string" },
+          "allocatedAmount": { "type": "number" },
+          "disbursedAmount": { "type": "number" },
+          "status": { "type": "string", "enum": ["earmarked", "scheduled", "transferred", "verified"] },
+          "transferMethod": { "type": "string" },
+          "transferReference": { "type": "string" },
+          "notes": { "type": "string" },
+          "recordedBy": { "type": "string" },
+          "transferredAt": { "type": "number" },
+          "createdAt": { "type": "number" },
+          "updatedAt": { "type": "number" }
+        },
+        "required": ["id", "beneficiary", "periodLabel", "allocatedAmount", "status", "createdAt"]
+      },
+      "description": "Charitable allocations and disbursement transfer ledger for Boys & Girls Clubs of America support initiative"
     }
   }
 }
+

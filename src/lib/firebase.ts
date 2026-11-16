@@ -3,7 +3,9 @@ import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth"
 import { 
   initializeFirestore,
   setLogLevel, 
-  setDoc, 
+  setDoc,
+  getDocFromServer,
+  doc,
   DocumentReference, 
   SetOptions 
 } from "firebase/firestore";
@@ -211,3 +213,22 @@ export async function safeSetDoc<T extends Record<string, any>>(
     throw err;
   }
 }
+
+export async function testFirestoreConnection(): Promise<{
+  ok: boolean;
+  latencyMs: number;
+  error?: string;
+}> {
+  const started = Date.now();
+  try {
+    await getDocFromServer(doc(db, "test", "connection"));
+    return { ok: true, latencyMs: Date.now() - started };
+  } catch (err: any) {
+    return {
+      ok: false,
+      latencyMs: Date.now() - started,
+      error: err?.message || "Database connection check failed",
+    };
+  }
+}
+

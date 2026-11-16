@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight, Ticket, Users, Shield, Compass, Sparkles } f
 import { cn } from "../lib/utils";
 import { getNFLImage } from "../utils/nflImages";
 
+import stadiumVipImg from "../assets/images/stadium_vip_hospitality_1794821884684.jpg";
+
 export interface PromoBanner {
   id: string;
   title: string;
@@ -20,30 +22,30 @@ export interface PromoBanner {
 const DEFAULT_BANNERS: PromoBanner[] = [
   {
     id: "promo-player-inquiry",
-    title: "INQUIRE ABOUT ANY ACTIVE NFL STAR",
-    subtitle: "CUSTOM PLAYER LIAISON SESSION",
-    description: "Submit your favorite player and team with your preferred messaging app (WhatsApp, Zangi, or Telegram) to receive private availability & liaison details.",
-    imageUrl: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=1200",
-    badge: "STAR INQUIRY",
-    linkText: "INQUIRE ABOUT A PLAYER",
-    accentColor: "from-blue-600 via-indigo-600 to-cyan-500"
+    title: "GET AN INVITATION TO YOUR FAVORITE PLAYER'S MEET & GREET FOR JUST $100",
+    subtitle: "VIP HOSPITALITY INVITATION",
+    description: "Choose your favorite player and let our concierge team guide you through the invitation process. Subject to player availability and confirmed events.",
+    imageUrl: stadiumVipImg,
+    badge: "MEET & GREET INVITE",
+    linkText: "GET YOUR INVITATION – $100",
+    accentColor: "from-[#013369] via-[#1D4ED8] to-[#D50A0A]"
   },
   {
     id: "promo-1",
-    title: "EXCLUSIVE NFL LEGENDS MEET & GREET",
-    subtitle: "ON-FIELD VIP ACCESS",
-    description: "Get face-to-face with franchise legends, secure authenticated autographs, and experience exclusive backstage Q&A sessions.",
-    imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=1200",
-    badge: "LEGENDS GUESTPASS",
-    linkText: "BOOK VIP EXPERIENCE",
-    accentColor: "from-amber-500 to-yellow-600"
+    title: "EXCLUSIVE PLAYER MEET & GREET ACCESS",
+    subtitle: "HOSPITALITY INVITATION",
+    description: "Submit a request for an opportunity to attend private player appearances, autographs, and club-level Q&A sessions.",
+    imageUrl: "/postimages/IMG-0463.jpg",
+    badge: "FAN HOSPITALITY",
+    linkText: "EXPLORE EXPERIENCES",
+    accentColor: "from-blue-600 to-red-600"
   },
   {
     id: "promo-2",
     title: "BEHIND-THE-SCENES STADIUM RUN",
     subtitle: "LOCKER ROOM & TUNNEL TOUR",
-    description: "Walk the hallowed turf, inspect the head coach's war room, and feel the ultimate stadium adrenaline rush with all-access VIP tours.",
-    imageUrl: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=1200",
+    description: "Walk the hallowed turf, inspect stadium clubs, and book confirmed access tours across premier venues.",
+    imageUrl: stadiumVipImg,
     badge: "GRIDIRON ACCESS",
     linkText: "EXPLORE STADIUMS",
     accentColor: "from-blue-600 to-indigo-600"
@@ -52,10 +54,10 @@ const DEFAULT_BANNERS: PromoBanner[] = [
     id: "promo-3",
     title: "PRIVATE TRAINING FACILITIES",
     subtitle: "ELITE PACKAGES",
-    description: "Tailor luxury experiences for your team, client meetings, or premium family gatherings at prime NFL training bases.",
-    imageUrl: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&q=80&w=1200",
+    description: "Tailor luxury hospitality experiences for groups, corporate outings, and game-day weekends.",
+    imageUrl: "/postimages/341007003061882166.jpg",
     badge: "PREMIUM PLATINUM",
-    linkText: "INQUIRE PRIVATELY",
+    linkText: "EXPLORE PACKAGES",
     accentColor: "from-purple-600 to-pink-600"
   },
   {

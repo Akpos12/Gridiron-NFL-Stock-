@@ -740,7 +740,7 @@ export const ReceiptReviewModal: React.FC<ReceiptReviewModalProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-0.5 bg-amber-500 text-black text-[9px] font-black uppercase tracking-widest rounded-md">
-                      OFFICIAL NFL PASS
+                      VERIFIED CONCIERGE PASS
                     </span>
                     <span className="text-zinc-400 text-xs font-mono">RFID ACCESS VERIFIED</span>
                   </div>

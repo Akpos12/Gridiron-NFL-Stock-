@@ -16,6 +16,8 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { CHARITY_ALLOCATION } from "./common/GridironBrandMark";
+import type { LegalTabId } from "./LegalPoliciesModal";
 
 interface FAQItem {
   q: string;
@@ -24,24 +26,24 @@ interface FAQItem {
 
 const SUPPORT_FAQS: FAQItem[] = [
   {
-    q: "How do I know if an experience has confirmed dates vs. special player coordination?",
-    a: "Every listing clearly states its schedule status upfront. Stadium Tours, VMAC Training Camp sessions, Match Tickets, and Arena Shop inventory display confirmed dates or ready dispatch. 1-on-1 Private Player Experiences and Podcast Sessions show 'By Player Availability' or 'Special Arrangement' and are scheduled directly with you upon approval."
+    q: "How does the $100 Meet & Greet Invitation request work?",
+    a: "When you submit a request using 'GET YOUR INVITATION – $100', our team places your chosen favorite player in our hospitality scheduling queue. Invitations are subject to player availability, confirmed events, and authorized arrangements, and a direct message is sent to you as soon as the next invitation opportunity opens."
   },
   {
-    q: "Where does the $100 fee go when I use 'Inquire About A Player'?",
-    a: "100% of the $100 Player Inquiry fee goes directly to charitable organizations supported by our athlete outreach network. Once submitted, our liaison team reaches out on your selected messaging channel (WhatsApp, Zangi, or Telegram) with verified player availability."
+    q: "How is the $100 divided between coordination fees and Boys & Girls Clubs of America?",
+    a: `Transparency comes first: $${CHARITY_ALLOCATION.coordinationFeeUsd}.00 of each $100 invitation covers payment processing, hospitality research, and customer messaging operations, while $${CHARITY_ALLOCATION.charitableContributionUsd}.00 is earmarked toward our charitable initiative supporting ${CHARITY_ALLOCATION.beneficiary} youth education and mentorship programs. Gridiron Fan Hospitality LLC does not claim an official partnership or endorsement from BGCA.`
   },
   {
     q: "How do I track an order, inquiry, or download my approved pass?",
-    a: "Use the 'Track Inquiry' button with your reference code (e.g. TRK-XXXXXXX) or email address to view live Customer Care replies. Approved stadium passes and match tickets are ready for immediate QR & PDF download inside the 'Check / Download Pass' portal."
+    a: "Use the 'Track Order / Inquiry' portal with your reference code (e.g. INQ-XXXX or TRK-XXXX) or email address to view live concierge replies. Approved passes and tickets become available for QR and PDF download once verified."
   },
   {
     q: "What is your refund and cancellation policy?",
-    a: "For unconfirmed Special Arrangement / Private Player requests where talent scheduling cannot be aligned within your travel window, you may request a cancellation or credit reassignment prior to final schedule lock. Signed Vault memorabilia is backed by third-party hologram authentication guarantees."
+    a: "If a meet-and-greet invitation request cannot be scheduled within 60 days of payment verification—or if an administrator declines your request—you may request a full refund to your original payment method. Please allow 5–7 business days for processing."
   },
   {
-    q: "How is signed merchandise authenticated?",
-    a: "Flagship autographed jerseys, helmets, and official Wilson footballs carry serialized tamper-evident holograms and Certificates of Authenticity (Beckett Witnessed or official team vendor documentation)."
+    q: "How are card payments protected?",
+    a: "Card payments use encrypted hosted payment processing (Stripe Checkout). Complete debit or credit card numbers and CVV codes are never entered or stored on www.nflgridiron.company."
   }
 ];
 
@@ -49,6 +51,7 @@ interface SupportTrustSectionProps {
   onOpenCustomerCare: () => void;
   onOpenTrackInquiry: () => void;
   onOpenTicketCheck: () => void;
+  onOpenLegalModal?: (tab: LegalTabId) => void;
   compact?: boolean;
 }
 
@@ -56,6 +59,7 @@ export const SupportTrustSection: React.FC<SupportTrustSectionProps> = ({
   onOpenCustomerCare,
   onOpenTrackInquiry,
   onOpenTicketCheck,
+  onOpenLegalModal,
   compact = false
 }) => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -203,57 +207,81 @@ export const SupportTrustSection: React.FC<SupportTrustSectionProps> = ({
         </div>
 
         {/* Business Identity, Terms & Booking Protections */}
-        <div className="lg:col-span-5 bg-[#080c1c] border border-white/10 rounded-3xl p-6 sm:p-8 flex flex-col justify-between space-y-6">
+        <div className="lg:col-span-5 bg-[#050816] border border-[#013369]/60 rounded-3xl p-6 sm:p-8 flex flex-col justify-between space-y-6">
           <div className="space-y-5">
             <div className="flex items-center gap-2.5 border-b border-white/10 pb-4">
-              <Building2 className="w-5 h-5 text-purple-400" />
-              <h3 className="font-display text-2xl font-extrabold uppercase italic text-white">
-                Business Identity &amp; Terms
+              <Building2 className="w-5 h-5 text-sky-400" />
+              <h3 className="font-display text-2xl font-extrabold uppercase tracking-tight text-white">
+                Business Identity &amp; Policies
               </h3>
             </div>
 
             <div className="space-y-4 text-xs sm:text-sm text-zinc-300 leading-relaxed">
-              <div className="p-4 rounded-2xl bg-zinc-950/75 border border-white/5 space-y-1.5">
+              <div className="p-4 rounded-2xl bg-[#03050C] border border-white/10 space-y-1.5">
                 <p className="font-bold text-white flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-sky-400" />
-                  NFL Gridiron Company (nflgridiron.company)
+                  {CHARITY_ALLOCATION.operatorLegalName} ({CHARITY_ALLOCATION.websiteDomain})
                 </p>
                 <p className="text-xs text-zinc-400">
-                  Independent NFL fan experience concierge, verified memorabilia marketplace, and hospitality coordination platform serving supporters across all 32 franchises.
+                  Sports hospitality, memorabilia, and player meet-and-greet coordination service.
                 </p>
               </div>
 
               <div className="space-y-2.5">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-purple-400" /> Key Booking &amp; Purchase Terms
+                  <FileText className="w-4 h-4 text-sky-400" /> Verification &amp; Charitable Standards
                 </h4>
                 <ul className="space-y-2 text-xs text-zinc-300">
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Payment receipts submitted at checkout undergo manual verification prior to final digital pass dispatch.</span>
+                    <span>No inquiry requiring manual proof-of-payment is marked paid until verified by our administration desk.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
+                    <span>Each $100 invitation clearly separates $75 coordination fee from $25 earmarked for {CHARITY_ALLOCATION.beneficiary}.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>All $100 direct player availability inquiry fees are earmarked 100% for charitable donation.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Stadium credentials require valid government photo ID matching the registered guest name at venue entry.</span>
+                    <span>Card payments use hosted tokenization and never store raw card numbers or CVV codes.</span>
                   </li>
                 </ul>
               </div>
+
+              {onOpenLegalModal && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {(
+                    [
+                      { id: "about", label: "About Us" },
+                      { id: "contact", label: "Contact" },
+                      { id: "charity", label: "Charity Info" },
+                      { id: "privacy", label: "Privacy" },
+                      { id: "terms", label: "Terms" },
+                      { id: "refund", label: "Refund Policy" },
+                    ] as const
+                  ).map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => onOpenLegalModal(item.id)}
+                      className="px-2.5 py-1.5 rounded-lg bg-[#03050C] hover:bg-[#013369]/60 border border-white/10 text-[11px] font-semibold text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-950/60 to-purple-950/60 border border-indigo-500/25 flex items-center justify-between gap-3">
+          <div className="p-4 rounded-2xl bg-[#03050C] border border-[#013369]/50 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <Clock className="w-4 h-4 text-sky-400 shrink-0" />
-              <span className="text-xs font-semibold text-zinc-200">24/7 Support Desk · Under 5m Triage</span>
+              <span className="text-xs font-semibold text-zinc-200">Concierge Support Desk</span>
             </div>
             <button
               type="button"
               onClick={onOpenCustomerCare}
-              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold uppercase tracking-wider shrink-0 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-[#D50A0A] hover:bg-[#B91C1C] text-white text-[11px] font-extrabold uppercase tracking-wider shrink-0 cursor-pointer"
             >
               Ask Concierge
             </button>

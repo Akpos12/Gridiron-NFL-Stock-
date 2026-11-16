@@ -55,6 +55,7 @@ import {
   Radio,
   Eye,
   Heart,
+  HeartHandshake,
   Menu
 } from "lucide-react";
 import { 
@@ -117,47 +118,31 @@ import { VisitorAnalyticsPanel } from "./components/VisitorAnalyticsPanel";
 import { recordOrSyncVisit, SiteVisitRecord, subscribeToSiteVisits } from "./services/visitorTrackingService";
 import { LandingShowcase } from "./components/LandingShowcase";
 import { SupportTrustSection } from "./components/SupportTrustSection";
+import { LegalPoliciesModal, LegalTabId } from "./components/LegalPoliciesModal";
+import { GridironBrandMark, CHARITY_ALLOCATION } from "./components/common/GridironBrandMark";
+import stadiumVipImg from "./assets/images/stadium_vip_hospitality_1794821884684.jpg";
+import arenaMerchImg from "./assets/images/arena_shop_merch_1794821885880.jpg";
 import { syncApproveOrder, syncRejectOrder } from "./utils/orderSync";
 
 // --- Constants ---
-const NFL_LOGO_URL = "/nfl_logo.svg";
-
-const TESTIMONIALS = [
-  {
-    name: "Marcus V. · Seattle",
-    text: "Stepping onto the Lumen Field sidelines before kickoff was unreal. Our digital passes arrived right after approval with zero stress.",
-    rating: 5
-  },
-  {
-    name: "Sarah L. · Boston",
-    text: "Ordered a Patriots signed memorabilia vault piece and Club Level game tickets—fastest checkout and authentic COA included.",
-    rating: 5
-  },
-  {
-    name: "Michael T. · Denver",
-    text: "Used Inquire About a Player for my son's birthday surprise—knowing the $100 liaison fee went straight to charity made it even better.",
-    rating: 5
-  }
-];
-
 const SHOP_ITEMS = {
   tickets: [
-    { id: 't1', name: 'Executive Suite - Season Access', price: 25000, description: 'Private climate-controlled suite, 12 guests, all-inclusive catering', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800' },
-    { id: 't2', name: 'Lower Level Sideline', price: 850, description: 'Row 1-10 sideline seating with VIP lounge entrance', image: 'https://images.unsplash.com/photo-1569437061241-a848be43cc82?auto=format&fit=crop&q=80&w=800' },
-    { id: 't3', name: 'Club Level Endzone', price: 425, description: 'Elevated endzone views with exclusive hospitality access', image: 'https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800' }
+    { id: 't1', name: 'Executive Suite - Season Access', price: 25000, description: 'Private climate-controlled suite, 12 guests, all-inclusive catering', image: stadiumVipImg },
+    { id: 't2', name: 'Lower Level Sideline', price: 850, description: 'Row 1-10 sideline seating with VIP lounge entrance', image: '/postimages/IMG-0463.jpg' },
+    { id: 't3', name: 'Club Level Endzone', price: 425, description: 'Elevated endzone views with exclusive hospitality access', image: stadiumVipImg }
   ],
   seasonPasses: [
-    { id: 'sp1', name: 'Franchise All-Access Season Pass', price: 1850, description: 'Guaranteed lower bowl seats for all home games + 15% merch discount + pre-season access', image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800' },
-    { id: 'sp2', name: 'VIP Sideline & Owners Lounge Season Pass', price: 4800, description: 'Pre-game sideline field pass + tunnel access + private dining & parking for the entire season', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800' },
-    { id: 'sp3', name: 'Club Level Executive Season Pass', price: 2950, description: 'Mid-field elevated seating with complimentary gourmet food & beverage and playoff ticket reservation', image: 'https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800' }
+    { id: 'sp1', name: 'Franchise All-Access Season Pass', price: 1850, description: 'Guaranteed lower bowl seats for all home games + 15% merch discount + pre-season access', image: stadiumVipImg },
+    { id: 'sp2', name: 'VIP Sideline & Owners Lounge Season Pass', price: 4800, description: 'Pre-game sideline field pass + tunnel access + private dining & parking for the entire season', image: '/postimages/IMG-0463.jpg' },
+    { id: 'sp3', name: 'Club Level Executive Season Pass', price: 2950, description: 'Mid-field elevated seating with complimentary gourmet food & beverage and playoff ticket reservation', image: stadiumVipImg }
   ],
   jerseys: [
-    { id: 'j1', name: 'Vapor Elite Custom Jersey', price: 349, description: 'On-field authentic specification with stitched name and numbers', image: 'https://images.unsplash.com/photo-1594470117722-de4b9a02ebed?auto=format&fit=crop&q=80&w=800' },
-    { id: 'j2', name: 'Nike Limited Vapor Jersey', price: 174, description: 'Premium performance fabric with sublimated team graphics', image: 'https://images.unsplash.com/photo-1556906781-9a412961c28c?auto=format&fit=crop&q=80&w=800' }
+    { id: 'j1', name: 'Vapor Elite Custom Jersey', price: 349, description: 'On-field authentic specification with stitched name and numbers', image: '/postimages/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg' },
+    { id: 'j2', name: 'Nike Limited Vapor Jersey', price: 174, description: 'Premium performance fabric with sublimated team graphics', image: arenaMerchImg }
   ],
   fanCards: [
-    { id: 'fc1', name: 'Franchise Governance Gold', price: 2500, description: 'Voting rights on minor team decisions + lifetime training access', image: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800' },
-    { id: 'fc2', name: 'Gridiron Platinum Exchange Pass', price: 950, description: 'Premium digital collectible tier with priority ticket pre-sales', image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800' }
+    { id: 'fc1', name: 'Franchise Governance Gold', price: 2500, description: 'Voting rights on minor team decisions + lifetime training access', image: stadiumVipImg },
+    { id: 'fc2', name: 'Gridiron Platinum Exchange Pass', price: 950, description: 'Premium digital collectible tier with priority ticket pre-sales', image: arenaMerchImg }
   ]
 };
 
@@ -677,7 +662,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
       city: currentTeam.city,
       date: "2026-2027 Season",
       time: "All Regular Season Home Games + Playoff Rights",
-      competition: "Official NFL Franchise Season Membership",
+      competition: "Gridiron Franchise Season Membership",
       status: "Guaranteed Reserved Seating & VIP Lounge Entry",
       location: isSeahawks ? "Lumen Field, Seattle, WA" : `${currentTeam.city}`,
       cheapestPrice: 1200,
@@ -743,7 +728,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
             {
               id: `m-${team.id}-hoodie`,
               name: `${team.city} ${team.name} Tech Fleece Sideline Hoodie`,
-              description: `Official NFL Sideline technical performance wear. Engineered with Therma-FIT double-brushed premium comfort fabric.`,
+              description: `Sideline technical performance wear. Engineered with Therma-FIT double-brushed premium comfort fabric.`,
               price: 72.25,
               originalPrice: 85.00,
               category: "hoodies",
@@ -834,12 +819,12 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                 ? `DK Metcalf Autographed Seahawks Official Football`
                 : team.id === "NE"
                 ? `New England Patriots Signed Authentic Merchandise Collection`
-                : `${team.name} Autographed Duke Official NFL Wilson Football`,
+                : `${team.name} Autographed Duke Wilson Leather Football`,
               description: team.id === "SEA"
-                ? `Certified authentic autographed official Wilson NFL leather football signed personally by star athlete DK Metcalf. Includes tamper-evident hologram.`
+                ? `Certified authentic autographed leather football signed personally by star athlete DK Metcalf. Includes tamper-evident hologram.`
                 : team.id === "NE"
-                ? `Authentic New England Patriots team signed merchandise collection with tamper-proof certificates of authenticity, official holograms, and verified player signatures.`
-                : `Certified authentic autographed official leather Wilson football signed personally by star athlete. Includes certificate.`,
+                ? `Authentic New England Patriots team signed merchandise collection with tamper-proof certificates of authenticity and holograms.`
+                : `Certified authentic autographed leather Wilson football signed personally by athlete. Includes certificate.`,
               price: team.id === "NE" ? 3500.00 : 599.00,
               originalPrice: team.id === "NE" ? 3500.00 : 599.00,
               category: "memorabilia",
@@ -851,7 +836,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                 ? "/images/seahawks-autograph-gear.jpg"
                 : team.id === "NE"
                 ? "/images/patriots-signed-merch-1.jpg"
-                : "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+                : arenaMerchImg,
               images: team.id === "NE" ? PATRIOTS_SIGNED_MERCH_IMAGES : undefined,
               isPatriotsSignedMerch: team.id === "NE",
               purchaseUrl: `https://www.nflshop.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' memorabilia')}`
@@ -909,7 +894,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               trending: true,
               image: team.id === "SEA" 
                 ? "/postimages/1417fbb0e328f1a5932e49913ac23af2sea.jpg" 
-                : "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+                : stadiumVipImg,
               purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' season tickets')}`
             },
             {
@@ -925,7 +910,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               trending: true,
               image: team.id === "SEA" 
                 ? "/postimages/146bf6266e6b98ad33cc56df4d0abeb3ssss.jpg" 
-                : "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
+                : stadiumVipImg,
               purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' vip season tickets')}`
             },
             {
@@ -941,7 +926,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               trending: true,
               image: team.id === "SEA" 
                 ? "/postimages/c94bbc7aac5de3ed9a567156e4dbffd8seahawks.jpg" 
-                : "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800",
+                : "/postimages/IMG-0463.jpg",
               purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' club season tickets')}`
             },
             {
@@ -957,7 +942,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               trending: true,
               image: team.id === "SEA" 
                 ? "https://res.cloudinary.com/dxq7dktn4/image/upload/v1784922234/videoframe_000_ylyaeo.png" 
-                : "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800",
+                : stadiumVipImg,
               purchaseUrl: `https://www.ticketmaster.com/?query=${encodeURIComponent(team.city + ' ' + team.name + ' all franchise passport')}`
             }
           ];
@@ -1078,19 +1063,19 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               vipPrice: 850,
               seasonPassPrice: 4500,
               url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
-              image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+              image: stadiumVipImg,
               isResale: false
             },
             {
               id: "tm-sea-training-session",
-              name: "Seattle Seahawks Official Training Session Access",
+              name: "Seattle Seahawks Training Session Access",
               homeTeam: "Seahawks",
               awayTeam: "Training Camp",
               stadium: "Virginia Mason Athletic Center (VMAC)",
               city: "Renton, WA",
               date: "2026-08-02",
               time: "9:30 AM",
-              competition: "Official NFL Training Camp & Practice Access",
+              competition: "Training Camp & Practice Access",
               status: "Open Access · 9:30 AM",
               location: "Virginia Mason Athletic Center (VMAC), Renton, WA",
               winProbability: {
@@ -1128,7 +1113,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               vipPrice: 5000,
               seasonPassPrice: 8000,
               url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
-              image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+              image: stadiumVipImg,
               isResale: false
             },
             {
@@ -1182,7 +1167,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               vipPrice: 5000,
               seasonPassPrice: 8000,
               url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
-              image: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800",
+              image: "/postimages/IMG-0463.jpg",
               isResale: false
             },
             {
@@ -1207,7 +1192,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               vipPrice: 5000,
               seasonPassPrice: 8000,
               url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
-              image: "https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&q=80&w=800",
+              image: stadiumVipImg,
               isResale: false
             },
             {
@@ -1224,7 +1209,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               cheapestPrice: 115,
               vipPrice: 800,
               url: "https://www.ticketmaster.com/minnesota-vikings-tickets/artist/805967",
-              image: "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800",
+              image: stadiumVipImg,
               isResale: false
             },
             {
@@ -1241,7 +1226,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               cheapestPrice: 125,
               vipPrice: 850,
               url: "https://www.ticketmaster.com/dallas-cowboys-tickets/artist/805934",
-              image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+              image: "/postimages/IMG-0463.jpg",
               isResale: false
             },
             {
@@ -1258,7 +1243,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
               cheapestPrice: 165,
               vipPrice: 1200,
               url: "https://www.ticketmaster.com/kansas-city-chiefs-tickets/artist/805961",
-              image: "https://images.unsplash.com/photo-1569437061241-a848be43cc82?auto=format&fit=crop&q=80&w=800",
+              image: stadiumVipImg,
               isResale: true
             }
           ];
@@ -1612,7 +1597,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                   badgeColor: "bg-blue-600",
                   image: isSeahawks
                     ? "/postimages/1417fbb0e328f1a5932e49913ac23af2sea.jpg"
-                    : "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+                    : stadiumVipImg,
                   features: [
                     "Guaranteed Lower Bowl seating (Rows 1-20) for all 8 home games",
                     "All pre-season home game admissions included",
@@ -1629,7 +1614,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                   badgeColor: "bg-amber-500 text-black",
                   image: isSeahawks
                     ? "/postimages/146bf6266e6b98ad33cc56df4d0abeb3ssss.jpg"
-                    : "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
+                    : "/postimages/IMG-0463.jpg",
                   features: [
                     "Midfield Sideline Seating (Rows 1-10)",
                     "Pre-game on-field tunnel & sideline access",
@@ -1646,7 +1631,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                   badgeColor: "bg-purple-600",
                   image: isSeahawks
                     ? "/postimages/c94bbc7aac5de3ed9a567156e4dbffd8seahawks.jpg"
-                    : "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=800",
+                    : stadiumVipImg,
                   features: [
                     "Climate-controlled Club Level access with leather recliners",
                     "Complimentary gourmet buffet & craft beverages",
@@ -1663,7 +1648,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                   badgeColor: "bg-emerald-600",
                   image: isSeahawks
                     ? "https://res.cloudinary.com/dxq7dktn4/image/upload/v1784922234/videoframe_000_ylyaeo.png"
-                    : "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=800",
+                    : stadiumVipImg,
                   features: [
                     "All Home Games + 5 Away Game Lower Bowl Tickets",
                     "Dedicated Concierge travel & hotel booking support",
@@ -2054,7 +2039,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                 </div>
                 <div className="flex justify-between">
                   <span>Merchant Location</span>
-                  <span className="text-white font-black font-mono">Official NFL Fanatics Depot</span>
+                  <span className="text-white font-black font-mono">Gridiron Arena Depot</span>
                 </div>
               </div>
 
@@ -2078,13 +2063,13 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                     DIRECT TEAM VENDOR ACQUISITION (ALL PAYMENT METHODS)
                   </button>
                   <p className="text-[9px] text-center text-emerald-400 font-bold uppercase tracking-wider mt-1.5">
-                    Official Team Vendor • All Payment Systems Active • 5% Extra Savings
+                    Authorized Team Vendor • All Payment Systems Active • 5% Extra Savings
                   </p>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-3 pt-1">
-                {/* 1. Official NFL External Store Redirect */}
+                {/* 1. External Store Redirect */}
                 <a 
                   href={selectedProduct.purchaseUrl}
                   target="_blank"
@@ -2142,9 +2127,21 @@ const AdminPortal = ({ user }: { user: any }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [siteVisits, setSiteVisits] = useState<SiteVisitRecord[]>([]);
-  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences" | "payments" | "visitors">(() => {
+  const [charityRecords, setCharityRecords] = useState<any[]>([]);
+  const [charityPeriodLabel, setCharityPeriodLabel] = useState(() => {
+    const now = new Date();
+    return now.toLocaleString("en-US", { month: "long", year: "numeric" });
+  });
+  const [charityAllocated, setCharityAllocated] = useState<string>("25");
+  const [charityDisbursed, setCharityDisbursed] = useState<string>("25");
+  const [charityStatus, setCharityStatus] = useState<"earmarked" | "scheduled" | "transferred" | "verified">("transferred");
+  const [charityMethod, setCharityMethod] = useState("ACH Organizational Transfer");
+  const [charityRef, setCharityRef] = useState("");
+  const [charityNotes, setCharityNotes] = useState("");
+  const [charityFeedback, setCharityFeedback] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
+  const [activeSubTab, setActiveSubTab] = useState<"inquiries" | "orders" | "users" | "transactions" | "experiences" | "payments" | "visitors" | "charity">(() => {
     const saved = localStorage.getItem("admin_subtab");
-    if (saved && ["inquiries", "orders", "users", "transactions", "experiences", "payments", "visitors"].includes(saved)) {
+    if (saved && ["inquiries", "orders", "users", "transactions", "experiences", "payments", "visitors", "charity"].includes(saved)) {
       return saved as any;
     }
     return "inquiries";
@@ -2460,6 +2457,97 @@ const AdminPortal = ({ user }: { user: any }) => {
     }
   };
 
+  const handleSaveCharityBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const period = charityPeriodLabel.trim().slice(0, 80);
+    const allocatedNum = Math.max(0, Math.min(1000000, Number(charityAllocated) || 0));
+    const disbursedNum = Math.max(0, Math.min(1000000, Number(charityDisbursed) || 0));
+    if (!period) {
+      setCharityFeedback({ text: "Please enter a reporting period label.", type: "error" });
+      return;
+    }
+
+    try {
+      setAdminLoading(true);
+      const now = Date.now();
+      const recordId = `bgca-${now}`;
+      const payload: Record<string, any> = {
+        id: recordId,
+        beneficiary: CHARITY_ALLOCATION.beneficiary,
+        periodLabel: period,
+        allocatedAmount: allocatedNum,
+        disbursedAmount: disbursedNum,
+        status: charityStatus,
+        transferMethod: charityMethod.trim() || "ACH Organizational Transfer",
+        transferReference: charityRef.trim() || `BGCA-${String(now).slice(-6)}`,
+        notes: charityNotes.trim(),
+        recordedBy: user?.email || "Control Room Admin",
+        createdAt: now,
+        updatedAt: now
+      };
+      if (charityStatus === "transferred" || charityStatus === "verified") {
+        payload.transferredAt = now;
+      }
+
+      await setDoc(doc(db, "charity_records", recordId), payload);
+      setCharityRef("");
+      setCharityNotes("");
+      setCharityFeedback({ text: `Charitable record "${period}" saved to public ledger.`, type: "success" });
+      setTimeout(() => setCharityFeedback(null), 4000);
+    } catch (err: any) {
+      console.error("Save Charity Record Error:", err);
+      setCharityFeedback({ text: err?.message || "Failed to save charitable record.", type: "error" });
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleMarkCharityStatus = async (rec: any, nextStatus: "earmarked" | "scheduled" | "transferred" | "verified") => {
+    try {
+      setAdminLoading(true);
+      const now = Date.now();
+      const updatedPayload: Record<string, any> = {
+        id: rec.id,
+        beneficiary: rec.beneficiary || CHARITY_ALLOCATION.beneficiary,
+        periodLabel: rec.periodLabel || "Monthly Period",
+        allocatedAmount: typeof rec.allocatedAmount === "number" ? rec.allocatedAmount : 0,
+        disbursedAmount: typeof rec.disbursedAmount === "number" ? rec.disbursedAmount : (nextStatus === "transferred" || nextStatus === "verified" ? (rec.allocatedAmount || 0) : 0),
+        status: nextStatus,
+        transferMethod: rec.transferMethod || "ACH Organizational Transfer",
+        transferReference: rec.transferReference || "",
+        notes: rec.notes || "",
+        recordedBy: user?.email || rec.recordedBy || "Control Room Admin",
+        createdAt: typeof rec.createdAt === "number" ? rec.createdAt : now,
+        updatedAt: now
+      };
+      if (nextStatus === "transferred" || nextStatus === "verified") {
+        updatedPayload.transferredAt = typeof rec.transferredAt === "number" ? rec.transferredAt : now;
+      }
+      await setDoc(doc(db, "charity_records", rec.id), updatedPayload);
+      setCharityFeedback({ text: `Record ${rec.periodLabel} updated to ${nextStatus.toUpperCase()}.`, type: "info" });
+      setTimeout(() => setCharityFeedback(null), 3500);
+    } catch (err: any) {
+      console.error("Update Charity Record Error:", err);
+      setCharityFeedback({ text: err?.message || "Failed to update record.", type: "error" });
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleDeleteCharityBatch = async (id: string) => {
+    try {
+      setAdminLoading(true);
+      await deleteDoc(doc(db, "charity_records", id));
+      setCharityFeedback({ text: "Charitable ledger record deleted.", type: "info" });
+      setTimeout(() => setCharityFeedback(null), 3000);
+    } catch (err: any) {
+      console.error("Delete Charity Record Error:", err);
+      setCharityFeedback({ text: err?.message || "Failed to delete record.", type: "error" });
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
   useEffect(() => {
     setPermError(null);
     const unsubInquiries = onSnapshot(query(collection(db, "fan_card_requests"), orderBy("timestamp", "desc")), (snap) => {
@@ -2636,15 +2724,24 @@ const AdminPortal = ({ user }: { user: any }) => {
       console.warn("Site Visits Listen Error:", err);
     });
 
-    return () => { 
-      unsubInquiries(); 
-      unsubStoreOrders(); 
-      unsubTicketOrders(); 
-      unsubBookings(); 
+    const unsubCharity = onSnapshot(query(collection(db, "charity_records"), orderBy("createdAt", "desc")), (snap) => {
+      const list: any[] = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+      setCharityRecords(list);
+    }, (err) => {
+      console.warn("Charity Records Listen Error:", err);
+    });
+
+    return () => {
+      unsubInquiries();
+      unsubStoreOrders();
+      unsubTicketOrders();
+      unsubBookings();
       unsubPaymentSessions();
-      unsubUsers(); 
+      unsubUsers();
       unsubTransactions();
       unsubVisitors();
+      unsubCharity();
     };
   }, [user]);
 
@@ -2926,6 +3023,13 @@ const AdminPortal = ({ user }: { user: any }) => {
             <Eye className="w-3.5 h-3.5 text-emerald-400" />
             Visitors ({siteVisits.filter(v => !v.isAdmin).length})
           </button>
+          <button 
+            onClick={() => { setActiveSubTab("charity"); setSearchTerm(""); }}
+            className={cn("px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2", activeSubTab === "charity" ? "bg-[#013369] text-white border border-blue-400/40 shadow-lg shadow-blue-900/30" : "bg-zinc-900 text-zinc-500 hover:text-white")}
+          >
+            <HeartHandshake className="w-3.5 h-3.5" />
+            Charity Ledger ({charityRecords.length})
+          </button>
         </div>
       </div>
 
@@ -2937,7 +3041,251 @@ const AdminPortal = ({ user }: { user: any }) => {
       )}
 
       <div className="bg-zinc-900/50 border border-white/5 rounded-[2.5rem] overflow-hidden">
-        {activeSubTab === "visitors" ? (
+        {activeSubTab === "charity" ? (
+          (() => {
+            const invitationOrders = orders.filter((o: any) =>
+              o.experienceType === "player_inquiry" ||
+              String(o.experienceTitle || "").toLowerCase().includes("meet & greet") ||
+              String(o.experienceTitle || "").toLowerCase().includes("invitation") ||
+              Number(o.totalPrice || o.price || 0) === 100
+            );
+            const verifiedInvitationCount = invitationOrders.filter((o: any) =>
+              o.status === "approved" || o.isApproved || o.status === "confirmed" || o.paymentMethod === "Stripe Card Checkout"
+            ).length;
+            const autoEarmarkedTotal = verifiedInvitationCount * CHARITY_ALLOCATION.charitableContributionUsd;
+            const ledgerAllocatedTotal = charityRecords.reduce((sum, r) => sum + (Number(r.allocatedAmount) || 0), 0);
+            const ledgerDisbursedTotal = charityRecords.reduce(
+              (sum, r) => sum + (r.status === "transferred" || r.status === "verified" ? (Number(r.disbursedAmount ?? r.allocatedAmount) || 0) : 0),
+              0
+            );
+
+            return (
+              <div className="p-6 sm:p-8 space-y-8">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/5 pb-6">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-sky-400">
+                      Charitable Contributions &amp; Transfers · {CHARITY_ALLOCATION.beneficiary}
+                    </p>
+                    <h3 className="text-2xl font-bold text-white mt-1">
+                      Contribution Earmarks &amp; Disbursement Audit Ledger
+                    </h3>
+                    <p className="text-xs text-zinc-400 mt-1 max-w-2xl">
+                      Track ${CHARITY_ALLOCATION.charitableContributionUsd}.00 per verified $100 Meet &amp; Greet Invitation (${CHARITY_ALLOCATION.coordinationFeeUsd}.00 coordination fee / ${CHARITY_ALLOCATION.charitableContributionUsd}.00 BGCA allocation) and publish verified monthly transfers to the public ledger.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="p-5 rounded-2xl bg-[#03050C] border border-white/10">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Verified $100 Invitations</p>
+                    <p className="text-2xl font-mono font-bold text-white mt-1">{verifiedInvitationCount}</p>
+                    <p className="text-[11px] text-zinc-500 mt-1">{invitationOrders.length} total invitation orders</p>
+                  </div>
+                  <div className="p-5 rounded-2xl bg-[#03050C] border border-[#013369]/60">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-sky-400">Auto-Earmarked ($25/ea)</p>
+                    <p className="text-2xl font-mono font-bold text-sky-400 mt-1">{formatCurrency(autoEarmarkedTotal)}</p>
+                    <p className="text-[11px] text-zinc-500 mt-1">Calculated from verified bookings</p>
+                  </div>
+                  <div className="p-5 rounded-2xl bg-[#03050C] border border-white/10">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Logged Batch Allocations</p>
+                    <p className="text-2xl font-mono font-bold text-white mt-1">{formatCurrency(ledgerAllocatedTotal)}</p>
+                    <p className="text-[11px] text-zinc-500 mt-1">{charityRecords.length} ledger batches</p>
+                  </div>
+                  <div className="p-5 rounded-2xl bg-[#03050C] border border-emerald-500/25">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Transferred / Verified</p>
+                    <p className="text-2xl font-mono font-bold text-emerald-400 mt-1">{formatCurrency(ledgerDisbursedTotal)}</p>
+                    <p className="text-[11px] text-zinc-500 mt-1">Direct to BGCA beneficiary</p>
+                  </div>
+                </div>
+
+                {charityFeedback && (
+                  <div className={cn(
+                    "px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-2 border",
+                    charityFeedback.type === "success" ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" :
+                    charityFeedback.type === "error" ? "bg-rose-500/15 text-rose-300 border-rose-500/30" :
+                    "bg-blue-500/15 text-blue-300 border-blue-500/30"
+                  )}>
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{charityFeedback.text}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveCharityBatch} className="p-6 rounded-2xl bg-[#050816] border border-white/10 space-y-4">
+                  <h4 className="text-sm font-bold text-white">Record Monthly Contribution Batch / Transfer</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">Reporting Period</label>
+                      <input
+                        type="text"
+                        value={charityPeriodLabel}
+                        onChange={(e) => setCharityPeriodLabel(e.target.value)}
+                        placeholder="e.g. November 2026"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#03050C] border border-white/10 text-xs text-white focus:outline-none focus:border-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">Earmarked Amount (USD)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={charityAllocated}
+                        onChange={(e) => setCharityAllocated(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#03050C] border border-white/10 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">Disbursed Amount (USD)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={charityDisbursed}
+                        onChange={(e) => setCharityDisbursed(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#03050C] border border-white/10 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">Status</label>
+                      <select
+                        value={charityStatus}
+                        onChange={(e) => setCharityStatus(e.target.value as any)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#03050C] border border-white/10 text-xs text-white focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="earmarked">Earmarked</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="transferred">Transferred</option>
+                        <option value="verified">Verified Receipt</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">Transfer Method</label>
+                      <input
+                        type="text"
+                        value={charityMethod}
+                        onChange={(e) => setCharityMethod(e.target.value)}
+                        placeholder="ACH Organizational Transfer"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#03050C] border border-white/10 text-xs text-white focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">Transfer Reference ID</label>
+                      <input
+                        type="text"
+                        value={charityRef}
+                        onChange={(e) => setCharityRef(e.target.value)}
+                        placeholder="e.g. ACH-BGCA-2026-11"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#03050C] border border-white/10 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">Audit Notes</label>
+                      <input
+                        type="text"
+                        value={charityNotes}
+                        onChange={(e) => setCharityNotes(e.target.value)}
+                        placeholder="Consolidated monthly youth mentorship grant"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#03050C] border border-white/10 text-xs text-white focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={adminLoading}
+                      className="px-6 py-3 min-h-[44px] rounded-xl bg-[#013369] hover:bg-blue-700 text-white border border-blue-400/35 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      Publish Record to Ledger
+                    </button>
+                  </div>
+                </form>
+
+                <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#03050C]">
+                  {charityRecords.length === 0 ? (
+                    <div className="p-10 text-center text-xs text-zinc-400">
+                      No published transfer records yet. Use the form above to record the first Boys &amp; Girls Clubs of America allocation batch.
+                    </div>
+                  ) : (
+                    <table className="w-full text-left min-w-[700px]">
+                      <thead className="bg-zinc-950 border-b border-white/5">
+                        <tr>
+                          <th className="p-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Period</th>
+                          <th className="p-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Beneficiary &amp; Method</th>
+                          <th className="p-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Allocated / Disbursed</th>
+                          <th className="p-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Ref</th>
+                          <th className="p-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
+                          <th className="p-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {charityRecords.map((rec: any) => (
+                          <tr key={rec.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                            <td className="p-4">
+                              <p className="text-xs font-bold text-white">{rec.periodLabel}</p>
+                              <p className="text-[10px] font-mono text-zinc-500">
+                                {rec.createdAt ? new Date(rec.createdAt).toLocaleDateString() : ""}
+                              </p>
+                            </td>
+                            <td className="p-4">
+                              <p className="text-xs font-semibold text-white">{rec.beneficiary}</p>
+                              <p className="text-[11px] text-zinc-400">{rec.transferMethod || "ACH Organizational Transfer"}</p>
+                            </td>
+                            <td className="p-4 font-mono text-xs">
+                              <span className="text-sky-400 font-bold">{formatCurrency(rec.allocatedAmount || 0)}</span>
+                              <span className="text-zinc-500"> / </span>
+                              <span className="text-emerald-400 font-bold">{formatCurrency(rec.disbursedAmount ?? 0)}</span>
+                            </td>
+                            <td className="p-4 text-[11px] font-mono text-zinc-300">
+                              {rec.transferReference || "Pending"}
+                            </td>
+                            <td className="p-4">
+                              <span className={cn(
+                                "inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border",
+                                rec.status === "verified" ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" :
+                                rec.status === "transferred" ? "bg-blue-500/15 text-blue-300 border-blue-500/30" :
+                                rec.status === "scheduled" ? "bg-amber-500/15 text-amber-300 border-amber-500/30" :
+                                "bg-zinc-800 text-zinc-300 border-white/10"
+                              )}>
+                                {rec.status}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right">
+                              <div className="inline-flex items-center gap-1.5">
+                                {rec.status !== "verified" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMarkCharityStatus(rec, rec.status === "transferred" ? "verified" : "transferred")}
+                                    disabled={adminLoading}
+                                    className="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+                                  >
+                                    {rec.status === "transferred" ? "Verify" : "Mark Transferred"}
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCharityBatch(rec.id)}
+                                  disabled={adminLoading}
+                                  className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all cursor-pointer"
+                                  title="Delete Charity Record"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            );
+          })()
+        ) : activeSubTab === "visitors" ? (
           <VisitorAnalyticsPanel visits={siteVisits} searchTerm={searchTerm} />
         ) : activeSubTab === "payments" ? (
           <div className="p-6 sm:p-8">
@@ -3961,7 +4309,7 @@ const AdminPortal = ({ user }: { user: any }) => {
 
 export default function App() {
   useEffect(() => {
-    document.title = "NFL Exchange Gridiron";
+    document.title = "NFL Gridiron Experience | VIP Meet & Greets & Fan Hospitality";
   }, []);
 
   const [user, setUser] = useState<any>(null);
@@ -3987,6 +4335,7 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState<LegalTabId | null>(null);
   const [showFanCardForm, setShowFanCardForm] = useState(false);
   const [selectedInquiryCategory, setSelectedInquiryCategory] = useState("general");
   const [selectedInquiryPlayer, setSelectedInquiryPlayer] = useState("Bo Nix");
@@ -4907,10 +5256,10 @@ export default function App() {
       />
 
       {/* Nav */}
-      <nav className="sticky top-0 h-20 bg-[#050816]/85 backdrop-blur-xl border-b border-indigo-500/20 flex items-center justify-between px-4 md:px-8 z-50">
+      <nav className="sticky top-0 h-20 bg-[#050816]/90 backdrop-blur-xl border-b border-[#013369]/50 flex items-center justify-between px-4 md:px-8 z-50">
         <div className="flex items-center gap-4 lg:gap-8 min-w-0">
           <div
-            className="flex items-center gap-2.5 cursor-pointer group shrink-0"
+            className="flex items-center gap-3 cursor-pointer group shrink-0"
             onClick={() => {
               setMobileMenuOpen(false);
               if (user) {
@@ -4920,12 +5269,10 @@ export default function App() {
               }
             }}
           >
-            <div className="w-9 h-9 md:w-10 md:h-10 bg-[#080d22] rounded-xl flex items-center justify-center border border-indigo-400/25 group-hover:scale-105 transition-all overflow-hidden">
-              <img src={NFL_LOGO_URL} alt="NFL Shield Logo" className="w-full h-full object-contain p-1" />
-            </div>
+            <GridironBrandMark size="sm" className="group-hover:scale-105 transition-transform" />
             <div className="min-w-0">
               <h1 className="text-base sm:text-lg md:text-xl font-black italic uppercase tracking-tighter leading-none text-white">NFL GRIDIRON</h1>
-              <p className="hidden sm:block text-[10px] font-bold text-sky-400/90 uppercase tracking-wider">Fan Experiences &amp; Arena</p>
+              <p className="hidden sm:block text-[10px] font-bold text-sky-400 uppercase tracking-wider">Sports Hospitality &amp; Experiences</p>
             </div>
           </div>
 
@@ -5579,9 +5926,7 @@ export default function App() {
       {/* Hero / Landing (If not logged in) */}
       {!user && !dismissedHero && !showLogin && (
         <LandingShowcase
-          nflLogoUrl={NFL_LOGO_URL}
           shopItems={SHOP_ITEMS?.tickets || []}
-          testimonials={TESTIMONIALS}
           onExploreExperiences={() => {
             setDeepLinkExp(null);
             setActiveTab("experiences");
@@ -5617,6 +5962,7 @@ export default function App() {
             setIsSignUp(false);
             setShowLogin(true);
           }}
+          onOpenLegalModal={(tab) => setLegalModalTab(tab)}
         />
       )}
 
@@ -5917,10 +6263,10 @@ export default function App() {
                   Franchise Equity Trading
                 </div>
                 <h2 className="text-3xl sm:text-5xl font-black italic uppercase tracking-tighter mb-6 leading-none">
-                  Buy Official NFL Team Stocks
+                  Buy Franchise Team Equities
                 </h2>
                 <p className="text-zinc-400 font-medium text-sm sm:text-base mb-10 max-w-xl mx-auto leading-relaxed">
-                  Access live valuation charts for all 32 NFL franchises, trade team equity shares in real time, and build your sports portfolio. Create a free account or sign in to get started.
+                  Access live valuation charts for all 32 franchises, trade team equity shares in real time, and build your sports portfolio. Create a free account or sign in to get started.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
                   <button 
@@ -5953,6 +6299,7 @@ export default function App() {
                   setTicketCheckInitialQuery("");
                   setShowTicketCheckModal(true);
                 }}
+                onOpenLegalModal={(tab) => setLegalModalTab(tab)}
               />
             )}
 
@@ -6000,6 +6347,8 @@ export default function App() {
                     setTicketCheckInitialQuery(queryText || "");
                     setShowTicketCheckModal(true);
                   }}
+                  onOpenSupport={() => setShowFanCardForm(true)}
+                  onOpenLegalModal={(tab) => setLegalModalTab(tab || "about")}
                 />
               </div>
             )}
@@ -6145,6 +6494,39 @@ export default function App() {
                 )}
               </div>
             )}
+            {/* Persistent Legal & Transparency Footer across Dashboard Views */}
+            <footer className="mt-auto border-t border-[#013369]/50 bg-[#03050C] px-6 sm:px-10 py-8">
+              <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="space-y-1.5 max-w-xl">
+                  <div className="flex items-center gap-2.5">
+                    <GridironBrandMark size="sm" />
+                    <span className="text-sm font-bold text-white">{CHARITY_ALLOCATION.operatorLegalName}</span>
+                  </div>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    {CHARITY_ALLOCATION.websiteDomain} is operated by {CHARITY_ALLOCATION.operatorLegalName}. Each $100 Meet &amp; Greet Invitation includes a ${CHARITY_ALLOCATION.coordinationFeeUsd}.00 coordination fee and a ${CHARITY_ALLOCATION.charitableContributionUsd}.00 charitable contribution toward {CHARITY_ALLOCATION.beneficiary}.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {([
+                    { id: "about", label: "About Us" },
+                    { id: "contact", label: "Contact" },
+                    { id: "charity", label: "Charitable Initiative" },
+                    { id: "privacy", label: "Privacy Policy" },
+                    { id: "terms", label: "Terms & Conditions" },
+                    { id: "refund", label: "Refund Policy" },
+                  ] as { id: LegalTabId; label: string }[]).map((link) => (
+                    <button
+                      key={link.id}
+                      type="button"
+                      onClick={() => setLegalModalTab(link.id)}
+                      className="px-3 py-2 min-h-[40px] rounded-xl bg-[#08112B]/80 hover:bg-[#013369] border border-white/10 hover:border-blue-400/50 text-xs font-semibold text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                    >
+                      {link.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </footer>
           </main>
         </div>
       )}
@@ -6630,17 +7012,15 @@ export default function App() {
               exit={{ scale: 0.9, opacity: 0 }}
               className="w-full max-w-md bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-3xl md:rounded-[2.5rem] p-6 sm:p-8 md:p-10 shadow-2xl relative overflow-hidden"
             >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-white to-red-600" />
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#013369] via-white to-[#D50A0A]" />
               <button onClick={() => setShowLogin(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors">
                 <X />
               </button>
 
               <div className="text-center mb-8 md:mb-10">
-                <div className="w-14 md:w-16 h-18 md:h-22 bg-zinc-950 rounded-xl md:rounded-2xl flex items-center justify-center mx-auto mb-6 -rotate-6 shadow-xl border border-white/10 overflow-hidden">
-                  <img src={NFL_LOGO_URL} alt="NFL Logo" className="w-full h-full object-contain p-1.5" />
-                </div>
-                <h2 className="text-2xl md:text-3xl font-black italic uppercase italic tracking-tighter leading-none text-white">Investor Portal</h2>
-                <p className="text-zinc-500 text-[10px] mt-2 uppercase tracking-[0.4em] font-black leading-relaxed px-4 text-center">Secure Node Authorization Required</p>
+                <GridironBrandMark size="lg" className="mx-auto mb-5" />
+                <h2 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter leading-none text-white">Member Portal</h2>
+                <p className="text-zinc-400 text-[10px] mt-2 uppercase tracking-[0.35em] font-bold leading-relaxed px-4 text-center">Gridiron Fan Hospitality Account</p>
               </div>
 
               <form onSubmit={handleAuth} className="space-y-6">
@@ -6826,6 +7206,13 @@ export default function App() {
       <VipCommemorativeTicketModal
         isOpen={showVipCommemorativeModal}
         onClose={() => setShowVipCommemorativeModal(false)}
+      />
+
+      {/* Trust, Governance & Legal Policies Modal */}
+      <LegalPoliciesModal
+        isOpen={legalModalTab !== null}
+        initialTab={legalModalTab || "about"}
+        onClose={() => setLegalModalTab(null)}
       />
     </div>
   );

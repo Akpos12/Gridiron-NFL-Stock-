@@ -1,46 +1,48 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
+import stadiumVipImg from "../assets/images/stadium_vip_hospitality_1794821884684.jpg";
+import arenaMerchImg from "../assets/images/arena_shop_merch_1794821885880.jpg";
 
 /**
- * NFL Premium Image Asset Mapping Utility
- * Maps dynamically based on title, category, teams, and item IDs to realistic, high-quality NFL-themed imagery.
+ * Gridiron VIP Asset Mapping Utility
+ * Resolves curated local assets and team photography cleanly without broken third-party URLs or unauthorized league shields.
  */
 export const NFL_IMAGES = {
   stadiums: {
-    DAL: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=1200", // AT&T Stadium (Dallas Cowboys)
-    MIN: "https://images.unsplash.com/photo-1551244072-5d12893278ab?auto=format&fit=crop&q=80&w=1200", // U.S. Bank Stadium (Vikings)
-    KC: "https://images.unsplash.com/photo-1569437061241-a848be43cc82?auto=format&fit=crop&q=80&w=1200",  // Arrowhead Stadium (Chiefs)
-    PHI: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=1200", // Lincoln Financial Field (Eagles)
-    GB: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&q=80&w=1200",  // Lambeau Facility (Packers)
-    SF: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=1200",  // Super Bowl/VIP West Coast Stadium
-    GENERIC: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=1200", // Premium crowd/stadium
+    DAL: stadiumVipImg,
+    MIN: stadiumVipImg,
+    KC: stadiumVipImg,
+    PHI: stadiumVipImg,
+    GB: stadiumVipImg,
+    SF: stadiumVipImg,
+    GENERIC: stadiumVipImg,
   },
 
   meetAndGreet: {
-    autograph: "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=1200", // Autograph on football stadium turf
-    backstage: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=1200", // VIP Event, sideline huddles and interactions
-    playerTrophy: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&q=80&w=1200", // Stadium lights beaming on turf
+    autograph: "/postimages/IMG-0463.jpg",
+    backstage: stadiumVipImg,
+    playerTrophy: stadiumVipImg,
   },
 
   merchandise: {
-    jerseyGreen: "https://images.unsplash.com/photo-1577471488278-16eec37ffcc2?auto=format&fit=crop&q=80&w=1200", // Replica NFL style jerseys
-    apparelFlatlay: "https://images.unsplash.com/photo-1556906781-9a412961c28c?auto=format&fit=crop&q=80&w=1200", // Training gear, sneakers, and sports wear
-    hoodie: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&q=80&w=1200", // Official fan hoodie product
-    helmet: "/images/patriots-signed-helmet-2.jpg", // Authentic helmets and equipment
-    football: "/images/seahawks-autograph-gear.jpg", // Real leather game ball
-    jacket: "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80&w=1200", // Sideline coaches varsity jacket
+    jerseyGreen: "/postimages/339feabb3b77fc4fd27637e3e0791cc9jersey.jpg",
+    apparelFlatlay: arenaMerchImg,
+    hoodie: "/postimages/5252ceda2d79871dfbdb18431d89a468hoodie.jpg",
+    helmet: "/postimages/535f637d8a827845da41c33e6f994795helmet.jpg",
+    football: arenaMerchImg,
+    jacket: arenaMerchImg,
   },
 
   matchDay: {
-    crowd: "https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&q=80&w=1200", // Super Bowl crowd screaming
-    action: "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=1200", // Match in-play field view
+    crowd: "/postimages/IMG-0463.jpg",
+    action: stadiumVipImg,
   },
 
   experiences: {
-    tailgate: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=1200", // Vibrant game day crowds celebrating
-    vipLounge: "https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?auto=format&fit=crop&q=80&w=1200" // Elevated suite lounge looking onto the stadium field
-  }
+    tailgate: stadiumVipImg,
+    vipLounge: stadiumVipImg,
+  },
 };
+
 
 /**
  * Normalizes input identifiers to resolve the perfect NFL-themed sports visual
@@ -61,7 +63,7 @@ export function getNFLImage(item: {
   v?: number;
   updatedAt?: any;
 }): string {
-  if (!item) return "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800";
+  if (!item) return stadiumVipImg;
 
   const normId = (item.id || "").toUpperCase();
   const normTitle = (item.title || item.name || item.experienceTitle || "").toLowerCase();
@@ -218,7 +220,7 @@ export function getNFLImage(item: {
         baseSrc = NFL_IMAGES.stadiums.GENERIC;
       }
     } else {
-      baseSrc = "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800";
+      baseSrc = stadiumVipImg;
     }
   }
 
@@ -317,20 +319,13 @@ export const NFLImage: React.FC<NFLImageProps> = ({ item, className, style, alt 
         setCurrentSrc(`https://images.weserv.nl/?url=${encodeURIComponent(currentSrc)}`);
         return;
       }
-      // Or fallback to high-quality sports unsplash
       const teamId = (item?.teamId || "").toUpperCase();
       const fallbackUrl = (teamId && NFL_IMAGES.stadiums[teamId as keyof typeof NFL_IMAGES.stadiums]) 
-        || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800";
+        || stadiumVipImg;
       setCurrentSrc(fallbackUrl);
     } else if (attemptCount === 1) {
       setAttemptCount(2);
-      // Attempt 2: Team Logo or NFL logo fallback
-      const teamId = (item?.teamId || "").toLowerCase();
-      if (teamId) {
-        setCurrentSrc(`https://a.espncdn.com/i/teamlogos/nfl/500/${teamId}.png`);
-      } else {
-        setCurrentSrc("/nfl_logo.svg");
-      }
+      setCurrentSrc(stadiumVipImg);
     }
   };
 

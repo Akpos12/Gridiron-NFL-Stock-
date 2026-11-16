@@ -180,6 +180,31 @@ service cloud.firestore {
         && request.resource.data.sessionId == sessionId;
       allow delete: if true;
     }
+
+    // Charitable Allocations & Transfer Ledger (Boys & Girls Clubs of America Initiative)
+    function isValidCharityRecord(data) {
+      return data.keys().hasAll(['id', 'beneficiary', 'periodLabel', 'allocatedAmount', 'status', 'createdAt'])
+        && data.keys().hasOnly([
+          'id', 'beneficiary', 'periodLabel', 'allocatedAmount', 'disbursedAmount',
+          'status', 'transferMethod', 'transferReference', 'notes', 'recordedBy',
+          'transferredAt', 'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 64
+        && data.beneficiary is string && data.beneficiary.size() > 0 && data.beneficiary.size() <= 140
+        && data.periodLabel is string && data.periodLabel.size() > 0 && data.periodLabel.size() <= 80
+        && data.allocatedAmount is number && data.allocatedAmount >= 0 && data.allocatedAmount <= 1000000
+        && data.status in ['earmarked', 'scheduled', 'transferred', 'verified']
+        && data.createdAt is number;
+    }
+
+    match /charity_records/{recordId} {
+      allow read, list: if true;
+      allow create, update: if recordId.size() > 0 && recordId.size() <= 64
+        && isValidCharityRecord(request.resource.data)
+        && request.resource.data.id == recordId;
+      allow delete: if true;
+    }
   }
 }
+
 

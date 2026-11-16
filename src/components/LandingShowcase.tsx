@@ -4,14 +4,19 @@ import {
   AlertCircle,
   ArrowDown,
   ArrowRight,
+  Award,
+  Building2,
   Calendar,
   Check,
   CheckCircle2,
   Clock,
   Copy,
   ExternalLink,
+  FileText,
   Headphones,
   Heart,
+  HeartHandshake,
+  Lock,
   Mail,
   MapPin,
   MessageSquare,
@@ -19,16 +24,20 @@ import {
   Search,
   ShieldCheck,
   ShoppingBag,
-  Star,
   Ticket,
   Trophy,
   User,
   UserCheck,
 } from "lucide-react";
-import stadiumHeroImg from "../assets/images/nfl_stadium_hero_1794712782399.jpg";
+import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { db } from "../lib/firebase";
+import stadiumHeroImg from "../assets/images/stadium_vip_hospitality_1794821884684.jpg";
+import charityYouthImg from "../assets/images/charity_youth_mentorship_1794821885584.jpg";
 import { NFLImage } from "../utils/nflImages";
 import { NFL_TEAMS, getLogoUrl } from "../constants";
 import { SupportTrustSection } from "./SupportTrustSection";
+import { GridironBrandMark, CHARITY_ALLOCATION } from "./common/GridironBrandMark";
+import type { LegalTabId } from "./LegalPoliciesModal";
 import {
   findCustomerInquirySessions,
   getSavedGuestSessions,
@@ -51,6 +60,20 @@ export interface PlayerInquiryPrefill {
   initialMode?: "new" | "check_existing";
 }
 
+interface CharityRecordEntry {
+  id: string;
+  beneficiary: string;
+  periodLabel: string;
+  allocatedAmount: number;
+  disbursedAmount?: number;
+  status: "earmarked" | "scheduled" | "transferred" | "verified";
+  transferMethod?: string;
+  transferReference?: string;
+  notes?: string;
+  createdAt?: number;
+  transferredAt?: number;
+}
+
 const CUSTOM_INQUIRY_QUICK_STARS: Array<{ name: string; teamId: string }> = [
   { name: "CeeDee Lamb", teamId: "DAL" },
   { name: "Justin Jefferson", teamId: "MIN" },
@@ -69,9 +92,7 @@ const CUSTOM_INQUIRY_OBJECTIVES = [
 ];
 
 interface LandingShowcaseProps {
-  nflLogoUrl: string;
   shopItems: Array<{ id: string; name: string; price: number; description: string; image: string }>;
-  testimonials: Array<{ name: string; text: string; rating: number }>;
   onExploreExperiences: () => void;
   onDiscoverGameDay: () => void;
   onOpenTrackInquiry: () => void;
@@ -80,6 +101,7 @@ interface LandingShowcaseProps {
   onOpenCustomerCare: () => void;
   onOpenTicketCheck: () => void;
   onOpenSignIn: () => void;
+  onOpenLegalModal: (tab: LegalTabId) => void;
 }
 
 interface FeaturedExperienceCard {
@@ -244,7 +266,7 @@ const FEATURED_CARDS: FeaturedExperienceCard[] = [
     title: "Autographed Vault & Jerseys",
     playerOrSubtitle: "Certified Signed Footballs · Helmets · Jerseys",
     teamId: "SEA",
-    teamName: "Official Arena Shop",
+    teamName: "Gridiron Arena Shop",
     city: "COA Verified",
     imageUrl: "/postimages/DK-Metcalf-Autographed-Seahawks-Football.jpg",
     experienceHighlights: ["Authenticated Holograms", "Nike Vapor Elite Gear", "Instant Dispatch"],
@@ -257,9 +279,7 @@ const FEATURED_CARDS: FeaturedExperienceCard[] = [
 ];
 
 export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
-  nflLogoUrl,
   shopItems,
-  testimonials,
   onExploreExperiences,
   onDiscoverGameDay,
   onOpenTrackInquiry,
@@ -268,8 +288,10 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
   onOpenCustomerCare,
   onOpenTicketCheck,
   onOpenSignIn,
+  onOpenLegalModal,
 }) => {
   const [showcaseFilter, setShowcaseFilter] = useState<"all" | "meet_greet" | "stadium_tour" | "memorabilia">("all");
+  const [charityRecords, setCharityRecords] = useState<CharityRecordEntry[]>([]);
 
   // Top-of-page Custom Player Inquiry Quick Form State
   const [cardMode, setCardMode] = useState<"new" | "check_existing">("new");
@@ -296,6 +318,25 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
     const syncSaved = () => setSavedSessions(getSavedGuestSessions());
     window.addEventListener(SAVED_SESSIONS_EVENT, syncSaved);
     return () => window.removeEventListener(SAVED_SESSIONS_EVENT, syncSaved);
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "charity_records"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const items: CharityRecordEntry[] = [];
+        snap.forEach((docSnap) => {
+          const d = docSnap.data() as Omit<CharityRecordEntry, "id">;
+          items.push({ id: docSnap.id, ...d });
+        });
+        setCharityRecords(items);
+      },
+      () => {
+        // silent fallback if rules or offline
+      }
+    );
+    return () => unsub();
   }, []);
 
   // Automatically check if returning visitor already has an awaiting / responded inquiry
@@ -436,87 +477,113 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
   const selectedInquiryTeam = NFL_TEAMS.find((t) => t.id === inquiryTeamId) || NFL_TEAMS[0];
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar bg-[#050508] text-zinc-100">
-      {/* 0. TOP-OF-PAGE CUSTOM PLAYER INQUIRY HERO BANNER & QUICK FORM (TIKTOK MOBILE-FIRST CRO) */}
+    <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar bg-[#03050C] text-zinc-100">
+      {/* 0. MAIN HERO OFFER: $100 MEET-AND-GREET INVITATION */}
       <section
         id="custom-player-inquiry"
-        className="relative overflow-hidden border-b border-white/10 bg-[#040714]"
+        className="relative overflow-hidden border-b border-[#013369]/60 bg-[#050816]"
       >
-        {/* Atmospheric Stadium Backdrop */}
+        {/* Atmospheric Deep Navy & Obsidian Backdrop */}
         <div className="absolute inset-0 z-0 pointer-events-none">
           <img
             src={stadiumHeroImg}
-            alt="NFL stadium lights backdrop"
-            className="w-full h-full object-cover object-center opacity-30"
+            alt="Luxury hospitality stadium lounge overlooking illuminated field"
+            className="w-full h-full object-cover object-center opacity-25"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#040714]/90 via-[#05091a]/88 to-[#050508]" />
-          <div className="absolute -top-28 -left-24 w-[28rem] h-[24rem] bg-blue-600/20 blur-[120px] rounded-full" />
-          <div className="absolute -bottom-28 -right-24 w-[28rem] h-[24rem] bg-emerald-500/15 blur-[130px] rounded-full" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#03050C]/92 via-[#050816]/90 to-[#03050C]" />
+          <div className="absolute -top-28 -left-24 w-[28rem] h-[24rem] bg-[#D50A0A]/12 blur-[130px] rounded-full" />
+          <div className="absolute -bottom-28 -right-24 w-[28rem] h-[24rem] bg-blue-600/20 blur-[130px] rounded-full" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-8 sm:py-14 lg:py-16">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
-            {/* Left Copy & Instant Star Picker */}
+            {/* Left Copy & Instant Player Picker */}
             <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
               className="lg:col-span-6 space-y-5"
             >
-              {/* Brand & Charity Metadata Strip */}
+              {/* Brand Crest & Platform Identifier */}
               <div className="flex items-center gap-3">
-                <div className="w-9 h-11 bg-[#0a1026]/90 rounded-lg p-1 border border-white/15 flex items-center justify-center shrink-0">
-                  <img src={nflLogoUrl} alt="NFL Shield" className="w-full h-full object-contain" />
-                </div>
+                <GridironBrandMark size="md" />
                 <div className="text-xs sm:text-sm font-semibold text-zinc-300 leading-snug">
-                  <span className="text-sky-300 font-bold">Custom Player Concierge</span>
+                  <span className="text-sky-400 font-bold">NFL Gridiron Experience</span>
                   <span aria-hidden="true" className="mx-2 text-zinc-600">·</span>
-                  <span>All 32 NFL Teams</span>
+                  <span>{CHARITY_ALLOCATION.websiteDomain}</span>
                   <span aria-hidden="true" className="mx-2 text-zinc-600">·</span>
-                  <span className="text-emerald-300 font-bold">$100 Charity Spot</span>
+                  <span className="text-white font-semibold">VIP Hospitality Concierge</span>
                 </div>
               </div>
 
-              {/* Required Bold Headline & Sub-headline */}
+              {/* Primary Offer Headline */}
               <h1
-                className="font-display font-extrabold italic uppercase tracking-tight leading-[0.95] text-white"
-                style={{ fontSize: "clamp(2.15rem, 5vw, 3.85rem)" }}
+                className="font-display font-extrabold uppercase tracking-tight leading-[0.98] text-white"
+                style={{ fontSize: "clamp(1.95rem, 4.1vw, 3.35rem)" }}
               >
-                Don&apos;t See Your Favorite Player?{" "}
-                <span className="bg-gradient-to-r from-sky-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent">
-                  Inquire Below!
+                GET AN INVITATION TO YOUR FAVORITE PLAYER&apos;S MEET &amp; GREET FOR JUST{" "}
+                <span className="bg-gradient-to-r from-white via-sky-200 to-blue-400 bg-clip-text text-transparent">
+                  $100
                 </span>
               </h1>
 
+              {/* Required Supporting Copy */}
               <p className="text-sm sm:text-base lg:text-lg text-zinc-200 leading-relaxed max-w-xl font-medium">
-                We arrange exclusive access, meetups, and fan experiences for any NFL star. Tell us who you want to connect with and secure your spot —{" "}
-                <strong className="text-emerald-300 font-bold">100% of your $100 fee goes directly to charity.</strong>
+                Your favorite player could be closer than you think! Submit your request for an opportunity to attend an exclusive meet-and-greet experience with the player you admire. Choose your favorite player and let our team guide you through the invitation process.
               </p>
 
-              {/* Key Conversion Value Points */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs sm:text-sm text-zinc-200 font-medium">
-                <div className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
-                  <span>VIP Meetups, Photo Ops &amp; Signed Gear</span>
+              {/* Prominent $100 Invitation CTA + Availability Disclosure */}
+              <div className="space-y-3 pt-1">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById("hero-custom-player");
+                      if (el) {
+                        el.focus();
+                      }
+                      onOpenPlayerInquiry({
+                        playerName: inquiryPlayer.trim() || undefined,
+                        teamId: inquiryTeamId,
+                        objective: inquiryObjective,
+                        fullName: inquiryName.trim() || undefined,
+                        email: inquiryEmail.trim() || undefined,
+                        messagingPlatform: inquiryPlatform,
+                        messagingDetails: inquiryHandle.trim() || undefined,
+                      });
+                    }}
+                    className="min-h-[54px] px-7 py-4 rounded-xl bg-[#D50A0A] hover:bg-[#B91C1C] text-white border border-white/15 font-extrabold text-sm sm:text-base uppercase tracking-wide shadow-[0_14px_34px_-8px_rgba(213,10,10,0.45)] transition-all duration-200 hover:-translate-y-0.5 cursor-pointer inline-flex items-center justify-center gap-2.5 whitespace-nowrap"
+                  >
+                    <span>GET YOUR INVITATION – $100</span>
+                    <ArrowRight className="w-4 h-4 shrink-0" />
+                  </button>
+
+                  <a
+                    href="#charitable-initiative"
+                    className="min-h-[54px] px-5 py-3.5 rounded-xl bg-[#08112B]/90 hover:bg-[#013369] border border-[#013369]/70 text-xs sm:text-sm font-bold text-sky-200 hover:text-white inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
+                  >
+                    <HeartHandshake className="w-4 h-4 text-sky-400 shrink-0" />
+                    <span>Includes $25 Youth Charity Allocation</span>
+                  </a>
                 </div>
-                <div className="flex items-start gap-2.5">
-                  <Heart className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>100% Charity Commitment ($100 Flat)</span>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <MessageSquare className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                  <span>Direct WhatsApp, Telegram &amp; Zangi Updates</span>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>Manual Verification &amp; Protected Booking</span>
+
+                {/* Mandatory Availability & Fee-Split Transparency Note */}
+                <div className="p-3.5 rounded-xl bg-[#03050C]/90 border border-white/10 text-xs text-zinc-300 leading-relaxed space-y-1.5">
+                  <p>
+                    <strong className="text-sky-400">Invitation Availability Notice:</strong> Invitations are subject to player availability, confirmed events, and authorized arrangements. Once reviewed, a direct message will be sent to you with details for the next available invite.
+                  </p>
+                  <p className="text-zinc-400">
+                    Transparent $100 Breakdown: <strong className="text-white">${CHARITY_ALLOCATION.coordinationFeeUsd}</strong> Hospitality Coordination Fee +{" "}
+                    <strong className="text-emerald-400">${CHARITY_ALLOCATION.charitableContributionUsd}</strong> Earmarked Contribution toward{" "}
+                    <strong className="text-zinc-200">{CHARITY_ALLOCATION.beneficiary}</strong>.
+                  </p>
                 </div>
               </div>
 
-              {/* 1-Tap Popular Star Prefill Bar (Great for TikTok Mobile Visitors) */}
-              <div className="pt-2 space-y-2.5">
+              {/* 1-Tap Popular Star Prefill Bar */}
+              <div className="pt-1 space-y-2">
                 <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                  Popular Requests — Tap to Auto-Fill:
+                  Popular Player Requests — Tap to Auto-Fill:
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {CUSTOM_INQUIRY_QUICK_STARS.map((star) => {
@@ -532,26 +599,28 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                         }}
                         className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                           isSelected
-                            ? "bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-600/30"
-                            : "bg-[#0b1126] hover:bg-[#121c3d] border-white/15 text-zinc-200"
+                            ? "bg-[#013369] border-blue-400 text-white shadow-lg shadow-blue-900/35"
+                            : "bg-[#08112B]/80 hover:bg-[#013369]/60 border-white/15 text-zinc-200"
                         }`}
                       >
                         <span>{star.name}</span>
-                        <span className="text-[11px] font-mono text-zinc-400">({star.teamId})</span>
+                        <span className={`text-[11px] font-mono ${isSelected ? "text-sky-200" : "text-zinc-400"}`}>
+                          ({star.teamId})
+                        </span>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Quick Anchor Links on Mobile/Desktop */}
+              {/* Quick Navigation Anchors */}
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-xs font-semibold text-zinc-400">
                 <a
                   href="#featured-experiences"
-                  className="inline-flex items-center gap-1.5 text-sky-300 hover:text-sky-200 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-sky-400 hover:text-white transition-colors"
                 >
                   <ArrowDown className="w-3.5 h-3.5" />
-                  <span>See Featured Stars &amp; Stadium Tours</span>
+                  <span>Explore Roster &amp; Stadium Tours</span>
                 </a>
                 <span aria-hidden="true" className="text-zinc-700">·</span>
                 <button
@@ -559,24 +628,24 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                   onClick={onDiscoverGameDay}
                   className="inline-flex items-center gap-1.5 text-zinc-300 hover:text-white transition-colors cursor-pointer"
                 >
-                  <ShoppingBag className="w-3.5 h-3.5 text-purple-400" />
+                  <ShoppingBag className="w-3.5 h-3.5 text-sky-400" />
                   <span>Browse Arena Shop</span>
                 </button>
               </div>
             </motion.div>
 
-            {/* Right Interactive Custom Player Inquiry Card */}
+            {/* Right Interactive Meet & Greet Invitation Request Card */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
               className="lg:col-span-6"
             >
-              <div className="bg-[#080d22]/95 backdrop-blur-xl border border-indigo-400/30 rounded-3xl p-5 sm:p-7 shadow-[0_24px_60px_-15px_rgba(15,23,60,0.85)] space-y-4">
+              <div className="bg-[#08112B]/95 backdrop-blur-xl border border-[#013369]/70 rounded-3xl p-5 sm:p-7 shadow-[0_24px_60px_-15px_rgba(3,5,12,0.9)] space-y-4">
                 {/* Form Header */}
                 <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-white/15 p-1.5 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-[#03050C] border border-white/15 p-1.5 flex items-center justify-center shrink-0">
                       <img
                         src={getLogoUrl(selectedInquiryTeam.id)}
                         alt={selectedInquiryTeam.name}
@@ -585,19 +654,19 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                     </div>
                     <div className="min-w-0">
                       <h2 className="text-sm sm:text-base font-extrabold uppercase tracking-tight text-white truncate">
-                        Custom Player Inquiry Form
+                        Meet &amp; Greet Invitation Request
                       </h2>
                       <p className="text-xs text-zinc-400 truncate">
-                        {selectedInquiryTeam.city} {selectedInquiryTeam.name} · Any Roster Star
+                        {selectedInquiryTeam.city} {selectedInquiryTeam.name} · Concierge Managed
                       </p>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="font-mono text-base sm:text-lg font-extrabold text-emerald-400 leading-none">
+                    <p className="font-mono text-xl sm:text-2xl font-black text-white leading-none">
                       $100
                     </p>
-                    <p className="text-[11px] font-semibold text-emerald-300 mt-0.5">
-                      100% Charity
+                    <p className="text-[11px] font-semibold text-sky-300 mt-0.5">
+                      $75 Fee · $25 BGCA
                     </p>
                   </div>
                 </div>
@@ -1021,20 +1090,20 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                       />
                     </div>
 
-                    {/* High-Converting Submit Button */}
+                    {/* Primary Meet & Greet CTA Button */}
                     <button
                       type="submit"
-                      className="w-full min-h-[54px] px-6 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-400 hover:via-teal-400 hover:to-sky-400 text-zinc-950 font-extrabold text-sm sm:text-base uppercase tracking-wide shadow-[0_14px_34px_-8px_rgba(16,185,129,0.55)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer inline-flex items-center justify-center gap-2.5"
+                      className="w-full min-h-[54px] px-6 py-4 rounded-xl bg-[#D50A0A] hover:bg-[#B91C1C] text-white border border-white/15 font-extrabold text-sm sm:text-base uppercase tracking-wide shadow-[0_14px_34px_-8px_rgba(213,10,10,0.45)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer inline-flex items-center justify-center gap-2.5"
                     >
-                      <span>Secure My Player Inquiry · $100 Charity</span>
+                      <span>GET YOUR INVITATION – $100</span>
                       <ArrowRight className="w-4 h-4 shrink-0" />
                     </button>
 
                     {/* Form Trust & Status Links Footer */}
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-zinc-400">
                       <span className="inline-flex items-center gap-1.5">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        <span>Next: $100 Charity Contribution &amp; Receipt</span>
+                        <Lock className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                        <span>Secure Checkout · Direct Invite Messaging</span>
                       </span>
                       <div className="flex items-center gap-3">
                         <button
@@ -1054,9 +1123,9 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                         <button
                           type="button"
                           onClick={onOpenTrackInquiry}
-                          className="text-sky-300 hover:text-sky-200 font-semibold transition-colors cursor-pointer"
+                          className="text-sky-400 hover:text-white font-semibold transition-colors cursor-pointer"
                         >
-                          Track Ticket
+                          Track Request
                         </button>
                       </div>
                     </div>
@@ -1082,11 +1151,11 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
             alt="Packed NFL stadium under floodlights on game night"
             className="w-full h-full object-cover object-center"
           />
-          {/* Deep Black, Midnight Navy & Electric Blue/Purple Atmospheric Overlays */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#040717]/90 via-[#050819]/65 to-[#050508]" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#040717]/95 via-[#060b22]/55 to-transparent" />
+          {/* Deep Black, Midnight Navy & Formal NFL Blue/Crimson Atmospheric Overlays */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#03050C]/90 via-[#050816]/65 to-[#03050C]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#03050C]/95 via-[#050816]/60 to-transparent" />
           <div className="absolute -top-32 left-1/4 w-[36rem] h-[24rem] bg-blue-600/20 blur-[140px] rounded-full pointer-events-none" />
-          <div className="absolute bottom-0 right-1/4 w-[32rem] h-[22rem] bg-purple-600/25 blur-[140px] rounded-full pointer-events-none" />
+          <div className="absolute bottom-0 right-1/4 w-[32rem] h-[22rem] bg-[#D50A0A]/15 blur-[140px] rounded-full pointer-events-none" />
         </motion.div>
 
         {/* Hero Foreground Content */}
@@ -1097,35 +1166,33 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
             className="max-w-3xl"
           >
-            {/* Brand Crest & League Identifier */}
+            {/* Brand Crest & Platform Identifier */}
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-11 h-14 sm:w-12 sm:h-16 bg-[#080d22]/90 backdrop-blur-md rounded-xl p-1.5 border border-indigo-400/25 shadow-2xl flex items-center justify-center shrink-0">
-                <img src={nflLogoUrl} alt="NFL Shield" className="w-full h-full object-contain" />
-              </div>
-              <div className="text-xs sm:text-sm font-semibold tracking-wide text-sky-300">
-                <span>NFL Gridiron Entertainment</span>
+              <GridironBrandMark size="lg" />
+              <div className="text-xs sm:text-sm font-semibold tracking-wide text-sky-400">
+                <span>Gridiron Hospitality Platform</span>
                 <span aria-hidden="true" className="mx-2 text-zinc-500">·</span>
-                <span>All 32 Franchises</span>
+                <span className="text-zinc-200">All 32 Teams</span>
                 <span aria-hidden="true" className="mx-2 text-zinc-500">·</span>
-                <span className="text-purple-300">Verified Experiences &amp; Gear</span>
+                <span className="text-zinc-300">Verified Experiences &amp; Memorabilia</span>
               </div>
             </div>
 
             {/* Stadium Showcase Headline */}
             <h2
               className="font-display font-extrabold italic uppercase tracking-tight leading-[0.93] text-white mb-6"
-              style={{ fontSize: "clamp(2.75rem, 6.2vw, 5.75rem)" }}
+              style={{ fontSize: "clamp(2.5rem, 5.8vw, 5.25rem)" }}
             >
               GET CLOSER TO THE GAME.
               <br />
-              <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-purple-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-white via-sky-200 to-blue-400 bg-clip-text text-transparent">
                 EXPERIENCE MORE.
               </span>
             </h2>
 
-            {/* Required Supporting Copy */}
+            {/* Supporting Copy */}
             <p className="text-base sm:text-lg md:text-xl text-zinc-200 max-w-2xl font-medium leading-relaxed mb-9">
-              Discover unforgettable football experiences, exclusive fan opportunities, authentic merchandise, and exciting ways to celebrate the game you love.
+              Discover unforgettable football hospitality experiences, invitation opportunities to meet-and-greet events, authentic memorabilia, and stadium access passes.
             </p>
 
             {/* Primary & Secondary CTAs */}
@@ -1133,7 +1200,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               <button
                 type="button"
                 onClick={onExploreExperiences}
-                className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 min-h-[52px] rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500 text-white font-bold text-sm sm:text-base tracking-wide shadow-[0_14px_40px_-10px_rgba(79,70,229,0.7)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer whitespace-nowrap"
+                className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 min-h-[52px] rounded-xl bg-gradient-to-r from-[#013369] via-[#1D4ED8] to-[#2563EB] hover:from-[#1D4ED8] hover:to-[#3B82F6] text-white border border-blue-400/25 font-extrabold text-sm sm:text-base tracking-wide shadow-[0_14px_40px_-10px_rgba(29,78,216,0.5)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer whitespace-nowrap"
               >
                 <span>EXPLORE EXPERIENCES</span>
                 <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
@@ -1142,7 +1209,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               <button
                 type="button"
                 onClick={onDiscoverGameDay}
-                className="group inline-flex items-center justify-center gap-3 px-8 py-4 min-h-[52px] rounded-2xl bg-[#080d22]/85 hover:bg-[#0e1636] border border-indigo-400/40 hover:border-purple-400/75 backdrop-blur-md text-white font-bold text-sm sm:text-base tracking-wide shadow-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer whitespace-nowrap"
+                className="group inline-flex items-center justify-center gap-3 px-8 py-4 min-h-[52px] rounded-xl bg-[#08112B]/90 hover:bg-[#013369] border border-[#013369]/70 hover:border-blue-400/60 backdrop-blur-md text-white font-bold text-sm sm:text-base tracking-wide shadow-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer whitespace-nowrap"
               >
                 <ShoppingBag className="w-4 h-4 text-sky-400" />
                 <span>VISIT THE ARENA SHOP</span>
@@ -1153,19 +1220,19 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2.5 text-xs sm:text-sm text-zinc-300 font-medium">
               <span className="inline-flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0" />
-                Instant Guest Booking
+                Encrypted Hosted Checkout
               </span>
               <span className="inline-flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-purple-400 shrink-0" />
-                Digital QR Passes &amp; Verified COA Gear
+                <ShieldCheck className="w-4 h-4 text-sky-400 shrink-0" />
+                Digital QR Passes &amp; COA Gear
               </span>
               <button
                 type="button"
                 onClick={() => onOpenPlayerInquiry()}
-                className="inline-flex items-center gap-2 text-emerald-300 hover:text-emerald-200 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 text-sky-300 hover:text-white transition-colors cursor-pointer"
               >
-                <Heart className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Inquire About A Player ($100 goes 100% to charity)</span>
+                <Heart className="w-4 h-4 text-[#D50A0A] shrink-0" />
+                <span>GET YOUR INVITATION – $100</span>
               </button>
             </div>
           </motion.div>
@@ -1306,29 +1373,213 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
           ))}
         </div>
 
-        {/* Custom Player Charity Inquiry Bar */}
-        <div className="mt-10 rounded-3xl bg-gradient-to-r from-[#091235] via-[#0c102e] to-[#1a0d38] border border-indigo-500/35 p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 text-xs font-bold text-emerald-300">
-              <Heart className="w-4 h-4 text-emerald-400 fill-emerald-400/20" />
-              <span>Special Arrangement · 100% Charity Commitment</span>
+        {/* Meet & Greet $100 Invitation Banner */}
+        <div className="mt-10 rounded-3xl bg-gradient-to-r from-[#08112B] via-[#050816] to-[#013369]/40 border border-[#013369]/70 p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6 shadow-2xl">
+          <div className="space-y-2.5 max-w-2xl">
+            <div className="inline-flex items-center gap-2 text-xs font-bold text-sky-400 uppercase tracking-wider">
+              <Award className="w-4 h-4 text-sky-400" />
+              <span>$100 Meet &amp; Greet Invitation · Direct Notification</span>
             </div>
-            <h3 className="font-display text-2xl sm:text-3xl font-extrabold italic uppercase tracking-tight text-white">
-              Looking for another NFL star? Request any active player.
+            <h3 className="font-display text-xl sm:text-2xl font-extrabold uppercase tracking-tight text-white">
+              GET AN INVITATION TO YOUR FAVORITE PLAYER&apos;S MEET &amp; GREET FOR JUST $100
             </h3>
-            <p className="text-sm text-zinc-200 leading-relaxed">
-              Choose any of the 32 NFL franchises and your preferred contact channel (WhatsApp, Zangi, or Telegram).{" "}
-              <strong className="text-emerald-300">100% of the $100 inquiry fee goes directly to charity.</strong>
+            <p className="text-sm text-zinc-300 leading-relaxed">
+              Invitations are subject to player availability, confirmed events, and authorized arrangements. Once reviewed, we send you a direct message for the next available invite. Includes a{" "}
+              <strong className="text-white">${CHARITY_ALLOCATION.coordinationFeeUsd} coordination fee</strong> and a{" "}
+              <strong className="text-emerald-400">${CHARITY_ALLOCATION.charitableContributionUsd} earmarked contribution to Boys &amp; Girls Clubs of America</strong>.
             </p>
           </div>
           <button
             type="button"
             onClick={() => onOpenPlayerInquiry()}
-            className="px-7 py-4 min-h-[48px] rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 font-extrabold text-xs sm:text-sm uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 shrink-0 cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap"
+            className="px-7 py-4 min-h-[50px] rounded-xl bg-[#D50A0A] hover:bg-[#B91C1C] text-white border border-white/15 font-extrabold text-xs sm:text-sm uppercase tracking-wider transition-all shadow-lg shadow-red-900/35 shrink-0 cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap"
           >
-            <span>Inquire About A Player</span>
+            <span>GET YOUR INVITATION – $100</span>
             <ArrowRight className="w-4 h-4" />
           </button>
+        </div>
+      </section>
+
+      {/* 2B. DEDICATED CHARITABLE INITIATIVE: BOYS & GIRLS CLUBS OF AMERICA */}
+      <section
+        id="charitable-initiative"
+        className="py-16 sm:py-22 px-5 sm:px-8 bg-[#050816] border-y border-[#013369]/60"
+      >
+        <div className="max-w-7xl mx-auto space-y-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            {/* Editorial Visual */}
+            <div className="lg:col-span-5">
+              <div className="relative rounded-3xl overflow-hidden border border-[#013369]/70 bg-[#03050C] shadow-2xl">
+                <img
+                  src={charityYouthImg}
+                  alt="Youth mentorship and community education workshop"
+                  className="w-full aspect-[16/10] lg:aspect-[4/3] object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#03050C] via-[#03050C]/30 to-transparent" />
+                <div className="p-5 sm:p-6 relative -mt-12 space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-widest text-sky-400">
+                    Beneficiary Organization
+                  </p>
+                  <h3 className="text-lg sm:text-xl font-extrabold text-white">
+                    {CHARITY_ALLOCATION.beneficiary}
+                  </h3>
+                  <p className="text-xs text-zinc-300 leading-relaxed">
+                    Supports young people nationwide through education, mentorship, leadership development, and safe community programs.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Initiative Mission & Financial Transparency */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="space-y-3">
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-400">
+                  Community &amp; Youth Development Initiative
+                </p>
+                <h2
+                  className="font-display font-extrabold italic uppercase tracking-tight text-white leading-[0.98]"
+                  style={{ fontSize: "clamp(2rem, 4.2vw, 3.25rem)" }}
+                >
+                  MAKE YOUR FAN EXPERIENCE COUNT
+                </h2>
+                <p className="text-sm sm:text-base text-zinc-200 leading-relaxed">
+                  Be part of something bigger than the game. Through our charitable initiative, we aim to support young people by contributing towards education, mentorship and community development.
+                </p>
+              </div>
+
+              {/* Transparent Split Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 rounded-2xl bg-[#03050C] border border-white/10 space-y-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                    Total Invitation Fee
+                  </span>
+                  <p className="font-mono text-2xl font-black text-white">
+                    ${CHARITY_ALLOCATION.invitationTotalUsd}.00
+                  </p>
+                  <p className="text-[11px] text-zinc-400">Paid per concierge invitation</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#03050C] border border-[#013369]/60 space-y-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-sky-300">
+                    Platform Event Fee
+                  </span>
+                  <p className="font-mono text-2xl font-black text-sky-400">
+                    ${CHARITY_ALLOCATION.coordinationFeeUsd}.00
+                  </p>
+                  <p className="text-[11px] text-zinc-400">Coordination &amp; verification operations</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#03050C] border border-emerald-500/35 space-y-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">
+                    Allocated to Charity
+                  </span>
+                  <p className="font-mono text-2xl font-black text-emerald-400">
+                    ${CHARITY_ALLOCATION.charitableContributionUsd}.00
+                  </p>
+                  <p className="text-[11px] text-zinc-300">
+                    {CHARITY_ALLOCATION.charitablePercent}% to Boys &amp; Girls Clubs of America
+                  </p>
+                </div>
+              </div>
+
+              {/* How Transfers Work & Legal Honesty Notice */}
+              <div className="p-5 rounded-2xl bg-[#03050C]/90 border border-white/10 space-y-3 text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <p className="font-bold text-white mb-1 flex items-center gap-1.5">
+                      <HeartHandshake className="w-4 h-4 text-sky-400" />
+                      How Contributions Are Transferred
+                    </p>
+                    <p className="text-xs text-zinc-300">
+                      Each verified paid invitation automatically records a ${CHARITY_ALLOCATION.charitableContributionUsd}.00 allocation in our ledger. Contributions are pooled and transferred monthly via consolidated organizational disbursement to Boys &amp; Girls Clubs of America.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-white mb-1 flex items-center gap-1.5">
+                      <FileText className="w-4 h-4 text-sky-400" />
+                      Independence &amp; Disclosure
+                    </p>
+                    <p className="text-xs text-zinc-300">
+                      {CHARITY_ALLOCATION.operatorLegalName} operates this initiative independently and does not claim an official partnership or endorsement agreement with Boys &amp; Girls Clubs of America. Because $75 covers concierge event fees, the full $100 is not represented as a 100% pass-through donation.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-xs text-zinc-400">
+                    Full donation accounting rules &amp; disbursement documentation available anytime.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onOpenLegalModal("charity")}
+                    className="text-xs font-bold text-sky-400 hover:text-white inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Read Full Charitable Initiative Policy</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Available Public Donation & Disbursement Ledger */}
+          <div className="rounded-2xl bg-[#03050C] border border-white/10 overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-white">
+                  Available Charitable Donation &amp; Disbursement Records
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Live ledger summarizing verified allocations and monthly organizational transfers to {CHARITY_ALLOCATION.beneficiary}.
+                </p>
+              </div>
+              <span className="text-xs font-mono font-bold text-sky-400">
+                {charityRecords.length} Recorded Batch{charityRecords.length === 1 ? "" : "es"}
+              </span>
+            </div>
+
+            {charityRecords.length === 0 ? (
+              <div className="p-6 text-center text-xs text-zinc-400">
+                Disbursement batches appear here automatically as administrators reconcile verified monthly transfers to Boys &amp; Girls Clubs of America.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#08112B]/80 text-zinc-400 uppercase tracking-wider">
+                    <tr>
+                      <th className="px-5 py-3 font-bold">Period / Batch</th>
+                      <th className="px-5 py-3 font-bold">Beneficiary</th>
+                      <th className="px-5 py-3 font-bold">Allocated</th>
+                      <th className="px-5 py-3 font-bold">Disbursed</th>
+                      <th className="px-5 py-3 font-bold">Transfer Method / Ref</th>
+                      <th className="px-5 py-3 font-bold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 text-zinc-200">
+                    {charityRecords.slice(0, 6).map((rec) => (
+                      <tr key={rec.id} className="hover:bg-white/[0.02]">
+                        <td className="px-5 py-3.5 font-semibold text-white">{rec.periodLabel}</td>
+                        <td className="px-5 py-3.5">{rec.beneficiary}</td>
+                        <td className="px-5 py-3.5 font-mono text-zinc-300">
+                          ${Number(rec.allocatedAmount || 0).toFixed(2)}
+                        </td>
+                        <td className="px-5 py-3.5 font-mono font-bold text-emerald-400">
+                          ${Number(rec.disbursedAmount ?? rec.allocatedAmount ?? 0).toFixed(2)}
+                        </td>
+                        <td className="px-5 py-3.5 text-zinc-400">
+                          {rec.transferMethod || "ACH / Direct"}
+                          {rec.transferReference ? ` · ${rec.transferReference}` : ""}
+                        </td>
+                        <td className="px-5 py-3.5 uppercase font-bold text-[11px] text-sky-400">
+                          {rec.status}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -1475,67 +1726,41 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
             onOpenCustomerCare={onOpenCustomerCare}
             onOpenTrackInquiry={onOpenTrackInquiry}
             onOpenTicketCheck={onOpenTicketCheck}
+            onOpenLegalModal={onOpenLegalModal}
           />
-
-          {/* Real Fan Testimonials */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-14">
-            {testimonials.map((t) => (
-              <div
-                key={t.name}
-                className="p-7 rounded-3xl bg-[#090e24]/80 border border-white/10 flex flex-col justify-between gap-6"
-              >
-                <div>
-                  <div className="flex gap-1 mb-4">
-                    {[...Array(t.rating)].map((_, idx) => (
-                      <Star key={idx} className="w-4 h-4 fill-sky-400 text-sky-400" />
-                    ))}
-                  </div>
-                  <p className="text-sm sm:text-base text-zinc-200 font-medium leading-relaxed">
-                    &ldquo;{t.text}&rdquo;
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 pt-4 border-t border-white/10">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600/30 to-purple-600/30 border border-white/10 flex items-center justify-center font-bold text-sky-300 text-sm">
-                    {t.name[0]}
-                  </div>
-                  <span className="text-xs font-bold text-zinc-300">{t.name}</span>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
       {/* 6. FINAL CONVERSION FOOTER CTA */}
-      <section className="relative py-20 sm:py-28 px-5 sm:px-8 text-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-indigo-950/30 via-transparent to-transparent pointer-events-none" />
-        <div className="relative z-10 max-w-2xl mx-auto space-y-7">
+      <section className="relative py-16 sm:py-24 px-5 sm:px-8 text-center overflow-hidden bg-[#03050C]">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#08112B]/50 via-transparent to-transparent pointer-events-none" />
+        <div className="relative z-10 max-w-2xl mx-auto space-y-6">
           <h2
             className="font-display font-extrabold italic uppercase tracking-tight text-white leading-[0.95]"
-            style={{ fontSize: "clamp(2.4rem, 5vw, 4.25rem)" }}
+            style={{ fontSize: "clamp(2.2rem, 4.8vw, 4rem)" }}
           >
             MAKE THIS SEASON{" "}
-            <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-purple-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-white via-sky-200 to-blue-400 bg-clip-text text-transparent">
               UNFORGETTABLE.
             </span>
           </h2>
           <p className="text-sm sm:text-base text-zinc-300 leading-relaxed">
-            Explore VIP stadium tours, player meet-and-greets, certified autographed memorabilia, game-day seats, and dedicated fan support across all 32 teams.
+            Explore VIP stadium tours, player meet-and-greet invitations, certified autographed memorabilia, game-day seats, and dedicated fan hospitality support.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
             <button
               type="button"
-              onClick={onExploreExperiences}
-              className="w-full sm:w-auto px-9 py-4 min-h-[50px] rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-sm tracking-wide shadow-xl shadow-indigo-600/30 transition-all cursor-pointer"
+              onClick={() => onOpenPlayerInquiry()}
+              className="w-full sm:w-auto px-8 py-4 min-h-[50px] rounded-xl bg-[#D50A0A] hover:bg-[#B91C1C] text-white border border-white/15 font-extrabold text-sm tracking-wide shadow-xl shadow-red-900/35 transition-all cursor-pointer"
             >
-              EXPLORE EXPERIENCES
+              GET YOUR INVITATION – $100
             </button>
             <button
               type="button"
-              onClick={onDiscoverGameDay}
-              className="w-full sm:w-auto px-9 py-4 min-h-[50px] rounded-2xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-sm tracking-wide transition-all cursor-pointer"
+              onClick={onExploreExperiences}
+              className="w-full sm:w-auto px-8 py-4 min-h-[50px] rounded-xl bg-[#08112B] hover:bg-[#013369] border border-[#013369]/70 text-white font-bold text-sm tracking-wide transition-all cursor-pointer"
             >
-              VISIT THE ARENA SHOP
+              EXPLORE EXPERIENCES
             </button>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4 pt-2 text-xs text-zinc-400">
@@ -1544,7 +1769,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               onClick={onOpenTicketCheck}
               className="hover:text-white transition-colors inline-flex items-center gap-1.5 cursor-pointer"
             >
-              <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <UserCheck className="w-3.5 h-3.5 text-sky-400" />
               Check / Download Pass
             </button>
             <span aria-hidden="true" className="text-zinc-700">·</span>
@@ -1558,6 +1783,56 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
           </div>
         </div>
       </section>
+
+      {/* 7. CORPORATE GOVERNANCE, LEGAL TRANSPARENCY & POLICY FOOTER */}
+      <footer className="bg-[#03050C] border-t border-[#013369]/50 px-5 sm:px-8 py-10">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <GridironBrandMark size="md" />
+              <div>
+                <p className="text-sm font-bold text-white">
+                  {CHARITY_ALLOCATION.operatorLegalName}
+                </p>
+                <p className="text-xs text-zinc-400">
+                  {CHARITY_ALLOCATION.websiteDomain} · {CHARITY_ALLOCATION.supportEmail}
+                </p>
+              </div>
+            </div>
+
+            <nav aria-label="Governance and Policy Links" className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-zinc-300">
+              <button type="button" onClick={() => onOpenLegalModal("about")} className="hover:text-sky-400 transition-colors cursor-pointer">
+                About Us
+              </button>
+              <button type="button" onClick={() => onOpenLegalModal("contact")} className="hover:text-sky-400 transition-colors cursor-pointer">
+                Contact Information
+              </button>
+              <button type="button" onClick={() => onOpenLegalModal("charity")} className="hover:text-sky-400 transition-colors cursor-pointer">
+                Charitable Initiative
+              </button>
+              <button type="button" onClick={() => onOpenLegalModal("privacy")} className="hover:text-sky-400 transition-colors cursor-pointer">
+                Privacy Policy
+              </button>
+              <button type="button" onClick={() => onOpenLegalModal("terms")} className="hover:text-sky-400 transition-colors cursor-pointer">
+                Terms &amp; Conditions
+              </button>
+              <button type="button" onClick={() => onOpenLegalModal("refund")} className="hover:text-sky-400 transition-colors cursor-pointer">
+                Refund &amp; Cancellation Policy
+              </button>
+            </nav>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-[11px] text-zinc-500 leading-relaxed">
+            <p className="max-w-3xl">
+              <Building2 className="w-3.5 h-3.5 inline mr-1.5 text-zinc-400 -mt-0.5" />
+              Operated by {CHARITY_ALLOCATION.operatorLegalName} ({CHARITY_ALLOCATION.websiteDomain}). Card payments are processed exclusively through encrypted third-party tokenization; full card numbers and CVVs are never stored on our servers.
+            </p>
+            <p className="shrink-0 font-mono text-zinc-400">
+              © {new Date().getFullYear()} {CHARITY_ALLOCATION.operatorLegalName}
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

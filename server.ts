@@ -88,7 +88,184 @@ async function startServer() {
 
   // API Routes
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
+    res.json({ status: "ok", timestamp: Date.now() });
+  });
+
+  // Stripe Hosted Checkout Configuration Check (never returns secret keys)
+  app.get("/api/payments/config", (_req, res) => {
+    const key = (process.env.STRIPE_SECRET_KEY || "").trim();
+    const configured =
+      key.length > 0 &&
+      !key.toLowerCase().includes("placeholder") &&
+      !key.toUpperCase().includes("MY_STRIPE");
+    res.json({
+      stripeConfigured: configured,
+      processor: "stripe_hosted_checkout",
+      currency: "usd",
+    });
+  });
+
+  // Create real Stripe Hosted Checkout Session (server-side proxy, never handles raw PAN/CVV)
+  app.post("/api/payments/create-checkout-session", async (req, res) => {
+    try {
+      const secretKey = (process.env.STRIPE_SECRET_KEY || "").trim();
+      const {
+        amountCents = 10000,
+        itemName = "Player Meet & Greet Concierge Invitation",
+        itemDescription = "Independent sports hospitality coordination request ($75.00 coordination fee + $25.00 charitable initiative allocation)",
+        sessionId = "",
+        customerEmail = "",
+        customerName = "",
+        metadata = {},
+        successUrl,
+        cancelUrl,
+      } = req.body || {};
+
+      if (
+        !secretKey ||
+        secretKey.toLowerCase().includes("placeholder") ||
+        secretKey.toUpperCase().includes("MY_STRIPE")
+      ) {
+        return res.status(503).json({
+          ok: false,
+          code: "GATEWAY_UNAVAILABLE",
+          error:
+            "Secure card processing gateway could not establish a connection. Please try again later or choose an alternative payment method.",
+        });
+      }
+
+      const parsedCents = Math.max(100, Math.round(Number(amountCents) || 10000));
+      const reqOrigin =
+        process.env.APP_URL ||
+        req.headers.origin ||
+        `${req.protocol}://${req.get("host") || "localhost:3000"}`;
+
+      const resolvedSuccessUrl =
+        typeof successUrl === "string" && successUrl.startsWith("http")
+          ? successUrl
+          : `${reqOrigin}/?payment_status=success&stripe_session_id={CHECKOUT_SESSION_ID}&inquiry_id=${encodeURIComponent(
+              String(sessionId || "")
+            )}`;
+
+      const resolvedCancelUrl =
+        typeof cancelUrl === "string" && cancelUrl.startsWith("http")
+          ? cancelUrl
+          : `${reqOrigin}/?payment_status=cancelled&inquiry_id=${encodeURIComponent(
+              String(sessionId || "")
+            )}`;
+
+      const params = new URLSearchParams();
+      params.append("mode", "payment");
+      params.append("payment_method_types[]", "card");
+      params.append("line_items[0][price_data][currency]", "usd");
+      params.append("line_items[0][price_data][unit_amount]", String(parsedCents));
+      params.append("line_items[0][price_data][product_data][name]", String(itemName).slice(0, 120));
+      params.append(
+        "line_items[0][price_data][product_data][description]",
+        String(itemDescription).slice(0, 400)
+      );
+      params.append("line_items[0][quantity]", "1");
+      params.append("success_url", resolvedSuccessUrl);
+      params.append("cancel_url", resolvedCancelUrl);
+
+      if (typeof customerEmail === "string" && customerEmail.includes("@")) {
+        params.append("customer_email", customerEmail.trim());
+      }
+      if (sessionId) {
+        params.append("client_reference_id", String(sessionId).slice(0, 128));
+      }
+      if (customerName) {
+        params.append("metadata[customer_name]", String(customerName).slice(0, 120));
+      }
+      if (metadata && typeof metadata === "object") {
+        for (const [k, v] of Object.entries(metadata).slice(0, 15)) {
+          if (v !== undefined && v !== null) {
+            params.append(`metadata[${k.slice(0, 40)}]`, String(v).slice(0, 200));
+          }
+        }
+      }
+
+      const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
+      });
+
+      const stripeData: any = await stripeRes.json().catch(() => ({}));
+      if (!stripeRes.ok || !stripeData?.url) {
+        return res.status(stripeRes.status >= 400 ? stripeRes.status : 502).json({
+          ok: false,
+          code: stripeData?.error?.code || "PROCESSOR_ERROR",
+          error:
+            stripeData?.error?.message ||
+            "Card processing network could not complete the request.",
+        });
+      }
+
+      return res.json({
+        ok: true,
+        id: stripeData.id,
+        url: stripeData.url,
+        amountTotal: stripeData.amount_total,
+      });
+    } catch (err: any) {
+      return res.status(502).json({
+        ok: false,
+        code: "NETWORK_ERROR",
+        error: err?.message || "Connection to card payment network failed.",
+      });
+    }
+  });
+
+  // Verify real Stripe Hosted Checkout Session status
+  app.get("/api/payments/verify-session", async (req, res) => {
+    try {
+      const secretKey = (process.env.STRIPE_SECRET_KEY || "").trim();
+      const sessionId = String(req.query.session_id || "").trim();
+      if (!sessionId) {
+        return res.status(400).json({ ok: false, error: "Missing session_id parameter." });
+      }
+      if (!secretKey) {
+        return res.status(503).json({ ok: false, code: "GATEWAY_UNAVAILABLE", error: "Gateway unavailable." });
+      }
+
+      const stripeRes = await fetch(
+        `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`,
+        {
+          headers: { Authorization: `Bearer ${secretKey}` },
+        }
+      );
+      const data: any = await stripeRes.json().catch(() => ({}));
+      if (!stripeRes.ok) {
+        return res.status(stripeRes.status).json({
+          ok: false,
+          code: data?.error?.code || "VERIFICATION_FAILED",
+          error: data?.error?.message || "Unable to verify Stripe payment session.",
+        });
+      }
+
+      return res.json({
+        ok: true,
+        id: data.id,
+        status: data.status,
+        paymentStatus: data.payment_status,
+        amountTotal: data.amount_total,
+        currency: data.currency,
+        customerEmail: data.customer_details?.email || data.customer_email || "",
+        customerName: data.customer_details?.name || data.metadata?.customer_name || "",
+        paymentIntent: data.payment_intent || "",
+        metadata: data.metadata || {},
+      });
+    } catch (err: any) {
+      return res.status(502).json({
+        ok: false,
+        code: "VERIFICATION_NETWORK_ERROR",
+        error: err?.message || "Network error while verifying session.",
+      });
+    }
   });
 
   // Dedicated endpoint for Control Room Experience Image Upload
@@ -613,7 +790,7 @@ async function startServer() {
         vipPrice: 850,
         seasonPassPrice: 4500,
         url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
-        image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+        image: "/postimages/IMG-0463.jpg",
         isResale: false
       },
       {
@@ -663,7 +840,7 @@ async function startServer() {
         vipPrice: 5000,
         seasonPassPrice: 8000,
         url: "https://www.ticketmaster.com/seattle-seahawks-tickets/artist/806020",
-        image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+        image: "/postimages/IMG-0463.jpg",
         isResale: false
       },
       {
@@ -776,7 +953,7 @@ async function startServer() {
         cheapestPrice: 125,
         vipPrice: 850,
         url: "https://www.ticketmaster.com/dallas-cowboys-tickets/artist/805934",
-        image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+        image: "/postimages/IMG-0463.jpg",
         isResale: false
       },
       {
@@ -827,7 +1004,7 @@ async function startServer() {
         cheapestPrice: 95,
         vipPrice: 650,
         url: "https://www.ticketmaster.com/green-bay-packers-tickets/artist/805947",
-        image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+        image: "/postimages/IMG-0463.jpg",
         isResale: false
       },
       {
@@ -861,7 +1038,7 @@ async function startServer() {
         cheapestPrice: 75,
         vipPrice: 500,
         url: "https://www.ticketmaster.com/new-york-jets-tickets/artist/805987",
-        image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80&w=800",
+        image: "/postimages/IMG-0463.jpg",
         isResale: false
       }
     ];
