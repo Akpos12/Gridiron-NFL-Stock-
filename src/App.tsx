@@ -114,6 +114,7 @@ import {
   JAYNE_WELAGE_PASS_DATA
 } from "./components/JayneWelageVipTicketModal";
 import { GuestMailNotifier } from "./components/common/GuestMailNotifier";
+import { JaylenWaddleVipFanCardModal } from "./components/JaylenWaddleVipFanCardModal";
 import { getSavedGuestSessions } from "./services/paymentControlService";
 import { generateTicketPDF } from "./utils/ticketPdfGenerator";
 import { NFLImage } from "./utils/nflImages";
@@ -4423,6 +4424,7 @@ export default function App() {
   const [guestUnreadCount, setGuestUnreadCount] = useState(0);
   const [showVipCommemorativeModal, setShowVipCommemorativeModal] = useState(false);
   const [showJayneVipModal, setShowJayneVipModal] = useState(false);
+  const [showJayneWaddleModal, setShowJayneWaddleModal] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const portfolioRef = useRef<any[]>([]);
 
@@ -4430,6 +4432,16 @@ export default function App() {
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+      const fanCardParam =
+        params.get("vipFanCard") ||
+        params.get("fanCard") ||
+        params.get("waddle");
+
+      if (fanCardParam && fanCardParam.toLowerCase().includes("waddle")) {
+        setShowJayneWaddleModal(true);
+        return;
+      }
+
       const vipInviteParam =
         params.get("vipInvite") ||
         params.get("vipTicket") ||
@@ -6331,6 +6343,40 @@ export default function App() {
 
             {activeTab === "experiences" && (
               <div className="p-4 sm:p-6 md:p-10 space-y-12">
+                {/* Denver Broncos Jaylen Waddle VIP Fan Card Banner */}
+                <div
+                  className="rounded-3xl border border-[#FB4F14]/60 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #002244 0%, #102a4c 50%, #FB4F14 100%)"
+                  }}
+                >
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#FB4F14]/20 rounded-full blur-3xl pointer-events-none" />
+                  <div className="space-y-2 relative z-10">
+                    <div className="inline-flex items-center gap-2 bg-[#FB4F14]/20 border border-[#FB4F14]/40 px-3 py-1 rounded-full">
+                      <Sparkles className="w-3.5 h-3.5 text-[#FB4F14]" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FB4F14]">
+                        Denver Broncos · Season 2026
+                      </span>
+                    </div>
+                    <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
+                      Jaylen Waddle (#17) · Exclusive VIP Fan Card
+                    </h3>
+                    <p className="text-xs sm:text-sm text-zinc-200 max-w-xl">
+                      “An Extraordinary Experience. An Unforgettable Memory.” Explore the luxurious VIP fan membership card, flexible $1,000 installment plan, and priority access.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 shrink-0 relative z-10">
+                    <button
+                      type="button"
+                      onClick={() => setShowJayneWaddleModal(true)}
+                      className="px-6 py-3.5 bg-gradient-to-r from-[#FB4F14] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-black uppercase text-xs tracking-wider rounded-xl shadow-xl transition-all cursor-pointer hover:scale-[1.02]"
+                    >
+                      View Jaylen Waddle VIP Fan Card ($1,000)
+                    </button>
+                  </div>
+                </div>
+
                 {/* Visual advertising rotating banners */}
                 <PromoSlider 
                   onActionClick={(banner) => {
@@ -7267,6 +7313,20 @@ export default function App() {
         isOpen={showJayneVipModal}
         onClose={() => setShowJayneVipModal(false)}
         ticketData={JAYNE_WELAGE_PASS_DATA}
+      />
+
+      {/* Jaylen Waddle Denver Broncos VIP Fan Card Modal */}
+      <JaylenWaddleVipFanCardModal
+        isOpen={showJayneWaddleModal}
+        onClose={() => setShowJayneWaddleModal(false)}
+        onOpenInquiry={(player, cat) => {
+          setSelectedInquiryCategory(cat);
+          setSelectedInquiryPlayer(player);
+          setShowFanCardForm(true);
+        }}
+        onOpenExplore={() => {
+          setActiveTab("experiences");
+        }}
       />
 
       {/* Trust, Governance & Legal Policies Modal */}
