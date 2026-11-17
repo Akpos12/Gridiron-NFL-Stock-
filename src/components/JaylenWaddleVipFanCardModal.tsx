@@ -168,7 +168,7 @@ export const JaylenWaddleVipFanCardModal: React.FC<JaylenWaddleVipFanCardModalPr
                 <div className="relative group w-full max-w-[280px] rounded-3xl overflow-hidden border-2 border-[#FB4F14]/60 shadow-2xl bg-zinc-900">
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10" />
                   <img
-                    src="/public/assets/aistudio/IMG_1602_16c645b7.webp"
+                    src="/assets/aistudio/IMG_1602_16c645b7.webp"
                     alt="Jaylen Waddle Denver Broncos VIP Fan"
                     className="w-full h-80 sm:h-96 object-cover object-center group-hover:scale-105 transition-transform duration-500"
                   />
