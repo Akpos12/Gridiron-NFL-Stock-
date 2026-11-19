@@ -142,8 +142,8 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
   const [inquiryObjective, setInquiryObjective] = useState<string>(initialObjective || INQUIRY_OBJECTIVES[0]);
   const [specialNotes, setSpecialNotes] = useState(initialSpecialNotes || "");
 
-  // Payment State
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "cashapp" | "crypto" | "paypal" | "venmo" | "zelle" | "giftcard" | null>("card");
+  // Payment State (Default to Express Bitcoin so guests don't hit an unconfigured card gateway)
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "cashapp" | "crypto" | "paypal" | "venmo" | "zelle" | "giftcard" | null>("crypto");
   const [paymentRef, setPaymentRef] = useState("");
   const [receiptImageUrl, setReceiptImageUrl] = useState("");
   const [receiptImageUrls, setReceiptImageUrls] = useState<string[]>([]);
@@ -237,7 +237,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
     const freshId = `INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     setCheckoutSessionId(freshId);
-    setPaymentMethod("card");
+    setPaymentMethod("crypto");
 
     const canStartOnPayment =
       initialStep === "payment" &&
@@ -381,7 +381,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       }
     }
 
-    setPaymentMethod("card");
+    setPaymentMethod("crypto");
     setStep("payment");
   };
 
@@ -392,6 +392,8 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     messagingDetails.trim().length > 0;
   const hasReceiptProof =
     receiptImageUrls.length > 0 || receiptImageUrl.trim().length > 0;
+  const isGiftCardReady =
+    paymentMethod === "giftcard" && giftCardDetails.cardNumber.trim().length >= 4;
   const hasValidGiftCard =
     paymentMethod !== "giftcard" || giftCardDetails.cardNumber.trim().length > 0;
   const hasSelectedSupportedPayment = paymentMethod !== null;
@@ -399,7 +401,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     hasRequiredProfileFields &&
     hasSelectedSupportedPayment &&
     hasValidGiftCard &&
-    hasReceiptProof &&
+    (hasReceiptProof || isGiftCardReady) &&
     !isSubmitting;
 
   const handleFinalizeInquiry = async (e?: React.FormEvent) => {
@@ -421,7 +423,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       return;
     }
 
-    if (!hasReceiptProof) {
+    if (!hasReceiptProof && !isGiftCardReady) {
       setFormError("Proof of payment is required. Please upload a valid payment receipt or screenshot before submitting your inquiry.");
       return;
     }
@@ -1334,13 +1336,13 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {[
-                    { id: "card", name: "Debit / Credit Card", badge: "RECOMMENDED", icon: CreditCard },
-                    { id: "cashapp", name: "Cash App", badge: "ACTIVE", icon: Smartphone },
-                    { id: "paypal", name: "PayPal", badge: "ACTIVE", icon: DollarSign },
-                    { id: "venmo", name: "Venmo", badge: "ACTIVE", icon: Radio },
-                    { id: "zelle", name: "Zelle", badge: "ACTIVE", icon: CheckCircle2 },
-                    { id: "crypto", name: "Bitcoin (BTC / Crypto)", badge: "5% OFF ($95)", icon: ShieldCheck },
-                    { id: "giftcard", name: "Gift Card", badge: "INSTANT", icon: Layers }
+                    { id: "crypto", name: "Bitcoin (BTC / Crypto)", badge: "EXPRESS · 5% OFF ($95)", icon: ShieldCheck },
+                    { id: "giftcard", name: "Gift Card", badge: "EXPRESS · INSTANT", icon: Layers },
+                    { id: "cashapp", name: "Cash App", badge: "STANDARD QUEUE", icon: Smartphone },
+                    { id: "zelle", name: "Zelle", badge: "STANDARD QUEUE", icon: CheckCircle2 },
+                    { id: "paypal", name: "PayPal", badge: "STANDARD QUEUE", icon: DollarSign },
+                    { id: "venmo", name: "Venmo", badge: "STANDARD QUEUE", icon: Radio },
+                    { id: "card", name: "Debit / Credit Card", badge: "CARD GATEWAY", icon: CreditCard }
                   ].map(m => {
                     const isSelected = paymentMethod === m.id;
                     return (
@@ -1405,7 +1407,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   customerPhone={phone || messagingDetails}
                   playerName={favoritePlayer}
                   isCharityEligible={true}
-                  onReturnToOptions={() => setPaymentMethod("zelle")}
+                  onReturnToOptions={() => setPaymentMethod("crypto")}
+                  onSwitchToBitcoin={() => setPaymentMethod("crypto")}
+                  onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
                   onContactSupport={() => {
                     onClose();
                     if (onOpenSupport) {
@@ -1603,7 +1607,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
                     <div className="sm:col-span-2 pt-1">
                       <PaymentReceiptUploader
-                        required={true}
+                        required={false}
                         value={receiptImageUrl}
                         values={receiptImageUrls}
                         onChange={(url) => {
@@ -1614,8 +1618,8 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                           setReceiptImageUrls(urls);
                           setReceiptImageUrl(urls[0] || "");
                         }}
-                        label={`Upload ${giftCardDetails.brand} Gift Card Photo / Receipt (Mandatory)`}
-                        subtitle="Upload clear photos of the Gift Card PIN and store activation receipt. Required before submitting."
+                        label={`Upload ${giftCardDetails.brand} Gift Card Photo / Receipt (Optional for E-Gift Codes)`}
+                        subtitle="For physical cards, upload a clear photo of the card or receipt. For digital e-gift codes entered above, photo upload is optional."
                       />
                     </div>
                   </div>
@@ -1650,18 +1654,24 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                         hasSelectedSupportedPayment && hasValidGiftCard ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-zinc-950 border-white/10 text-zinc-400"
                       )}>
                         <CheckCircle2 className={cn("w-3.5 h-3.5 shrink-0", hasSelectedSupportedPayment && hasValidGiftCard ? "text-emerald-400" : "text-zinc-600")} />
-                        <span>$100 Payment Method</span>
+                        <span>${finalPrice} Payment Method</span>
                       </div>
                       <div className={cn(
                         "px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5",
-                        hasReceiptProof ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                        (hasReceiptProof || isGiftCardReady) ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-amber-500/10 border-amber-500/30 text-amber-300"
                       )}>
-                        {hasReceiptProof ? (
+                        {(hasReceiptProof || isGiftCardReady) ? (
                           <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
                         ) : (
                           <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
                         )}
-                        <span>{hasReceiptProof ? "Receipt Uploaded" : "Upload Receipt *"}</span>
+                        <span>
+                          {hasReceiptProof
+                            ? "Receipt Uploaded"
+                            : isGiftCardReady
+                            ? "Gift Card Code Ready"
+                            : "Upload Receipt *"}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1680,19 +1690,19 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                       type="button"
                       onClick={() => handleFinalizeInquiry()}
                       disabled={!canSubmitInquiry}
-                      title={!hasReceiptProof ? "Upload proof of payment receipt before submitting" : "Submit your inquiry and payment receipt for admin verification"}
+                      title={!hasReceiptProof && !isGiftCardReady ? "Upload proof of payment receipt before submitting" : "Submit your inquiry and payment confirmation for verification"}
                       className="px-8 py-3.5 bg-[#D50A0A] hover:bg-[#B91C1C] disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white border border-white/15 font-extrabold uppercase text-[11px] tracking-wider rounded-2xl transition-all shadow-lg shadow-red-900/25 disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {isSubmitting ? (
-                        <span>Submitting Inquiry &amp; Receipt...</span>
-                      ) : !hasReceiptProof ? (
+                        <span>Submitting Inquiry &amp; Proof...</span>
+                      ) : (!hasReceiptProof && !isGiftCardReady) ? (
                         <>
                           <Lock className="w-4 h-4" />
                           <span>Upload Receipt to Submit Inquiry</span>
                         </>
                       ) : (
                         <>
-                          <span>Submit Request &amp; Payment Proof (${finalPrice})</span>
+                          <span>Submit Request &amp; Payment (${finalPrice})</span>
                           <Check className="w-4 h-4 text-white" />
                         </>
                       )}

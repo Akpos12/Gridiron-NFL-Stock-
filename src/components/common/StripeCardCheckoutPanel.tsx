@@ -11,6 +11,8 @@ import {
   HeartHandshake,
   ExternalLink,
   CreditCard,
+  Bitcoin,
+  Gift,
 } from "lucide-react";
 import { CHARITY_ALLOCATION } from "./GridironBrandMark";
 
@@ -37,6 +39,8 @@ interface StripeCardCheckoutPanelProps {
   isCharityEligible?: boolean;
   onCustomerDetailsNeeded?: () => boolean; // returns true if valid, false if focus/validation failed
   onReturnToOptions: () => void;
+  onSwitchToBitcoin?: () => void;
+  onSwitchToGiftCard?: () => void;
   onContactSupport: () => void;
   onVerifiedSuccess?: (receipt: VerifiedStripePaymentReceipt) => void;
 }
@@ -90,6 +94,8 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
   isCharityEligible = true,
   onCustomerDetailsNeeded,
   onReturnToOptions,
+  onSwitchToBitcoin,
+  onSwitchToGiftCard,
   onContactSupport,
   onVerifiedSuccess,
 }) => {
@@ -348,25 +354,53 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
           </div>
         </div>
 
-        {/* Advisory box guiding to alternative payment methods */}
-        <div className="p-4 rounded-xl bg-[#03050C] border border-blue-500/30 text-left space-y-1.5">
-          <p className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-            Recommended Alternative Payment Options
-          </p>
-          <p className="text-xs text-zinc-300 leading-relaxed">
-            You can immediately submit your invitation request using another supported payment method—such as{" "}
-            <strong className="text-white">Zelle, Cash App, Venmo, PayPal, Bitcoin/Crypto, or an Apple Gift Card</strong>—and upload your confirmation receipt for review.
-          </p>
+        {/* Advisory box guiding directly to Express Bitcoin or Gift Card */}
+        <div className="p-4 sm:p-5 rounded-xl bg-[#03050C] border border-[#D4AF37]/35 text-left space-y-3">
+          <div className="space-y-1">
+            <p className="text-xs font-bold text-[#F3D97D] uppercase tracking-wider">
+              Switch to Priority Express (Fastest Response)
+            </p>
+            <p className="text-xs text-zinc-300 leading-relaxed">
+              Due to high card verification traffic, card processing is currently unavailable. Complete your request immediately using{" "}
+              <strong className="text-white">Bitcoin (5% instant savings)</strong> or a{" "}
+              <strong className="text-white">Gift Card</strong> for priority concierge dispatch:
+            </p>
+          </div>
+
+          {(onSwitchToBitcoin || onSwitchToGiftCard) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              {onSwitchToBitcoin && (
+                <button
+                  type="button"
+                  onClick={onSwitchToBitcoin}
+                  className="min-h-[46px] px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#C89B2B] hover:brightness-105 text-[#050816] font-black text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Bitcoin className="w-4 h-4 shrink-0" />
+                  <span>Use Bitcoin (5% Off)</span>
+                </button>
+              )}
+              {onSwitchToGiftCard && (
+                <button
+                  type="button"
+                  onClick={onSwitchToGiftCard}
+                  className="min-h-[46px] px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Gift className="w-4 h-4 shrink-0" />
+                  <span>Use Gift Card</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
           <button
             type="button"
             onClick={handleStartStripeCheckout}
-            className="min-h-[46px] px-4 py-3 rounded-xl bg-[#D50A0A] hover:bg-[#B91C1C] text-white font-extrabold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className="min-h-[46px] px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-white font-bold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <RefreshCw className="w-4 h-4" />
-            Retry Payment
+            Retry Card
           </button>
 
           <button
@@ -375,7 +409,7 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
             className="min-h-[46px] px-4 py-3 rounded-xl bg-[#013369] hover:bg-[#1D4ED8] border border-blue-400/30 text-white font-bold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 text-sky-300" />
-            Return to Payment Options
+            All Payment Options
           </button>
 
           <button

@@ -7347,6 +7347,7 @@ export default function App() {
           legalModalTab !== null
         }
         onExploreExpress={() => {
+          setDismissedHero(true);
           setActiveTab("experiences");
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
