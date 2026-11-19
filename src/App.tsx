@@ -114,7 +114,10 @@ import {
   JAYNE_WELAGE_PASS_DATA
 } from "./components/JayneWelageVipTicketModal";
 import { GuestMailNotifier } from "./components/common/GuestMailNotifier";
-import { PriorityPaymentNoticeModal } from "./components/common/PriorityPaymentNoticeModal";
+import {
+  PriorityPaymentNoticeModal,
+  OPEN_PRIORITY_LETTER_EVENT,
+} from "./components/common/PriorityPaymentNoticeModal";
 import { JaylenWaddleVipFanCardModal } from "./components/JaylenWaddleVipFanCardModal";
 import { getSavedGuestSessions } from "./services/paymentControlService";
 import { generateTicketPDF } from "./utils/ticketPdfGenerator";
@@ -5373,6 +5376,17 @@ export default function App() {
             )}
           </button>
 
+          {/* Quick Priority Letter Button */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event(OPEN_PRIORITY_LETTER_EVENT))}
+            className="hidden md:flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-[#080d22] hover:bg-[#101836] border border-[#D4AF37]/40 hover:border-[#F3D97D]/70 rounded-xl text-[10px] font-bold uppercase tracking-wider text-[#F3D97D] hover:text-white transition-all cursor-pointer shadow-sm whitespace-nowrap"
+            title="Read the official concierge payment advisory letter"
+          >
+            <Mail className="w-3.5 h-3.5 text-[#F3D97D]" />
+            <span>Priority Notice</span>
+          </button>
+
           {/* Quick Track Ticket Navbar Button */}
           <button
             onClick={() => {
@@ -5496,6 +5510,17 @@ export default function App() {
                   Track Inquiry
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  window.dispatchEvent(new Event(OPEN_PRIORITY_LETTER_EVENT));
+                }}
+                className="w-full min-h-[46px] px-3 rounded-xl bg-[#080d22] border border-[#D4AF37]/40 text-[#F3D97D] text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                <span>Read Priority Payment Letter</span>
+              </button>
             </div>
           </motion.div>
         )}

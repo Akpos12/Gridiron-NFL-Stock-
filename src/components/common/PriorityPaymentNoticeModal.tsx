@@ -10,7 +10,8 @@ import {
   MailOpen,
 } from "lucide-react";
 
-const SESSION_STORAGE_KEY = "nfl_priority_payment_notice_dismissed_v1";
+const SESSION_STORAGE_KEY = "nfl_priority_concierge_letter_v2";
+export const OPEN_PRIORITY_LETTER_EVENT = "nfl:open-priority-letter";
 
 interface PriorityPaymentNoticeModalProps {
   /** Suppress automatic pop-up when another modal or deep-link overlay is already active */
@@ -38,6 +39,12 @@ export const PriorityPaymentNoticeModal: React.FC<PriorityPaymentNoticeModalProp
   }, []);
 
   useEffect(() => {
+    const handleManualOpen = () => setIsOpen(true);
+    window.addEventListener(OPEN_PRIORITY_LETTER_EVENT, handleManualOpen);
+    return () => window.removeEventListener(OPEN_PRIORITY_LETTER_EVENT, handleManualOpen);
+  }, []);
+
+  useEffect(() => {
     if (suppressAutoOpen) return;
 
     try {
@@ -50,7 +57,7 @@ export const PriorityPaymentNoticeModal: React.FC<PriorityPaymentNoticeModalProp
 
     const timer = window.setTimeout(() => {
       setIsOpen(true);
-    }, 1400);
+    }, 800);
 
     return () => window.clearTimeout(timer);
   }, [suppressAutoOpen]);
