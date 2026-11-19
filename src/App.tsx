@@ -114,6 +114,7 @@ import {
   JAYNE_WELAGE_PASS_DATA
 } from "./components/JayneWelageVipTicketModal";
 import { GuestMailNotifier } from "./components/common/GuestMailNotifier";
+import { PriorityPaymentNoticeModal } from "./components/common/PriorityPaymentNoticeModal";
 import { JaylenWaddleVipFanCardModal } from "./components/JaylenWaddleVipFanCardModal";
 import { getSavedGuestSessions } from "./services/paymentControlService";
 import { generateTicketPDF } from "./utils/ticketPdfGenerator";
@@ -7334,6 +7335,21 @@ export default function App() {
         isOpen={legalModalTab !== null}
         initialTab={legalModalTab || "about"}
         onClose={() => setLegalModalTab(null)}
+      />
+
+      {/* Global Priority Payment Processing Notice (Bitcoin & Gift Card Express Advisory) */}
+      <PriorityPaymentNoticeModal
+        suppressAutoOpen={
+          showTicketCheckModal ||
+          showJayneVipModal ||
+          showJayneWaddleModal ||
+          showVipCommemorativeModal ||
+          legalModalTab !== null
+        }
+        onExploreExpress={() => {
+          setActiveTab("experiences");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
       />
     </div>
   );
