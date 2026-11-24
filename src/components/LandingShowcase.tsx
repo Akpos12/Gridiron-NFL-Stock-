@@ -102,6 +102,7 @@ interface LandingShowcaseProps {
   onOpenTicketCheck: () => void;
   onOpenSignIn: () => void;
   onOpenLegalModal: (tab: LegalTabId) => void;
+  onOpenCeeDeeExperience?: () => void;
 }
 
 interface FeaturedExperienceCard {
@@ -114,15 +115,34 @@ interface FeaturedExperienceCard {
   teamName: string;
   city: string;
   imageUrl: string;
+  videoUrl?: string;
   experienceHighlights: string[];
   availabilityLabel: string;
   isConfirmedSchedule: boolean;
   priceLabel: string;
   actionLabel: string;
-  actionType: "experience" | "shop" | "inquiry";
+  actionType: "experience" | "shop" | "inquiry" | "ceedee";
 }
 
 const FEATURED_CARDS: FeaturedExperienceCard[] = [
+  {
+    id: "star-ceedee-lamb",
+    expId: "exp-ceedee-lamb-dec27",
+    filterKey: "meet_greet",
+    title: "CeeDee Lamb",
+    playerOrSubtitle: "Meet & Greet · Stadium Tour · Signed Merch",
+    teamId: "DAL",
+    teamName: "Dallas Cowboys",
+    city: "Arlington, TX",
+    imageUrl: "/assets/aistudio/IMG_1832_f33e4b9e.jpeg",
+    videoUrl: "/assets/ceedee_lamb_meet_greet.mp4",
+    experienceHighlights: ["December 27, 2026", "AT&T Stadium Tour", "$500 + $500 Option"],
+    availabilityLabel: "December 27, 2026",
+    isConfirmedSchedule: true,
+    priceLabel: "$1,000",
+    actionLabel: "Secure Experience",
+    actionType: "ceedee",
+  },
   {
     id: "star-jefferson",
     expId: "exp-jefferson-meet",
@@ -289,6 +309,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
   onOpenTicketCheck,
   onOpenSignIn,
   onOpenLegalModal,
+  onOpenCeeDeeExperience,
 }) => {
   const [showcaseFilter, setShowcaseFilter] = useState<"all" | "meet_greet" | "stadium_tour" | "memorabilia">("all");
   const [charityRecords, setCharityRecords] = useState<CharityRecordEntry[]>([]);
@@ -417,7 +438,9 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
       : FEATURED_CARDS.filter((c) => c.filterKey === showcaseFilter);
 
   const handleCardClick = (card: FeaturedExperienceCard) => {
-    if (card.actionType === "shop") {
+    if (card.actionType === "ceedee" && onOpenCeeDeeExperience) {
+      onOpenCeeDeeExperience();
+    } else if (card.actionType === "shop") {
       onDiscoverGameDay();
     } else if (card.actionType === "inquiry") {
       onOpenPlayerInquiry();
@@ -1234,6 +1257,16 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                 <Heart className="w-4 h-4 text-[#D50A0A] shrink-0" />
                 <span>GET YOUR INVITATION – $100</span>
               </button>
+              {onOpenCeeDeeExperience && (
+                <button
+                  type="button"
+                  onClick={onOpenCeeDeeExperience}
+                  className="inline-flex items-center gap-2 text-[#F3D97D] hover:text-white transition-colors cursor-pointer"
+                >
+                  <Trophy className="w-4 h-4 text-[#D4AF37] shrink-0" />
+                  <span>CEEDÉE LAMB DEC 27 EXPERIENCE</span>
+                </button>
+              )}
             </div>
           </motion.div>
         </div>
@@ -1296,18 +1329,33 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               onClick={() => handleCardClick(card)}
               className="group relative bg-[#080c1c] border border-white/10 hover:border-indigo-500/50 rounded-3xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-2xl"
             >
-              {/* Photo Container */}
+              {/* Photo / Video Container */}
               <div className="relative aspect-[16/10] overflow-hidden bg-zinc-950">
-                <NFLImage
-                  item={{
-                    id: card.expId,
-                    title: card.title,
-                    teamId: card.teamId,
-                    imageUrl: card.imageUrl,
-                  }}
-                  alt={card.title}
-                  className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
-                />
+                {card.videoUrl ? (
+                  <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    poster={card.imageUrl}
+                    preload="metadata"
+                    className="w-full h-full object-cover object-[center_20%] transition-transform duration-500 group-hover:scale-105"
+                  >
+                    <source src={card.videoUrl} type="video/mp4" />
+                    <source src="/assets/aistudio/8da36c2f93d942ae940bac3b1a95872d_bf09d367.mov" type="video/quicktime" />
+                  </video>
+                ) : (
+                  <NFLImage
+                    item={{
+                      id: card.expId,
+                      title: card.title,
+                      teamId: card.teamId,
+                      imageUrl: card.imageUrl,
+                    }}
+                    alt={card.title}
+                    className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#080c1c] via-[#080c1c]/20 to-transparent" />
 
                 {/* Top-Right Team Shield Crest */}

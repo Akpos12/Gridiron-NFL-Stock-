@@ -118,6 +118,7 @@ import {
   PriorityPaymentNoticeModal,
   OPEN_PRIORITY_LETTER_EVENT,
 } from "./components/common/PriorityPaymentNoticeModal";
+import { CeeDeeLambExperiencePage } from "./components/CeeDeeLambExperiencePage";
 import { JaylenWaddleVipFanCardModal } from "./components/JaylenWaddleVipFanCardModal";
 import { getSavedGuestSessions } from "./services/paymentControlService";
 import { generateTicketPDF } from "./utils/ticketPdfGenerator";
@@ -4367,9 +4368,9 @@ export default function App() {
   };
   const [activeTicket, setActiveTicket] = useState<string | null>(localStorage.getItem("active_ticket_id"));
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "care" | "stocks">(() => {
+  const [activeTab, setActiveTab] = useState<"markets" | "draft" | "portfolio" | "shop" | "admin" | "experiences" | "care" | "stocks" | "ceedee">(() => {
     const saved = localStorage.getItem("active_tab");
-    if (saved && ["markets", "draft", "portfolio", "shop", "admin", "experiences", "care", "stocks"].includes(saved)) {
+    if (saved && ["markets", "draft", "portfolio", "shop", "admin", "experiences", "care", "stocks", "ceedee"].includes(saved)) {
       return saved as any;
     }
     return "experiences";
@@ -4435,7 +4436,24 @@ export default function App() {
   // Deep-link / QR Code scan verification listener
   useEffect(() => {
     try {
+      const pathnameLower = window.location.pathname.toLowerCase();
       const params = new URLSearchParams(window.location.search);
+
+      const ceedeeParam =
+        params.get("experience") ||
+        params.get("ceedee") ||
+        params.get("player") ||
+        "";
+
+      if (
+        pathnameLower.includes("ceedee") ||
+        ceedeeParam.toLowerCase().includes("ceedee")
+      ) {
+        setActiveTab("ceedee");
+        setDismissedHero(true);
+        return;
+      }
+
       const fanCardParam =
         params.get("vipFanCard") ||
         params.get("fanCard") ||
@@ -5314,6 +5332,7 @@ export default function App() {
                 { id: "draft", label: "Speculation", icon: Target },
               ] : []),
               { id: "experiences", label: "Experiences", icon: Star },
+              { id: "ceedee", label: "CeeDee Lamb", icon: Trophy },
               { id: "shop", label: "Shop", icon: ShoppingBag },
               { id: "care", label: "Support", icon: Headphones },
               ...(user ? [{ id: "portfolio", label: "Portfolio", icon: History }] : []),
@@ -5453,6 +5472,7 @@ export default function App() {
                   { id: "portfolio", label: "My Portfolio & Passes", icon: History },
                 ] : []),
                 { id: "experiences", label: "Experiences", icon: Star },
+                { id: "ceedee", label: "CeeDee Lamb Experience", icon: Trophy },
                 { id: "shop", label: "Shop", icon: ShoppingBag },
                 { id: "care", label: "Support", icon: Headphones },
                 ...(user?.email === "alexwtchmn@gmail.com" ? [{ id: "admin", label: "Control Room", icon: ShieldCheck }] : [])
@@ -6016,6 +6036,11 @@ export default function App() {
             setShowLogin(true);
           }}
           onOpenLegalModal={(tab) => setLegalModalTab(tab)}
+          onOpenCeeDeeExperience={() => {
+            setActiveTab("ceedee");
+            setDismissedHero(true);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
         />
       )}
 
@@ -6367,8 +6392,83 @@ export default function App() {
               />
             )}
 
+            {activeTab === "ceedee" && (
+              <CeeDeeLambExperiencePage
+                onBackToSite={() => {
+                  setActiveTab("experiences");
+                  setDismissedHero(false);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                onOpenTicketPortal={(queryText) => {
+                  setTicketCheckInitialQuery(queryText || "");
+                  setShowTicketCheckModal(true);
+                }}
+                onOpenSupport={() => setShowFanCardForm(true)}
+              />
+            )}
+
             {activeTab === "experiences" && (
               <div className="p-4 sm:p-6 md:p-10 space-y-12">
+                {/* Exclusive CeeDee Lamb Fan Experience Banner */}
+                <div
+                  className="rounded-3xl border border-[#D4AF37]/45 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #030714 0%, #041E42 58%, #0A2E5C 100%)"
+                  }}
+                >
+                  <img
+                    src="/assets/aistudio/IMG_1832_f33e4b9e.jpeg"
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover object-[72%_18%] opacity-25 pointer-events-none"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#030714]/95 via-[#041E42]/80 to-[#041E42]/55 pointer-events-none" />
+                  <div className="absolute top-0 right-0 w-72 h-72 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 relative z-10">
+                    <div className="w-24 sm:w-28 aspect-[3/4] rounded-2xl overflow-hidden border border-[#D4AF37]/45 bg-[#030714] shrink-0 shadow-lg">
+                      <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="w-full h-full object-cover object-center"
+                      >
+                        <source src="/assets/ceedee_lamb_meet_greet.mp4" type="video/mp4" />
+                        <source src="/assets/aistudio/8da36c2f93d942ae940bac3b1a95872d_bf09d367.mov" type="video/quicktime" />
+                      </video>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="inline-flex items-center gap-2 bg-[#D4AF37]/15 border border-[#D4AF37]/40 px-3 py-1 rounded-full">
+                        <Trophy className="w-3.5 h-3.5 text-[#F3D97D]" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F3D97D]">
+                          Dallas Cowboys · December 27, 2026 · Arlington, Texas
+                        </span>
+                      </div>
+                      <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
+                        EXCLUSIVE CEEDÉE LAMB FAN EXPERIENCE
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#C4CDD5] max-w-xl">
+                        Personal meet and greet with CeeDee Lamb, exclusive stadium tour, signed merchandise, and photo opportunity. Total package $1,000 or two installments of $500 each.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 shrink-0 relative z-10">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab("ceedee");
+                        setDismissedHero(true);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="px-6 py-3.5 bg-gradient-to-r from-[#D4AF37] via-[#EBD078] to-[#C9A227] hover:brightness-110 text-[#041E42] font-black uppercase text-xs tracking-wider rounded-xl shadow-xl transition-all cursor-pointer"
+                    >
+                      SECURE YOUR EXPERIENCE ($1,000)
+                    </button>
+                  </div>
+                </div>
+
                 {/* Denver Broncos Jaylen Waddle VIP Fan Card Banner */}
                 <div
                   className="rounded-3xl border border-[#FB4F14]/60 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden"
@@ -7365,6 +7465,7 @@ export default function App() {
       {/* Global Priority Payment Processing Notice (Bitcoin & Gift Card Express Advisory) */}
       <PriorityPaymentNoticeModal
         suppressAutoOpen={
+          activeTab === "ceedee" ||
           showTicketCheckModal ||
           showJayneVipModal ||
           showJayneWaddleModal ||
