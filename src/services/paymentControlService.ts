@@ -363,7 +363,7 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
 
 /**
  * Records every checkout visitor who clicks to purchase an Apple Card on an affiliated
- * partner (Apple Store Online or Startselect) and leaves the site, ensuring they appear
+ * partner (Apple Store Online) and leaves the site, ensuring they appear
  * immediately in both the Control Room Live Queue and Box Office Orders for approval
  * once the Apple Card arrives at support@nflgridiron.company.
  */

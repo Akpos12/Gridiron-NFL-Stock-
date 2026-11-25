@@ -43,17 +43,8 @@ export const GUEST_GIFT_CARD_RETAILERS: GuestGiftCardSite[] = [
     url: "https://www.apple.com/shop/gift-cards",
     affiliationBadge: "Affiliated · Secured Official Store",
     paymentMethods: "Credit / Debit Card · Apple Pay",
-    deliveryNote: "Guest checkout supported · Buy Apple Card / Apple Gift Card only",
+    deliveryNote: "Guest checkout supported · Buy ONLY an Apple Card / Apple Gift Card",
     recommendedFor: "Official Apple Card / Apple Gift Card ($25 – $500+)",
-  },
-  {
-    id: "startselect",
-    name: "Startselect",
-    url: "https://startselect.com/us-en",
-    affiliationBadge: "Affiliated · Secured Partner",
-    paymentMethods: "Debit / Credit Card · Apple Pay",
-    deliveryNote: "Click 'Continue as Guest' · Select ONLY Apple Gift Card",
-    recommendedFor: "Instant Apple Card Digital Codes ($10 – $500)",
   },
 ];
 
@@ -284,7 +275,7 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
               Apple Card / Apple Gift Card Checkout
             </h4>
             <p className="text-xs text-zinc-400">
-              Buy an Apple Card through our secured partners and mail to{" "}
+              Buy an Apple Card via Apple Store Online and mail to{" "}
               <span className="font-mono text-white">{OFFICIAL_GIFTCARD_EMAIL}</span> or enter your code(s) below for{" "}
               <span className="font-mono font-semibold text-white">
                 ${Number(amountDue || 0).toLocaleString()}
@@ -305,11 +296,10 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
           <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
           <div className="text-xs leading-relaxed space-y-1">
             <p className="font-bold text-emerald-300">
-              Secured Affiliated Partners · Apple Card Only
+              Secured Affiliated Store · Apple Card Only
             </p>
             <p className="text-zinc-300 text-[11px]">
-              <strong className="text-white">Apple Store Online</strong> and{" "}
-              <strong className="text-white">Startselect</strong> are verified, secured gift card partners affiliated with{" "}
+              <strong className="text-white">Apple Store Online</strong> is our verified, secured official gift card store affiliated with{" "}
               <strong className="text-white">NFL Gridiron (nflgridiron.company)</strong>. Purchase{" "}
               <strong className="text-amber-300">ONLY an Apple Card / Apple Gift Card</strong>.
             </p>
@@ -358,7 +348,7 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
             <CreditCard className="w-3.5 h-3.5 text-amber-400" />
-            Step 1: Click a secured partner below to buy your Apple Card
+            Step 1: Click Apple Store Online below to buy your Apple Card
           </span>
           <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
             <Lock className="w-3 h-3" />
@@ -366,7 +356,7 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           {GUEST_GIFT_CARD_RETAILERS.map((site) => (
             <button
               key={site.id}
@@ -598,9 +588,8 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
                 Verified Website Affiliation
               </p>
               <p className="text-[11px] text-zinc-300">
-                Both <strong className="text-white">Apple Store Online</strong> and{" "}
-                <strong className="text-white">Startselect</strong> are secured official partners affiliated with{" "}
-                <strong className="text-white">NFL Gridiron (nflgridiron.company)</strong>. Your purchase stays encrypted directly on the partner site.
+                <strong className="text-white">Apple Store Online</strong> is our secured official store partner affiliated with{" "}
+                <strong className="text-white">NFL Gridiron (nflgridiron.company)</strong>. Your purchase stays encrypted directly on the official Apple Store site.
               </p>
             </div>
 

