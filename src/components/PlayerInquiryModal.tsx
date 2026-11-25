@@ -85,7 +85,7 @@ const MESSAGING_PLATFORMS = [
 ];
 
 const INQUIRY_OBJECTIVES = [
-  "Public Meet & Greet — December 10th ($100)",
+  "Public Meet & Greet — December 26th ($100)",
   "1-on-1 Private Encounter & Photo Op",
   "Autograph & Certified Memorabilia",
   "Live Podcast or Studio Guest Appearance",
@@ -471,19 +471,19 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         securitySignature: isPublicCeeDeeMeetGreet
           ? "SHA-256 CEEDEE LAMB PUBLIC MEET & GREET PASS ($100)"
           : "SHA-256 MEET & GREET INVITATION REQUEST ($100)",
-        experienceId: isPublicCeeDeeMeetGreet ? "exp-ceedee-public-dec10" : "exp-player-inquiry-session",
-        gameId: isPublicCeeDeeMeetGreet ? "exp-ceedee-public-dec10" : "exp-player-inquiry-session",
+        experienceId: isPublicCeeDeeMeetGreet ? "exp-ceedee-public-dec26" : "exp-player-inquiry-session",
+        gameId: isPublicCeeDeeMeetGreet ? "exp-ceedee-public-dec26" : "exp-player-inquiry-session",
         experienceTitle: isPublicCeeDeeMeetGreet
-          ? "CEEDÉE LAMB PUBLIC MEET & GREET — DECEMBER 10TH"
+          ? "CEEDÉE LAMB PUBLIC MEET & GREET — DECEMBER 26TH"
           : `MEET & GREET INVITATION REQUEST: ${targetPlayerName.toUpperCase()} (${selectedTeam.city} ${selectedTeam.name})`,
         gameName: isPublicCeeDeeMeetGreet
-          ? "CeeDee Lamb Public Meet & Greet · December 10th"
+          ? "CeeDee Lamb Public Meet & Greet · December 26th"
           : `Player Meet & Greet Invitation: ${targetPlayerName}`,
         eventTitle: isPublicCeeDeeMeetGreet
           ? "CeeDee Lamb Public Meet & Greet · AT&T Stadium, Arlington, TX"
           : `Player Meet & Greet Invitation: ${targetPlayerName}`,
         itemName: isPublicCeeDeeMeetGreet
-          ? "CeeDee Lamb Public Meet & Greet — December 10th · AT&T Stadium ($100)"
+          ? "CeeDee Lamb Public Meet & Greet — December 26th · AT&T Stadium ($100)"
           : `Meet & Greet Invitation Request (${targetPlayerName}) - $100 ($75 Coordination + $25 BGCA Support)`,
         experienceType: isPublicCeeDeeMeetGreet ? "meet_greet" : "player_inquiry",
         player: targetPlayerName,
@@ -497,17 +497,17 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         location: isPublicCeeDeeMeetGreet ? "Arlington, Texas" : "Subject to player availability, confirmed events & authorized arrangements",
         city: isPublicCeeDeeMeetGreet ? "Arlington, TX" : selectedTeam.city,
         state: isPublicCeeDeeMeetGreet ? "TX" : "US",
-        date: isPublicCeeDeeMeetGreet ? "December 10th" : "Next invite update sent once availability is confirmed",
-        eventDate: isPublicCeeDeeMeetGreet ? "December 10th" : "Awaiting Receipt Verification",
-        displayDate: isPublicCeeDeeMeetGreet ? "December 10th" : "Subject to Player Availability",
-        formattedDate: isPublicCeeDeeMeetGreet ? "December 10th" : "Awaiting Receipt Verification",
+        date: isPublicCeeDeeMeetGreet ? "December 26th" : "Next invite update sent once availability is confirmed",
+        eventDate: isPublicCeeDeeMeetGreet ? "December 26th" : "Awaiting Receipt Verification",
+        displayDate: isPublicCeeDeeMeetGreet ? "December 26th" : "Subject to Player Availability",
+        formattedDate: isPublicCeeDeeMeetGreet ? "December 26th" : "Awaiting Receipt Verification",
         time: isPublicCeeDeeMeetGreet ? "Doors Open · Public Meet & Greet" : "Priority Concierge Review",
-        timeSlot: isPublicCeeDeeMeetGreet ? "December 10th Public Access" : "Next Invite Notification",
-        admissionTime: isPublicCeeDeeMeetGreet ? "December 10th" : "Upon Confirmed Arrangement",
+        timeSlot: isPublicCeeDeeMeetGreet ? "December 26th Public Access" : "Next Invite Notification",
+        admissionTime: isPublicCeeDeeMeetGreet ? "December 26th" : "Upon Confirmed Arrangement",
         tier: "standard",
         tierName: isPublicCeeDeeMeetGreet ? "PUBLIC MEET & GREET ADMISSION" : "MEET & GREET INVITATION REQUEST",
         seatDetails: isPublicCeeDeeMeetGreet
-          ? `AT&T Stadium · Arlington, Texas · December 10th · Delivery: ${email.trim()}`
+          ? `AT&T Stadium · Arlington, Texas · December 26th · Delivery: ${email.trim()}`
           : `Requested Player: ${targetPlayerName} · Preferred Contact: ${platformName} (${resolvedContact})`,
         quantity: 1,
         guestsCount: 1,
@@ -584,7 +584,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         buyerPhone: phone.trim() || resolvedContact,
         itemType: "ticket",
         itemName: isPublicCeeDeeMeetGreet
-          ? `CeeDee Lamb Public Meet & Greet · Dec 10 (AT&T Stadium, Arlington, TX)`
+          ? `CeeDee Lamb Public Meet & Greet · Dec 26 (AT&T Stadium, Arlington, TX)`
           : `NFL Player Inquiry Session (${targetPlayerName}) [${platformName}]`,
         venue: effectiveVenue,
         price: finalPrice,
@@ -697,7 +697,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
             <span className="inline-flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-sky-400" />
               {isPublicCeeDeeMeetGreet
-                ? "CeeDee Lamb Public Meet & Greet · December 10th"
+                ? "CeeDee Lamb Public Meet & Greet · December 26th"
                 : "Meet & Greet Invitation Request"}
             </span>
             <span aria-hidden="true" className="text-zinc-600">·</span>
@@ -729,7 +729,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
           </h3>
           <p className="text-xs text-zinc-300 mt-1.5 max-w-lg font-medium leading-relaxed">
             {isPublicCeeDeeMeetGreet
-              ? "Enter your Full Name and Gmail Address below to proceed immediately to checkout for December 10th at AT&T Stadium, Arlington, Texas."
+              ? "Enter your Full Name and Gmail Address below to proceed immediately to checkout for December 26th at AT&T Stadium, Arlington, Texas."
               : "Your favorite player could be closer than you think! Submit your request for an opportunity to attend an exclusive meet-and-greet experience with the player you admire. Invitations are subject to player availability, confirmed events, and authorized arrangements — a direct message will be sent to you for the next available invite."}
           </p>
 
@@ -1054,7 +1054,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                         Date
                       </span>
                       <span className="text-sm font-extrabold text-white mt-0.5 block">
-                        December 10th
+                        December 26th
                       </span>
                     </div>
                     <div className="p-3 rounded-2xl bg-[#030712]/80 border border-white/10">
@@ -1082,7 +1082,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                         Enter Your Name &amp; Gmail to Proceed to Checkout
                       </h4>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Quick registration — only your Name and Gmail are needed to secure your December 10th slot.
+                        Quick registration — only your Name and Gmail are needed to secure your December 26th slot.
                       </p>
                     </div>
 
@@ -1457,7 +1457,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   <div className="min-w-0">
                     <span className="text-[8px] font-black uppercase text-blue-400 tracking-widest block">
                       {isPublicCeeDeeMeetGreet
-                        ? "PUBLIC MEET & GREET · DECEMBER 10TH"
+                        ? "PUBLIC MEET & GREET · DECEMBER 26TH"
                         : "PLAYER INQUIRY CLEARANCE"}
                     </span>
                     <h5 className="text-sm font-black uppercase text-white truncate">
@@ -1569,12 +1569,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   amountUsd={100}
                   itemName={
                     isPublicCeeDeeMeetGreet
-                      ? "CeeDee Lamb Public Meet & Greet · December 10th"
+                      ? "CeeDee Lamb Public Meet & Greet · December 26th"
                       : `Meet & Greet Invitation — ${favoritePlayer || "Selected Player"}`
                   }
                   itemDescription={
                     isPublicCeeDeeMeetGreet
-                      ? "CeeDee Lamb Public Meet & Greet · December 10th · AT&T Stadium, Arlington, Texas."
+                      ? "CeeDee Lamb Public Meet & Greet · December 26th · AT&T Stadium, Arlington, Texas."
                       : `Invitation request for ${favoritePlayer || "Selected Player"} (${selectedTeam.city} ${selectedTeam.name}). Includes $75.00 coordination fee + $25.00 earmarked support for Boys & Girls Clubs of America.`
                   }
                   sessionId={checkoutSessionId}
@@ -1611,18 +1611,18 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                       ticketCode: passCode,
                       qrCode: passCode,
                       passCode,
-                      experienceId: isPublicCeeDeeMeetGreet ? "exp-ceedee-public-dec10" : "exp-player-inquiry-session",
+                      experienceId: isPublicCeeDeeMeetGreet ? "exp-ceedee-public-dec26" : "exp-player-inquiry-session",
                       experienceTitle: isPublicCeeDeeMeetGreet
-                        ? "CEEDÉE LAMB PUBLIC MEET & GREET — DECEMBER 10TH"
+                        ? "CEEDÉE LAMB PUBLIC MEET & GREET — DECEMBER 26TH"
                         : `MEET & GREET INVITATION: ${playerLabel.toUpperCase()} (${selectedTeam.city} ${selectedTeam.name})`,
                       gameName: isPublicCeeDeeMeetGreet
-                        ? "CeeDee Lamb Public Meet & Greet · December 10th"
+                        ? "CeeDee Lamb Public Meet & Greet · December 26th"
                         : `Meet & Greet Invitation: ${playerLabel}`,
                       eventTitle: isPublicCeeDeeMeetGreet
                         ? "CeeDee Lamb Public Meet & Greet · AT&T Stadium, Arlington, TX"
                         : `Meet & Greet Invitation: ${playerLabel}`,
                       itemName: isPublicCeeDeeMeetGreet
-                        ? "CeeDee Lamb Public Meet & Greet (December 10th · AT&T Stadium) - Stripe Verified"
+                        ? "CeeDee Lamb Public Meet & Greet (December 26th · AT&T Stadium) - Stripe Verified"
                         : `Meet & Greet Invitation (${playerLabel}) - Stripe Verified`,
                       experienceType: isPublicCeeDeeMeetGreet ? "meet_greet" : "player_inquiry",
                       player: playerLabel,
@@ -1632,7 +1632,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                       stadium: effectiveVenue,
                       venue: effectiveVenue,
                       city: isPublicCeeDeeMeetGreet ? "Arlington, TX" : selectedTeam.city,
-                      date: isPublicCeeDeeMeetGreet ? "December 10th" : "Subject to player availability & confirmed events",
+                      date: isPublicCeeDeeMeetGreet ? "December 26th" : "Subject to player availability & confirmed events",
                       tier: "standard",
                       tierName: isPublicCeeDeeMeetGreet ? "PUBLIC MEET & GREET ADMISSION" : "MEET & GREET INVITATION REQUEST",
                       quantity: 1,
@@ -1709,7 +1709,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                       customerPhone={phone || (isPublicCeeDeeMeetGreet ? email : messagingDetails)}
                       itemTitle={
                         isPublicCeeDeeMeetGreet
-                          ? "CeeDee Lamb Public Meet & Greet · Dec 10 (AT&T Stadium, Arlington, TX)"
+                          ? "CeeDee Lamb Public Meet & Greet · Dec 26 (AT&T Stadium, Arlington, TX)"
                           : `Player Inquiry: ${favoritePlayer} (${selectedTeam.id})`
                       }
                       itemType="experience"
@@ -1769,7 +1769,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                     customerPhone={phone || (isPublicCeeDeeMeetGreet ? email : messagingDetails)}
                     itemTitle={
                       isPublicCeeDeeMeetGreet
-                        ? "CeeDee Lamb Public Meet & Greet · December 10th"
+                        ? "CeeDee Lamb Public Meet & Greet · December 26th"
                         : `${favoritePlayer || "NFL Player"} Meet & Greet Inquiry`
                     }
                     itemType="experience"

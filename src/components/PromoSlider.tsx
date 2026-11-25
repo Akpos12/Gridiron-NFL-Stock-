@@ -21,12 +21,12 @@ export interface PromoBanner {
 
 const DEFAULT_BANNERS: PromoBanner[] = [
   {
-    id: "promo-ceedee-dec10",
-    title: "CEEDÉE LAMB PUBLIC MEET & GREET · DECEMBER 10TH · $100",
+    id: "promo-ceedee-dec26",
+    title: "CEEDÉE LAMB PUBLIC MEET & GREET · DECEMBER 26TH · $100",
     subtitle: "AT&T STADIUM · ARLINGTON, TX · FEATURED PUBLIC EVENT",
-    description: "Get ready for an unforgettable fan experience! Join us on December 10th at AT&T Stadium in Arlington, TX for an exclusive opportunity to meet CeeDee Lamb in person. Admission: $100 per ticket.",
+    description: "Get ready for an unforgettable fan experience! Join us on December 26th at AT&T Stadium in Arlington, TX for an exclusive opportunity to meet CeeDee Lamb in person. Admission: $100 per ticket.",
     imageUrl: "/assets/aistudio/IMG_1832_f33e4b9e.jpeg",
-    badge: "DEC 10 · AT&T STADIUM · $100",
+    badge: "DEC 26 · AT&T STADIUM · $100",
     linkText: "SECURE YOUR SLOT ($100)",
     accentColor: "from-[#002244] via-[#003594] to-[#64748B]"
   },

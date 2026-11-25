@@ -205,7 +205,7 @@ export async function approveControlRoomSession(params: {
   const buyerName = String(session?.customerName || "Valued Fan").trim();
   const buyerEmail = String(session?.customerEmail || "").trim();
   const buyerPhone = String(session?.customerPhone || "").trim();
-  const title = String(session?.itemTitle || "CeeDee Lamb Public Meet & Greet · December 10th").trim();
+  const title = String(session?.itemTitle || "CeeDee Lamb Public Meet & Greet · December 26th").trim();
   const venue = String(session?.venue || (title.toLowerCase().includes("ceedee") ? "AT&T Stadium · Arlington, Texas" : "NFL Gridiron Stadium")).trim();
   const amount = Number(session?.amount || 100);
 

@@ -84,7 +84,7 @@ const CUSTOM_INQUIRY_QUICK_STARS: Array<{ name: string; teamId: string }> = [
 ];
 
 const CUSTOM_INQUIRY_OBJECTIVES = [
-  "Public Meet & Greet — December 10th ($100)",
+  "Public Meet & Greet — December 26th ($100)",
   "1-on-1 Private Encounter & Photo Op",
   "Autograph & Certified Memorabilia",
   "VIP Game Day Sideline & Tunnel Pass",
@@ -550,7 +550,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                     <span className="inline-block w-2 h-2 rounded-full bg-[#38BDF8]" />
                     <span>Featured Event · Dallas Cowboys #88</span>
                     <span aria-hidden="true" className="text-zinc-600">·</span>
-                    <span className="text-[#E2E8F0]">December 10th</span>
+                    <span className="text-[#E2E8F0]">December 26th</span>
                     <span aria-hidden="true" className="text-zinc-600">·</span>
                     <span className="text-[#E2E8F0]">AT&amp;T Stadium, Arlington, TX</span>
                   </div>
@@ -566,7 +566,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                   </h1>
 
                   <p className="text-sm sm:text-base lg:text-lg text-zinc-200 leading-relaxed max-w-2xl font-medium">
-                    Get ready for an unforgettable fan experience! Join us on December 10th for an exclusive opportunity to meet CeeDee Lamb in person.
+                    Get ready for an unforgettable fan experience! Join us on December 26th for an exclusive opportunity to meet CeeDee Lamb in person.
                   </p>
 
                   {/* Event Details Row */}
@@ -584,7 +584,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                         Date
                       </span>
                       <span className="text-sm font-extrabold text-white mt-0.5 block">
-                        December 10th
+                        December 26th
                       </span>
                     </div>
                     <div className="p-3.5 rounded-2xl bg-[#030712]/85 border border-white/10">
@@ -614,7 +614,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                         onOpenPlayerInquiry({
                           playerName: "CeeDee Lamb",
                           teamId: "DAL",
-                          objective: "Public Meet & Greet — December 10th ($100)",
+                          objective: "Public Meet & Greet — December 26th ($100)",
                           fullName: inquiryName.trim() || undefined,
                           email: inquiryEmail.trim() || undefined,
                           messagingPlatform: inquiryPlatform,
@@ -646,7 +646,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               <div className="lg:col-span-5 relative min-h-[280px] sm:min-h-[340px] lg:min-h-full bg-[#02050D] border-t lg:border-t-0 lg:border-l border-white/10 overflow-hidden">
                 <img
                   src="/assets/aistudio/IMG_1832_f33e4b9e.jpeg"
-                  alt="CeeDee Lamb Public Meet and Greet December 10th"
+                  alt="CeeDee Lamb Public Meet and Greet December 26th"
                   className="w-full h-full object-cover object-[center_18%]"
                   referrerPolicy="no-referrer"
                 />
@@ -666,7 +666,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                       $100
                     </span>
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-[#93C5FD]">
-                      Dec 10 · AT&amp;T Stadium
+                      Dec 26 · AT&amp;T Stadium
                     </span>
                   </div>
                 </div>

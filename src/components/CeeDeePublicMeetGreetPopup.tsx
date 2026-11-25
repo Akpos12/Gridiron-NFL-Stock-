@@ -126,7 +126,7 @@ export const CeeDeePublicMeetGreetPopup: React.FC<CeeDeePublicMeetGreetPopupProp
 
                   {/* Opening Description */}
                   <p className="text-sm sm:text-[15px] text-zinc-200 leading-relaxed font-medium">
-                    Get ready for an unforgettable fan experience! Join us on December 10th for an exclusive opportunity to meet CeeDee Lamb in person.
+                    Get ready for an unforgettable fan experience! Join us on December 26th for an exclusive opportunity to meet CeeDee Lamb in person.
                   </p>
 
                   {/* Structured Event Specifications List */}
@@ -147,7 +147,7 @@ export const CeeDeePublicMeetGreetPopup: React.FC<CeeDeePublicMeetGreetPopupProp
                         Date
                       </span>
                       <span className="font-bold text-white text-right">
-                        December 10th
+                        December 26th
                       </span>
                     </div>
 

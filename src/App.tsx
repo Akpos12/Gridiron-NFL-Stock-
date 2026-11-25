@@ -6408,7 +6408,7 @@ export default function App() {
 
             {activeTab === "experiences" && (
               <div className="p-4 sm:p-6 md:p-10 space-y-12">
-                {/* TOP FEATURED EVENT: CeeDee Lamb Public Meet & Greet – December 10th – $100 */}
+                {/* TOP FEATURED EVENT: CeeDee Lamb Public Meet & Greet – December 26th – $100 */}
                 <div
                   className="rounded-3xl border border-[#B0B7BC]/30 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden"
                   style={{
@@ -6435,13 +6435,13 @@ export default function App() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#93C5FD]">
                         <span className="inline-block w-2 h-2 rounded-full bg-[#38BDF8]" />
-                        <span>Dallas Cowboys #88 · December 10th · AT&amp;T Stadium, Arlington, TX · $100 Admission</span>
+                        <span>Dallas Cowboys #88 · December 26th · AT&amp;T Stadium, Arlington, TX · $100 Admission</span>
                       </div>
                       <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
                         CEEDÉE LAMB PUBLIC MEET &amp; GREET
                       </h3>
                       <p className="text-xs sm:text-sm text-[#E2E8F0] max-w-xl leading-relaxed">
-                        Get ready for an unforgettable fan experience! Join us on December 10th at AT&amp;T Stadium in Arlington, Texas for an exclusive opportunity to meet CeeDee Lamb in person. Limited slots — $100 per ticket.
+                        Get ready for an unforgettable fan experience! Join us on December 26th at AT&amp;T Stadium in Arlington, Texas for an exclusive opportunity to meet CeeDee Lamb in person. Limited slots — $100 per ticket.
                       </p>
                     </div>
                   </div>
@@ -6450,11 +6450,11 @@ export default function App() {
                       type="button"
                       onClick={() => {
                         setDeepLinkExp({
-                          id: "promo-ceedee-dec10",
+                          id: "promo-ceedee-dec26",
                           prefill: {
                             playerName: "CeeDee Lamb",
                             teamId: "DAL",
-                            objective: "Public Meet & Greet — December 10th ($100)",
+                            objective: "Public Meet & Greet — December 26th ($100)",
                           },
                           nonce: Date.now(),
                         });
@@ -7541,18 +7541,18 @@ export default function App() {
         onClose={() => setLegalModalTab(null)}
       />
 
-      {/* Immediate CeeDee Lamb Public Meet & Greet Announcement Pop-Up (Dec 10 · $100) */}
+      {/* Immediate CeeDee Lamb Public Meet & Greet Announcement Pop-Up (Dec 26 · $100) */}
       <CeeDeePublicMeetGreetPopup
         isOpen={showCeeDeePublicPopup && !showLogin && activeTab !== "ceedee"}
         onClose={() => setShowCeeDeePublicPopup(false)}
         onSecureSlot={() => {
           setShowCeeDeePublicPopup(false);
           setDeepLinkExp({
-            id: "promo-ceedee-dec10",
+            id: "promo-ceedee-dec26",
             prefill: {
               playerName: "CeeDee Lamb",
               teamId: "DAL",
-              objective: "Public Meet & Greet — December 10th ($100)",
+              objective: "Public Meet & Greet — December 26th ($100)",
             },
             nonce: Date.now(),
           });

@@ -827,10 +827,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       } else if (initialTargetExperience.id === "promo-brock-purdy") {
         const purdy = experiences.find(e => e.id === "exp-brock-purdy-meet" || e.player?.toLowerCase().includes("purdy"));
         if (purdy) openBookingModal(purdy);
-      } else if (initialTargetExperience.id === "promo-ceedee-dec10") {
+      } else if (initialTargetExperience.id === "promo-ceedee-dec26" || initialTargetExperience.id === "promo-ceedee-dec10") {
         setInquiryInitialPlayer("CeeDee Lamb");
         setInquiryInitialTeam("DAL");
-        setInquiryInitialObjective("Public Meet & Greet — December 10th ($100)");
+        setInquiryInitialObjective("Public Meet & Greet — December 26th ($100)");
         setInquiryInitialFullName(undefined);
         setInquiryInitialEmail(undefined);
         setInquiryInitialMessagingPlatform(undefined);
