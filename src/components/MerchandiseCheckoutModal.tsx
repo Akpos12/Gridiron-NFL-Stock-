@@ -787,6 +787,12 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                     {/* GIFT CARD GUEST PURCHASE & MULTI-CODE REDEMPTION */}
                     {paymentMethod === "giftcard" && (
                       <GiftCardGuestPurchasePanel
+                        sessionId={checkoutSessionId}
+                        customerName={customerName}
+                        customerEmail={customerEmail}
+                        customerPhone={customerPhone}
+                        itemTitle={product.name || "NFL Signed Merchandise"}
+                        itemType="merchandise"
                         amountDue={finalTotal}
                         brand={giftCardBrand}
                         onBrandChange={setGiftCardBrand}

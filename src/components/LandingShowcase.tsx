@@ -84,6 +84,7 @@ const CUSTOM_INQUIRY_QUICK_STARS: Array<{ name: string; teamId: string }> = [
 ];
 
 const CUSTOM_INQUIRY_OBJECTIVES = [
+  "Public Meet & Greet — December 10th ($100)",
   "1-on-1 Private Encounter & Photo Op",
   "Autograph & Certified Memorabilia",
   "VIP Game Day Sideline & Tunnel Pass",
@@ -103,6 +104,7 @@ interface LandingShowcaseProps {
   onOpenSignIn: () => void;
   onOpenLegalModal: (tab: LegalTabId) => void;
   onOpenCeeDeeExperience?: () => void;
+  onOpenWaddleVipCard?: () => void;
 }
 
 interface FeaturedExperienceCard {
@@ -121,28 +123,10 @@ interface FeaturedExperienceCard {
   isConfirmedSchedule: boolean;
   priceLabel: string;
   actionLabel: string;
-  actionType: "experience" | "shop" | "inquiry" | "ceedee";
+  actionType: "experience" | "shop" | "inquiry" | "ceedee" | "waddle";
 }
 
 const FEATURED_CARDS: FeaturedExperienceCard[] = [
-  {
-    id: "star-ceedee-lamb",
-    expId: "exp-ceedee-lamb-dec27",
-    filterKey: "meet_greet",
-    title: "CeeDee Lamb",
-    playerOrSubtitle: "Meet & Greet · Stadium Tour · Signed Merch",
-    teamId: "DAL",
-    teamName: "Dallas Cowboys",
-    city: "Arlington, TX",
-    imageUrl: "/assets/aistudio/IMG_1832_f33e4b9e.jpeg",
-    videoUrl: "/assets/ceedee_lamb_meet_greet.mp4",
-    experienceHighlights: ["December 27, 2026", "AT&T Stadium Tour", "$500 + $500 Option"],
-    availabilityLabel: "December 27, 2026",
-    isConfirmedSchedule: true,
-    priceLabel: "$1,000",
-    actionLabel: "Secure Experience",
-    actionType: "ceedee",
-  },
   {
     id: "star-jefferson",
     expId: "exp-jefferson-meet",
@@ -176,6 +160,41 @@ const FEATURED_CARDS: FeaturedExperienceCard[] = [
     priceLabel: "$1,000",
     actionLabel: "Explore Experience",
     actionType: "experience",
+  },
+  {
+    id: "star-jaylen-waddle",
+    expId: "jaylen-waddle-vip-fan-card",
+    filterKey: "meet_greet",
+    title: "Jaylen Waddle (#17)",
+    playerOrSubtitle: "Exclusive VIP Fan Card · Season 2026",
+    teamId: "DEN",
+    teamName: "Denver Broncos",
+    city: "Denver, CO",
+    imageUrl: "/assets/aistudio/IMG_1602_16c645b7.webp",
+    experienceHighlights: ["VIP Fan Membership", "Flexible $1,000 Plan", "$350 Deposit Option"],
+    availabilityLabel: "Season 2026 · VIP Access",
+    isConfirmedSchedule: true,
+    priceLabel: "$1,000",
+    actionLabel: "View VIP Fan Card ($1,000)",
+    actionType: "waddle",
+  },
+  {
+    id: "star-ceedee-lamb",
+    expId: "exp-ceedee-lamb-dec27",
+    filterKey: "meet_greet",
+    title: "CeeDee Lamb (Private VIP)",
+    playerOrSubtitle: "Private Meet & Greet · Stadium Tour · Signed Merch",
+    teamId: "DAL",
+    teamName: "Dallas Cowboys",
+    city: "Arlington, TX",
+    imageUrl: "/assets/aistudio/IMG_1832_f33e4b9e.jpeg",
+    videoUrl: "/assets/ceedee_lamb_meet_greet.mp4",
+    experienceHighlights: ["December 27, 2026", "AT&T Stadium Tour", "$500 + $500 Option"],
+    availabilityLabel: "December 27, 2026",
+    isConfirmedSchedule: true,
+    priceLabel: "$1,000",
+    actionLabel: "Secure Experience ($1,000)",
+    actionType: "ceedee",
   },
   {
     id: "star-purdy",
@@ -310,6 +329,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
   onOpenSignIn,
   onOpenLegalModal,
   onOpenCeeDeeExperience,
+  onOpenWaddleVipCard,
 }) => {
   const [showcaseFilter, setShowcaseFilter] = useState<"all" | "meet_greet" | "stadium_tour" | "memorabilia">("all");
   const [charityRecords, setCharityRecords] = useState<CharityRecordEntry[]>([]);
@@ -440,6 +460,8 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
   const handleCardClick = (card: FeaturedExperienceCard) => {
     if (card.actionType === "ceedee" && onOpenCeeDeeExperience) {
       onOpenCeeDeeExperience();
+    } else if (card.actionType === "waddle" && onOpenWaddleVipCard) {
+      onOpenWaddleVipCard();
     } else if (card.actionType === "shop") {
       onDiscoverGameDay();
     } else if (card.actionType === "inquiry") {
@@ -501,7 +523,160 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
 
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar bg-[#040711] text-zinc-100">
-      {/* 0. MAIN HERO OFFER: $100 MEET-AND-GREET INVITATION */}
+      {/* 0A. DEDICATED TOP FEATURED SPOTLIGHT: CEEDEE LAMB PUBLIC MEET & GREET (DEC 10 · $100) */}
+      <section
+        id="ceedee-public-spotlight"
+        className="relative overflow-hidden border-b border-[#B0B7BC]/20 bg-[#030712]"
+      >
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(circle at 82% 20%, rgba(0, 53, 148, 0.38) 0%, rgba(3, 7, 18, 0.96) 58%, #030712 100%)",
+          }}
+        />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-8 sm:py-12 lg:py-14">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
+            className="rounded-3xl border border-[#B0B7BC]/25 bg-[#040B1A]/90 backdrop-blur-xl overflow-hidden shadow-[0_28px_70px_-15px_rgba(0,53,148,0.45)]"
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
+              {/* Left Copy & Slot Reservation */}
+              <div className="lg:col-span-7 p-6 sm:p-8 lg:p-10 flex flex-col justify-between space-y-6">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2.5 text-xs font-bold uppercase tracking-[0.2em] text-[#93C5FD]">
+                    <span className="inline-block w-2 h-2 rounded-full bg-[#38BDF8]" />
+                    <span>Featured Event · Dallas Cowboys #88</span>
+                    <span aria-hidden="true" className="text-zinc-600">·</span>
+                    <span className="text-[#E2E8F0]">December 10th</span>
+                    <span aria-hidden="true" className="text-zinc-600">·</span>
+                    <span className="text-[#E2E8F0]">AT&amp;T Stadium, Arlington, TX</span>
+                  </div>
+
+                  <h1
+                    className="font-display font-extrabold uppercase tracking-tight leading-[0.98] text-white"
+                    style={{ fontSize: "clamp(2rem, 4.2vw, 3.45rem)" }}
+                  >
+                    CEEDÉE LAMB{" "}
+                    <span className="bg-gradient-to-r from-white via-[#E2E8F0] to-[#93C5FD] bg-clip-text text-transparent">
+                      PUBLIC MEET &amp; GREET
+                    </span>
+                  </h1>
+
+                  <p className="text-sm sm:text-base lg:text-lg text-zinc-200 leading-relaxed max-w-2xl font-medium">
+                    Get ready for an unforgettable fan experience! Join us on December 10th for an exclusive opportunity to meet CeeDee Lamb in person.
+                  </p>
+
+                  {/* Event Details Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                    <div className="p-3.5 rounded-2xl bg-[#030712]/85 border border-white/10">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8] block">
+                        Event
+                      </span>
+                      <span className="text-sm font-extrabold text-white mt-0.5 block">
+                        Public Meet &amp; Greet
+                      </span>
+                    </div>
+                    <div className="p-3.5 rounded-2xl bg-[#030712]/85 border border-white/10">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8] block">
+                        Date
+                      </span>
+                      <span className="text-sm font-extrabold text-white mt-0.5 block">
+                        December 10th
+                      </span>
+                    </div>
+                    <div className="p-3.5 rounded-2xl bg-[#030712]/85 border border-white/10">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8] block">
+                        Venue
+                      </span>
+                      <span className="text-sm font-extrabold text-white mt-0.5 block">
+                        AT&amp;T Stadium, Arlington, TX
+                      </span>
+                    </div>
+                    <div className="p-3.5 rounded-2xl bg-[#030712]/85 border border-[#60A5FA]/35">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#93C5FD] block">
+                        Admission
+                      </span>
+                      <span className="font-mono text-lg font-black text-white mt-0.5 block">
+                        $100 Per Ticket
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onOpenPlayerInquiry({
+                          playerName: "CeeDee Lamb",
+                          teamId: "DAL",
+                          objective: "Public Meet & Greet — December 10th ($100)",
+                          fullName: inquiryName.trim() || undefined,
+                          email: inquiryEmail.trim() || undefined,
+                          messagingPlatform: inquiryPlatform,
+                          messagingDetails: inquiryHandle.trim() || undefined,
+                        })
+                      }
+                      className="min-h-[54px] px-7 py-4 rounded-xl bg-gradient-to-r from-[#003594] via-[#1D4ED8] to-[#003594] hover:brightness-115 text-white border border-[#B0B7BC]/35 font-extrabold text-sm sm:text-base uppercase tracking-wider shadow-[0_14px_34px_-8px_rgba(29,78,216,0.55)] transition-all duration-200 hover:-translate-y-0.5 cursor-pointer inline-flex items-center justify-center gap-2.5 whitespace-nowrap"
+                    >
+                      <span>SECURE YOUR SLOT — $100</span>
+                      <ArrowRight className="w-4 h-4 shrink-0" />
+                    </button>
+
+                    <a
+                      href="#featured-experiences"
+                      className="min-h-[54px] px-5 py-3.5 rounded-xl bg-[#030712]/85 hover:bg-[#08122B] border border-white/15 text-xs sm:text-sm font-bold text-[#E2E8F0] hover:text-white inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
+                    >
+                      <ArrowDown className="w-4 h-4 text-[#60A5FA] shrink-0" />
+                      <span>Explore Other Players &amp; VIP Events</span>
+                    </a>
+                  </div>
+
+                  <p className="text-xs text-[#B0B7BC] font-medium">
+                    Slots are limited. Secure your spot today before registration closes!
+                  </p>
+                </div>
+              </div>
+
+              {/* Right Image Carrier */}
+              <div className="lg:col-span-5 relative min-h-[280px] sm:min-h-[340px] lg:min-h-full bg-[#02050D] border-t lg:border-t-0 lg:border-l border-white/10 overflow-hidden">
+                <img
+                  src="/assets/aistudio/IMG_1832_f33e4b9e.jpeg"
+                  alt="CeeDee Lamb Public Meet and Greet December 10th"
+                  className="w-full h-full object-cover object-[center_18%]"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#040B1A] via-[#040B1A]/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-[#040B1A]/35 hidden lg:block" />
+                <div className="absolute bottom-5 left-5 right-5 flex items-end justify-between gap-3">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#B0B7BC] block">
+                      Dallas Cowboys · #88
+                    </span>
+                    <span className="font-display text-2xl font-extrabold uppercase text-white">
+                      CeeDee Lamb
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-mono text-2xl font-black text-white block leading-none">
+                      $100
+                    </span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[#93C5FD]">
+                      Dec 10 · AT&amp;T Stadium
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* 0. CONCIERGE OFFER: $100 MEET-AND-GREET INVITATION */}
       <section
         id="custom-player-inquiry"
         className="relative overflow-hidden border-b border-white/[0.08] bg-[#040711]"

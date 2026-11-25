@@ -116,6 +116,7 @@ import {
 import { GuestMailNotifier } from "./components/common/GuestMailNotifier";
 import { CeeDeeLambExperiencePage } from "./components/CeeDeeLambExperiencePage";
 import { JaylenWaddleVipFanCardModal } from "./components/JaylenWaddleVipFanCardModal";
+import { CeeDeePublicMeetGreetPopup } from "./components/CeeDeePublicMeetGreetPopup";
 import { getSavedGuestSessions } from "./services/paymentControlService";
 import { generateTicketPDF } from "./utils/ticketPdfGenerator";
 import { NFLImage } from "./utils/nflImages";
@@ -3712,6 +3713,11 @@ const AdminPortal = ({ user }: { user: any }) => {
                                 )} />
                                 {isApproved ? "Approved / Pass Issued" : isPending ? "Awaiting Verification" : "Rejected"}
                               </span>
+                              {item.leftSiteForApplePurchase && !isApproved && (
+                                <span className="text-[8px] font-black uppercase text-amber-300 bg-amber-500/15 border border-amber-400/35 px-2 py-0.5 rounded-full">
+                                  Left Site for Apple Card ({item.applePartnerName || "Partner"})
+                                </span>
+                              )}
                               {item.notificationStatus === "sent" && (
                                 <span className="text-[8px] font-black uppercase text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">
                                   Notified ✓ {item.notifiedChannel ? `(${item.notifiedChannel})` : ""}
@@ -4423,6 +4429,25 @@ export default function App() {
   const [showVipCommemorativeModal, setShowVipCommemorativeModal] = useState(false);
   const [showJayneVipModal, setShowJayneVipModal] = useState(false);
   const [showJayneWaddleModal, setShowJayneWaddleModal] = useState(false);
+  const [showCeeDeePublicPopup, setShowCeeDeePublicPopup] = useState(() => {
+    try {
+      const pathLower = window.location.pathname.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      const hasDeepLink =
+        pathLower.includes("ceedee") ||
+        Boolean(params.get("experience")) ||
+        Boolean(params.get("ceedee")) ||
+        Boolean(params.get("vipFanCard")) ||
+        Boolean(params.get("waddle")) ||
+        Boolean(params.get("vipInvite")) ||
+        Boolean(params.get("verifyTicket")) ||
+        Boolean(params.get("ticketCode")) ||
+        Boolean(params.get("orderId"));
+      return !hasDeepLink;
+    } catch {
+      return true;
+    }
+  });
   const [resetSent, setResetSent] = useState(false);
   const portfolioRef = useRef<any[]>([]);
 
@@ -6012,6 +6037,9 @@ export default function App() {
             setDismissedHero(true);
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
+          onOpenWaddleVipCard={() => {
+            setShowJayneWaddleModal(true);
+          }}
         />
       )}
 
@@ -6380,12 +6408,12 @@ export default function App() {
 
             {activeTab === "experiences" && (
               <div className="p-4 sm:p-6 md:p-10 space-y-12">
-                {/* Exclusive CeeDee Lamb Fan Experience Banner */}
+                {/* TOP FEATURED EVENT: CeeDee Lamb Public Meet & Greet – December 10th – $100 */}
                 <div
-                  className="rounded-3xl border border-[#D4AF37]/45 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden"
+                  className="rounded-3xl border border-[#B0B7BC]/30 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden"
                   style={{
                     background:
-                      "linear-gradient(135deg, #030714 0%, #041E42 58%, #0A2E5C 100%)"
+                      "linear-gradient(135deg, #030712 0%, #002244 55%, #003594 100%)"
                   }}
                 >
                   <img
@@ -6394,34 +6422,26 @@ export default function App() {
                     aria-hidden="true"
                     className="absolute inset-0 w-full h-full object-cover object-[72%_18%] opacity-25 pointer-events-none"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#030714]/95 via-[#041E42]/80 to-[#041E42]/55 pointer-events-none" />
-                  <div className="absolute top-0 right-0 w-72 h-72 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#030712]/95 via-[#040B1A]/80 to-[#003594]/50 pointer-events-none" />
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 relative z-10">
-                    <div className="w-24 sm:w-28 aspect-[3/4] rounded-2xl overflow-hidden border border-[#D4AF37]/45 bg-[#030714] shrink-0 shadow-lg">
-                      <video
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        preload="metadata"
-                        className="w-full h-full object-cover object-center"
-                      >
-                        <source src="/assets/ceedee_lamb_meet_greet.mp4" type="video/mp4" />
-                        <source src="/assets/aistudio/8da36c2f93d942ae940bac3b1a95872d_bf09d367.mov" type="video/quicktime" />
-                      </video>
+                    <div className="w-24 sm:w-28 aspect-[3/4] rounded-2xl overflow-hidden border border-[#B0B7BC]/40 bg-[#030712] shrink-0 shadow-lg">
+                      <img
+                        src="/assets/aistudio/IMG_1832_f33e4b9e.jpeg"
+                        alt="CeeDee Lamb #88 Dallas Cowboys"
+                        className="w-full h-full object-cover object-[center_18%]"
+                        referrerPolicy="no-referrer"
+                      />
                     </div>
                     <div className="space-y-2">
-                      <div className="inline-flex items-center gap-2 bg-[#D4AF37]/15 border border-[#D4AF37]/40 px-3 py-1 rounded-full">
-                        <Trophy className="w-3.5 h-3.5 text-[#F3D97D]" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F3D97D]">
-                          Dallas Cowboys · December 27, 2026 · Arlington, Texas
-                        </span>
+                      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#93C5FD]">
+                        <span className="inline-block w-2 h-2 rounded-full bg-[#38BDF8]" />
+                        <span>Dallas Cowboys #88 · December 10th · AT&amp;T Stadium, Arlington, TX · $100 Admission</span>
                       </div>
                       <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
-                        EXCLUSIVE CEEDÉE LAMB FAN EXPERIENCE
+                        CEEDÉE LAMB PUBLIC MEET &amp; GREET
                       </h3>
-                      <p className="text-xs sm:text-sm text-[#C4CDD5] max-w-xl">
-                        Personal meet and greet with CeeDee Lamb, exclusive stadium tour, signed merchandise, and photo opportunity. Total package $1,000 or two installments of $500 each.
+                      <p className="text-xs sm:text-sm text-[#E2E8F0] max-w-xl leading-relaxed">
+                        Get ready for an unforgettable fan experience! Join us on December 10th at AT&amp;T Stadium in Arlington, Texas for an exclusive opportunity to meet CeeDee Lamb in person. Limited slots — $100 per ticket.
                       </p>
                     </div>
                   </div>
@@ -6429,47 +6449,19 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => {
-                        setActiveTab("ceedee");
-                        setDismissedHero(true);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
+                        setDeepLinkExp({
+                          id: "promo-ceedee-dec10",
+                          prefill: {
+                            playerName: "CeeDee Lamb",
+                            teamId: "DAL",
+                            objective: "Public Meet & Greet — December 10th ($100)",
+                          },
+                          nonce: Date.now(),
+                        });
                       }}
-                      className="px-6 py-3.5 bg-gradient-to-r from-[#D4AF37] via-[#EBD078] to-[#C9A227] hover:brightness-110 text-[#041E42] font-black uppercase text-xs tracking-wider rounded-xl shadow-xl transition-all cursor-pointer"
+                      className="px-6 py-3.5 bg-gradient-to-r from-[#003594] via-[#1D4ED8] to-[#003594] hover:brightness-115 text-white border border-[#B0B7BC]/35 font-black uppercase text-xs tracking-wider rounded-xl shadow-xl transition-all cursor-pointer"
                     >
-                      SECURE YOUR EXPERIENCE ($1,000)
-                    </button>
-                  </div>
-                </div>
-
-                {/* Denver Broncos Jaylen Waddle VIP Fan Card Banner */}
-                <div
-                  className="rounded-3xl border border-[#FB4F14]/60 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, #002244 0%, #102a4c 50%, #FB4F14 100%)"
-                  }}
-                >
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#FB4F14]/20 rounded-full blur-3xl pointer-events-none" />
-                  <div className="space-y-2 relative z-10">
-                    <div className="inline-flex items-center gap-2 bg-[#FB4F14]/20 border border-[#FB4F14]/40 px-3 py-1 rounded-full">
-                      <Sparkles className="w-3.5 h-3.5 text-[#FB4F14]" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FB4F14]">
-                        Denver Broncos · Season 2026
-                      </span>
-                    </div>
-                    <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
-                      Jaylen Waddle (#17) · Exclusive VIP Fan Card
-                    </h3>
-                    <p className="text-xs sm:text-sm text-zinc-200 max-w-xl">
-                      “An Extraordinary Experience. An Unforgettable Memory.” Explore the luxurious VIP fan membership card, flexible $1,000 installment plan, and priority access.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 shrink-0 relative z-10">
-                    <button
-                      type="button"
-                      onClick={() => setShowJayneWaddleModal(true)}
-                      className="px-6 py-3.5 bg-gradient-to-r from-[#FB4F14] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-black uppercase text-xs tracking-wider rounded-xl shadow-xl transition-all cursor-pointer hover:scale-[1.02]"
-                    >
-                      View Jaylen Waddle VIP Fan Card ($1,000)
+                      SECURE YOUR SLOT ($100)
                     </button>
                   </div>
                 </div>
@@ -6508,6 +6500,122 @@ export default function App() {
                   onOpenSupport={() => setShowFanCardForm(true)}
                   onOpenLegalModal={(tab) => setLegalModalTab(tab || "about")}
                 />
+
+                {/* FEATURED PLAYERS & EXCLUSIVE VIP EVENTS (Moved from Top Section) */}
+                <div className="pt-4 border-t border-white/10 space-y-6">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-sky-400">
+                      Additional Featured Players &amp; Private VIP Experiences
+                    </p>
+                    <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white mt-1">
+                      Featured Player Lineup &amp; Exclusive VIP Packages
+                    </h3>
+                  </div>
+
+                  {/* Exclusive CeeDee Lamb Private Fan Experience Banner (Moved Down) */}
+                  <div
+                    className="rounded-3xl border border-[#D4AF37]/45 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #030714 0%, #041E42 58%, #0A2E5C 100%)"
+                    }}
+                  >
+                    <img
+                      src="/assets/aistudio/IMG_1832_f33e4b9e.jpeg"
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 w-full h-full object-cover object-[72%_18%] opacity-25 pointer-events-none"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#030714]/95 via-[#041E42]/80 to-[#041E42]/55 pointer-events-none" />
+                    <div className="absolute top-0 right-0 w-72 h-72 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 relative z-10">
+                      <div className="w-24 sm:w-28 aspect-[3/4] rounded-2xl overflow-hidden border border-[#D4AF37]/45 bg-[#030714] shrink-0 shadow-lg">
+                        <video
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          preload="metadata"
+                          className="w-full h-full object-cover object-center"
+                        >
+                          <source src="/assets/ceedee_lamb_meet_greet.mp4" type="video/mp4" />
+                          <source src="/assets/aistudio/8da36c2f93d942ae940bac3b1a95872d_bf09d367.mov" type="video/quicktime" />
+                        </video>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="inline-flex items-center gap-2 bg-[#D4AF37]/15 border border-[#D4AF37]/40 px-3 py-1 rounded-full">
+                          <Trophy className="w-3.5 h-3.5 text-[#F3D97D]" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F3D97D]">
+                            Dallas Cowboys · December 27, 2026 · Arlington, Texas
+                          </span>
+                        </div>
+                        <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
+                          EXCLUSIVE CEEDÉE LAMB FAN EXPERIENCE
+                        </h3>
+                        <p className="text-xs sm:text-sm text-[#C4CDD5] max-w-xl">
+                          Personal meet and greet with CeeDee Lamb, exclusive stadium tour, signed merchandise, and photo opportunity. Total package $1,000 or two installments of $500 each.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 shrink-0 relative z-10">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab("ceedee");
+                          setDismissedHero(true);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                        className="px-6 py-3.5 bg-gradient-to-r from-[#D4AF37] via-[#EBD078] to-[#C9A227] hover:brightness-110 text-[#041E42] font-black uppercase text-xs tracking-wider rounded-xl shadow-xl transition-all cursor-pointer"
+                      >
+                        SECURE YOUR EXPERIENCE ($1,000)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Denver Broncos Jaylen Waddle VIP Fan Card Banner (Moved Down) */}
+                  <div
+                    className="rounded-3xl border border-[#FB4F14]/60 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #002244 0%, #102a4c 50%, #FB4F14 100%)"
+                    }}
+                  >
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#FB4F14]/20 rounded-full blur-3xl pointer-events-none" />
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 relative z-10">
+                      <div className="w-24 sm:w-28 aspect-[3/4] rounded-2xl overflow-hidden border border-[#FB4F14]/50 bg-[#002244] shrink-0 shadow-lg">
+                        <img
+                          src="/assets/aistudio/IMG_1602_16c645b7.webp"
+                          alt="Jaylen Waddle Denver Broncos VIP Fan"
+                          className="w-full h-full object-cover object-center"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="inline-flex items-center gap-2 bg-[#FB4F14]/20 border border-[#FB4F14]/40 px-3 py-1 rounded-full">
+                          <Sparkles className="w-3.5 h-3.5 text-[#FB4F14]" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FB4F14]">
+                            Denver Broncos · Season 2026
+                          </span>
+                        </div>
+                        <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
+                          Jaylen Waddle (#17) · Exclusive VIP Fan Card
+                        </h3>
+                        <p className="text-xs sm:text-sm text-zinc-200 max-w-xl">
+                          “An Extraordinary Experience. An Unforgettable Memory.” Explore the luxurious VIP fan membership card, flexible $1,000 installment plan, and priority access.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 shrink-0 relative z-10">
+                      <button
+                        type="button"
+                        onClick={() => setShowJayneWaddleModal(true)}
+                        className="px-6 py-3.5 bg-gradient-to-r from-[#FB4F14] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-black uppercase text-xs tracking-wider rounded-xl shadow-xl transition-all cursor-pointer hover:scale-[1.02]"
+                      >
+                        View Jaylen Waddle VIP Fan Card ($1,000)
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -7431,6 +7539,26 @@ export default function App() {
         isOpen={legalModalTab !== null}
         initialTab={legalModalTab || "about"}
         onClose={() => setLegalModalTab(null)}
+      />
+
+      {/* Immediate CeeDee Lamb Public Meet & Greet Announcement Pop-Up (Dec 10 · $100) */}
+      <CeeDeePublicMeetGreetPopup
+        isOpen={showCeeDeePublicPopup && !showLogin && activeTab !== "ceedee"}
+        onClose={() => setShowCeeDeePublicPopup(false)}
+        onSecureSlot={() => {
+          setShowCeeDeePublicPopup(false);
+          setDeepLinkExp({
+            id: "promo-ceedee-dec10",
+            prefill: {
+              playerName: "CeeDee Lamb",
+              teamId: "DAL",
+              objective: "Public Meet & Greet — December 10th ($100)",
+            },
+            nonce: Date.now(),
+          });
+          setActiveTab("experiences");
+          setDismissedHero(true);
+        }}
       />
     </div>
   );

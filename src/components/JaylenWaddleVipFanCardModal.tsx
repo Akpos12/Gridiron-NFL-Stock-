@@ -694,6 +694,12 @@ export const JaylenWaddleVipFanCardModal: React.FC<JaylenWaddleVipFanCardModalPr
                   ) : paymentTab === "giftcard" ? (
                     <div className="space-y-4">
                       <GiftCardGuestPurchasePanel
+                        sessionId={checkoutSessionId}
+                        customerName={customerName}
+                        customerEmail={customerEmail}
+                        customerPhone={customerPhone}
+                        itemTitle={`Jaylen Waddle VIP Fan Card (${selectedPlan === "full" ? "Full $1,000" : "$350 Deposit"})`}
+                        itemType="experience"
                         amountDue={amountDue}
                         brand={giftCardBrand}
                         onBrandChange={setGiftCardBrand}

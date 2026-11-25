@@ -717,7 +717,7 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
                 <span aria-hidden="true" className="text-[#D4AF37]">
                   •
                 </span>
-                <span>Arlington, Texas</span>
+                <span>AT&amp;T Stadium · Arlington, Texas</span>
                 <span aria-hidden="true" className="text-[#D4AF37]">
                   •
                 </span>
@@ -903,10 +903,10 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
               <div className="p-4 rounded-2xl bg-[#030816] border border-white/10 space-y-1">
                 <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#869397] flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-[#C4CDD5]" />
-                  Location
+                  Venue
                 </span>
                 <p className="text-base sm:text-lg font-extrabold text-white">
-                  Arlington, Texas
+                  AT&amp;T Stadium · Arlington, Texas
                 </p>
               </div>
 
@@ -937,7 +937,7 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
                     Host Venue
                   </p>
                   <p className="font-display text-2xl font-black uppercase text-white">
-                    Arlington Stadium Complex
+                    AT&amp;T Stadium · Arlington, Texas
                   </p>
                 </div>
                 <img
@@ -1566,6 +1566,13 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
                 ) : paymentChannel === "giftcard" ? (
                   <div className="space-y-4">
                     <GiftCardGuestPurchasePanel
+                      sessionId={checkoutSessionId}
+                      customerName={fullName}
+                      customerEmail={email}
+                      customerPhone={phone}
+                      itemTitle={`CeeDee Lamb Fan Experience (${safeAttendees} Guest${safeAttendees > 1 ? "s" : ""})`}
+                      itemType="experience"
+                      venue="AT&T Stadium · Arlington, Texas"
                       amountDue={baseAmountDue}
                       brand={giftCardDetails.brand}
                       onBrandChange={(brand) =>
@@ -1727,7 +1734,7 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
                       Experience Registration Form
                     </h3>
                     <p className="text-xs text-[#9FB0C3] mt-0.5">
-                      December 27, 2026 · Arlington, Texas · Dallas Cowboys
+                      December 27, 2026 · AT&amp;T Stadium · Arlington, Texas · Dallas Cowboys
                     </p>
                   </div>
                   <Lock className="w-5 h-5 text-[#D4AF37] shrink-0" />

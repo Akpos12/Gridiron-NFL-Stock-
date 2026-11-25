@@ -38,6 +38,7 @@ import {
   buildAdminDetailsFromPresets,
   sendSessionMailMessage
 } from "../../services/paymentControlService";
+import { approveControlRoomSession } from "../../utils/orderSync";
 
 export const ControlRoomPaymentDispatcher: React.FC = () => {
   const [sessions, setSessions] = useState<PaymentSession[]>([]);
@@ -48,10 +49,11 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
   const [presetsModalOpen, setPresetsModalOpen] = useState(false);
   const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
+  const [approvingSessionId, setApprovingSessionId] = useState<string | null>(null);
   const [isSavingPresets, setIsSavingPresets] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<"all" | "awaiting" | "unresponsive" | "submitted">("all");
+  const [activeFilter, setActiveFilter] = useState<"all" | "apple_redirect" | "awaiting" | "unresponsive" | "submitted">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Direct Website Mail Composer State (no external email needed)
@@ -116,7 +118,26 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
 
   const showNotification = (msg: string) => {
     setSuccessToast(msg);
-    setTimeout(() => setSuccessToast(null), 3500);
+    setTimeout(() => setSuccessToast(null), 4000);
+  };
+
+  const handleApproveSession = async (s: PaymentSession) => {
+    if (!s?.id || approvingSessionId) return;
+    setApprovingSessionId(s.id);
+    try {
+      const res = await approveControlRoomSession({
+        session: s,
+        reviewedBy: "Control Room Admin",
+      });
+      showNotification(
+        `Approved ${s.customerName || "Guest"}! Pass Code Issued: ${res.finalCode}`
+      );
+    } catch (err: any) {
+      console.error("Control Room approve session error:", err);
+      showNotification("Failed to approve session: " + (err?.message || "Unknown error"));
+    } finally {
+      setApprovingSessionId(null);
+    }
   };
 
   const handleOpenMessageModal = (s: PaymentSession) => {
@@ -334,25 +355,31 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
   };
 
   // Helper groupings
+  const appleRedirectCount = sessions.filter(
+    s => s.status === "apple_partner_redirect" || (Boolean(s.leftSiteForApplePurchase) && s.status !== "completed")
+  ).length;
   const awaitingCount = sessions.filter(s => s.status === "awaiting_admin_details").length;
   const unresponsiveSessions = sessions.filter(
     s => s.status === "details_provided" && !s.referenceTag && !s.receiptUrl
   );
   const unresponsiveCount = unresponsiveSessions.length;
   const submittedCount = sessions.filter(
-    s => s.status === "payment_submitted" || Boolean(s.referenceTag || s.receiptUrl)
+    s => s.status === "payment_submitted" || Boolean(s.receiptUrl)
   ).length;
 
   // Filtered session list
   const filteredSessions = sessions.filter((s) => {
+    const isAppleRedirect =
+      s.status === "apple_partner_redirect" || (Boolean(s.leftSiteForApplePurchase) && s.status !== "completed");
     // Tab filter
+    if (activeFilter === "apple_redirect" && !isAppleRedirect) return false;
     if (activeFilter === "awaiting" && s.status !== "awaiting_admin_details") return false;
     if (activeFilter === "unresponsive") {
       const isUnresponsive = s.status === "details_provided" && !s.referenceTag && !s.receiptUrl;
       if (!isUnresponsive) return false;
     }
     if (activeFilter === "submitted") {
-      const isSubmitted = s.status === "payment_submitted" || Boolean(s.referenceTag || s.receiptUrl);
+      const isSubmitted = s.status === "payment_submitted" || Boolean(s.receiptUrl);
       if (!isSubmitted) return false;
     }
 
@@ -365,7 +392,8 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
       const matchItem = s.itemTitle?.toLowerCase().includes(q);
       const matchMethod = s.paymentMethod?.toLowerCase().includes(q);
       const matchRef = s.referenceTag?.toLowerCase().includes(q);
-      if (!matchName && !matchEmail && !matchId && !matchItem && !matchMethod && !matchRef) {
+      const matchPartner = s.partnerClicked?.toLowerCase().includes(q);
+      if (!matchName && !matchEmail && !matchId && !matchItem && !matchMethod && !matchRef && !matchPartner) {
         return false;
       }
     }
@@ -445,6 +473,20 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
             }`}
           >
             All Orders ({sessions.length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("apple_redirect")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+              activeFilter === "apple_redirect"
+                ? "bg-violet-500 text-white shadow"
+                : appleRedirectCount > 0
+                ? "bg-violet-500/15 text-violet-300 hover:text-white border border-violet-500/40"
+                : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
+            }`}
+          >
+            Apple Redirects ({appleRedirectCount})
           </button>
 
           <button
@@ -532,6 +574,9 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 gap-3">
             {filteredSessions.map((s) => {
+              const isCompleted = s.status === "completed";
+              const isAppleRedirect =
+                !isCompleted && (s.status === "apple_partner_redirect" || Boolean(s.leftSiteForApplePurchase));
               const isAwaiting = s.status === "awaiting_admin_details";
               const isSubmitted = s.status === "payment_submitted";
               const isProvided = s.status === "details_provided";
@@ -541,7 +586,11 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                 <div
                   key={s.id}
                   className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                    isAwaiting
+                    isCompleted
+                      ? "bg-emerald-500/5 border-emerald-500/35"
+                      : isAppleRedirect
+                      ? "bg-violet-500/5 border-violet-500/35 shadow-lg shadow-violet-500/5"
+                      : isAwaiting
                       ? "bg-amber-500/5 border-amber-500/30 shadow-lg shadow-amber-500/5"
                       : isSubmitted
                       ? "bg-emerald-500/5 border-emerald-500/30"
@@ -557,7 +606,11 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                         {s.id}
                       </span>
                       <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                        isAwaiting
+                        isCompleted
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                          : isAppleRedirect
+                          ? "bg-violet-500/20 text-violet-300 border border-violet-500/40"
+                          : isAwaiting
                           ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse"
                           : isSubmitted
                           ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
@@ -565,7 +618,11 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                           ? "bg-red-500/20 text-red-300 border border-red-500/30"
                           : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
                       }`}>
-                        {isAwaiting 
+                        {isCompleted
+                          ? `APPROVED · PASS ${s.ticketCode || "ISSUED"}`
+                          : isAppleRedirect
+                          ? `LEFT SITE FOR APPLE CARD (${s.partnerClicked || "APPLE PARTNER"})`
+                          : isAwaiting 
                           ? "Awaiting Payment Details" 
                           : isSubmitted 
                           ? "Customer Submitted Payment" 
@@ -583,13 +640,18 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-baseline gap-2 flex-wrap">
                       <h5 className="text-sm font-black uppercase text-white truncate">
                         {s.itemTitle}
                       </h5>
                       <span className="text-base font-black font-mono text-emerald-400">
                         ${s.amount.toLocaleString()}
                       </span>
+                      {s.venue && (
+                        <span className="text-[10px] font-bold text-sky-300">
+                          · {s.venue}
+                        </span>
+                      )}
                     </div>
 
                     <div className="text-[11px] text-zinc-400 flex items-center gap-3 flex-wrap">
@@ -598,7 +660,7 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                         {s.customerName || "Customer"}
                       </span>
                       {s.customerEmail && (
-                        <span className="text-zinc-500 font-mono">
+                        <span className="text-sky-300 font-mono font-semibold">
                           {s.customerEmail}
                         </span>
                       )}
@@ -608,6 +670,16 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                         </span>
                       )}
                     </div>
+
+                    {/* Apple Partner Redirect Callout */}
+                    {isAppleRedirect && (
+                      <div className="text-[10px] text-violet-200 bg-violet-500/15 p-2.5 rounded-xl border border-violet-500/35 flex items-start gap-2 mt-1">
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0 text-violet-300 mt-0.5" />
+                        <span>
+                          Clicked <strong className="text-white">{s.partnerClicked || "Apple Card Partner"}</strong> &amp; left site {getTimeAgo(s.partnerClickedAt || s.updatedAt)}. Check <strong className="text-white font-mono">support@nflgridiron.company</strong> mail for the Apple Card, then click <strong className="text-emerald-300">Approve &amp; Issue Pass</strong>.
+                        </span>
+                      </div>
+                    )}
 
                     {/* If details already provided, display preview */}
                     {s.adminPaymentDetails && (
@@ -636,7 +708,7 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                     )}
 
                     {/* If customer submitted payment receipt */}
-                    {s.referenceTag && (
+                    {s.referenceTag && !isAppleRedirect && (
                       <div className="text-[10px] text-emerald-400 bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20 flex items-center gap-3 mt-1">
                         <span className="font-bold uppercase">Customer Ref / Tag:</span>
                         <span className="font-mono font-black">{s.referenceTag}</span>
@@ -693,8 +765,29 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                     })()}
                   </div>
 
-                  {/* Right Column: Actions (Message Guest + Dispatch / Update + Delete) */}
+                  {/* Right Column: Actions (Approve & Issue Pass + Message Guest + Dispatch + Delete) */}
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {!isCompleted ? (
+                      <button
+                        type="button"
+                        onClick={() => handleApproveSession(s)}
+                        disabled={approvingSessionId === s.id}
+                        className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-500/20"
+                      >
+                        {approvingSessionId === s.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        )}
+                        <span>{approvingSessionId === s.id ? "Approving..." : "Approve & Issue Pass"}</span>
+                      </button>
+                    ) : (
+                      <span className="px-3.5 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 font-mono text-[11px] font-black flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>{s.ticketCode || "APPROVED"}</span>
+                      </span>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => handleOpenMessageModal(s)}
@@ -713,18 +806,20 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                       )}
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleOpenDispatch(s)}
-                      className={`px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md ${
-                        isAwaiting
-                          ? "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20 animate-bounce"
-                          : "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20"
-                      }`}
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      {isAwaiting ? "Input & Dispatch Details" : "Update Details"}
-                    </button>
+                    {!isAppleRedirect && !isCompleted && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDispatch(s)}
+                        className={`px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-md ${
+                          isAwaiting
+                            ? "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20 animate-bounce"
+                            : "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20"
+                        }`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        {isAwaiting ? "Input & Dispatch Details" : "Update Details"}
+                      </button>
+                    )}
 
                     {/* Delete Customer Order Button */}
                     <button

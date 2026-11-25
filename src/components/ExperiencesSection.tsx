@@ -827,6 +827,20 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       } else if (initialTargetExperience.id === "promo-brock-purdy") {
         const purdy = experiences.find(e => e.id === "exp-brock-purdy-meet" || e.player?.toLowerCase().includes("purdy"));
         if (purdy) openBookingModal(purdy);
+      } else if (initialTargetExperience.id === "promo-ceedee-dec10") {
+        setInquiryInitialPlayer("CeeDee Lamb");
+        setInquiryInitialTeam("DAL");
+        setInquiryInitialObjective("Public Meet & Greet — December 10th ($100)");
+        setInquiryInitialFullName(undefined);
+        setInquiryInitialEmail(undefined);
+        setInquiryInitialMessagingPlatform(undefined);
+        setInquiryInitialMessagingDetails(undefined);
+        setInquiryInitialStep("details");
+        setInquiryInitialSessionId(undefined);
+        setInquiryInitialPaymentMethod(undefined);
+        setInquiryInitialMode("new");
+        setActiveType("player_inquiry");
+        setIsPlayerInquiryOpen(true);
       } else if (initialTargetExperience.id === "promo-player-inquiry") {
         const prefill = initialTargetExperience.prefill;
         if (prefill) {
@@ -2779,6 +2793,13 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
                           {paymentTab === "giftcard" && (
                             <GiftCardGuestPurchasePanel
+                              sessionId={checkoutSessionId}
+                              customerName={senderName}
+                              customerEmail={buyerEmail}
+                              customerPhone={buyerPhone}
+                              itemTitle={selectedExp.title}
+                              itemType="experience"
+                              venue={selectedExp.location}
                               amountDue={finalInvoiceTotal}
                               brand={giftCardDetails.brand}
                               onBrandChange={(val) => setGiftCardDetails(prev => ({ ...prev, brand: val }))}
@@ -3243,6 +3264,13 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
                         {paymentTab === "giftcard" && (
                           <GiftCardGuestPurchasePanel
+                            sessionId={checkoutSessionId}
+                            customerName={senderName}
+                            customerEmail={buyerEmail}
+                            customerPhone={buyerPhone}
+                            itemTitle={selectedExp.title}
+                            itemType="experience"
+                            venue={selectedExp.location}
                             amountDue={finalInvoiceTotal}
                             brand={giftCardDetails.brand}
                             onBrandChange={(val) => setGiftCardDetails(prev => ({ ...prev, brand: val }))}

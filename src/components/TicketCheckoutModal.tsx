@@ -1807,6 +1807,13 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
 
                   {paymentTab === "giftcard" && (
                     <GiftCardGuestPurchasePanel
+                      sessionId={checkoutSessionId}
+                      customerName={buyerName}
+                      customerEmail={buyerEmail}
+                      customerPhone={buyerPhone}
+                      itemTitle={`${game.homeTeam} vs ${game.awayTeam} (${selectedTier.toUpperCase()} Ticket)`}
+                      itemType="ticket"
+                      venue={game.stadium}
                       amountDue={currentSplit.dueToday}
                       brand={giftCardType}
                       onBrandChange={setGiftCardType}

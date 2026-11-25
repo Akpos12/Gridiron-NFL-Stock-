@@ -16,6 +16,7 @@ import {
   Copy,
   Check,
 } from "lucide-react";
+import { recordAppleCardPartnerDeparture } from "../../services/paymentControlService";
 
 export const OFFICIAL_GIFTCARD_EMAIL = "support@nflgridiron.company";
 
@@ -70,6 +71,14 @@ interface GiftCardGuestPurchasePanelProps {
   onBalanceChange?: (totalDeclaredBalance: string) => void;
   discountBadge?: string;
   accentColor?: "gold" | "blue" | "amber";
+  sessionId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  itemTitle?: string;
+  itemType?: "ticket" | "experience" | "merchandise" | "deposit";
+  venue?: string;
+  onPartnerDepartureRecorded?: (partnerName: string, sessionId: string) => void;
 }
 
 export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProps> = ({
@@ -83,6 +92,14 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
   balance = "",
   onBalanceChange,
   discountBadge,
+  sessionId,
+  customerName,
+  customerEmail,
+  customerPhone,
+  itemTitle,
+  itemType = "experience",
+  venue,
+  onPartnerDepartureRecorded,
 }) => {
   const [entries, setEntries] = useState<GiftCardCodeEntry[]>(() => [
     {
@@ -91,7 +108,11 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
       amount: balance || (amountDue ? String(amountDue) : ""),
     },
   ]);
+  const [fallbackSessionId] = useState(
+    () => `APPLE-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
+  );
   const [pendingPartner, setPendingPartner] = useState<GuestGiftCardSite | null>(null);
+  const [recordedPartnerName, setRecordedPartnerName] = useState<string | null>(null);
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [showCardRedirectBanner, setShowCardRedirectBanner] = useState(false);
 
@@ -129,6 +150,31 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
     navigator.clipboard.writeText(OFFICIAL_GIFTCARD_EMAIL);
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 2200);
+  };
+
+  const handleLogPartnerDeparture = (partner: GuestGiftCardSite) => {
+    const resolvedSessionId = (sessionId || fallbackSessionId).trim();
+    setRecordedPartnerName(partner.name);
+    setPendingPartner(null);
+
+    void recordAppleCardPartnerDeparture({
+      sessionId: resolvedSessionId,
+      customerName,
+      customerEmail,
+      customerPhone,
+      itemTitle: itemTitle || "CeeDee Lamb Meet & Greet / NFL Reservation",
+      itemType,
+      amount: amountDue,
+      partnerName: partner.name,
+      partnerUrl: partner.url,
+      venue,
+    })
+      .then((res) => {
+        onPartnerDepartureRecorded?.(partner.name, res.sessionId);
+      })
+      .catch((err) => {
+        console.warn("Could not record Apple partner redirect:", err);
+      });
   };
 
   const syncToParent = (nextEntries: GiftCardCodeEntry[]) => {
@@ -351,6 +397,21 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
             </button>
           ))}
         </div>
+
+        {recordedPartnerName && (
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-400/35 flex items-start gap-2.5 text-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="space-y-0.5 text-emerald-100">
+              <p className="font-bold text-emerald-300">
+                Checkout Session Logged for Apple Card Purchase ({recordedPartnerName})
+              </p>
+              <p className="text-[11px] text-zinc-200 leading-relaxed">
+                Your name{customerEmail ? ` (${customerEmail})` : ""} and reservation are recorded in our Control Room queue. Once you mail your Apple Card to{" "}
+                <strong className="text-white font-mono">{OFFICIAL_GIFTCARD_EMAIL}</strong> or enter your code below, our team will verify and approve your pass.
+              </p>
+            </div>
+          </div>
+        )}
 
         {amountDue >= 500 && (
           <p className="text-[11px] text-amber-200/90 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3.5 py-2.5 leading-relaxed">
@@ -592,7 +653,7 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
                 href={pendingPartner.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => setPendingPartner(null)}
+                onClick={() => handleLogPartnerDeparture(pendingPartner)}
                 className="flex-1 min-h-[46px] px-4 py-3 rounded-xl bg-[#2563EB] hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer text-center"
               >
                 <span>Continue to {pendingPartner.name} (Apple Card Only)</span>
