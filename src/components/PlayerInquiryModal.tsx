@@ -46,6 +46,7 @@ import {
 } from "./common/StripeCardCheckoutPanel";
 import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingTerminal";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
+import { GiftCardGuestPurchasePanel } from "./common/GiftCardGuestPurchasePanel";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 import {
   findCustomerInquirySessions,
@@ -142,12 +143,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
   const [inquiryObjective, setInquiryObjective] = useState<string>(initialObjective || INQUIRY_OBJECTIVES[0]);
   const [specialNotes, setSpecialNotes] = useState(initialSpecialNotes || "");
 
-  // Payment State (Default to Express Bitcoin so guests don't hit an unconfigured card gateway)
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "cashapp" | "crypto" | "paypal" | "venmo" | "zelle" | "giftcard" | null>("crypto");
+  // Payment State (Stripe first, followed by Gift Card, Cash App, and Bitcoin)
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "giftcard" | "cashapp" | "crypto" | null>("card");
   const [paymentRef, setPaymentRef] = useState("");
   const [receiptImageUrl, setReceiptImageUrl] = useState("");
   const [receiptImageUrls, setReceiptImageUrls] = useState<string[]>([]);
-  const [giftCardDetails, setGiftCardDetails] = useState({ brand: "Apple", cardNumber: "", pin: "", amount: "100" });
+  const [giftCardDetails, setGiftCardDetails] = useState({ brand: "Apple Gift Card", cardNumber: "", pin: "", amount: "100" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -177,10 +178,10 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       if (cleaned) setFavoritePlayer(cleaned);
     }
     const pm = s.paymentMethod;
-    if (pm && ["cashapp", "crypto", "paypal", "venmo", "zelle", "giftcard"].includes(pm)) {
+    if (pm && ["card", "giftcard", "cashapp", "crypto"].includes(pm)) {
       setPaymentMethod(pm as any);
     } else {
-      setPaymentMethod("zelle");
+      setPaymentMethod("giftcard");
     }
     setResumedSessionBanner(s);
     setForceBrandNew(false);
@@ -227,9 +228,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     if (initialSessionId) {
       setCheckoutSessionId(initialSessionId);
       setPaymentMethod(
-        initialPaymentMethod && ["cashapp", "crypto", "paypal", "venmo", "zelle", "giftcard"].includes(initialPaymentMethod)
+        initialPaymentMethod && ["card", "giftcard", "cashapp", "crypto"].includes(initialPaymentMethod)
           ? (initialPaymentMethod as any)
-          : null
+          : "card"
       );
       setStep("payment");
       return;
@@ -237,7 +238,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
     const freshId = `INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     setCheckoutSessionId(freshId);
-    setPaymentMethod("crypto");
+    setPaymentMethod("card");
 
     const canStartOnPayment =
       initialStep === "payment" &&
@@ -381,7 +382,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       }
     }
 
-    setPaymentMethod("crypto");
+    setPaymentMethod("card");
     setStep("payment");
   };
 
@@ -1228,7 +1229,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
                   <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
                     <span className="text-[9px] font-mono font-black uppercase text-sky-400 block">Step 1 · Select Payment</span>
-                    <p className="text-zinc-300 mt-0.5 leading-snug">Pay securely via Hosted Card Checkout (Visa / Mastercard) or choose Zelle, Cash App, Venmo, PayPal, Crypto, or Gift Card.</p>
+                    <p className="text-zinc-300 mt-0.5 leading-snug">Pay securely via Stripe (Debit / Credit Card), buy &amp; redeem a Gift Card without signing in, or use Cash App or Bitcoin (5% off).</p>
                   </div>
                   <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
                     <span className="text-[9px] font-mono font-black uppercase text-sky-400 block">Step 2 · Verify Transaction</span>
@@ -1334,15 +1335,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   <span className="text-[9px] font-mono text-emerald-400">5% OFF WITH BITCOIN ($95)</span>
                 </label>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                   {[
-                    { id: "crypto", name: "Bitcoin (BTC / Crypto)", badge: "EXPRESS · 5% OFF ($95)", icon: ShieldCheck },
-                    { id: "giftcard", name: "Gift Card", badge: "EXPRESS · INSTANT", icon: Layers },
-                    { id: "cashapp", name: "Cash App", badge: "STANDARD QUEUE", icon: Smartphone },
-                    { id: "zelle", name: "Zelle", badge: "STANDARD QUEUE", icon: CheckCircle2 },
-                    { id: "paypal", name: "PayPal", badge: "STANDARD QUEUE", icon: DollarSign },
-                    { id: "venmo", name: "Venmo", badge: "STANDARD QUEUE", icon: Radio },
-                    { id: "card", name: "Debit / Credit Card", badge: "CARD GATEWAY", icon: CreditCard }
+                    { id: "card", name: "Stripe (Card)", badge: "DEBIT / CREDIT", icon: CreditCard },
+                    { id: "giftcard", name: "Gift Card", badge: "NO SIGN-IN BUY", icon: Layers },
+                    { id: "cashapp", name: "Cash App", badge: "DIRECT P2P", icon: Smartphone },
+                    { id: "crypto", name: "Bitcoin (BTC)", badge: "EXPRESS · 5% OFF", icon: ShieldCheck }
                   ].map(m => {
                     const isSelected = paymentMethod === m.id;
                     return (
@@ -1357,20 +1355,22 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                           setPaymentMethod(m.id as any);
                         }}
                         className={cn(
-                          "p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between",
+                          "p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between min-h-[72px]",
                           isSelected
                             ? "bg-zinc-900 border-blue-500 ring-1 ring-blue-500/30 text-white shadow-lg"
                             : "bg-zinc-900/40 border-white/5 hover:border-white/15 text-zinc-400"
                         )}
                       >
-                        <div className="flex items-center justify-between mb-1">
-                          <m.icon className={cn("w-4 h-4", isSelected ? "text-blue-400" : "text-zinc-400")} />
+                        <div className="flex items-center justify-between gap-1 mb-1.5">
+                          <m.icon className={cn("w-4 h-4 shrink-0", isSelected ? "text-blue-400" : "text-zinc-400")} />
                           <span className={cn(
-                            "text-[8px] font-mono font-bold px-1.5 py-0.2 rounded",
+                            "text-[8px] font-mono font-bold px-1.5 py-0.5 rounded truncate",
                             m.id === "crypto"
                               ? "bg-emerald-500/20 text-emerald-400"
                               : m.id === "giftcard"
                                 ? "bg-amber-500/20 text-amber-300"
+                                : m.id === "cashapp"
+                                ? "bg-emerald-500/15 text-emerald-300"
                                 : "bg-blue-500/15 text-blue-300"
                           )}>
                             {m.badge}
@@ -1407,7 +1407,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   customerPhone={phone || messagingDetails}
                   playerName={favoritePlayer}
                   isCharityEligible={true}
-                  onReturnToOptions={() => setPaymentMethod("crypto")}
+                  onReturnToOptions={() => setPaymentMethod("giftcard")}
                   onSwitchToBitcoin={() => setPaymentMethod("crypto")}
                   onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
                   onContactSupport={() => {
@@ -1559,69 +1559,36 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                     </div>
                   </div>
               ) : (
-                <div className="p-5 bg-zinc-900/80 rounded-3xl border border-white/10 space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-white/5">
-                    <span className="text-xs font-black uppercase text-amber-400">Prepaid / Digital Gift Card ($100)</span>
-                    <span className="text-[9px] font-mono text-emerald-400 uppercase font-bold">Instant Verification Queue</span>
-                  </div>
+                <div className="space-y-4">
+                  <GiftCardGuestPurchasePanel
+                    amountDue={100}
+                    brand={giftCardDetails.brand}
+                    onBrandChange={(brand) => setGiftCardDetails(prev => ({ ...prev, brand }))}
+                    cardNumber={giftCardDetails.cardNumber}
+                    onCardNumberChange={(cardNumber) => setGiftCardDetails(prev => ({ ...prev, cardNumber }))}
+                    pin={giftCardDetails.pin}
+                    onPinChange={(pin) => setGiftCardDetails(prev => ({ ...prev, pin }))}
+                    balance={giftCardDetails.amount}
+                    onBalanceChange={(amount) => setGiftCardDetails(prev => ({ ...prev, amount }))}
+                    discountBadge="Guest Checkout Enabled"
+                  />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Gift Card Brand</label>
-                      <select
-                        value={giftCardDetails.brand}
-                        onChange={(e) => setGiftCardDetails(prev => ({ ...prev, brand: e.target.value }))}
-                        className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-amber-500"
-                      >
-                        <option value="Apple">Apple Gift Card</option>
-                        <option value="Google Play">Google Play Gift Card</option>
-                        <option value="Amazon">Amazon Gift Card</option>
-                        <option value="Steam">Steam Wallet Card</option>
-                        <option value="Visa / Amex Prepaid">Visa / Amex Prepaid Card</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Card Face Value</label>
-                      <input
-                        type="text"
-                        disabled
-                        value="$100.00 USD"
-                        className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-emerald-400 font-bold"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">
-                        {giftCardDetails.brand} Gift Card Code / PIN <span className="text-rose-400">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder={`Enter your ${giftCardDetails.brand} Gift Card code or PIN`}
-                        value={giftCardDetails.cardNumber}
-                        onChange={(e) => setGiftCardDetails(prev => ({ ...prev, cardNumber: e.target.value }))}
-                        className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2 pt-1">
-                      <PaymentReceiptUploader
-                        required={false}
-                        value={receiptImageUrl}
-                        values={receiptImageUrls}
-                        onChange={(url) => {
-                          setReceiptImageUrl(url);
-                          if (!url) setReceiptImageUrls([]);
-                        }}
-                        onValuesChange={(urls) => {
-                          setReceiptImageUrls(urls);
-                          setReceiptImageUrl(urls[0] || "");
-                        }}
-                        label={`Upload ${giftCardDetails.brand} Gift Card Photo / Receipt (Optional for E-Gift Codes)`}
-                        subtitle="For physical cards, upload a clear photo of the card or receipt. For digital e-gift codes entered above, photo upload is optional."
-                      />
-                    </div>
+                  <div className="p-4 bg-zinc-900/80 rounded-3xl border border-white/10">
+                    <PaymentReceiptUploader
+                      required={false}
+                      value={receiptImageUrl}
+                      values={receiptImageUrls}
+                      onChange={(url) => {
+                        setReceiptImageUrl(url);
+                        if (!url) setReceiptImageUrls([]);
+                      }}
+                      onValuesChange={(urls) => {
+                        setReceiptImageUrls(urls);
+                        setReceiptImageUrl(urls[0] || "");
+                      }}
+                      label={`Upload ${giftCardDetails.brand} Receipt or Card Photo (Optional for Digital Codes)`}
+                      subtitle="For digital codes entered above, photo upload is optional. For physical cards, attach a photo of the card and receipt."
+                    />
                   </div>
                 </div>
               )}

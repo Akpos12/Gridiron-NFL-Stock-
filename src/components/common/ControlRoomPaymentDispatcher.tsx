@@ -1284,7 +1284,7 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
           {
             label: "Faster Option Available",
             subject: "Instant Payment Alternative",
-            body: `Hi ${guestName}, our ${methodUpper} vendor desk has high volume right now. For faster turnaround, you can switch to Crypto (5% off), Cash App, PayPal, or Instant Gift Card directly in your checkout window without losing your reservation.`
+            body: `Hi ${guestName}, our ${methodUpper} vendor desk has high volume right now. For faster turnaround, you can switch to Instant Gift Card, Cash App, or Bitcoin (5% off) directly in your checkout window without losing your reservation.`
           }
         ];
 

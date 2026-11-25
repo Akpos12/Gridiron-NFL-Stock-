@@ -52,6 +52,7 @@ import {
 } from "./common/StripeCardCheckoutPanel";
 import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingTerminal";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
+import { GiftCardGuestPurchasePanel } from "./common/GiftCardGuestPurchasePanel";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 
 const CEEDEE_HERO_BG = "/assets/aistudio/IMG_1832_f33e4b9e.jpeg";
@@ -144,14 +145,15 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
   );
   const [attendees, setAttendees] = useState<number>(1);
   const [paymentOption, setPaymentOption] = useState<PaymentOptionType>("full");
-  const [paymentChannel, setPaymentChannel] = useState<PaymentMethodType>("crypto");
+  const [paymentChannel, setPaymentChannel] = useState<PaymentMethodType>("card");
   const [paymentRef, setPaymentRef] = useState("");
   const [receiptImageUrl, setReceiptImageUrl] = useState("");
   const [receiptImageUrls, setReceiptImageUrls] = useState<string[]>([]);
   const [giftCardDetails, setGiftCardDetails] = useState({
-    brand: "Apple",
+    brand: "Apple Gift Card",
     cardNumber: "",
     pin: "",
+    balance: "",
   });
   const [matchedSessions, setMatchedSessions] = useState<PaymentSession[]>([]);
   const [resumedBanner, setResumedBanner] = useState<PaymentSession | null>(null);
@@ -245,7 +247,11 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
     if (s.customerName) setFullName(s.customerName);
     if (s.customerEmail) setEmail(s.customerEmail);
     if (s.customerPhone) setPhone(s.customerPhone);
-    if (s.paymentMethod) setPaymentChannel(s.paymentMethod);
+    if (s.paymentMethod && ["card", "giftcard", "cashapp", "crypto"].includes(s.paymentMethod)) {
+      setPaymentChannel(s.paymentMethod);
+    } else {
+      setPaymentChannel("card");
+    }
     setResumedBanner(s);
     setForceFreshSession(false);
     setFormError(null);
@@ -258,7 +264,7 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
     setResumedBanner(null);
     setMatchedSessions([]);
     setCheckoutSessionId(newCeeDeeSessionId());
-    setPaymentChannel("crypto");
+    setPaymentChannel("card");
     setPaymentRef("");
     setReceiptImageUrl("");
     setReceiptImageUrls([]);
@@ -1430,49 +1436,31 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                     {[
                       {
-                        id: "crypto",
-                        name: "Bitcoin (BTC)",
-                        badge: `EXPRESS · 5% OFF`,
-                        icon: ShieldCheck,
+                        id: "card",
+                        name: "Stripe (Card)",
+                        badge: "STEP 1 · DEBIT/CREDIT",
+                        icon: CreditCard,
                       },
                       {
                         id: "giftcard",
                         name: "Gift Card",
-                        badge: "EXPRESS · INSTANT",
+                        badge: "NO SIGN-IN PURCHASE",
                         icon: Layers,
                       },
                       {
                         id: "cashapp",
                         name: "Cash App",
-                        badge: "STANDARD QUEUE",
+                        badge: "DIRECT P2P",
                         icon: Smartphone,
                       },
                       {
-                        id: "zelle",
-                        name: "Zelle",
-                        badge: "STANDARD QUEUE",
-                        icon: CheckCircle2,
-                      },
-                      {
-                        id: "paypal",
-                        name: "PayPal",
-                        badge: "STANDARD QUEUE",
-                        icon: DollarSign,
-                      },
-                      {
-                        id: "venmo",
-                        name: "Venmo",
-                        badge: "STANDARD QUEUE",
-                        icon: Radio,
-                      },
-                      {
-                        id: "card",
-                        name: "Debit / Credit Card",
-                        badge: "CARD GATEWAY",
-                        icon: CreditCard,
+                        id: "crypto",
+                        name: "Bitcoin (BTC)",
+                        badge: "EXPRESS · 5% OFF",
+                        icon: ShieldCheck,
                       },
                     ].map((m) => {
                       const isSelected = paymentChannel === m.id;
@@ -1489,13 +1477,13 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
                             setPaymentChannel(m.id as PaymentMethodType);
                           }}
                           className={cn(
-                            "p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between min-h-[68px]",
+                            "p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between min-h-[72px]",
                             isSelected
                               ? "bg-[#041E42] border-[#D4AF37] ring-1 ring-[#D4AF37]/40 text-white shadow-lg"
                               : "bg-[#030816] border-white/10 hover:border-white/25 text-[#C4CDD5]"
                           )}
                         >
-                          <div className="flex items-center justify-between gap-1 mb-1">
+                          <div className="flex items-center justify-between gap-1 mb-1.5">
                             <Icon
                               className={cn(
                                 "w-4 h-4 shrink-0",
@@ -1509,7 +1497,9 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
                                   ? "bg-emerald-500/20 text-emerald-400"
                                   : m.id === "giftcard"
                                   ? "bg-amber-500/20 text-amber-300"
-                                  : "bg-blue-500/15 text-sky-300"
+                                  : m.id === "cashapp"
+                                  ? "bg-emerald-500/15 text-emerald-300"
+                                  : "bg-blue-500/20 text-sky-300"
                               )}
                             >
                               {m.badge}
@@ -1542,7 +1532,7 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
                     customerPhone={phone}
                     playerName="CeeDee Lamb"
                     isCharityEligible={false}
-                    onReturnToOptions={() => setPaymentChannel("crypto")}
+                    onReturnToOptions={() => setPaymentChannel("giftcard")}
                     onSwitchToBitcoin={() => setPaymentChannel("crypto")}
                     onSwitchToGiftCard={() => setPaymentChannel("giftcard")}
                     onContactSupport={() => {
@@ -1574,90 +1564,44 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
                     }}
                   />
                 ) : paymentChannel === "giftcard" ? (
-                  <div className="p-5 bg-[#030816] rounded-2xl border border-white/10 space-y-4">
-                    <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                      <span className="text-xs font-black uppercase text-[#F3D97D]">
-                        Prepaid / Digital Gift Card (${baseAmountDue.toLocaleString()})
-                      </span>
-                      <span className="text-[10px] font-mono text-emerald-400 uppercase font-bold">
-                        Instant Verification Queue
-                      </span>
-                    </div>
+                  <div className="space-y-4">
+                    <GiftCardGuestPurchasePanel
+                      amountDue={baseAmountDue}
+                      brand={giftCardDetails.brand}
+                      onBrandChange={(brand) =>
+                        setGiftCardDetails((prev) => ({ ...prev, brand }))
+                      }
+                      cardNumber={giftCardDetails.cardNumber}
+                      onCardNumberChange={(cardNumber) =>
+                        setGiftCardDetails((prev) => ({ ...prev, cardNumber }))
+                      }
+                      pin={giftCardDetails.pin}
+                      onPinChange={(pin) =>
+                        setGiftCardDetails((prev) => ({ ...prev, pin }))
+                      }
+                      balance={giftCardDetails.balance}
+                      onBalanceChange={(balance) =>
+                        setGiftCardDetails((prev) => ({ ...prev, balance }))
+                      }
+                      discountBadge="Guest Checkout Enabled"
+                    />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-zinc-400 block mb-1">
-                          Gift Card Brand
-                        </label>
-                        <select
-                          value={giftCardDetails.brand}
-                          onChange={(e) =>
-                            setGiftCardDetails((prev) => ({
-                              ...prev,
-                              brand: e.target.value,
-                            }))
-                          }
-                          className="w-full min-h-[44px] bg-[#071127] border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-[#D4AF37]"
-                        >
-                          <option value="Apple">Apple Gift Card</option>
-                          <option value="Google Play">Google Play Gift Card</option>
-                          <option value="Amazon">Amazon Gift Card</option>
-                          <option value="Steam">Steam Wallet Card</option>
-                          <option value="Visa / Amex Prepaid">
-                            Visa / Amex Prepaid Card
-                          </option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-zinc-400 block mb-1">
-                          Amount Due Today
-                        </label>
-                        <input
-                          type="text"
-                          disabled
-                          value={`$${baseAmountDue.toLocaleString()}.00 USD`}
-                          className="w-full min-h-[44px] bg-[#071127] border border-white/15 rounded-xl px-3 py-2 text-xs font-mono text-emerald-400 font-bold"
-                        />
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <label className="text-[10px] font-bold uppercase text-zinc-400 block mb-1">
-                          {giftCardDetails.brand} Gift Card Code / PIN{" "}
-                          <span className="text-rose-400">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder={`Enter your ${giftCardDetails.brand} Gift Card code or PIN`}
-                          value={giftCardDetails.cardNumber}
-                          onChange={(e) =>
-                            setGiftCardDetails((prev) => ({
-                              ...prev,
-                              cardNumber: e.target.value,
-                            }))
-                          }
-                          className="w-full min-h-[46px] bg-[#071127] border border-white/15 focus:border-[#D4AF37] rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none"
-                        />
-                      </div>
-
-                      <div className="sm:col-span-2 pt-1">
-                        <PaymentReceiptUploader
-                          required={false}
-                          value={receiptImageUrl}
-                          values={receiptImageUrls}
-                          onChange={(url) => {
-                            setReceiptImageUrl(url);
-                            if (!url) setReceiptImageUrls([]);
-                          }}
-                          onValuesChange={(urls) => {
-                            setReceiptImageUrls(urls);
-                            setReceiptImageUrl(urls[0] || "");
-                          }}
-                          label={`Upload ${giftCardDetails.brand} Gift Card Photo / Receipt (Optional for E-Gift Codes)`}
-                          subtitle="For physical cards, upload a clear photo of the card or receipt. For digital e-gift codes entered above, photo upload is optional."
-                        />
-                      </div>
+                    <div className="p-4 bg-[#030816] rounded-2xl border border-white/10">
+                      <PaymentReceiptUploader
+                        required={false}
+                        value={receiptImageUrl}
+                        values={receiptImageUrls}
+                        onChange={(url) => {
+                          setReceiptImageUrl(url);
+                          if (!url) setReceiptImageUrls([]);
+                        }}
+                        onValuesChange={(urls) => {
+                          setReceiptImageUrls(urls);
+                          setReceiptImageUrl(urls[0] || "");
+                        }}
+                        label={`Upload ${giftCardDetails.brand} Receipt or Card Photo (Optional for Digital Codes)`}
+                        subtitle="For e-gift codes entered above, photo upload is optional. For physical cards, attach a photo of the card or store receipt."
+                      />
                     </div>
                   </div>
                 ) : (

@@ -500,11 +500,11 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
   const selectedInquiryTeam = NFL_TEAMS.find((t) => t.id === inquiryTeamId) || NFL_TEAMS[0];
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar bg-[#03050C] text-zinc-100">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar bg-[#040711] text-zinc-100">
       {/* 0. MAIN HERO OFFER: $100 MEET-AND-GREET INVITATION */}
       <section
         id="custom-player-inquiry"
-        className="relative overflow-hidden border-b border-[#013369]/60 bg-[#050816]"
+        className="relative overflow-hidden border-b border-white/[0.08] bg-[#040711]"
       >
         {/* Atmospheric Deep Navy & Obsidian Backdrop */}
         <div className="absolute inset-0 z-0 pointer-events-none">
@@ -513,12 +513,12 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
             alt="Luxury hospitality stadium lounge overlooking illuminated field"
             className="w-full h-full object-cover object-center opacity-25"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#03050C]/92 via-[#050816]/90 to-[#03050C]" />
-          <div className="absolute -top-28 -left-24 w-[28rem] h-[24rem] bg-[#D50A0A]/12 blur-[130px] rounded-full" />
-          <div className="absolute -bottom-28 -right-24 w-[28rem] h-[24rem] bg-blue-600/20 blur-[130px] rounded-full" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#040711]/92 via-[#040711]/88 to-[#040711]" />
+          <div className="absolute -top-28 -left-24 w-[28rem] h-[24rem] bg-[#D50A0A]/10 blur-[130px] rounded-full" />
+          <div className="absolute -bottom-28 -right-24 w-[28rem] h-[24rem] bg-[#2563EB]/18 blur-[130px] rounded-full" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-8 sm:py-14 lg:py-16">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-10 sm:py-16 lg:py-20">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
             {/* Left Copy & Instant Player Picker */}
             <motion.div
@@ -583,7 +583,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
 
                   <a
                     href="#charitable-initiative"
-                    className="min-h-[54px] px-5 py-3.5 rounded-xl bg-[#08112B]/90 hover:bg-[#013369] border border-[#013369]/70 text-xs sm:text-sm font-bold text-sky-200 hover:text-white inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
+                    className="min-h-[54px] px-5 py-3.5 rounded-xl bg-[#080F22]/90 hover:bg-[#013369] border border-white/[0.1] text-xs sm:text-sm font-bold text-sky-200 hover:text-white inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
                   >
                     <HeartHandshake className="w-4 h-4 text-sky-400 shrink-0" />
                     <span>Includes $25 Youth Charity Allocation</span>
@@ -591,7 +591,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                 </div>
 
                 {/* Mandatory Availability & Fee-Split Transparency Note */}
-                <div className="p-3.5 rounded-xl bg-[#03050C]/90 border border-white/10 text-xs text-zinc-300 leading-relaxed space-y-1.5">
+                <div className="p-3.5 rounded-xl bg-[#080F22]/75 border border-white/[0.08] text-xs text-zinc-300 leading-relaxed space-y-1.5">
                   <p>
                     <strong className="text-sky-400">Invitation Availability Notice:</strong> Invitations are subject to player availability, confirmed events, and authorized arrangements. Once reviewed, a direct message will be sent to you with details for the next available invite.
                   </p>
@@ -622,8 +622,8 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                         }}
                         className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                           isSelected
-                            ? "bg-[#013369] border-blue-400 text-white shadow-lg shadow-blue-900/35"
-                            : "bg-[#08112B]/80 hover:bg-[#013369]/60 border-white/15 text-zinc-200"
+                            ? "bg-[#2563EB] border-blue-400 text-white shadow-lg shadow-blue-900/35"
+                            : "bg-[#080F22]/85 hover:bg-[#013369]/60 border-white/[0.08] text-zinc-200"
                         }`}
                       >
                         <span>{star.name}</span>
@@ -664,7 +664,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               transition={{ duration: 0.5, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
               className="lg:col-span-6"
             >
-              <div className="bg-[#08112B]/95 backdrop-blur-xl border border-[#013369]/70 rounded-3xl p-5 sm:p-7 shadow-[0_24px_60px_-15px_rgba(3,5,12,0.9)] space-y-4">
+              <div className="bg-[#080F22]/95 backdrop-blur-xl border border-white/[0.1] rounded-3xl p-5 sm:p-7 shadow-[0_24px_60px_-15px_rgba(3,5,12,0.9)] space-y-4">
                 {/* Form Header */}
                 <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
                   <div className="flex items-center gap-3 min-w-0">
@@ -1203,7 +1203,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
 
             {/* Stadium Showcase Headline */}
             <h2
-              className="font-display font-extrabold italic uppercase tracking-tight leading-[0.93] text-white mb-6"
+              className="font-display font-extrabold uppercase tracking-tight leading-[0.94] text-white mb-6"
               style={{ fontSize: "clamp(2.5rem, 5.8vw, 5.25rem)" }}
             >
               GET CLOSER TO THE GAME.
@@ -1223,7 +1223,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               <button
                 type="button"
                 onClick={onExploreExperiences}
-                className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 min-h-[52px] rounded-xl bg-gradient-to-r from-[#013369] via-[#1D4ED8] to-[#2563EB] hover:from-[#1D4ED8] hover:to-[#3B82F6] text-white border border-blue-400/25 font-extrabold text-sm sm:text-base tracking-wide shadow-[0_14px_40px_-10px_rgba(29,78,216,0.5)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer whitespace-nowrap"
+                className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 min-h-[52px] rounded-xl bg-[#2563EB] hover:bg-blue-500 text-white border border-blue-400/25 font-extrabold text-sm sm:text-base tracking-wide shadow-[0_14px_40px_-10px_rgba(37,99,235,0.45)] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer whitespace-nowrap"
               >
                 <span>EXPLORE EXPERIENCES</span>
                 <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
@@ -1232,7 +1232,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               <button
                 type="button"
                 onClick={onDiscoverGameDay}
-                className="group inline-flex items-center justify-center gap-3 px-8 py-4 min-h-[52px] rounded-xl bg-[#08112B]/90 hover:bg-[#013369] border border-[#013369]/70 hover:border-blue-400/60 backdrop-blur-md text-white font-bold text-sm sm:text-base tracking-wide shadow-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer whitespace-nowrap"
+                className="group inline-flex items-center justify-center gap-3 px-8 py-4 min-h-[52px] rounded-xl bg-[#080F22]/90 hover:bg-[#013369] border border-white/[0.1] hover:border-blue-400/50 backdrop-blur-md text-white font-bold text-sm sm:text-base tracking-wide shadow-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer whitespace-nowrap"
               >
                 <ShoppingBag className="w-4 h-4 text-sky-400" />
                 <span>VISIT THE ARENA SHOP</span>
@@ -1280,11 +1280,11 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               Curated Player Roster &amp; Stadium Lineup
             </p>
             <h2
-              className="font-display font-extrabold italic uppercase tracking-tight text-white leading-[0.98]"
+              className="font-display font-extrabold uppercase tracking-tight text-white leading-[0.98]"
               style={{ fontSize: "clamp(2rem, 4.4vw, 3.5rem)" }}
             >
               MEET THE STARS.{" "}
-              <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-white via-sky-200 to-blue-400 bg-clip-text text-transparent">
                 LIVE THE EXPERIENCE.
               </span>
             </h2>
@@ -1294,7 +1294,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
           </div>
 
           {/* Filter Tabs */}
-          <div className="inline-flex flex-wrap items-center gap-1.5 p-1.5 bg-[#080d22] border border-white/10 rounded-2xl self-start">
+          <div className="inline-flex flex-wrap items-center gap-1.5 p-1.5 bg-[#080F22] border border-white/[0.08] rounded-2xl self-start">
             {[
               { id: "all", label: "Featured Stars" },
               { id: "meet_greet", label: "Meet & Greets" },
@@ -1307,7 +1307,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                 onClick={() => setShowcaseFilter(tab.id as any)}
                 className={`px-4 py-2 min-h-[40px] rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   showcaseFilter === tab.id
-                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
+                    ? "bg-[#2563EB] text-white shadow-md shadow-blue-600/25"
                     : "text-zinc-400 hover:text-white"
                 }`}
               >
@@ -1327,7 +1327,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               viewport={{ once: true }}
               transition={{ delay: idx * 0.05, duration: 0.45 }}
               onClick={() => handleCardClick(card)}
-              className="group relative bg-[#080c1c] border border-white/10 hover:border-indigo-500/50 rounded-3xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-2xl"
+              className="group relative bg-[#080F22] border border-white/[0.08] hover:border-blue-400/50 rounded-3xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-2xl"
             >
               {/* Photo / Video Container */}
               <div className="relative aspect-[16/10] overflow-hidden bg-zinc-950">
@@ -1356,7 +1356,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                     className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
                   />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#080c1c] via-[#080c1c]/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#080F22] via-[#080F22]/20 to-transparent" />
 
                 {/* Top-Right Team Shield Crest */}
                 <div className="absolute top-3.5 right-3.5 w-10 h-10 rounded-xl bg-zinc-950/85 backdrop-blur-md border border-white/15 p-1.5 flex items-center justify-center">
@@ -1383,7 +1383,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <span
                       className={`font-semibold ${
-                        card.isConfirmedSchedule ? "text-emerald-400" : "text-purple-300"
+                        card.isConfirmedSchedule ? "text-emerald-400" : "text-sky-300"
                       }`}
                     >
                       {card.availabilityLabel}
@@ -1633,17 +1633,17 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
 
       {/* 3. ARENA SHOP & GAME DAY ACCESS SHOWCASE */}
       <section className="py-14 sm:py-20 px-5 sm:px-8 max-w-7xl mx-auto">
-        <div className="rounded-[2.25rem] bg-[#080c1c] border border-white/10 p-7 sm:p-12 relative overflow-hidden">
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-purple-600/15 blur-[120px] rounded-full pointer-events-none" />
-          <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-blue-600/15 blur-[120px] rounded-full pointer-events-none" />
+        <div className="rounded-[2.25rem] bg-[#080F22] border border-white/[0.08] p-7 sm:p-12 relative overflow-hidden">
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-600/12 blur-[120px] rounded-full pointer-events-none" />
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-[#013369]/25 blur-[120px] rounded-full pointer-events-none" />
 
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-7 space-y-6">
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-purple-400">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-400">
                 The Arena Shop · Authentic Gear &amp; Tickets
               </p>
               <h2
-                className="font-display font-extrabold italic uppercase tracking-tight text-white leading-[0.98]"
+                className="font-display font-extrabold uppercase tracking-tight text-white leading-[0.98]"
                 style={{ fontSize: "clamp(2rem, 4vw, 3.25rem)" }}
               >
                 JERSEYS, SIGNED MEMORABILIA &amp; GAME-DAY SEATS.
@@ -1658,7 +1658,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                   <span>Match Tickets &amp; Lower-Bowl Seats</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Trophy className="w-5 h-5 text-purple-400 shrink-0" />
+                  <Trophy className="w-5 h-5 text-[#D4AF37] shrink-0" />
                   <span>Full-Season Hospitality Passes</span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -1666,7 +1666,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                   <span>Jerseys, Helmets &amp; Collectibles</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <ShieldCheck className="w-5 h-5 text-purple-400 shrink-0" />
+                  <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
                   <span>Beckett &amp; Hologram COA Verified</span>
                 </div>
               </div>
@@ -1675,7 +1675,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                 <button
                   type="button"
                   onClick={onDiscoverGameDay}
-                  className="px-8 py-4 min-h-[48px] rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all shadow-xl shadow-indigo-600/25 cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap"
+                  className="px-8 py-4 min-h-[48px] rounded-2xl bg-[#2563EB] hover:bg-blue-500 text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all shadow-xl shadow-blue-600/25 cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                   <span>VISIT THE ARENA SHOP</span>
                   <ArrowRight className="w-4 h-4" />
@@ -1735,7 +1735,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-14">
-            <div className="p-6 rounded-2xl bg-[#090e24] border border-white/10 space-y-3">
+            <div className="p-6 rounded-2xl bg-[#080F22] border border-white/[0.08] space-y-3">
               <Calendar className="w-6 h-6 text-emerald-400" />
               <h3 className="text-base font-bold text-white">Confirmed Scheduled Events</h3>
               <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
@@ -1743,15 +1743,15 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-[#090e24] border border-white/10 space-y-3">
-              <Clock className="w-6 h-6 text-purple-400" />
+            <div className="p-6 rounded-2xl bg-[#080F22] border border-white/[0.08] space-y-3">
+              <Clock className="w-6 h-6 text-sky-400" />
               <h3 className="text-base font-bold text-white">Player-Coordinated Encounters</h3>
               <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
                 1-on-1 VIP player encounters depend on athlete availability and are finalized directly with our liaison team.
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-[#090e24] border border-white/10 space-y-3">
+            <div className="p-6 rounded-2xl bg-[#080F22] border border-white/[0.08] space-y-3">
               <ShieldCheck className="w-6 h-6 text-sky-400" />
               <h3 className="text-base font-bold text-white">Transparent Pricing &amp; Passes</h3>
               <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
@@ -1759,7 +1759,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-[#090e24] border border-white/10 space-y-3">
+            <div className="p-6 rounded-2xl bg-[#080F22] border border-white/[0.08] space-y-3">
               <Headphones className="w-6 h-6 text-blue-400" />
               <h3 className="text-base font-bold text-white">Dedicated Fan Concierge</h3>
               <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
@@ -1780,11 +1780,11 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
       </section>
 
       {/* 6. FINAL CONVERSION FOOTER CTA */}
-      <section className="relative py-16 sm:py-24 px-5 sm:px-8 text-center overflow-hidden bg-[#03050C]">
-        <div className="absolute inset-0 bg-gradient-to-t from-[#08112B]/50 via-transparent to-transparent pointer-events-none" />
+      <section className="relative py-16 sm:py-24 px-5 sm:px-8 text-center overflow-hidden bg-[#03050B]">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#080F22]/55 via-transparent to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-2xl mx-auto space-y-6">
           <h2
-            className="font-display font-extrabold italic uppercase tracking-tight text-white leading-[0.95]"
+            className="font-display font-extrabold uppercase tracking-tight text-white leading-[0.95]"
             style={{ fontSize: "clamp(2.2rem, 4.8vw, 4rem)" }}
           >
             MAKE THIS SEASON{" "}

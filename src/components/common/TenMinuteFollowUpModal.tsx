@@ -128,7 +128,7 @@ export const TenMinuteFollowUpModal: React.FC<TenMinuteFollowUpModalProps> = ({
                   <strong className="text-white">{formattedAmount}</strong> booking—during peak game-week volume, assigning a dedicated vendor can take a little longer than our usual 3-minute window.
                 </p>
                 <p>
-                  You are completely welcome to keep waiting for <strong className="text-white">{methodLabel}</strong> credentials at no obligation. However, if you prefer not to wait and would like an instant option to lock in your request right away, you can switch directly to <strong className="text-sky-300">Bitcoin</strong> or an <strong className="text-amber-300">Apple Gift Card</strong> below.
+                  You are completely welcome to keep waiting for <strong className="text-white">{methodLabel}</strong> credentials at no obligation. However, if you prefer not to wait and would like an instant option to lock in your request right away, you can switch directly to a <strong className="text-amber-300">Gift Card (buy online without signing in)</strong> or <strong className="text-sky-300">Bitcoin</strong> below.
                 </p>
                 <p className="text-zinc-300 text-xs">
                   Pick whichever option feels most comfortable for you, or send us a note directly in the concierge box anytime.
@@ -166,7 +166,7 @@ export const TenMinuteFollowUpModal: React.FC<TenMinuteFollowUpModalProps> = ({
                       ) : (
                         <Gift className="w-4 h-4 shrink-0" />
                       )}
-                      <span>Use Apple Gift Card</span>
+                      <span>Use Gift Card</span>
                     </button>
                   )}
                 </div>

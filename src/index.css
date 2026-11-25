@@ -7,9 +7,9 @@
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-navy-deep: #050816;
-  --color-navy-elevated: #08112B;
-  --color-obsidian: #03050C;
+  --color-navy-deep: #040711;
+  --color-navy-elevated: #080F22;
+  --color-obsidian: #03050B;
   --color-nfl-navy: #013369;
   --color-nfl-red: #D50A0A;
   --color-nfl-blue: #2563EB;
@@ -19,11 +19,11 @@
   html {
     scroll-behavior: smooth;
     overflow-x: hidden;
-    background-color: #050816;
+    background-color: #040711;
   }
 
   body {
-    @apply bg-[#050816] text-zinc-100 font-sans selection:bg-[#013369]/60 selection:text-white antialiased overflow-x-hidden;
+    @apply bg-[#040711] text-zinc-100 font-sans selection:bg-[#2563EB]/40 selection:text-white antialiased overflow-x-hidden;
   }
 }
 
@@ -43,17 +43,17 @@
 }
 
 .market-gradient {
-  background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.16), transparent 52%),
-              radial-gradient(circle at bottom left, rgba(213, 10, 10, 0.12), transparent 55%),
-              linear-gradient(180deg, #050816 0%, #03050C 100%);
+  background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.14), transparent 52%),
+              radial-gradient(circle at bottom left, rgba(213, 10, 10, 0.09), transparent 55%),
+              linear-gradient(180deg, #040711 0%, #03050B 100%);
 }
 
 .nfl-shimmer-border {
-  border-color: rgba(1, 51, 105, 0.55);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .glass-card {
-  @apply bg-[#08112B]/80 border border-white/10 backdrop-blur-md;
+  @apply bg-[#080F22]/85 border border-white/[0.08] backdrop-blur-xl;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -66,12 +66,12 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.25);
+  background: rgba(59, 130, 246, 0.28);
   border-radius: 9999px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.45);
+  background: rgba(59, 130, 246, 0.48);
 }
 
 .no-scrollbar::-webkit-scrollbar {

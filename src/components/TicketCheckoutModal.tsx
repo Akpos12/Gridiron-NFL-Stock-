@@ -37,11 +37,14 @@ import {
   ListFilter,
   Shield,
   Plus,
-  Minus
+  Minus,
+  Bitcoin
 } from "lucide-react";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db, auth, safeSetDoc } from "../lib/firebase";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
+import { StripeCardCheckoutPanel, VerifiedStripePaymentReceipt } from "./common/StripeCardCheckoutPanel";
+import { GiftCardGuestPurchasePanel } from "./common/GiftCardGuestPurchasePanel";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 import { QRCodeSVG } from "qrcode.react";
 import { SEAHAWKS_PATRIOTS_SEATS, SeatListing, SEAHAWKS_PATRIOTS_IMAGES } from "../data/seahawksPatriotsSeats";
@@ -87,33 +90,9 @@ interface TicketCheckoutModalProps {
 }
 
 export const OFFICIAL_PAYMENT_CHANNELS = {
-  bank: {
-    bankName: "",
-    accountName: "",
-    accountNumber: "",
-    routingNumber: "",
-    notes: "Dynamic settlement via Control Room"
-  },
   cashapp: {
     tag: "",
     display: "",
-    discountPercent: 5
-  },
-  paypal: {
-    email: "",
-    name: "",
-    display: "",
-    mode: "FRIENDS & FAMILY",
-    discountPercent: 5
-  },
-  venmo: {
-    handle: "",
-    display: "",
-    discountPercent: 5
-  },
-  zelle: {
-    email: "",
-    name: "",
     discountPercent: 5
   },
   crypto: {
@@ -154,9 +133,10 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   const [selectedTier, setSelectedTier] = useState<"general" | "lower_bowl" | "club" | "vip" | "season_pass" | "sideline_pass">(initialTier);
   const [quantity, setQuantity] = useState(1);
   const [sidelinePassCount, setSidelinePassCount] = useState<number>(0);
-  const [paymentTab, setPaymentTab] = useState<"cashapp" | "paypal" | "venmo" | "zelle" | "crypto" | "giftcard">("cashapp");
-  const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
+  const [paymentTab, setPaymentTab] = useState<"card" | "giftcard" | "cashapp" | "crypto">("card");
+  const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("btc");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Gift Card Payment State
   const [giftCardType, setGiftCardType] = useState<string>("Apple Gift Card");
@@ -314,8 +294,8 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
   const facilityFee = isPatriotsGame ? 0 : Math.round(subtotal * 0.05);
   const baseGrossTotal = subtotal + facilityFee;
 
-  // Instant 5% Direct-Pay Discount for Cash App, PayPal, Venmo, and Zelle (disabled for Patriots game)
-  const isDirectPayDiscount = isPatriotsGame ? false : ["cashapp", "paypal", "venmo", "zelle"].includes(paymentTab);
+  // Instant 5% Direct-Pay Discount for Gift Card, Cash App, and Bitcoin (disabled for Patriots game)
+  const isDirectPayDiscount = isPatriotsGame ? false : ["giftcard", "cashapp", "crypto"].includes(paymentTab);
   const directPayDiscountPercent = isDirectPayDiscount ? 5 : 0;
   const directPaySavings = isDirectPayDiscount ? Math.round(baseGrossTotal * 0.05) : 0;
   const totalAmount = baseGrossTotal - directPaySavings;
@@ -382,139 +362,178 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
     setTimeout(() => setGroupLinkCopied(false), 2500);
   };
 
+  const validateBuyerFields = () => {
+    if (!buyerName.trim() || !buyerEmail.trim() || !buyerEmail.includes("@")) {
+      setFormError("Please provide your full name and a valid contact email for pass delivery.");
+      return false;
+    }
+    setFormError(null);
+    return true;
+  };
+
+  const persistTicketOrderRecord = async (
+    channel: "card" | "giftcard" | "cashapp" | "crypto",
+    referenceTag: string,
+    receiptList: string[],
+    isVerifiedCard = false
+  ) => {
+    const orderId = `${selectedTier === "season_pass" ? "PASS" : "TKT"}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+    const ticketOrderData = {
+      orderId,
+      gameId: game.id,
+      gameName: passName || game.name,
+      homeTeam: game.homeTeam,
+      awayTeam: game.awayTeam,
+      stadium: game.stadium,
+      city: game.city,
+      date: game.date,
+      time: game.time,
+      tier: selectedTier,
+      quantity,
+      originalPricePerTicket,
+      pricePerTicket: currentPricePerTicket,
+      sidelinePassCount: isPatriotsGame ? sidelinePassCount : 0,
+      sidelinePassUnitPrice: isPatriotsGame && sidelinePassCount > 0 ? SIDELINE_PASS_PRICE : 0,
+      sidelinePassTotal: isPatriotsGame ? sidelinePassTotal : 0,
+      ticketSubtotal,
+      originalTotal: originalSubtotal + Math.round(originalSubtotal * 0.05),
+      totalAmount,
+      dueToday: currentSplit.dueToday,
+      splitMode,
+      groupSplitCount: splitMode === "group" ? groupSplitCount : 1,
+      installmentsSummary: currentSplit.scheduleText,
+      promoCodeApplied: isPatriotsGame ? null : appliedPromo,
+      totalSavings: isPatriotsGame ? 0 : totalSavings,
+      paymentMethod: channel,
+      paymentSessionId: checkoutSessionId,
+      selectedCrypto: channel === "crypto" ? selectedCrypto : null,
+      giftCardDetails: channel === "giftcard" ? {
+        brand: giftCardType,
+        code: giftCardCode,
+        pin: giftCardPin,
+        balance: giftCardBalance
+      } : null,
+      buyerName,
+      buyerEmail,
+      buyerPhone,
+      paymentReference: referenceTag,
+      receiptImage: receiptList[0] || "",
+      receiptImageUrl: receiptList[0] || "",
+      receiptImages: receiptList,
+      seatDetails: isPatriotsGame && selectedSeat
+        ? `${selectedSeat.section} • ${selectedSeat.row} (${selectedSeat.offerType})`
+        : null,
+      seatSection: isPatriotsGame && selectedSeat ? selectedSeat.section : null,
+      seatRow: isPatriotsGame && selectedSeat ? selectedSeat.row : null,
+      seatOfferType: isPatriotsGame && selectedSeat ? selectedSeat.offerType : null,
+      status: isVerifiedCard ? "approved" : "pending",
+      isApproved: isVerifiedCard,
+      createdAt: new Date().toISOString(),
+      userId: auth.currentUser?.uid || "guest",
+      userEmail: auth.currentUser?.email || buyerEmail
+    };
+
+    await safeSetDoc(doc(db, "ticket_orders", orderId), ticketOrderData);
+
+    const sidelinePassDesc = isPatriotsGame && sidelinePassCount > 0
+      ? ` + ${sidelinePassCount}x Sideline Pass ($${sidelinePassTotal.toLocaleString()})`
+      : "";
+
+    await safeSetDoc(doc(db, "bookings", orderId), {
+      id: orderId,
+      userId: auth.currentUser?.uid || "guest",
+      userEmail: buyerEmail,
+      senderName: buyerName,
+      buyerName,
+      buyerPhone,
+      experienceId: game.id,
+      experienceTitle: isPatriotsGame && selectedSeat
+        ? `${passName || game.name} · ${selectedSeat.section} ${selectedSeat.row} (${quantity}x)${sidelinePassDesc}${appliedPromo && !isPatriotsGame ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`
+        : `${passName || game.name} · ${selectedTier.toUpperCase().replace("_", " ")} (${quantity}x)${sidelinePassDesc}${appliedPromo && !isPatriotsGame ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`,
+      experienceType: selectedTier === "season_pass" ? "season_pass" : "match_ticket",
+      date: game.date,
+      timeSlot: game.time,
+      guestsCount: quantity,
+      sidelinePassCount: isPatriotsGame ? sidelinePassCount : 0,
+      sidelinePassTotal: isPatriotsGame ? sidelinePassTotal : 0,
+      totalPrice: totalAmount,
+      dueToday: currentSplit.dueToday,
+      tier: selectedTier,
+      seatDetails: isPatriotsGame && selectedSeat
+        ? `${selectedSeat.section} • ${selectedSeat.row} (${selectedSeat.offerType})`
+        : null,
+      status: isVerifiedCard ? "approved" : "pending",
+      isApproved: isVerifiedCard,
+      paymentMethod: channel,
+      paymentSessionId: checkoutSessionId,
+      paymentRef: referenceTag,
+      receiptImage: receiptList[0] || "",
+      receiptImageUrl: receiptList[0] || "",
+      receiptImages: receiptList,
+      qrCode: `NFL-${selectedTier === "season_pass" ? "SEASON-PASS" : "MATCH"}-${orderId}`,
+      createdAt: new Date().toISOString(),
+      imageUrl: game.image
+    });
+
+    try {
+      const recent: string[] = JSON.parse(localStorage.getItem("recent_ticket_orders") || "[]");
+      if (!recent.includes(orderId)) {
+        recent.unshift(orderId);
+        localStorage.setItem("recent_ticket_orders", JSON.stringify(recent.slice(0, 10)));
+      }
+      localStorage.setItem("user_email", buyerEmail);
+    } catch {
+      // Safe fallback
+    }
+
+    setConfirmedTicket(ticketOrderData);
+    if (onSuccess) onSuccess();
+  };
+
+  const handleStripeVerifiedSuccess = async (receipt: VerifiedStripePaymentReceipt) => {
+    try {
+      await persistTicketOrderRecord(
+        "card",
+        receipt.paymentIntent || receipt.sessionId,
+        [],
+        true
+      );
+    } catch (err) {
+      console.error("Stripe ticket persistence error:", err);
+      setConfirmedTicket({
+        orderId: `${selectedTier === "season_pass" ? "PASS" : "TKT"}-${Date.now().toString(36).toUpperCase()}`,
+        gameName: passName || game.name,
+        tier: selectedTier,
+        quantity,
+        totalAmount,
+        dueToday: currentSplit.dueToday,
+        splitMode,
+        buyerEmail
+      });
+    }
+  };
+
   const handleCompleteOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!buyerName.trim() || !buyerEmail.trim()) {
-      alert("Please provide your name and contact email for pass delivery.");
+    if (paymentTab === "card") return;
+    if (!validateBuyerFields()) return;
+
+    if (paymentTab === "giftcard" && giftCardCode.trim().length < 4 && paymentReceiptUrls.length === 0 && !paymentReceiptUrl) {
+      setFormError("Please enter your gift card claim code(s) or upload a photo of the gift card.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const orderId = `${selectedTier === "season_pass" ? "PASS" : "TKT"}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-      const ticketOrderData = {
-        orderId,
-        gameId: game.id,
-        gameName: passName || game.name,
-        homeTeam: game.homeTeam,
-        awayTeam: game.awayTeam,
-        stadium: game.stadium,
-        city: game.city,
-        date: game.date,
-        time: game.time,
-        tier: selectedTier,
-        quantity,
-        originalPricePerTicket,
-        pricePerTicket: currentPricePerTicket,
-        sidelinePassCount: isPatriotsGame ? sidelinePassCount : 0,
-        sidelinePassUnitPrice: isPatriotsGame && sidelinePassCount > 0 ? SIDELINE_PASS_PRICE : 0,
-        sidelinePassTotal: isPatriotsGame ? sidelinePassTotal : 0,
-        ticketSubtotal,
-        originalTotal: originalSubtotal + Math.round(originalSubtotal * 0.05),
-        totalAmount,
-        dueToday: currentSplit.dueToday,
-        splitMode,
-        groupSplitCount: splitMode === "group" ? groupSplitCount : 1,
-        installmentsSummary: currentSplit.scheduleText,
-        promoCodeApplied: isPatriotsGame ? null : appliedPromo,
-        totalSavings: isPatriotsGame ? 0 : totalSavings,
-        paymentMethod: paymentTab,
-        paymentSessionId: checkoutSessionId,
-        selectedCrypto: paymentTab === "crypto" ? selectedCrypto : null,
-        giftCardDetails: paymentTab === "giftcard" ? {
-          brand: giftCardType,
-          code: giftCardCode,
-          pin: giftCardPin,
-          balance: giftCardBalance
-        } : null,
-        buyerName,
-        buyerEmail,
-        buyerPhone,
-        paymentReference: paymentRef || (
-          paymentTab === "giftcard"
-            ? `Gift Card: ${giftCardType} (${giftCardCode ? giftCardCode.slice(0, 4) + "****" : "Photo Attached"})`
-            : (splitMode !== "full" ? `Split Payment (1 of ${currentSplit.installmentsCount})` : "Direct Verified Transfer")
-        ),
-        receiptImage: paymentReceiptUrls[0] || paymentReceiptUrl || "",
-        receiptImageUrl: paymentReceiptUrls[0] || paymentReceiptUrl || "",
-        receiptImages: paymentReceiptUrls.length > 0 ? paymentReceiptUrls : (paymentReceiptUrl ? [paymentReceiptUrl] : []),
-        seatDetails: isPatriotsGame && selectedSeat 
-          ? `${selectedSeat.section} • ${selectedSeat.row} (${selectedSeat.offerType})` 
-          : null,
-        seatSection: isPatriotsGame && selectedSeat ? selectedSeat.section : null,
-        seatRow: isPatriotsGame && selectedSeat ? selectedSeat.row : null,
-        seatOfferType: isPatriotsGame && selectedSeat ? selectedSeat.offerType : null,
-        status: "pending",
-        isApproved: false,
-        createdAt: new Date().toISOString(),
-        userId: auth.currentUser?.uid || "guest",
-        userEmail: auth.currentUser?.email || buyerEmail
-      };
-
-      // Save to Firestore ticket_orders using safeSetDoc (guards against Firestore 1MB document limit)
-      await safeSetDoc(doc(db, "ticket_orders", orderId), ticketOrderData);
-      
-      const sidelinePassDesc = isPatriotsGame && sidelinePassCount > 0
-        ? ` + ${sidelinePassCount}x Sideline Pass ($${sidelinePassTotal.toLocaleString()})`
-        : "";
-
-      // Also write to bookings so it's queryable in portfolio and Control Room
-      await safeSetDoc(doc(db, "bookings", orderId), {
-        id: orderId,
-        userId: auth.currentUser?.uid || "guest",
-        userEmail: buyerEmail,
-        senderName: buyerName,
-        buyerName: buyerName,
-        buyerPhone: buyerPhone,
-        experienceId: game.id,
-        experienceTitle: isPatriotsGame && selectedSeat
-          ? `${passName || game.name} · ${selectedSeat.section} ${selectedSeat.row} (${quantity}x)${sidelinePassDesc}${appliedPromo && !isPatriotsGame ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`
-          : `${passName || game.name} · ${selectedTier.toUpperCase().replace("_", " ")} (${quantity}x)${sidelinePassDesc}${appliedPromo && !isPatriotsGame ? " [VIP PROMO APPLIED]" : ""}${splitMode !== "full" ? ` [${splitMode.toUpperCase()}]` : ""}`,
-        experienceType: selectedTier === "season_pass" ? "season_pass" : "match_ticket",
-        date: game.date,
-        timeSlot: game.time,
-        guestsCount: quantity,
-        sidelinePassCount: isPatriotsGame ? sidelinePassCount : 0,
-        sidelinePassTotal: isPatriotsGame ? sidelinePassTotal : 0,
-        totalPrice: totalAmount,
-        dueToday: currentSplit.dueToday,
-        tier: selectedTier,
-        seatDetails: isPatriotsGame && selectedSeat 
-          ? `${selectedSeat.section} • ${selectedSeat.row} (${selectedSeat.offerType})` 
-          : null,
-        status: "pending",
-        paymentMethod: paymentTab,
-        paymentSessionId: checkoutSessionId,
-        paymentRef: paymentRef || (
-          paymentTab === "giftcard"
-            ? `Gift Card: ${giftCardType}`
-            : "Direct Transfer"
-        ),
-        receiptImage: paymentReceiptUrls[0] || paymentReceiptUrl || "",
-        receiptImageUrl: paymentReceiptUrls[0] || paymentReceiptUrl || "",
-        receiptImages: paymentReceiptUrls.length > 0 ? paymentReceiptUrls : (paymentReceiptUrl ? [paymentReceiptUrl] : []),
-        qrCode: `NFL-${selectedTier === "season_pass" ? "SEASON-PASS" : "MATCH"}-${orderId}`,
-        createdAt: new Date().toISOString(),
-        imageUrl: game.image
-      });
-
-      // Save order to localStorage for instant lookup in TicketCheckModal
-      try {
-        const recent: string[] = JSON.parse(localStorage.getItem("recent_ticket_orders") || "[]");
-        if (!recent.includes(orderId)) {
-          recent.unshift(orderId);
-          localStorage.setItem("recent_ticket_orders", JSON.stringify(recent.slice(0, 10)));
-        }
-        localStorage.setItem("user_email", buyerEmail);
-      } catch (e) {
-        // Safe fallback
-      }
-
-      setConfirmedTicket(ticketOrderData);
-      if (onSuccess) onSuccess();
+      const activeReceipts = paymentReceiptUrls.length > 0 ? paymentReceiptUrls : (paymentReceiptUrl ? [paymentReceiptUrl] : []);
+      const resolvedRef = paymentRef || (
+        paymentTab === "giftcard"
+          ? `Gift Card: ${giftCardType} (${giftCardCode ? giftCardCode.slice(0, 6) + "****" : "Photo Attached"})`
+          : (splitMode !== "full" ? `Split Payment (1 of ${currentSplit.installmentsCount})` : "Direct Verified Transfer")
+      );
+      await persistTicketOrderRecord(paymentTab, resolvedRef, activeReceipts, false);
     } catch (err: any) {
       console.error("Ticket/Pass purchase dispatch error:", err);
-      alert("Order logged! Support concierge will deliver your electronic RFID passes.");
       setConfirmedTicket({
         orderId: `${selectedTier === "season_pass" ? "PASS" : "TKT"}-${Date.now().toString(36).toUpperCase()}`,
         gameName: passName || game.name,
@@ -1614,7 +1633,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     <span className="block text-[8px] font-black uppercase text-zinc-500 mb-1">PAYMENT REF / TRANSACTION ID / CASHTAG</span>
                     <input
                       type="text"
-                      placeholder="e.g. Cashtag / PayPal ref / Tx hash"
+                      placeholder="e.g. $Cashtag, Gift Card code, or BTC Tx hash"
                       value={paymentRef}
                       onChange={(e) => setPaymentRef(e.target.value)}
                       className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono font-bold text-white focus:outline-none focus:border-blue-500 uppercase"
@@ -1651,7 +1670,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                           </span>
                         </div>
                         <p className="text-[11px] text-zinc-300 font-medium mt-0.5">
-                          Pay via <strong className="text-white">Cash App, PayPal, Venmo, or Zelle</strong> to instantly receive 5% off at checkout.
+                          Pay via <strong className="text-white">Gift Card, Cash App, or Bitcoin</strong> to instantly receive 5% off at checkout.
                         </p>
                       </div>
                     </div>
@@ -1662,38 +1681,41 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     ) : (
                       <button
                         type="button"
-                        onClick={() => setPaymentTab("cashapp")}
+                        onClick={() => setPaymentTab("giftcard")}
                         className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-wider rounded-xl self-start sm:self-auto transition-all cursor-pointer flex items-center gap-1 font-mono font-bold"
                       >
-                        Select & Save 5%
+                        Select &amp; Save 5%
                       </button>
                     )}
                   </div>
                 )}
 
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
+                    { id: "card", label: "STRIPE (CARD)", discount: "", icon: CreditCard, color: "text-sky-400" },
+                    { id: "giftcard", label: "GIFT CARD", discount: "SAVE 5%", icon: Gift, color: "text-amber-400" },
                     { id: "cashapp", label: "CASH APP", discount: "SAVE 5%", icon: Smartphone, color: "text-emerald-400" },
-                    { id: "paypal", label: "PAYPAL", discount: "SAVE 5%", icon: CreditCard, color: "text-blue-400" },
-                    { id: "venmo", label: "VENMO", discount: "SAVE 5%", icon: Smartphone, color: "text-sky-400" },
-                    { id: "zelle", label: "ZELLE", discount: "SAVE 5%", icon: Smartphone, color: "text-purple-400" },
-                    { id: "crypto", label: "CRYPTO (BTC/ETH/USDT)", discount: "SAVE 5%", icon: QrCode, color: "text-amber-400" },
-                    { id: "giftcard", label: "GIFT CARDS", discount: "SAVE 5%", icon: Gift, color: "text-amber-400" }
+                    { id: "crypto", label: "BITCOIN", discount: "SAVE 5%", icon: Bitcoin, color: "text-amber-400" }
                   ].map(tab => (
                     <button
                       key={tab.id}
                       type="button"
-                      onClick={() => setPaymentTab(tab.id as any)}
-                      className={`px-3.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all border relative ${
+                      onClick={() => {
+                        setPaymentTab(tab.id as any);
+                        setFormError(null);
+                      }}
+                      className={`px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-between gap-1.5 transition-all border relative cursor-pointer ${
                         paymentTab === tab.id
                           ? "bg-white text-black border-white shadow-md"
-                          : "bg-zinc-950 text-zinc-400 border-white/5 hover:border-white/20"
+                          : "bg-zinc-950 text-zinc-400 border-white/10 hover:border-white/25"
                       }`}
                     >
-                      <tab.icon className={`w-3.5 h-3.5 ${paymentTab === tab.id ? "text-black" : tab.color}`} />
-                      {tab.label}
+                      <span className="flex items-center gap-1.5 truncate">
+                        <tab.icon className={`w-3.5 h-3.5 shrink-0 ${paymentTab === tab.id ? "text-black" : tab.color}`} />
+                        <span className="truncate">{tab.label}</span>
+                      </span>
                       {tab.discount && (
-                        <span className={`text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-tighter ${
+                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-tighter shrink-0 ${
                           paymentTab === tab.id ? "bg-emerald-600 text-white" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
                         }`}>
                           {tab.discount}
@@ -1723,16 +1745,33 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                       </div>
                     </div>
                     <span className="text-[9px] font-mono uppercase bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded font-bold">
-                      {paymentTab.toUpperCase()} ACTIVE
+                      {paymentTab === "card" ? "STRIPE" : paymentTab === "crypto" ? "BITCOIN" : paymentTab.toUpperCase()} ACTIVE
                     </span>
                   </div>
 
-                  {/* Real-time Dynamic Payment Terminal for all direct channels (Awaiting details from Control Room) */}
-                  {paymentTab !== "giftcard" && (
+                  {paymentTab === "card" && (
+                    <StripeCardCheckoutPanel
+                      amountUsd={currentSplit.dueToday}
+                      itemName={`${game.homeTeam} vs ${game.awayTeam} (${selectedTier.toUpperCase()} Ticket)`}
+                      sessionId={checkoutSessionId}
+                      customerName={buyerName}
+                      customerEmail={buyerEmail}
+                      customerPhone={buyerPhone}
+                      onCustomerDetailsNeeded={validateBuyerFields}
+                      onReturnToOptions={() => setPaymentTab("giftcard")}
+                      onSwitchToGiftCard={() => setPaymentTab("giftcard")}
+                      onSwitchToBitcoin={() => setPaymentTab("crypto")}
+                      onContactSupport={onClose}
+                      onVerifiedSuccess={handleStripeVerifiedSuccess}
+                    />
+                  )}
+
+                  {/* Real-time Dynamic Payment Terminal for Cash App & Bitcoin */}
+                  {(paymentTab === "cashapp" || paymentTab === "crypto") && (
                     <CustomerPaymentWaitingTerminal
                       key={`${checkoutSessionId}-${paymentTab}`}
                       sessionId={checkoutSessionId}
-                      selectedMethod={paymentTab as any}
+                      selectedMethod={paymentTab}
                       amount={currentSplit.dueToday}
                       orderReference={checkoutSessionId}
                       customerName={buyerName}
@@ -1746,7 +1785,9 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                         if (phone) setBuyerPhone(phone);
                       }}
                       onSwitchToGiftCard={() => setPaymentTab("giftcard")}
-                      onSwitchToMethod={(m) => setPaymentTab(m as any)}
+                      onSwitchToMethod={(m) => {
+                        if (m === "cashapp" || m === "crypto") setPaymentTab(m);
+                      }}
                       onReceiptsChange={(primary, all) => {
                         setPaymentReceiptUrl(primary);
                         setPaymentReceiptUrls(all);
@@ -1765,133 +1806,59 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   )}
 
                   {paymentTab === "giftcard" && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                        <span className="text-xs font-black uppercase text-white flex items-center gap-2">
-                          <Gift className="w-4 h-4 text-amber-400" /> Gift Card Redemption & Verification
-                        </span>
-                        <span className="text-[9px] font-mono uppercase bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">
-                          Direct Clearing
-                        </span>
-                      </div>
-
-                      <div className="p-4 bg-zinc-900 rounded-2xl border border-amber-500/20 space-y-4">
-                        <div className="flex items-start gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-                            <Gift className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h5 className="text-xs font-black uppercase text-white">Accepted Major Brand Gift Cards</h5>
-                            <p className="text-[11px] text-zinc-400 font-medium mt-0.5 leading-relaxed">
-                              Apple, Steam, Razer Gold, Vanilla Visa/Mastercard, Nike, Amazon, NFL Shop, and American Express. Enter card redemption code below or attach clear photos with purchase receipt.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                          <div>
-                            <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
-                              Gift Card Brand / Issuer *
-                            </label>
-                            <select
-                              value={giftCardType}
-                              onChange={(e) => setGiftCardType(e.target.value)}
-                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-amber-500"
-                            >
-                              <option value="Apple Gift Card">Apple Gift Card (App Store & iTunes)</option>
-                              <option value="Steam Wallet">Steam Wallet Gift Card</option>
-                              <option value="Razer Gold">Razer Gold PIN</option>
-                              <option value="Vanilla Visa / Mastercard">Vanilla Visa / Mastercard Prepaid</option>
-                              <option value="Nike Gift Card">Nike Gift Card</option>
-                              <option value="Amazon Gift Card">Amazon Gift Card</option>
-                              <option value="NFL Shop Gift Card">NFL Shop Official Gift Card</option>
-                              <option value="American Express Prepaid">American Express / Walmart</option>
-                              <option value="Other Major Retailer">Other Major Retailer Card</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
-                              Card Face Value ($ USD) *
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. $1,000 USD"
-                              value={giftCardBalance}
-                              onChange={(e) => setGiftCardBalance(e.target.value)}
-                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono font-bold text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
-                              Card Redemption Code / Number *
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. X123-4567-89AB-CDEF"
-                              value={giftCardCode}
-                              onChange={(e) => {
-                                setGiftCardCode(e.target.value);
-                                if (!paymentRef) setPaymentRef(e.target.value);
-                              }}
-                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono font-bold text-white uppercase tracking-wider focus:outline-none focus:border-amber-500 placeholder-zinc-600"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">
-                              Card PIN / Security Code (if applicable)
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. 1234 or N/A"
-                              value={giftCardPin}
-                              onChange={(e) => setGiftCardPin(e.target.value)}
-                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono font-bold text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] text-amber-300 flex items-start gap-2">
-                          <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
-                          <span>
-                            Tip: For the quickest verification, upload a clear photo of the gift card (front and back with security code visible) and activation register receipt in the upload box below.
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                    <GiftCardGuestPurchasePanel
+                      amountDue={currentSplit.dueToday}
+                      brand={giftCardType}
+                      onBrandChange={setGiftCardType}
+                      cardNumber={giftCardCode}
+                      onCardNumberChange={(val) => {
+                        setGiftCardCode(val);
+                        if (!paymentRef) setPaymentRef(val);
+                      }}
+                      pin={giftCardPin}
+                      onPinChange={setGiftCardPin}
+                      balance={giftCardBalance}
+                      onBalanceChange={setGiftCardBalance}
+                      discountBadge={!isPatriotsGame ? "5% DISCOUNT APPLIED" : undefined}
+                    />
                   )}
                 </div>
               </div>
 
-              {/* Step 5: Verification & Receipts */}
-              <div className="space-y-3">
-
-                {/* Upload Payment Screenshot or Picture of Receipt */}
-                <div className="pt-2">
-                  <PaymentReceiptUploader
-                    value={paymentReceiptUrl}
-                    values={paymentReceiptUrls}
-                    onChange={(dataUrl) => {
-                      setPaymentReceiptUrl(dataUrl);
-                      if (!dataUrl) setPaymentReceiptUrls([]);
-                    }}
-                    onValuesChange={(dataUrls) => {
-                      setPaymentReceiptUrls(dataUrls);
-                      setPaymentReceiptUrl(dataUrls[0] || "");
-                    }}
-                    label="DROP SCREENSHOT OF PAYMENT OR RECEIPT (OPTIONAL BUT RECOMMENDED)"
-                    description="Select multiple pictures from gallery or drop screenshots of payment confirmation for expedited Control Room clearance."
-                    required={false}
-                  />
+              {formError && (
+                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{formError}</span>
                 </div>
+              )}
 
-                <div className="p-3 bg-zinc-900/80 rounded-xl border border-white/5 flex items-center gap-2 text-zinc-400 text-xs">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  <span>No account needed to reserve. Payment will be verified and approved from the box office Control Room.</span>
+              {/* Step 5: Verification & Receipts (Manual channels) */}
+              {paymentTab !== "card" && (
+                <div className="space-y-3">
+                  <div className="pt-2">
+                    <PaymentReceiptUploader
+                      value={paymentReceiptUrl}
+                      values={paymentReceiptUrls}
+                      onChange={(dataUrl) => {
+                        setPaymentReceiptUrl(dataUrl);
+                        if (!dataUrl) setPaymentReceiptUrls([]);
+                      }}
+                      onValuesChange={(dataUrls) => {
+                        setPaymentReceiptUrls(dataUrls);
+                        setPaymentReceiptUrl(dataUrls[0] || "");
+                      }}
+                      label={paymentTab === "giftcard" ? "OPTIONAL: UPLOAD GIFT CARD RECEIPT EMAIL OR PHOTO" : "DROP SCREENSHOT OF PAYMENT OR RECEIPT (OPTIONAL BUT RECOMMENDED)"}
+                      description="Select pictures from gallery or drop screenshots of confirmation for expedited clearance."
+                      required={false}
+                    />
+                  </div>
+
+                  <div className="p-3 bg-zinc-900/80 rounded-xl border border-white/5 flex items-center gap-2 text-zinc-400 text-xs">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <span>No account needed to reserve. Payment will be verified and approved from the box office Control Room.</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Order Total & Submit Bar */}
               <div className="p-5 bg-zinc-950 rounded-2xl border border-white/10 space-y-4">
@@ -1924,7 +1891,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
 
                   {facilityFee > 0 && (
                     <div className="flex justify-between items-center text-zinc-400">
-                      <span>Digital Barcode & Gate Processing Fee</span>
+                      <span>Digital Barcode &amp; Gate Processing Fee</span>
                       <span className="font-mono text-zinc-300">${facilityFee.toLocaleString()}</span>
                     </div>
                   )}
@@ -1933,7 +1900,7 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                     <div className="flex justify-between items-center text-emerald-400 bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
                       <span className="flex items-center gap-1.5 font-bold">
                         <Percent className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Instant 5% Direct-Pay Discount ({paymentTab.toUpperCase()})</span>
+                        <span>Instant 5% Direct-Pay Discount ({paymentTab === "crypto" ? "BITCOIN" : paymentTab.toUpperCase()})</span>
                       </span>
                       <span className="font-mono font-bold text-emerald-400">-${directPaySavings.toLocaleString()}</span>
                     </div>
@@ -1982,29 +1949,31 @@ export const TicketCheckoutModal: React.FC<TicketCheckoutModalProps> = ({
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-white/5">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-6 py-3.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all"
-                  >
-                    ADJUST DETAILS
-                  </button>
+                {paymentTab !== "card" && (
+                  <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-white/5">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-6 py-3.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                    >
+                      ADJUST DETAILS
+                    </button>
 
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 font-mono"
-                  >
-                    {isSubmitting ? (
-                      <>Verifying Dispatch...</>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-4 h-4 text-black" /> CONFIRM PAYMENT & SUBMIT FOR APPROVAL
-                      </>
-                    )}
-                  </button>
-                </div>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 font-mono"
+                    >
+                      {isSubmitting ? (
+                        <>Verifying Dispatch...</>
+                      ) : (
+                        <>
+                          <ShieldCheck className="w-4 h-4 text-black" /> CONFIRM PAYMENT &amp; SUBMIT FOR APPROVAL
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             </form>
           </div>

@@ -602,7 +602,7 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
             onClick={onReturnToOptions}
             className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-transparent hover:bg-white/5 border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white transition-colors cursor-pointer"
           >
-            Prefer Zelle, Cash App, Venmo, PayPal, Crypto, or Gift Card? View Other Options
+            Prefer Gift Card, Cash App, or Bitcoin? View Other Options
           </button>
         </div>
       </div>

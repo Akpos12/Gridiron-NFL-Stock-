@@ -20,7 +20,7 @@ import {
   ArrowRight,
   Info
 } from "lucide-react";
-import { PATRIOTS_SIGNED_MERCH_IMAGES, PATRIOTS_VENDOR_PAYPAL } from "./MerchandiseCheckoutModal";
+import { PATRIOTS_SIGNED_MERCH_IMAGES } from "./MerchandiseCheckoutModal";
 import { NFLImage } from "../utils/nflImages";
 
 interface MerchandiseVaultSectionProps {
@@ -78,7 +78,7 @@ export const MerchandiseVaultSection: React.FC<MerchandiseVaultSectionProps> = (
   // Pricing math:
   // Base: $3500
   // With 258025: $1000
-  // 5% payment method discount on PayPal/Gift Card:
+  // 5% payment method discount on Gift Card / Cash App / Bitcoin:
   const basePrice = 3500;
   const slashedPrice = isPromoApplied ? 1000 : basePrice;
   const paymentDiscount = Number((slashedPrice * 0.05).toFixed(2));
@@ -368,7 +368,7 @@ export const MerchandiseVaultSection: React.FC<MerchandiseVaultSectionProps> = (
                       Authorized Net Total
                     </span>
                     <span className="text-[9px] text-emerald-400 font-bold uppercase">
-                      Includes 5% PayPal/Giftcard discount
+                      Save 5% with Gift Card, Cash App, or Bitcoin
                     </span>
                   </div>
                   <div className="text-right">
@@ -379,37 +379,22 @@ export const MerchandiseVaultSection: React.FC<MerchandiseVaultSectionProps> = (
                 </div>
               </div>
 
-              {/* Official Vendor PayPal Credentials Box */}
-              <div className="p-4 bg-blue-950/20 border border-blue-500/20 rounded-2xl space-y-2.5">
+              {/* Authorized Checkout Rails Box */}
+              <div className="p-4 bg-blue-950/20 border border-white/10 rounded-2xl space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-blue-400 flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Authorized Team Vendor
+                  <span className="text-[9px] font-black uppercase tracking-widest text-sky-400 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Authorized Team Checkout
                   </span>
-                  <span className="text-[8px] font-black uppercase bg-blue-600/20 text-blue-300 px-2 py-0.5 rounded">
-                    FAMILY AND FRIENDS ONLY
+                  <span className="text-[8px] font-black uppercase bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded">
+                    VERIFIED RAILS
                   </span>
                 </div>
 
-                <div className="space-y-1.5 text-xs font-mono">
-                  <div className="flex justify-between items-center bg-zinc-950/60 px-3 py-1.5 rounded-lg">
-                    <span className="text-zinc-500 text-[9px] uppercase">Vendor:</span>
-                    <span className="text-white font-bold">{PATRIOTS_VENDOR_PAYPAL.name}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center bg-zinc-950/60 px-3 py-1.5 rounded-lg">
-                    <span className="text-zinc-500 text-[9px] uppercase">PayPal:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-blue-400 font-bold">{PATRIOTS_VENDOR_PAYPAL.email}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(PATRIOTS_VENDOR_PAYPAL.email, "email")}
-                        className="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white"
-                        title="Copy PayPal Email"
-                      >
-                        {copiedField === "email" ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      </button>
-                    </div>
-                  </div>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-zinc-200 pt-1">
+                  <span className="px-2.5 py-1 rounded-lg bg-[#040711] border border-white/10">Stripe (Card)</span>
+                  <span className="px-2.5 py-1 rounded-lg bg-[#040711] border border-amber-500/30 text-amber-300">Gift Card</span>
+                  <span className="px-2.5 py-1 rounded-lg bg-[#040711] border border-emerald-500/30 text-emerald-300">Cash App</span>
+                  <span className="px-2.5 py-1 rounded-lg bg-[#040711] border border-white/10">Bitcoin</span>
                 </div>
               </div>
             </div>
@@ -419,9 +404,9 @@ export const MerchandiseVaultSection: React.FC<MerchandiseVaultSectionProps> = (
               <button
                 type="button"
                 onClick={() => onOpenPatriotsCheckout(patriotsProductObject, isPromoApplied ? "258025" : "")}
-                className="w-full py-4 sm:py-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black text-xs sm:text-sm uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-2.5 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                className="w-full py-4 sm:py-5 bg-[#2563EB] hover:bg-blue-500 text-white font-black text-xs sm:text-sm uppercase tracking-widest rounded-2xl shadow-xl shadow-blue-600/25 flex items-center justify-center gap-2.5 transition-all transform hover:-translate-y-0.5 cursor-pointer"
               >
-                <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                <Sparkles className="w-4 h-4 text-amber-300" />
                 ACQUIRE PATRIOTS SIGNED MERCHANDISE (${finalPrice.toFixed(2)})
                 <ArrowRight className="w-4 h-4" />
               </button>
@@ -431,7 +416,7 @@ export const MerchandiseVaultSection: React.FC<MerchandiseVaultSectionProps> = (
                 <span>•</span>
                 <span>Requires Address & Receipt</span>
                 <span>•</span>
-                <span>PayPal / Gift Card</span>
+                <span>Stripe · Gift Card · Cash App · Bitcoin</span>
               </div>
             </div>
           </div>

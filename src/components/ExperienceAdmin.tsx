@@ -311,7 +311,7 @@ export const ExperienceAdmin: React.FC = () => {
           "Official promotional license to use Bo Nix name & likeness for episode marketing",
           "Pre-show soundcheck & producer topic alignment window",
           "VIP Tier option includes extended 60-min broadcast and co-branded sponsor shoutout",
-          "Flexible payment options: Crypto (5% discount), Cash App, PayPal, Venmo, Zelle & Gift Cards"
+          "Flexible payment options: Stripe, Gift Card, Cash App & Bitcoin (5% discount)"
         ],
         rating: 5.0,
         reviewsCount: 31,
@@ -1022,7 +1022,7 @@ export const ExperienceAdmin: React.FC = () => {
             "Official promotional license to use Bo Nix name & likeness for episode marketing",
             "Pre-show soundcheck & producer topic alignment window",
             "VIP Tier option includes extended 60-min broadcast and co-branded sponsor shoutout",
-            "Flexible payment options: Crypto (5% discount), Cash App, PayPal, Venmo, Zelle & Gift Cards"
+            "Flexible payment options: Stripe, Gift Card, Cash App & Bitcoin (5% discount)"
           ],
           rating: 5.0,
           reviewsCount: 31

@@ -37,7 +37,8 @@ import {
   Radio,
   Mic,
   Award,
-  Heart
+  Heart,
+  Bitcoin
 } from "lucide-react";
 import { collection, onSnapshot, getDocs, setDoc, doc, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
 import { db, auth, safeSetDoc, handleFirestoreError, OperationType } from "../lib/firebase";
@@ -46,6 +47,8 @@ import { cn, formatCurrency } from "../lib/utils";
 import { NFLImage } from "../utils/nflImages";
 import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingTerminal";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
+import { StripeCardCheckoutPanel, VerifiedStripePaymentReceipt } from "./common/StripeCardCheckoutPanel";
+import { GiftCardGuestPurchasePanel } from "./common/GiftCardGuestPurchasePanel";
 import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 import { QRCodeSVG } from "qrcode.react";
 import { PlayerInquiryModal } from "./PlayerInquiryModal";
@@ -434,7 +437,7 @@ const SEED_EXPERIENCES: Experience[] = [
       "Private experience date will be announced after confirmation",
       "Digital Platinum ticket card issued upon purchase",
       "Flexible installment options: Pay in Full ($1,000), 2 Payments ($550 × 2), or 3 Payments ($400 × 3)",
-      "Accepted Payment Options: Cash App, PayPal, Venmo, Zelle, Crypto & Gift Card",
+      "Accepted Payment Options: Stripe, Gift Card, Cash App & Bitcoin (BTC)",
       "Exclusive 5% instant discount applied for all Crypto (BTC, ETH, USDT) payments"
     ],
     rating: 5.0,
@@ -489,7 +492,7 @@ const SEED_EXPERIENCES: Experience[] = [
       "Official promotional license to use Bo Nix name & likeness for episode marketing",
       "Pre-show soundcheck & producer topic alignment window",
       "VIP Tier option includes extended 60-min broadcast and co-branded sponsor shoutout",
-      "Flexible payment options: Crypto (5% discount), Cash App, PayPal, Venmo, Zelle & Gift Cards"
+      "Flexible payment options: Stripe, Gift Card, Cash App & Bitcoin (5% discount)"
     ],
     rating: 5.0,
     reviewsCount: 31
@@ -585,8 +588,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
   const [completedBooking, setCompletedBooking] = useState<Booking | null>(null);
 
   // Official Payment Form State
-  const [paymentTab, setPaymentTab] = useState<"cashapp" | "paypal" | "venmo" | "zelle" | "crypto" | "giftcard">("cashapp");
-  const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
+  const [paymentTab, setPaymentTab] = useState<"card" | "giftcard" | "cashapp" | "crypto">("card");
+  const [selectedCrypto, setSelectedCrypto] = useState<"btc" | "eth" | "usdt">("btc");
   const [senderName, setSenderName] = useState(() => localStorage.getItem("nfl_guest_sender_name") || "");
   const [buyerEmail, setBuyerEmail] = useState(() => localStorage.getItem("nfl_guest_buyer_email") || "");
   const [buyerPhone, setBuyerPhone] = useState(() => localStorage.getItem("nfl_guest_buyer_phone") || "");
@@ -1034,8 +1037,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     setInstallmentPlan("1x");
     setBookingStep("details");
     setBookingError("");
-    const isPatriots = exp.id === "exp-patriots-signed-merch" || (exp.teamId === "NE" && (exp.category?.toLowerCase().includes("signed") || exp.title?.toLowerCase().includes("signed")));
-    setPaymentTab(isPatriots ? "paypal" : "cashapp");
+    setPaymentTab("card");
     setReceiptImageUrl("");
     setReceiptImageUrls([]);
     setPaymentRef("");
@@ -1063,39 +1065,213 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       (shippingAddress.street.trim().length > 0 &&
         shippingAddress.city.trim().length > 0 &&
         shippingAddress.zipCode.trim().length > 0)) &&
-    (paymentTab !== "giftcard" || giftCardDetails.cardNumber.trim().length > 0);
+    (paymentTab !== "giftcard" || giftCardDetails.cardNumber.trim().length >= 4 || hasExperienceReceipt);
   const canSubmitExperienceBooking =
     hasRequiredExperienceFields &&
-    hasExperienceReceipt &&
+    (paymentTab === "giftcard" ? (giftCardDetails.cardNumber.trim().length >= 4 || hasExperienceReceipt) : hasExperienceReceipt) &&
     !isSubmittingBooking;
 
-  const handleExecutePayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedExp) return;
-
+  const validateExperienceFieldsForStripe = () => {
     if (!senderName.trim()) {
       setBookingError("Please provide your Sender / Account Holder Name.");
-      return;
+      return false;
     }
-
     if (!buyerEmail.trim() || !buyerEmail.includes("@")) {
       setBookingError("Please provide a valid Email Address for pass delivery and status updates.");
-      return;
+      return false;
     }
-
     if (isPatriotsMerchSelected) {
       if (!shippingAddress.street.trim() || !shippingAddress.city.trim() || !shippingAddress.zipCode.trim()) {
         setBookingError("Please provide your delivery address (Street, City, and ZIP) for insured merchandise shipment.");
-        return;
+        return false;
       }
     }
+    setBookingError("");
+    return true;
+  };
 
-    if (paymentTab === "giftcard" && !giftCardDetails.cardNumber.trim()) {
-      setBookingError("Please enter your Gift Card number or claim code.");
+  const persistExperienceBooking = async (
+    channel: "card" | "giftcard" | "cashapp" | "crypto",
+    resolvedReference: string,
+    bookingReceipts: string[],
+    isVerifiedCard = false
+  ) => {
+    if (!selectedExp) return;
+    const isPrivateExp = isPrivatePlayerExperience;
+    const privatePricing = getPrivateExperiencePricing();
+    const guestsNum = Math.max(1, guestsCount);
+
+    let totalAmount: number;
+    let installmentDetails: Partial<Booking> = {};
+
+    if (isPrivateExp) {
+      const isCrypto = channel === "crypto";
+      const cryptoDiscount = isCrypto ? Math.round(privatePricing.dueTodayTotal * 0.05) : 0;
+      totalAmount = privatePricing.dueTodayTotal - cryptoDiscount;
+      installmentDetails = {
+        installmentPlan,
+        installmentAmount: privatePricing.perPayment,
+        installmentTotal: privatePricing.totalPlanGross,
+        installmentDueToday: totalAmount,
+        installmentsPaid: 1,
+        installmentsTotal: privatePricing.numPayments,
+        installmentRemaining: privatePricing.totalPlanGross - privatePricing.dueTodayTotal,
+        installmentTerms: isCrypto
+          ? `${privatePricing.summaryText} (5% Bitcoin Discount Applied: $${totalAmount.toLocaleString()} due today)`
+          : privatePricing.summaryText,
+        isPlayerCoordinatedDate: true
+      };
+    } else {
+      const pricePerGuest = getEffectiveRate();
+      const grossTotal = pricePerGuest * guestsNum;
+      const isDirectPayDiscount = ["giftcard", "cashapp", "crypto"].includes(channel);
+      const directPaySavings = isDirectPayDiscount ? Math.round(grossTotal * 0.05) : 0;
+      totalAmount = grossTotal - directPaySavings;
+    }
+
+    const newBookingId = `bk-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const expTitle = isPrivateExp
+      ? (isBrockPurdySelected ? "BROCK PURDY Private Experience" : (isBoNixSelected ? "BO NIX Private Experience" : "JALEN PITRE Private Experience"))
+      : `${selectedExp.title}${appliedPromo ? ` [PROMO ${appliedPromo} APPLIED: $${getEffectiveRate()}/guest]` : ""}`;
+
+    const bookingData: Booking = {
+      id: newBookingId,
+      userId: auth.currentUser?.uid || "guest",
+      userEmail: buyerEmail.trim(),
+      experienceId: selectedExp.id,
+      experienceTitle: expTitle,
+      experienceType: selectedExp.type,
+      date: isPrivateExp ? "Private experience date will be announced after confirmation" : bookingDate,
+      timeSlot: isPrivateExp ? "Announced after confirmation" : bookingSlot,
+      guestsCount: guestsNum,
+      totalPrice: totalAmount,
+      tier: isPrivateExp ? "platinum" : tierSelection,
+      status: isVerifiedCard ? "approved" : "pending",
+      qrCode: isPrivateExp ? `PASS-PLATINUM-${newBookingId}` : `GRIDIRON-${newBookingId}-${selectedExp.teamId}`,
+      createdAt: new Date().toISOString(),
+      imageUrl: selectedExp.imageUrl,
+      ...installmentDetails,
+      paymentSessionId: checkoutSessionId,
+      paymentMethod: channel,
+      paymentRef: resolvedReference,
+      receiptImage: bookingReceipts[0] || "",
+      receiptImageUrl: bookingReceipts[0] || "",
+      receiptImages: bookingReceipts,
+      senderName: senderName.trim(),
+      buyerPhone: buyerPhone.trim(),
+      ...(isPatriotsMerchSelected || shippingAddress.street ? { shippingAddress } : {}),
+      ...(channel === "giftcard" ? { giftCardDetails } : {})
+    };
+
+    await safeSetDoc(doc(db, "bookings", newBookingId), bookingData);
+
+    const storeOrderId = `order-${Date.now()}`;
+    await safeSetDoc(doc(db, "store_orders", storeOrderId), {
+      orderId: newBookingId,
+      sessionId: checkoutSessionId,
+      paymentSessionId: checkoutSessionId,
+      userId: auth.currentUser?.uid || "guest",
+      userEmail: buyerEmail.trim(),
+      itemType: isPatriotsMerchSelected ? "merchandise" : "ticket",
+      itemName: isPrivateExp
+        ? `${isBrockPurdySelected ? "BROCK PURDY" : (isBoNixSelected ? "BO NIX" : "JALEN PITRE")} Private Experience (PLATINUM TICKET) - ${privatePricing.planLabel}${channel === "crypto" ? " [5% BITCOIN DISCOUNT]" : ""}`
+        : `${selectedExp.title} (${tierSelection.toUpperCase()})${appliedPromo ? ` [PROMO ${appliedPromo}]` : ""}`,
+      price: totalAmount,
+      teamId: selectedExp.teamId,
+      paymentMethod: channel,
+      paymentRef: resolvedReference,
+      receiptImage: bookingReceipts[0] || "",
+      receiptImageUrl: bookingReceipts[0] || "",
+      receiptImages: bookingReceipts,
+      senderName: senderName.trim(),
+      buyerPhone: buyerPhone.trim(),
+      ...(isPatriotsMerchSelected || shippingAddress.street ? { shippingAddress } : {}),
+      ...(channel === "giftcard" ? { giftCardDetails } : {}),
+      status: isVerifiedCard ? "approved" : "pending_approval",
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      const ticketOrderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      await safeSetDoc(doc(db, "ticket_orders", ticketOrderId), {
+        id: ticketOrderId,
+        orderId: newBookingId,
+        sessionId: checkoutSessionId,
+        paymentSessionId: checkoutSessionId,
+        userId: auth.currentUser?.uid || "guest",
+        userEmail: buyerEmail.trim(),
+        buyerPhone: buyerPhone.trim(),
+        gameId: selectedExp.id,
+        gameName: isPrivateExp ? (isBrockPurdySelected ? "BROCK PURDY Private Experience" : (isBoNixSelected ? "BO NIX Private Experience" : "JALEN PITRE Private Experience")) : selectedExp.title,
+        stadium: selectedExp.location,
+        city: isBrockPurdySelected ? "Santa Clara, CA" : (isBoNixSelected ? "Denver, CO" : (selectedExp.location.includes("Houston") ? "Houston, TX" : "Foxborough, MA")),
+        tier: isPrivateExp ? "platinum" : tierSelection,
+        quantity: guestsNum,
+        totalAmount,
+        paymentMethod: channel,
+        senderName: senderName.trim(),
+        paymentRef: resolvedReference,
+        receiptImage: bookingReceipts[0] || "",
+        receiptImageUrl: bookingReceipts[0] || "",
+        receiptImages: bookingReceipts,
+        status: isVerifiedCard ? "approved" : "pending_approval",
+        qrCode: isPrivateExp ? `RFID-PLATINUM-${ticketOrderId.toUpperCase()}` : `RFID-VIP-${ticketOrderId.toUpperCase()}`,
+        timestamp: serverTimestamp()
+      });
+    } catch (e) {
+      console.warn("ticket_orders write error (non-fatal):", e);
+    }
+
+    try {
+      const txId = `tx-exp-${Date.now()}`;
+      await setDoc(doc(db, "global_transactions", txId), {
+        userId: auth.currentUser?.uid || "guest",
+        type: "withdraw",
+        assetId: selectedExp.teamId,
+        amount: totalAmount,
+        shares: 0,
+        price: totalAmount,
+        status: isVerifiedCard ? "completed" : "pending",
+        timestamp: new Date().toISOString()
+      });
+    } catch (err) {
+      console.warn("Global tracking fail (ignoring critical flow):", err);
+    }
+
+    setCompletedBooking(bookingData);
+    setBookingStep("success");
+
+    if (onNotifyCheckout) {
+      onNotifyCheckout();
+    }
+  };
+
+  const handleStripeExperienceVerified = async (receipt: VerifiedStripePaymentReceipt) => {
+    try {
+      await persistExperienceBooking(
+        "card",
+        receipt.paymentIntent || receipt.sessionId,
+        [],
+        true
+      );
+    } catch (err) {
+      console.error("Stripe experience booking persistence error:", err);
+      setBookingError("Payment processed, but confirmation logging encountered a network delay.");
+    }
+  };
+
+  const handleExecutePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedExp || paymentTab === "card") return;
+
+    if (!validateExperienceFieldsForStripe()) return;
+
+    if (paymentTab === "giftcard" && giftCardDetails.cardNumber.trim().length < 4 && !hasExperienceReceipt) {
+      setBookingError("Please enter your Gift Card claim code(s) or upload a photo of your card.");
       return;
     }
 
-    if (!hasExperienceReceipt) {
+    if (paymentTab !== "giftcard" && !hasExperienceReceipt) {
       setBookingError("Proof of payment is required. Please upload a screenshot or receipt photo before submitting.");
       return;
     }
@@ -1104,160 +1280,14 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
     setBookingError("");
 
     try {
-      const isPrivateExp = isPrivatePlayerExperience;
-      const privatePricing = getPrivateExperiencePricing();
-      const guestsNum = Math.max(1, guestsCount);
-
-      let totalAmount: number;
-      let installmentDetails: Partial<Booking> = {};
-
-      if (isPrivateExp) {
-        // For Private Experiences (Jalen Pitre / Bo Nix): 5% discount attached ONLY to crypto payment
-        const isCrypto = paymentTab === "crypto";
-        const cryptoDiscount = isCrypto ? Math.round(privatePricing.dueTodayTotal * 0.05) : 0;
-        totalAmount = privatePricing.dueTodayTotal - cryptoDiscount;
-        installmentDetails = {
-          installmentPlan: installmentPlan,
-          installmentAmount: privatePricing.perPayment,
-          installmentTotal: privatePricing.totalPlanGross,
-          installmentDueToday: totalAmount,
-          installmentsPaid: 1,
-          installmentsTotal: privatePricing.numPayments,
-          installmentRemaining: privatePricing.totalPlanGross - privatePricing.dueTodayTotal,
-          installmentTerms: isCrypto 
-            ? `${privatePricing.summaryText} (5% Crypto Discount Applied: $${totalAmount.toLocaleString()} due today)`
-            : privatePricing.summaryText,
-          isPlayerCoordinatedDate: true
-        };
-      } else {
-        const pricePerGuest = getEffectiveRate();
-        const grossTotal = pricePerGuest * guestsNum;
-        const isDirectPayDiscount = ["cashapp", "paypal", "venmo", "zelle", "giftcard"].includes(paymentTab);
-        const directPaySavings = isDirectPayDiscount ? Math.round(grossTotal * 0.05) : 0;
-        totalAmount = grossTotal - directPaySavings;
-      }
-      
-      const newBookingId = `bk-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      const expTitle = isPrivateExp 
-        ? (isBrockPurdySelected ? "BROCK PURDY Private Experience" : (isBoNixSelected ? "BO NIX Private Experience" : "JALEN PITRE Private Experience")) 
-        : `${selectedExp.title}${appliedPromo ? ` [PROMO ${appliedPromo} APPLIED: $${getEffectiveRate()}/guest]` : ""}`;
-
-      const bookingData: Booking = {
-        id: newBookingId,
-        userId: auth.currentUser?.uid || "guest",
-        userEmail: buyerEmail.trim(),
-        experienceId: selectedExp.id,
-        experienceTitle: expTitle,
-        experienceType: selectedExp.type,
-        date: isPrivateExp ? "Private experience date will be announced after confirmation" : bookingDate,
-        timeSlot: isPrivateExp ? "Announced after confirmation" : bookingSlot,
-        guestsCount: guestsNum,
-        totalPrice: totalAmount,
-        tier: isPrivateExp ? "platinum" : tierSelection,
-        status: "pending", // Awaiting admin approval from the Control Room
-        qrCode: isPrivateExp ? `PASS-PLATINUM-${newBookingId}` : `GRIDIRON-${newBookingId}-${selectedExp.teamId}`,
-        createdAt: new Date().toISOString(),
-        imageUrl: selectedExp.imageUrl,
-        ...installmentDetails,
-        paymentSessionId: checkoutSessionId,
-        paymentMethod: paymentTab,
-        paymentRef: paymentRef || (paymentTab === "giftcard" ? `GIFTCARD-${giftCardDetails.brand}-${giftCardDetails.cardNumber.slice(-4)}` : "PENDING_CONTROL_ROOM_VERIFICATION"),
-        receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
-        receiptImageUrl: receiptImageUrls[0] || receiptImageUrl || "",
-        receiptImages: receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []),
-        senderName: senderName.trim(),
-        buyerPhone: buyerPhone.trim(),
-        ...(isPatriotsMerchSelected || shippingAddress.street ? { shippingAddress } : {}),
-        ...(paymentTab === "giftcard" ? { giftCardDetails } : {})
-      };
-
-      // Add to Firestore database using safeSetDoc (guards against Firestore 1MB document limit)
-      await safeSetDoc(doc(db, "bookings", newBookingId), bookingData);
-
       const bookingReceipts = receiptImageUrls.length > 0 ? receiptImageUrls : (receiptImageUrl ? [receiptImageUrl] : []);
+      const resolvedRef =
+        paymentRef ||
+        (paymentTab === "giftcard"
+          ? `GIFTCARD-${giftCardDetails.brand}-${giftCardDetails.cardNumber.slice(-6)}`
+          : "PENDING_CONTROL_ROOM_VERIFICATION");
 
-      // Create a store order transaction automatically to catalog revenue in audit channels!
-      const storeOrderId = `order-${Date.now()}`;
-      await safeSetDoc(doc(db, "store_orders", storeOrderId), {
-        orderId: newBookingId,
-        sessionId: checkoutSessionId,
-        paymentSessionId: checkoutSessionId,
-        userId: auth.currentUser?.uid || "guest",
-        userEmail: buyerEmail.trim(),
-        itemType: isPatriotsMerchSelected ? "merchandise" : "ticket",
-        itemName: isPrivateExp 
-          ? `${isBrockPurdySelected ? "BROCK PURDY" : (isBoNixSelected ? "BO NIX" : "JALEN PITRE")} Private Experience (PLATINUM TICKET) - ${privatePricing.planLabel}${paymentTab === "crypto" ? " [5% CRYPTO DISCOUNT]" : ""}`
-          : `${selectedExp.title} (${tierSelection.toUpperCase()})${appliedPromo ? ` [PROMO ${appliedPromo}]` : ""}`,
-        price: totalAmount,
-        teamId: selectedExp.teamId,
-        paymentMethod: paymentTab,
-        paymentRef: paymentRef || (paymentTab === "giftcard" ? `GIFTCARD-${giftCardDetails.brand}` : "PENDING_CONTROL_ROOM_VERIFICATION"),
-        receiptImage: bookingReceipts[0] || "",
-        receiptImageUrl: bookingReceipts[0] || "",
-        receiptImages: bookingReceipts,
-        senderName: senderName.trim(),
-        buyerPhone: buyerPhone.trim(),
-        ...(isPatriotsMerchSelected || shippingAddress.street ? { shippingAddress } : {}),
-        ...(paymentTab === "giftcard" ? { giftCardDetails } : {}),
-        status: "pending_approval",
-        timestamp: new Date().toISOString()
-      });
-
-      // Also record in ticket_orders so the admin control room and user passes sync identically
-      try {
-        const ticketOrderId = `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-        await safeSetDoc(doc(db, "ticket_orders", ticketOrderId), {
-          id: ticketOrderId,
-          orderId: newBookingId,
-          sessionId: checkoutSessionId,
-          paymentSessionId: checkoutSessionId,
-          userId: auth.currentUser?.uid || "guest",
-          userEmail: buyerEmail.trim(),
-          buyerPhone: buyerPhone.trim(),
-          gameId: selectedExp.id,
-          gameName: isPrivateExp ? (isBrockPurdySelected ? "BROCK PURDY Private Experience" : (isBoNixSelected ? "BO NIX Private Experience" : "JALEN PITRE Private Experience")) : selectedExp.title,
-          stadium: selectedExp.location,
-          city: isBrockPurdySelected ? "Santa Clara, CA" : (isBoNixSelected ? "Denver, CO" : (selectedExp.location.includes("Houston") ? "Houston, TX" : "Foxborough, MA")),
-          tier: isPrivateExp ? "platinum" : tierSelection,
-          quantity: guestsNum,
-          totalAmount: totalAmount,
-          paymentMethod: paymentTab,
-          senderName: senderName.trim(),
-          paymentRef: paymentRef || "SUBMITTED_FOR_APPROVAL",
-          receiptImage: bookingReceipts[0] || "",
-          receiptImageUrl: bookingReceipts[0] || "",
-          receiptImages: bookingReceipts,
-          status: "pending_approval",
-          qrCode: isPrivateExp ? `RFID-PLATINUM-${ticketOrderId.toUpperCase()}` : `RFID-VIP-${ticketOrderId.toUpperCase()}`,
-          timestamp: serverTimestamp()
-        });
-      } catch (e) {
-        console.warn("ticket_orders write error (non-fatal):", e);
-      }
-
-      // Also create a transaction so user balance is updated or modeled
-      try {
-        const txId = `tx-exp-${Date.now()}`;
-        await setDoc(doc(db, "global_transactions", txId), {
-          userId: auth.currentUser?.uid || "guest",
-          type: "withdraw",
-          assetId: selectedExp.teamId,
-          amount: totalAmount,
-          shares: 0,
-          price: totalAmount,
-          status: "pending",
-          timestamp: new Date().toISOString()
-        });
-      } catch (err) {
-        console.warn("Global tracking fail (ignoring critical flow):", err);
-      }
-
-      setCompletedBooking(bookingData);
-      setBookingStep("success");
-      
-      if (onNotifyCheckout) {
-        onNotifyCheckout();
-      }
+      await persistExperienceBooking(paymentTab, resolvedRef, bookingReceipts, false);
     } catch (err: any) {
       console.error("Booking write error:", err);
       setBookingError("Reservation transaction declined. Contact box office operations.");
@@ -1280,13 +1310,13 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
       {/* Experience Header */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div>
-          <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-indigo-600/15 border border-indigo-400/30 text-[11px] font-bold uppercase tracking-widest text-sky-300 mb-4">
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400 mb-4">
+            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
             Verified NFL Experiences
           </span>
-          <h2 className="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold italic uppercase tracking-tight text-white leading-[0.95]">
+          <h2 className="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold uppercase tracking-tight text-white leading-[0.95]">
             NFL{" "}
-            <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-purple-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-white via-sky-200 to-blue-400 bg-clip-text text-transparent">
               EXPERIENCES
             </span>
           </h2>
@@ -1511,12 +1541,12 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       <span className="text-zinc-400">Req: Valid Photo ID · Age 18+ / Adult Supervision</span>
                       <span className="text-emerald-400 font-mono truncate">
                         {exp.id === "exp-jalen-pitre-meet" || exp.player?.toLowerCase().includes("pitre") || exp.title?.toLowerCase().includes("pitre")
-                          ? "Crypto (5% OFF) · Gift Card"
+                          ? "Stripe · Gift Card · Cash App · BTC (5% OFF)"
                           : exp.id === "exp-bo-nix-meet" || exp.id === "exp-brock-purdy-meet" || ((exp.title?.toLowerCase().includes("bo nix") || exp.title?.toLowerCase().includes("brock purdy")) && (exp.title?.toLowerCase().includes("private") || exp.category?.toLowerCase().includes("private")))
-                            ? "Cash App · Crypto (5% OFF) · Gift Card"
+                            ? "Stripe · Gift Card · Cash App · BTC (5% OFF)"
                             : exp.id === "exp-bo-nix-podcast" || exp.title?.toLowerCase().includes("podcast")
-                              ? "Remote / Denver Studio · Crypto (5% OFF)"
-                              : "Visa / Mastercard · Zelle · Cash App · Crypto"}
+                              ? "Remote / Studio · Stripe · Gift Card · BTC"
+                              : "Stripe · Gift Card · Cash App · Bitcoin"}
                       </span>
                     </div>
                   </div>
@@ -2399,12 +2429,10 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                     const cryptoDiscount = isCrypto ? Math.round(pitrePricing.dueTodayTotal * 0.05) : 0;
                     const finalInvoiceTotal = pitrePricing.dueTodayTotal - cryptoDiscount;
                     const pitrePaymentMethods = [
-                      { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode, badge: "SAVE 5%", subtext: "Instant 5% discount applied" },
+                      { id: "card", label: "Stripe (Card)", icon: CreditCard, badge: "CARD", subtext: "Visa & Mastercard checkout" },
+                      { id: "giftcard", label: "Gift Card", icon: Gift, badge: "NO SIGN-IN", subtext: "Buy digitally & redeem code" },
                       { id: "cashapp", label: "Cash App", icon: Smartphone, badge: "ACTIVE", subtext: "Instant P2P transfer" },
-                      { id: "paypal", label: "PayPal", icon: Smartphone, badge: "ACTIVE", subtext: "Fast online clearance" },
-                      { id: "venmo", label: "Venmo", icon: Smartphone, badge: "ACTIVE", subtext: "Direct handle transfer" },
-                      { id: "zelle", label: "Zelle", icon: Smartphone, badge: "ACTIVE", subtext: "Instant app-to-app transfer" },
-                      { id: "giftcard", label: "Gift Card", icon: Gift, badge: "ACTIVE", subtext: "Apple, Google Play, Steam, etc." }
+                      { id: "crypto", label: "Bitcoin (BTC)", icon: Bitcoin, badge: "SAVE 5%", subtext: "Instant 5% discount applied" }
                     ];
 
                     return (
@@ -2634,8 +2662,8 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           </span>
                         </div>
 
-                        {/* Payment Method Selector Tabs */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {/* Payment Method Selector Tabs (Exact Order) */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                           {pitrePaymentMethods.map(method => {
                             const isSelected = paymentTab === method.id;
                             return (
@@ -2644,6 +2672,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                                 type="button"
                                 onClick={() => {
                                   setPaymentTab(method.id as any);
+                                  setBookingError("");
                                 }}
                                 className={`p-3 rounded-xl text-left transition-all relative border flex flex-col justify-between gap-1.5 cursor-pointer ${
                                   isSelected
@@ -2651,12 +2680,12 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                                     : "bg-zinc-900 border-white/10 text-zinc-300 hover:border-white/20 hover:text-white"
                                 }`}
                               >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <method.icon className={`w-4 h-4 ${isSelected ? "text-white" : "text-emerald-400"}`} />
-                                    <span className="text-[11px] font-black uppercase tracking-wider">{method.label}</span>
+                                <div className="flex items-center justify-between gap-1">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <method.icon className={`w-4 h-4 shrink-0 ${isSelected ? "text-white" : "text-emerald-400"}`} />
+                                    <span className="text-[11px] font-black uppercase tracking-wider truncate">{method.label}</span>
                                   </div>
-                                  <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${isSelected ? "bg-white text-blue-900" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"}`}>
+                                  <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded shrink-0 ${isSelected ? "bg-white text-blue-900" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"}`}>
                                     {method.badge || "ACTIVE"}
                                   </span>
                                 </div>
@@ -2668,7 +2697,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           })}
                         </div>
 
-                        {/* Crypto 5% Exclusive Discount Banner */}
+                        {/* Bitcoin 5% Exclusive Discount Banner */}
                         {isCrypto && (
                           <div className="p-3.5 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
@@ -2677,13 +2706,13 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                               </div>
                               <div>
                                 <p className="text-[11px] font-black uppercase text-white tracking-wide flex items-center gap-1.5">
-                                  5% Crypto Payment Discount Applied
+                                  5% Bitcoin Payment Discount Applied
                                   <span className="text-[8px] px-1.5 py-0.5 bg-emerald-500 text-black font-black rounded">
                                     SAVE ${cryptoDiscount} USD
                                   </span>
                                 </p>
                                 <p className="text-[9px] text-zinc-400 font-medium">
-                                  Attached exclusively to Crypto (BTC, ETH, USDT) payments for {selectedExp.title}.
+                                  Attached exclusively to Bitcoin (BTC) payments for {selectedExp.title}.
                                 </p>
                               </div>
                             </div>
@@ -2692,11 +2721,29 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
                         {/* Payment Channel Details Box */}
                         <div className="space-y-3">
-                          {paymentTab !== "giftcard" && (
+                          {paymentTab === "card" && (
+                            <StripeCardCheckoutPanel
+                              amountUsd={finalInvoiceTotal}
+                              itemName={selectedExp.title}
+                              sessionId={checkoutSessionId}
+                              customerName={senderName}
+                              customerEmail={buyerEmail}
+                              customerPhone={buyerPhone}
+                              playerName={selectedExp.player}
+                              onCustomerDetailsNeeded={validateExperienceFieldsForStripe}
+                              onReturnToOptions={() => setPaymentTab("giftcard")}
+                              onSwitchToGiftCard={() => setPaymentTab("giftcard")}
+                              onSwitchToBitcoin={() => setPaymentTab("crypto")}
+                              onContactSupport={() => setSelectedExp(null)}
+                              onVerifiedSuccess={handleStripeExperienceVerified}
+                            />
+                          )}
+
+                          {(paymentTab === "cashapp" || paymentTab === "crypto") && (
                             <CustomerPaymentWaitingTerminal
                               key={`${checkoutSessionId}-${paymentTab}`}
                               sessionId={checkoutSessionId}
-                              selectedMethod={paymentTab as any}
+                              selectedMethod={paymentTab}
                               amount={finalInvoiceTotal}
                               orderReference={checkoutSessionId}
                               customerName={senderName}
@@ -2710,7 +2757,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                                 if (phone) setBuyerPhone(phone);
                               }}
                               onSwitchToGiftCard={() => setPaymentTab("giftcard")}
-                              onSwitchToMethod={(m) => setPaymentTab(m as any)}
+                              onSwitchToMethod={(m) => {
+                                if (m === "cashapp" || m === "crypto") setPaymentTab(m);
+                              }}
                               onReceiptsChange={(primary, all) => {
                                 setReceiptImageUrl(primary);
                                 setReceiptImageUrls(all);
@@ -2729,99 +2778,59 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                           )}
 
                           {paymentTab === "giftcard" && (
-                            <div className="p-4 bg-zinc-950 rounded-2xl border border-white/10 space-y-3">
-                              <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                                <span className="text-[10px] font-black uppercase text-amber-400">Prepaid / Digital Gift Card Payment</span>
-                              </div>
-                              <div className="p-3 bg-zinc-900 rounded-xl border border-amber-500/20 space-y-2.5">
-                                <p className="text-[11px] text-zinc-300">
-                                  Accepted cards: Apple, Google Play, Steam, Amazon, Visa / Amex Prepaid.
-                                </p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                                  <div>
-                                    <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Gift Card Brand</label>
-                                    <select
-                                      value={giftCardDetails.brand}
-                                      onChange={(e) => setGiftCardDetails(prev => ({ ...prev, brand: e.target.value }))}
-                                      className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white"
-                                    >
-                                      <option value="Apple">Apple / App Store</option>
-                                      <option value="Google Play">Google Play</option>
-                                      <option value="Amazon">Amazon</option>
-                                      <option value="Steam">Steam</option>
-                                      <option value="Visa">Visa / Mastercard Prepaid</option>
-                                      <option value="Amex">American Express Gift Card</option>
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Card Face Value ($)</label>
-                                    <input
-                                      type="text"
-                                      placeholder={`$${finalInvoiceTotal.toLocaleString()}`}
-                                      value={giftCardDetails.amount}
-                                      onChange={(e) => setGiftCardDetails(prev => ({ ...prev, amount: e.target.value }))}
-                                      className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Card Number / Claim Code</label>
-                                    <input
-                                      type="text"
-                                      placeholder="XXXX-XXXX-XXXX-XXXX"
-                                      value={giftCardDetails.cardNumber}
-                                      onChange={(e) => setGiftCardDetails(prev => ({ ...prev, cardNumber: e.target.value }))}
-                                      className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">PIN / Security Code</label>
-                                    <input
-                                      type="text"
-                                      placeholder="4-8 digit PIN"
-                                      value={giftCardDetails.pin}
-                                      onChange={(e) => setGiftCardDetails(prev => ({ ...prev, pin: e.target.value }))}
-                                      className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
+                            <GiftCardGuestPurchasePanel
+                              amountDue={finalInvoiceTotal}
+                              brand={giftCardDetails.brand}
+                              onBrandChange={(val) => setGiftCardDetails(prev => ({ ...prev, brand: val }))}
+                              cardNumber={giftCardDetails.cardNumber}
+                              onCardNumberChange={(val) => {
+                                setGiftCardDetails(prev => ({ ...prev, cardNumber: val }));
+                                if (!paymentRef) setPaymentRef(val);
+                              }}
+                              pin={giftCardDetails.pin}
+                              onPinChange={(val) => setGiftCardDetails(prev => ({ ...prev, pin: val }))}
+                              balance={giftCardDetails.amount}
+                              onBalanceChange={(val) => setGiftCardDetails(prev => ({ ...prev, amount: val }))}
+                            />
                           )}
                         </div>
 
-                        {/* Payment Receipt / Screenshot Proof (Mandatory) */}
-                        <div className="pt-1">
-                          <PaymentReceiptUploader
-                            required={true}
-                            label="Upload Proof of Payment / Receipt (Mandatory)"
-                            subtitle="Attach a clear payment screenshot or receipt photo. Required before submitting your booking."
-                            value={receiptImageUrl}
-                            values={receiptImageUrls}
-                            onChange={(dataUrl) => {
-                              setReceiptImageUrl(dataUrl);
-                              if (!dataUrl) setReceiptImageUrls([]);
-                            }}
-                            onValuesChange={(dataUrls) => {
-                              setReceiptImageUrls(dataUrls);
-                              setReceiptImageUrl(dataUrls[0] || "");
-                            }}
-                          />
-                        </div>
+                        {paymentTab !== "card" && (
+                          <>
+                            <div className="pt-1">
+                              <PaymentReceiptUploader
+                                required={paymentTab !== "giftcard"}
+                                label={paymentTab === "giftcard" ? "Optional: Upload Gift Card Receipt or Photo" : "Upload Proof of Payment / Receipt (Mandatory)"}
+                                subtitle={paymentTab === "giftcard" ? "Upload your digital gift card receipt if desired." : "Attach a clear payment screenshot or receipt photo. Required before submitting your booking."}
+                                value={receiptImageUrl}
+                                values={receiptImageUrls}
+                                onChange={(dataUrl) => {
+                                  setReceiptImageUrl(dataUrl);
+                                  if (!dataUrl) setReceiptImageUrls([]);
+                                }}
+                                onValuesChange={(dataUrls) => {
+                                  setReceiptImageUrls(dataUrls);
+                                  setReceiptImageUrl(dataUrls[0] || "");
+                                }}
+                              />
+                            </div>
 
-                        <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
-                          <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
-                          <span>No account needed to reserve. Your receipt will be verified by our administrator before confirmation.</span>
-                        </div>
+                            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
+                              <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
+                              <span>No account needed to reserve. Your receipt will be verified by our administrator before confirmation.</span>
+                            </div>
 
-                        {!canSubmitExperienceBooking && !isSubmittingBooking && (
-                          <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl text-amber-300 text-[11px] flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                            <span>
-                              {!hasRequiredExperienceFields
-                                ? "Complete all required buyer details above before submitting."
-                                : "Upload proof of payment receipt above to unlock submission."}
-                            </span>
-                          </div>
+                            {!canSubmitExperienceBooking && !isSubmittingBooking && (
+                              <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl text-amber-300 text-[11px] flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                                <span>
+                                  {!hasRequiredExperienceFields
+                                    ? "Complete all required buyer details above before submitting."
+                                    : "Upload proof of payment receipt above to unlock submission."}
+                                </span>
+                              </div>
+                            )}
+                          </>
                         )}
 
                         {bookingError && (
@@ -2832,38 +2841,34 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                       </div>
 
                       {/* Booking payment CTA */}
-                      <div className="pt-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                        <button
-                          type="button"
-                          onClick={() => setBookingStep("details")}
-                          className="px-6 py-4 bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white rounded-2xl text-[10px] uppercase font-black tracking-widest cursor-pointer"
-                        >
-                          Adjust Plan
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={!canSubmitExperienceBooking}
-                          title={!hasExperienceReceipt ? "Upload payment proof receipt before submitting" : "Submit booking and receipt for verification"}
-                          className="flex-1 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed rounded-2xl text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2 transform active:scale-95 duration-100 cursor-pointer"
-                        >
-                          {isSubmittingBooking ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              RECORDING PAYMENT...
-                            </>
-                          ) : !hasExperienceReceipt ? (
-                            <>
-                              <Lock className="w-4 h-4" />
-                              UPLOAD RECEIPT TO SUBMIT
-                            </>
-                          ) : (
-                            <>
-                              <Lock className="w-4 h-4 text-emerald-100" />
-                              SUBMIT PAYMENT &amp; RECEIPT FOR VERIFICATION
-                            </>
-                          )}
-                        </button>
-                      </div>
+                      {paymentTab !== "card" && (
+                        <div className="pt-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                          <button
+                            type="button"
+                            onClick={() => setBookingStep("details")}
+                            className="px-6 py-4 bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white rounded-2xl text-[10px] uppercase font-black tracking-widest cursor-pointer"
+                          >
+                            Adjust Plan
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={!canSubmitExperienceBooking}
+                            className="flex-1 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed rounded-2xl text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2 transform active:scale-95 duration-100 cursor-pointer"
+                          >
+                            {isSubmittingBooking ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                RECORDING PAYMENT...
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="w-4 h-4 text-emerald-100" />
+                                SUBMIT PAYMENT &amp; REQUEST VERIFICATION
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </form>
                     );
                   }
@@ -2874,7 +2879,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                   const originalGross = origRate * guestsNum;
                   const grossTotal = effRate * guestsNum;
                   const promoSavings = originalGross - grossTotal;
-                  const isDirectPay = ["cashapp", "paypal", "venmo", "zelle"].includes(paymentTab);
+                  const isDirectPay = ["giftcard", "cashapp", "crypto"].includes(paymentTab);
                   const directSavings = isDirectPay ? Math.round(grossTotal * 0.05) : 0;
                   const finalInvoiceTotal = grossTotal - directSavings;
 
@@ -3123,7 +3128,7 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                               <span className="text-[9px] bg-emerald-500 text-black px-1.5 py-0.5 rounded font-black">INSTANT</span>
                             </div>
                             <p className="text-[10px] text-zinc-400 font-medium">
-                              Pay via <strong className="text-white">Cash App, PayPal, Venmo, or Zelle</strong> to instantly receive 5% off at checkout.
+                              Pay via <strong className="text-white">Gift Card, Cash App, or Bitcoin</strong> to instantly receive 5% off at checkout.
                             </p>
                           </div>
                         </div>
@@ -3139,32 +3144,35 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         </span>
                       </div>
 
-                      {/* Payment Method Selector Tabs */}
-                      <div className="flex flex-wrap gap-2">
+                      {/* Payment Method Selector Tabs (Exact Order) */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {[
-                          { id: "cashapp", label: "Cash App", badge: "SAVE 5%", icon: Smartphone, highlight: true },
-                          { id: "paypal", label: "PayPal", badge: "SAVE 5%", icon: Smartphone, highlight: true },
-                          { id: "venmo", label: "Venmo", badge: "SAVE 5%", icon: Smartphone, highlight: true },
-                          { id: "zelle", label: "Zelle", badge: "SAVE 5%", icon: Smartphone, highlight: true },
-                          { id: "crypto", label: "Crypto (BTC/ETH/USDT)", icon: QrCode },
-                          { id: "giftcard", label: "Gift Card", badge: "SAVE 5%", icon: Gift }
+                          { id: "card", label: "Stripe (Card)", badge: "", icon: CreditCard },
+                          { id: "giftcard", label: "Gift Card", badge: "SAVE 5%", icon: Gift },
+                          { id: "cashapp", label: "Cash App", badge: "SAVE 5%", icon: Smartphone },
+                          { id: "crypto", label: "Bitcoin", badge: "SAVE 5%", icon: Bitcoin }
                         ].map(method => {
                           const isSelected = paymentTab === method.id;
                           return (
                             <button
                               key={method.id}
                               type="button"
-                              onClick={() => setPaymentTab(method.id as any)}
-                              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all relative ${
+                              onClick={() => {
+                                setPaymentTab(method.id as any);
+                                setBookingError("");
+                              }}
+                              className={`px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-between gap-1.5 transition-all relative cursor-pointer ${
                                 isSelected
                                   ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20 ring-1 ring-blue-400"
-                                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
+                                  : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/10"
                               }`}
                             >
-                              <method.icon className="w-3.5 h-3.5" />
-                              <span>{method.label}</span>
+                              <span className="flex items-center gap-1.5 truncate">
+                                <method.icon className="w-3.5 h-3.5 shrink-0" />
+                                <span className="truncate">{method.label}</span>
+                              </span>
                               {method.badge && (
-                                <span className={`text-[8px] font-black px-1.5 py-0.2 rounded-full ${
+                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${
                                   isSelected ? "bg-emerald-400 text-black" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                                 }`}>
                                   {method.badge}
@@ -3177,11 +3185,29 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
 
                       {/* Payment Channel Details Box */}
                       <div className="space-y-3">
-                        {paymentTab !== "giftcard" && (
+                        {paymentTab === "card" && (
+                          <StripeCardCheckoutPanel
+                            amountUsd={finalInvoiceTotal}
+                            itemName={selectedExp.title}
+                            sessionId={checkoutSessionId}
+                            customerName={senderName}
+                            customerEmail={buyerEmail}
+                            customerPhone={buyerPhone}
+                            playerName={selectedExp.player}
+                            onCustomerDetailsNeeded={validateExperienceFieldsForStripe}
+                            onReturnToOptions={() => setPaymentTab("giftcard")}
+                            onSwitchToGiftCard={() => setPaymentTab("giftcard")}
+                            onSwitchToBitcoin={() => setPaymentTab("crypto")}
+                            onContactSupport={() => setSelectedExp(null)}
+                            onVerifiedSuccess={handleStripeExperienceVerified}
+                          />
+                        )}
+
+                        {(paymentTab === "cashapp" || paymentTab === "crypto") && (
                           <CustomerPaymentWaitingTerminal
                             key={`${checkoutSessionId}-${paymentTab}`}
                             sessionId={checkoutSessionId}
-                            selectedMethod={paymentTab as any}
+                            selectedMethod={paymentTab}
                             amount={finalInvoiceTotal}
                             orderReference={checkoutSessionId}
                             customerName={senderName}
@@ -3195,7 +3221,9 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                               if (phone) setBuyerPhone(phone);
                             }}
                             onSwitchToGiftCard={() => setPaymentTab("giftcard")}
-                            onSwitchToMethod={(m) => setPaymentTab(m as any)}
+                            onSwitchToMethod={(m) => {
+                              if (m === "cashapp" || m === "crypto") setPaymentTab(m);
+                            }}
                             onReceiptsChange={(primary, all) => {
                               setReceiptImageUrl(primary);
                               setReceiptImageUrls(all);
@@ -3214,102 +3242,60 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                         )}
 
                         {paymentTab === "giftcard" && (
-                          <div className="p-4 bg-zinc-950 rounded-2xl border border-white/10 space-y-3">
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                              <span className="text-[10px] font-black uppercase text-amber-400">Prepaid / Digital Gift Card Payment</span>
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">5% OFF Applied</span>
-                              </div>
-                            </div>
-                            <div className="p-3 bg-zinc-900 rounded-xl border border-amber-500/20 space-y-2.5">
-                              <p className="text-[11px] text-zinc-300">
-                                Accepted cards: Apple, Google Play, Steam, Amazon, Visa / Amex Prepaid. You also get an instant <strong>5% discount</strong>!
-                              </p>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                                <div>
-                                  <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Gift Card Brand</label>
-                                  <select
-                                    value={giftCardDetails.brand}
-                                    onChange={(e) => setGiftCardDetails(prev => ({ ...prev, brand: e.target.value }))}
-                                    className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white"
-                                  >
-                                    <option value="Apple">Apple / App Store</option>
-                                    <option value="Google Play">Google Play</option>
-                                    <option value="Amazon">Amazon</option>
-                                    <option value="Steam">Steam</option>
-                                    <option value="Visa">Visa / Mastercard Prepaid</option>
-                                    <option value="Amex">American Express Gift Card</option>
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Card Face Value ($)</label>
-                                  <input
-                                    type="text"
-                                    placeholder="$1,000"
-                                    value={giftCardDetails.amount}
-                                    onChange={(e) => setGiftCardDetails(prev => ({ ...prev, amount: e.target.value }))}
-                                    className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Card Number / Claim Code</label>
-                                  <input
-                                    type="text"
-                                    placeholder="XXXX-XXXX-XXXX-XXXX"
-                                    value={giftCardDetails.cardNumber}
-                                    onChange={(e) => setGiftCardDetails(prev => ({ ...prev, cardNumber: e.target.value }))}
-                                    className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-[9px] font-black uppercase text-zinc-400 block mb-1">PIN / Security Code</label>
-                                  <input
-                                    type="text"
-                                    placeholder="4-8 digit PIN"
-                                    value={giftCardDetails.pin}
-                                    onChange={(e) => setGiftCardDetails(prev => ({ ...prev, pin: e.target.value }))}
-                                    className="w-full bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                          <GiftCardGuestPurchasePanel
+                            amountDue={finalInvoiceTotal}
+                            brand={giftCardDetails.brand}
+                            onBrandChange={(val) => setGiftCardDetails(prev => ({ ...prev, brand: val }))}
+                            cardNumber={giftCardDetails.cardNumber}
+                            onCardNumberChange={(val) => {
+                              setGiftCardDetails(prev => ({ ...prev, cardNumber: val }));
+                              if (!paymentRef) setPaymentRef(val);
+                            }}
+                            pin={giftCardDetails.pin}
+                            onPinChange={(val) => setGiftCardDetails(prev => ({ ...prev, pin: val }))}
+                            balance={giftCardDetails.amount}
+                            onBalanceChange={(val) => setGiftCardDetails(prev => ({ ...prev, amount: val }))}
+                            discountBadge="5% DISCOUNT APPLIED"
+                          />
                         )}
                       </div>
 
-                      {/* Payment Receipt / Screenshot Proof (Mandatory) */}
-                      <div className="pt-1">
-                        <PaymentReceiptUploader
-                          required={true}
-                          value={receiptImageUrl}
-                          values={receiptImageUrls}
-                          onChange={(dataUrl) => {
-                            setReceiptImageUrl(dataUrl);
-                            if (!dataUrl) setReceiptImageUrls([]);
-                          }}
-                          onValuesChange={(dataUrls) => {
-                            setReceiptImageUrls(dataUrls);
-                            setReceiptImageUrl(dataUrls[0] || "");
-                          }}
-                          label="Upload Proof of Payment / Receipt (Mandatory)"
-                          description="Attach a screenshot or photo of your payment confirmation. Required before submitting your booking."
-                        />
-                      </div>
+                      {paymentTab !== "card" && (
+                        <>
+                          <div className="pt-1">
+                            <PaymentReceiptUploader
+                              required={paymentTab !== "giftcard"}
+                              value={receiptImageUrl}
+                              values={receiptImageUrls}
+                              onChange={(dataUrl) => {
+                                setReceiptImageUrl(dataUrl);
+                                if (!dataUrl) setReceiptImageUrls([]);
+                              }}
+                              onValuesChange={(dataUrls) => {
+                                setReceiptImageUrls(dataUrls);
+                                setReceiptImageUrl(dataUrls[0] || "");
+                              }}
+                              label={paymentTab === "giftcard" ? "Optional: Upload Gift Card Receipt or Photo" : "Upload Proof of Payment / Receipt (Mandatory)"}
+                              description={paymentTab === "giftcard" ? "Upload your digital gift card receipt if desired." : "Attach a screenshot or photo of your payment confirmation. Required before submitting your booking."}
+                            />
+                          </div>
 
-                      <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
-                        <span>No account needed to reserve. Your receipt will be verified by our administrator before confirmation.</span>
-                      </div>
+                          <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-300 text-[11px] flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
+                            <span>No account needed to reserve. Your receipt will be verified by our administrator before confirmation.</span>
+                          </div>
 
-                      {!canSubmitExperienceBooking && !isSubmittingBooking && (
-                        <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl text-amber-300 text-[11px] flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                          <span>
-                            {!hasRequiredExperienceFields
-                              ? "Complete all required buyer details above before submitting."
-                              : "Upload proof of payment receipt above to unlock submission."}
-                          </span>
-                        </div>
+                          {!canSubmitExperienceBooking && !isSubmittingBooking && (
+                            <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl text-amber-300 text-[11px] flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                              <span>
+                                {!hasRequiredExperienceFields
+                                  ? "Complete all required buyer details above before submitting."
+                                  : "Upload proof of payment receipt above to unlock submission."}
+                              </span>
+                            </div>
+                          )}
+                        </>
                       )}
 
                       {bookingError && (
@@ -3320,38 +3306,34 @@ export const ExperiencesSection: React.FC<ExperiencesSectionProps> = ({
                     </div>
 
                     {/* Booking payment CTA */}
-                    <div className="pt-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                      <button
-                        type="button"
-                        onClick={() => setBookingStep("details")}
-                        className="px-6 py-4 bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white rounded-2xl text-[10px] uppercase font-black tracking-widest cursor-pointer"
-                      >
-                        Adjust Details
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={!canSubmitExperienceBooking}
-                        title={!hasExperienceReceipt ? "Upload payment proof receipt before submitting" : "Submit booking and receipt for verification"}
-                        className="flex-1 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed rounded-2xl text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2 transform active:scale-95 duration-100 cursor-pointer"
-                      >
-                        {isSubmittingBooking ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            RECORDING PAYMENT...
-                          </>
-                        ) : !hasExperienceReceipt ? (
-                          <>
-                            <Lock className="w-4 h-4" />
-                            UPLOAD RECEIPT TO SUBMIT
-                          </>
-                        ) : (
-                          <>
-                            <Lock className="w-4 h-4 text-emerald-100" />
-                            SUBMIT PAYMENT &amp; RECEIPT FOR VERIFICATION
-                          </>
-                        )}
-                      </button>
-                    </div>
+                    {paymentTab !== "card" && (
+                      <div className="pt-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                        <button
+                          type="button"
+                          onClick={() => setBookingStep("details")}
+                          className="px-6 py-4 bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white rounded-2xl text-[10px] uppercase font-black tracking-widest cursor-pointer"
+                        >
+                          Adjust Details
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={!canSubmitExperienceBooking}
+                          className="flex-1 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed rounded-2xl text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2 transform active:scale-95 duration-100 cursor-pointer"
+                        >
+                          {isSubmittingBooking ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              RECORDING PAYMENT...
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="w-4 h-4 text-emerald-100" />
+                              SUBMIT PAYMENT &amp; REQUEST VERIFICATION
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </form>
                   );
                 })()}

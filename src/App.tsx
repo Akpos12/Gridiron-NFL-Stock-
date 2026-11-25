@@ -186,7 +186,7 @@ const WalletModal = ({
   const [copied, setCopied] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"deposit" | "withdraw" | "history">("withdraw");
   const [withdrawTab, setWithdrawTab] = useState<"fiat" | "crypto">("crypto");
-  const [depositMethod, setDepositMethod] = useState<"cashapp" | "paypal" | "venmo" | "zelle" | "crypto">("cashapp");
+  const [depositMethod, setDepositMethod] = useState<"cashapp" | "crypto">("cashapp");
   const [selectedCurrency, setSelectedCurrency] = useState("USDT");
   const [selectedDepositCrypto, setSelectedDepositCrypto] = useState<"btc" | "eth" | "usdt">("usdt");
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -391,13 +391,10 @@ const WalletModal = ({
               </div>
             )}
 
-            <div className="flex flex-wrap gap-2 border-b border-white/5 pb-3">
+            <div className="flex flex-wrap gap-2 border-b border-white/[0.08] pb-3">
               {[
                 { id: "cashapp", label: "Cash App", icon: Smartphone },
-                { id: "paypal", label: "PayPal", icon: CreditCard },
-                { id: "venmo", label: "Venmo", icon: Smartphone },
-                { id: "zelle", label: "Zelle", icon: Smartphone },
-                { id: "crypto", label: "Crypto", icon: QrCode }
+                { id: "crypto", label: "Bitcoin (BTC)", icon: QrCode }
               ].map(method => (
                 <button
                   key={method.id}
@@ -483,7 +480,7 @@ const WalletModal = ({
                     required
                     value={depositReference}
                     onChange={(e) => setDepositReference(e.target.value)}
-                    placeholder="e.g. $MyCashtag, PayPal/Zelle Email, or Tx Hash"
+                    placeholder="e.g. $MyCashtag or BTC Tx Hash"
                     className="w-full p-3 bg-zinc-900 border border-white/10 rounded-xl text-sm font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500 transition-colors"
                   />
                 </div>
@@ -1294,18 +1291,18 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
 
   return (
     <div className="p-4 sm:p-6 md:p-10 space-y-12 md:space-y-16 pb-32 max-w-7xl mx-auto">
-      <div className="relative overflow-hidden rounded-[2.25rem] bg-gradient-to-br from-[#080f2b] via-[#070a18] to-[#120826] border border-indigo-500/25 p-6 sm:p-10 text-center shadow-2xl">
-        <div className="absolute -top-24 -right-24 w-72 h-72 bg-blue-600/20 blur-[100px] rounded-full pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-purple-600/20 blur-[100px] rounded-full pointer-events-none" />
+      <div className="relative overflow-hidden rounded-[2rem] bg-[#080F22] border border-white/[0.08] p-6 sm:p-10 text-center shadow-2xl">
+        <div className="absolute -top-24 -right-24 w-72 h-72 bg-blue-600/15 blur-[110px] rounded-full pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-[#013369]/25 blur-[110px] rounded-full pointer-events-none" />
 
         <div className="relative z-10 max-w-3xl mx-auto space-y-5">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/15 border border-indigo-400/30 text-sky-300 text-xs font-bold uppercase tracking-widest">
-            <ShoppingBag className="w-3.5 h-3.5 text-purple-400" />
+          <div className="inline-flex items-center gap-2 text-sky-400 text-xs font-bold uppercase tracking-[0.2em]">
+            <ShoppingBag className="w-3.5 h-3.5 text-sky-400" />
             Official Fan Merchandise, Tickets &amp; Collectibles
-          </span>
-          <h2 className="font-display text-4xl sm:text-6xl md:text-7xl font-extrabold italic uppercase tracking-tight leading-[0.93] text-white">
+          </div>
+          <h2 className="font-display text-4xl sm:text-6xl md:text-7xl font-extrabold uppercase tracking-tight leading-[0.94] text-white">
             THE{" "}
-            <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-purple-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-white via-sky-200 to-blue-400 bg-clip-text text-transparent">
               ARENA SHOP
             </span>
           </h2>
@@ -1328,8 +1325,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                 className={cn(
                   "px-4 sm:px-6 py-2.5 sm:py-3 min-h-[44px] rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all border cursor-pointer",
                   shopView === cat.id 
-                    ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white border-indigo-400/50 shadow-lg shadow-indigo-600/25" 
-                    : "bg-zinc-950/80 text-zinc-300 border-white/10 hover:border-white/25 hover:text-white"
+                    ? "bg-[#2563EB] text-white border-blue-400/50 shadow-lg shadow-blue-600/25" 
+                    : "bg-[#040711] text-zinc-300 border-white/[0.08] hover:border-white/25 hover:text-white"
                 )}
               >
                 {cat.label}
@@ -1416,8 +1413,8 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                   className={cn(
                     "px-4 py-2 min-h-[40px] rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all shrink-0 cursor-pointer",
                     merchCategory === cat.id
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600 border-indigo-400/50 text-white shadow-lg shadow-indigo-600/20"
-                      : "bg-[#080d22]/80 text-zinc-300 border-white/10 hover:border-indigo-400/35 hover:text-white select-none"
+                      ? "bg-[#2563EB] border-blue-400/50 text-white shadow-lg shadow-blue-600/20"
+                      : "bg-[#080F22]/85 text-zinc-300 border-white/[0.08] hover:border-blue-400/40 hover:text-white select-none"
                   )}
                 >
                   {cat.label}
@@ -1439,16 +1436,16 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                   return (
                     <div 
                       key={`trend-${p.id}`} 
-                      className="bg-[#080c1c] p-5 rounded-2xl border border-indigo-500/20 hover:border-indigo-400/50 hover:-translate-y-0.5 transition-all group flex flex-col justify-between shadow-xl"
+                      className="bg-[#080F22] p-5 rounded-2xl border border-white/[0.08] hover:border-blue-400/45 hover:-translate-y-0.5 transition-all group flex flex-col justify-between shadow-xl"
                     >
                       <div>
                         <div className="aspect-[4/3] rounded-xl overflow-hidden bg-zinc-950 border border-white/5 mb-4 relative">
                           <NFLImage item={p} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95" />
-                          <div className="absolute top-2.5 right-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-[9px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-md flex items-center gap-1 shadow">
+                          <div className="absolute top-2.5 right-2.5 bg-[#2563EB] text-white text-[9px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-md flex items-center gap-1 shadow">
                             <Star className="w-2.5 h-2.5 fill-white" /> BEST SELLER
                           </div>
                         </div>
-                        <h5 className="text-sm font-bold text-white line-clamp-1 group-hover:text-sky-300 transition-colors uppercase italic">{p.name}</h5>
+                        <h5 className="text-sm font-bold text-white line-clamp-1 group-hover:text-sky-300 transition-colors uppercase">{p.name}</h5>
                         <p className="text-xs text-zinc-400 line-clamp-2 mt-1.5 leading-relaxed">{p.description}</p>
                       </div>
                       <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between gap-2">
@@ -1472,7 +1469,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                               setSelectedProduct(p);
                             }
                           }}
-                          className="px-4 py-2.5 min-h-[40px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-[11px] rounded-xl tracking-wider uppercase transition-all cursor-pointer shrink-0"
+                          className="px-4 py-2.5 min-h-[40px] bg-[#2563EB] hover:bg-blue-500 text-white font-bold text-[11px] rounded-xl tracking-wider uppercase transition-all cursor-pointer shrink-0"
                         >
                           View Gear
                         </button>
@@ -1548,7 +1545,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                             setSelectedProduct(item);
                           }
                         }}
-                        className="px-5 py-3 min-h-[44px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-xl text-[11px] text-white font-bold uppercase tracking-wider transition-all shadow-lg shadow-indigo-600/20 cursor-pointer shrink-0"
+                        className="px-5 py-3 min-h-[44px] bg-[#2563EB] hover:bg-blue-500 rounded-xl text-[11px] text-white font-bold uppercase tracking-wider transition-all shadow-lg shadow-blue-600/20 cursor-pointer shrink-0"
                       >
                         Acquire Options
                       </button>
@@ -1638,7 +1635,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                   tier: "Club Level Hospitality",
                   price: 2950,
                   badge: "EXECUTIVE CLASS",
-                  badgeColor: "bg-purple-600",
+                  badgeColor: "bg-[#013369] border border-blue-400/30",
                   image: isSeahawks
                     ? "/postimages/c94bbc7aac5de3ed9a567156e4dbffd8seahawks.jpg"
                     : stadiumVipImg,
@@ -1714,7 +1711,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
 
                     <button 
                       onClick={() => handleOpenSeasonPassCheckout(pass)}
-                      className="px-6 py-3.5 min-h-[44px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl tracking-wider uppercase transition-all shadow-lg shadow-indigo-600/25 active:scale-[0.98] flex items-center gap-1.5 cursor-pointer"
+                      className="px-6 py-3.5 min-h-[44px] bg-[#2563EB] hover:bg-blue-500 text-white font-bold text-xs rounded-xl tracking-wider uppercase transition-all shadow-lg shadow-blue-600/25 active:scale-[0.98] flex items-center gap-1.5 cursor-pointer"
                     >
                       <Ticket className="w-4 h-4" /> Acquire Pass
                     </button>
@@ -1911,7 +1908,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                           <div className="flex justify-between items-center">
                             <span className="text-zinc-500 font-bold uppercase tracking-wider">Payment Rails</span>
                             <span className="text-emerald-400 font-black uppercase tracking-wider text-[9px] bg-emerald-600/10 px-2 py-0.5 rounded">
-                              Cash App · PayPal · Venmo · Zelle · Crypto
+                              Stripe · Gift Card · Cash App · Bitcoin
                             </span>
                           </div>
                         </div>
@@ -1943,7 +1940,7 @@ const ArenaShop = ({ SHOP_ITEMS, selectedTeam, handleStorePurchase, setShowFanCa
                       <div className="pt-2 flex items-center gap-2">
                         <button 
                           onClick={() => handleOpenGameTicketCheckout(game)}
-                          className="flex-1 sm:flex-none px-5 py-3.5 min-h-[44px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl tracking-wider uppercase flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-indigo-600/20 cursor-pointer"
+                          className="flex-1 sm:flex-none px-5 py-3.5 min-h-[44px] bg-[#2563EB] hover:bg-blue-500 text-white font-bold text-xs rounded-xl tracking-wider uppercase flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-blue-600/20 cursor-pointer"
                         >
                           <Ticket className="w-4 h-4" /> Buy Ticket
                         </button>
@@ -5438,7 +5435,7 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <button onClick={() => setShowLogin(true)} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-4 sm:px-6 py-2.5 min-h-[40px] rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shadow-md">
+            <button onClick={() => setShowLogin(true)} className="bg-[#2563EB] hover:bg-blue-500 text-white px-4 sm:px-6 py-2.5 min-h-[40px] rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shadow-md">
               Sign In
             </button>
           )}
@@ -5447,7 +5444,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="lg:hidden w-10 h-10 rounded-xl bg-[#080d22] border border-white/15 flex items-center justify-center text-white hover:border-indigo-400 transition-colors cursor-pointer"
+            className="lg:hidden w-10 h-10 rounded-xl bg-[#080F22] border border-white/15 flex items-center justify-center text-white hover:border-blue-400 transition-colors cursor-pointer"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -5462,7 +5459,7 @@ export default function App() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="lg:hidden fixed inset-x-0 top-20 z-50 bg-[#060918]/98 backdrop-blur-2xl border-b border-indigo-500/25 p-5 shadow-2xl max-h-[calc(100vh-5rem)] overflow-y-auto"
+            className="lg:hidden fixed inset-x-0 top-20 z-50 bg-[#040711]/98 backdrop-blur-2xl border-b border-white/10 p-5 shadow-2xl max-h-[calc(100vh-5rem)] overflow-y-auto"
           >
             <div className="space-y-2">
               {([
@@ -5488,7 +5485,7 @@ export default function App() {
                   className={cn(
                     "w-full min-h-[48px] px-4 rounded-xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all cursor-pointer",
                     activeTab === item.id && (user || dismissedHero)
-                      ? "bg-gradient-to-r from-blue-600/25 to-purple-600/25 border border-indigo-400/40 text-white"
+                      ? "bg-[#2563EB]/20 border border-blue-400/40 text-white"
                       : "bg-zinc-900/60 border border-white/5 text-zinc-300"
                   )}
                 >
@@ -7195,8 +7192,8 @@ export default function App() {
                       className={cn(
                         "w-full py-4.5 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer",
                         selectedInquiryCategory === "podcast"
-                          ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 shadow-purple-600/30"
-                          : "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 shadow-blue-600/20"
+                          ? "bg-[#013369] hover:bg-blue-700 shadow-blue-600/25"
+                          : "bg-[#2563EB] hover:bg-blue-500 shadow-blue-600/20"
                       )}
                     >
                       {isSubmittingInquiry ? (

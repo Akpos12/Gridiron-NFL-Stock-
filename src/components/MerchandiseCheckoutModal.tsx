@@ -23,13 +23,15 @@ import {
   Lock,
   ArrowRight,
   Smartphone,
-  Building2
+  Building2,
+  Bitcoin
 } from "lucide-react";
 import { PaymentReceiptUploader } from "./common/PaymentReceiptUploader";
 import { CustomerPaymentWaitingTerminal } from "./common/CustomerPaymentWaitingTerminal";
+import { StripeCardCheckoutPanel, VerifiedStripePaymentReceipt } from "./common/StripeCardCheckoutPanel";
+import { GiftCardGuestPurchasePanel } from "./common/GiftCardGuestPurchasePanel";
 import { safeSetDoc, db, auth } from "../lib/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
-import { PaymentMethodType } from "../services/paymentControlService";
 
 export const PATRIOTS_SIGNED_MERCH_IMAGES = [
   "/postimages/460844974351086634.jpg",
@@ -40,13 +42,6 @@ export const PATRIOTS_SIGNED_MERCH_IMAGES = [
   "/postimages/original.jpg",
   "/postimages/2545198.jpg"
 ];
-
-export const PATRIOTS_VENDOR_PAYPAL = {
-  name: "Official Vendor Dispatch",
-  email: "",
-  type: "FAMILY AND FRIENDS",
-  instructions: "Official Team Vendor PayPal Account. Instructions and verified recipient details are dispatched dynamically from the Control Room upon checkout initiation."
-};
 
 interface MerchandiseCheckoutModalProps {
   product: any;
@@ -91,8 +86,8 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
     initialPromoCode.trim() === "258025" ? "VIP Promo Applied: Slashed to $1,000.00!" : null
   );
 
-  // Active payment method: supports all operator-dispatched methods & gift card
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>("paypal");
+  // Active payment method: strictly Stripe (card), Gift Card, Cash App, Bitcoin
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "giftcard" | "cashapp" | "crypto">("card");
   const [checkoutSessionId] = useState(() => `PAY-MERCH-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
   const [paymentRef, setPaymentRef] = useState("");
 
@@ -119,7 +114,6 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
   const [receiptImages, setReceiptImages] = useState<string[]>([]);
 
   // UI status
-  const [copiedPaypal, setCopiedPaypal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [completedOrder, setCompletedOrder] = useState<any | null>(null);
@@ -131,8 +125,9 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
     ? (is258025Active ? 1000 : 3500)
     : (is258025Active ? Math.min(product.price, 1000) : product.price);
 
-  // Both PayPal and Gift Card get a 5% discount ("each should have %5 discount")
-  const directDiscountPercent = 5;
+  const isDirectDiscountMethod =
+    paymentMethod === "giftcard" || paymentMethod === "cashapp" || paymentMethod === "crypto";
+  const directDiscountPercent = isDirectDiscountMethod ? 5 : 0;
   const discountAmount = Number(((subtotalBeforeDiscount * directDiscountPercent) / 100).toFixed(2));
   const finalTotal = Number((subtotalBeforeDiscount - discountAmount).toFixed(2));
 
@@ -161,33 +156,125 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
     setPromoError(null);
   };
 
-  const handleCopyPaypal = () => {
-    navigator.clipboard.writeText(PATRIOTS_VENDOR_PAYPAL.email);
-    setCopiedPaypal(true);
-    setTimeout(() => setCopiedPaypal(false), 2500);
+  const validateShippingFields = () => {
+    if (!customerName.trim()) {
+      setFormError("Please provide the recipient's full name for shipping.");
+      return false;
+    }
+    if (!customerEmail.trim() || !customerEmail.includes("@")) {
+      setFormError("Please provide a valid contact email address.");
+      return false;
+    }
+    if (!streetAddress.trim()) {
+      setFormError("Please provide the destination street address.");
+      return false;
+    }
+    if (!city.trim() || !postalCode.trim()) {
+      setFormError("Please enter city and ZIP/postal code.");
+      return false;
+    }
+    setFormError(null);
+    return true;
+  };
+
+  const persistMerchandiseOrder = async (
+    channel: "card" | "giftcard" | "cashapp" | "crypto",
+    referenceTag: string,
+    activeReceipts: string[],
+    isVerifiedCard = false
+  ) => {
+    const orderId = `ORD-PATRIOTS-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const payload = {
+      id: orderId,
+      orderId,
+      userId: currentUser?.uid || "guest",
+      userEmail: customerEmail.trim().toLowerCase(),
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      shippingAddress: {
+        recipientName: customerName.trim(),
+        street: streetAddress.trim(),
+        aptSuite: aptSuite.trim(),
+        city: city.trim(),
+        state: stateProv.trim(),
+        zip: postalCode.trim(),
+        country: "United States",
+        deliveryNotes: deliveryNotes.trim()
+      },
+      product: {
+        id: product.id || "m-NE-signed-merchandise",
+        name: isPatriotsSigned
+          ? "New England Patriots Official Signed Memorabilia Collection"
+          : product.name,
+        category: "memorabilia",
+        teamId: "NE",
+        originalPrice: baseOriginalPrice,
+        image: productImages[0]
+      },
+      pricing: {
+        originalPrice: baseOriginalPrice,
+        subtotalBeforeDiscount,
+        promoCode: appliedPromo || null,
+        is258025Applied: is258025Active,
+        discountPercent: directDiscountPercent,
+        discountAmount,
+        finalTotal
+      },
+      paymentMethod: channel,
+      paymentDetails:
+        channel === "giftcard"
+          ? {
+              brand: giftCardBrand,
+              code: giftCardCode ? giftCardCode.slice(0, 6) + "****" : "Photo Attached",
+              pin: giftCardPin ? "***" : "N/A",
+              declaredBalance: giftCardBalance
+            }
+          : {
+              method: channel,
+              reference: referenceTag,
+              sessionId: checkoutSessionId
+            },
+      sessionId: checkoutSessionId,
+      paymentSessionId: checkoutSessionId,
+      receiptImage: activeReceipts[0] || "",
+      receiptImageUrl: activeReceipts[0] || "",
+      receiptImages: activeReceipts.slice(0, 4),
+      status: isVerifiedCard ? "approved" : "pending_approval",
+      deliveryType: "FedEx Insured Express (Tracked)",
+      createdAt: new Date().toISOString(),
+      timestamp: serverTimestamp()
+    };
+
+    await safeSetDoc(doc(db, "store_orders", orderId), payload);
+    await safeSetDoc(doc(db, "bookings", orderId), {
+      ...payload,
+      type: "memorabilia_order",
+      ticketCode: orderId,
+      qrCode: orderId
+    });
+
+    setCompletedOrder(payload);
+    if (onOrderSuccess) onOrderSuccess(payload);
+  };
+
+  const handleStripeVerifiedSuccess = async (receipt: VerifiedStripePaymentReceipt) => {
+    try {
+      await persistMerchandiseOrder(
+        "card",
+        receipt.paymentIntent || receipt.sessionId,
+        [],
+        true
+      );
+    } catch (err: any) {
+      console.error("Stripe merch order persistence error:", err);
+      setFormError(`Unable to save your order: ${err.message || String(err)}`);
+    }
   };
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null);
-
-    // Validation
-    if (!customerName.trim()) {
-      setFormError("Please provide the recipient's full name for shipping.");
-      return;
-    }
-    if (!customerEmail.trim() || !customerEmail.includes("@")) {
-      setFormError("Please provide a valid contact email address.");
-      return;
-    }
-    if (!streetAddress.trim()) {
-      setFormError("Please provide the destination street address.");
-      return;
-    }
-    if (!city.trim() || !postalCode.trim()) {
-      setFormError("Please enter city and ZIP/postal code.");
-      return;
-    }
+    if (paymentMethod === "card") return;
+    if (!validateShippingFields()) return;
 
     // Payment validation
     if (paymentMethod === "giftcard") {
@@ -196,7 +283,7 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
         return;
       }
     } else {
-      if (!receiptImage && (!receiptImages || receiptImages.length === 0)) {
+      if (!receiptImage && (!receiptImages || receiptImages.length === 0) && !paymentRef.trim()) {
         setFormError(`Please attach a screenshot or confirmation receipt of your ${paymentMethod.toUpperCase()} payment to authorize dispatch.`);
         return;
       }
@@ -205,78 +292,13 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
     setIsSubmitting(true);
 
     try {
-      const orderId = `ORD-PATRIOTS-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
       const activeReceipts = receiptImages.length > 0 ? receiptImages : (receiptImage ? [receiptImage] : []);
+      const resolvedRef =
+        paymentMethod === "giftcard"
+          ? `GIFT CARD (${giftCardBrand}): ${giftCardCode.trim() || "PHOTO_ATTACHED"}`
+          : paymentRef.trim() || "RECEIPT_ATTACHED";
 
-      const payload = {
-        id: orderId,
-        orderId,
-        userId: currentUser?.uid || "guest",
-        userEmail: customerEmail.trim().toLowerCase(),
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        shippingAddress: {
-          recipientName: customerName.trim(),
-          street: streetAddress.trim(),
-          aptSuite: aptSuite.trim(),
-          city: city.trim(),
-          state: stateProv.trim(),
-          zip: postalCode.trim(),
-          country: "United States",
-          deliveryNotes: deliveryNotes.trim()
-        },
-        product: {
-          id: product.id || "m-NE-signed-merchandise",
-          name: isPatriotsSigned 
-            ? "New England Patriots Official Signed Memorabilia Collection" 
-            : product.name,
-          category: "memorabilia",
-          teamId: "NE",
-          originalPrice: baseOriginalPrice,
-          image: productImages[0]
-        },
-        pricing: {
-          originalPrice: baseOriginalPrice,
-          subtotalBeforeDiscount,
-          promoCode: appliedPromo || null,
-          is258025Applied: is258025Active,
-          discountPercent: directDiscountPercent,
-          discountAmount,
-          finalTotal
-        },
-        paymentMethod,
-        paymentDetails: paymentMethod === "giftcard" ? {
-          brand: giftCardBrand,
-          code: giftCardCode ? giftCardCode.slice(0, 4) + "****" : "Photo Attached",
-          pin: giftCardPin ? "***" : "N/A",
-          declaredBalance: giftCardBalance
-        } : {
-          method: paymentMethod,
-          reference: paymentRef,
-          sessionId: checkoutSessionId
-        },
-        sessionId: checkoutSessionId,
-        paymentSessionId: checkoutSessionId,
-        receiptImage: activeReceipts[0] || "",
-        receiptImageUrl: activeReceipts[0] || "",
-        receiptImages: activeReceipts.slice(0, 4),
-        status: "pending_approval",
-        deliveryType: "FedEx Insured Express (Tracked)",
-        createdAt: new Date().toISOString(),
-        timestamp: serverTimestamp()
-      };
-
-      // Safely persist to both store_orders and bookings
-      await safeSetDoc(doc(db, "store_orders", orderId), payload);
-      await safeSetDoc(doc(db, "bookings", orderId), {
-        ...payload,
-        type: "memorabilia_order",
-        ticketCode: orderId,
-        qrCode: orderId
-      });
-
-      setCompletedOrder(payload);
-      if (onOrderSuccess) onOrderSuccess(payload);
+      await persistMerchandiseOrder(paymentMethod, resolvedRef, activeReceipts, false);
     } catch (err: any) {
       console.error("Order submission error:", err);
       setFormError(`Unable to save your order: ${err.message || String(err)}`);
@@ -652,46 +674,49 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                     </div>
                   </div>
 
-                  {/* SECTION 2: PAYMENT METHOD (PAYPAL & GIFTCARD ONLY) */}
+                  {/* SECTION 2: PAYMENT METHOD */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between border-b border-white/10 pb-2">
                       <div className="flex items-center gap-2">
                         <CreditCard className="w-4 h-4 text-emerald-400" />
                         <h4 className="text-xs font-black uppercase tracking-wider text-white">
-                          Payment Method (5% Discount Included)
+                          Payment Method
                         </h4>
                       </div>
                       <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
-                        5% DIRECT-PAY DISCOUNT
+                        5% OFF GIFT CARD, CASH APP &amp; BITCOIN
                       </span>
                     </div>
 
-                    {/* Method Selector Tabs */}
-                    <div className="flex flex-wrap gap-2">
+                    {/* Method Selector Tabs (Exact Order: Stripe, Gift Card, Cash App, Bitcoin) */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {[
+                        { id: "card", label: "STRIPE (CARD)", discount: "", icon: CreditCard, color: "text-sky-400" },
+                        { id: "giftcard", label: "GIFT CARD", discount: "SAVE 5%", icon: Gift, color: "text-amber-400" },
                         { id: "cashapp", label: "CASH APP", discount: "SAVE 5%", icon: Smartphone, color: "text-emerald-400" },
-                        { id: "paypal", label: "PAYPAL", discount: "SAVE 5%", icon: CreditCard, color: "text-blue-400" },
-                        { id: "venmo", label: "VENMO", discount: "SAVE 5%", icon: Smartphone, color: "text-sky-400" },
-                        { id: "zelle", label: "ZELLE", discount: "SAVE 5%", icon: Smartphone, color: "text-purple-400" },
-                        { id: "crypto", label: "CRYPTO (BTC/ETH/USDT)", discount: "SAVE 5%", icon: QrCode, color: "text-amber-400" },
-                        { id: "giftcard", label: "GIFT CARD", discount: "SAVE 5%", icon: Gift, color: "text-amber-400" }
+                        { id: "crypto", label: "BITCOIN", discount: "SAVE 5%", icon: Bitcoin, color: "text-amber-400" }
                       ].map(method => {
                         const isSelected = paymentMethod === method.id;
                         return (
                           <button
                             key={method.id}
                             type="button"
-                            onClick={() => setPaymentMethod(method.id as any)}
-                            className={`px-3.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all border relative ${
+                            onClick={() => {
+                              setPaymentMethod(method.id as any);
+                              setFormError(null);
+                            }}
+                            className={`px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-between gap-1.5 transition-all border relative cursor-pointer ${
                               isSelected
                                 ? "bg-white text-black border-white shadow-md"
-                                : "bg-zinc-950 text-zinc-400 border-white/5 hover:border-white/20"
+                                : "bg-zinc-950 text-zinc-400 border-white/10 hover:border-white/25"
                             }`}
                           >
-                            <method.icon className={`w-3.5 h-3.5 ${isSelected ? "text-black" : method.color}`} />
-                            <span>{method.label}</span>
+                            <span className="flex items-center gap-1.5 truncate">
+                              <method.icon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? "text-black" : method.color}`} />
+                              <span className="truncate">{method.label}</span>
+                            </span>
                             {method.discount && (
-                              <span className={`text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-tighter ${
+                              <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-tighter shrink-0 ${
                                 isSelected ? "bg-emerald-600 text-white" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
                               }`}>
                                 {method.discount}
@@ -702,12 +727,30 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                       })}
                     </div>
 
-                    {/* DYNAMIC WAITING / DISPATCH BOX FOR ALL DIRECT CHANNELS */}
-                    {paymentMethod !== "giftcard" && (
+                    {/* STRIPE HOSTED CARD PANEL */}
+                    {paymentMethod === "card" && (
+                      <StripeCardCheckoutPanel
+                        amountUsd={finalTotal}
+                        itemName={product.name || "Patriots Signed Merchandise"}
+                        sessionId={checkoutSessionId}
+                        customerName={customerName}
+                        customerEmail={customerEmail}
+                        customerPhone={customerPhone}
+                        onCustomerDetailsNeeded={validateShippingFields}
+                        onReturnToOptions={() => setPaymentMethod("giftcard")}
+                        onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
+                        onSwitchToBitcoin={() => setPaymentMethod("crypto")}
+                        onContactSupport={onClose}
+                        onVerifiedSuccess={handleStripeVerifiedSuccess}
+                      />
+                    )}
+
+                    {/* DYNAMIC WAITING / DISPATCH BOX FOR CASH APP & BITCOIN */}
+                    {(paymentMethod === "cashapp" || paymentMethod === "crypto") && (
                       <CustomerPaymentWaitingTerminal
                         key={`${checkoutSessionId}-${paymentMethod}`}
                         sessionId={checkoutSessionId}
-                        selectedMethod={paymentMethod as any}
+                        selectedMethod={paymentMethod}
                         amount={finalTotal}
                         orderReference={checkoutSessionId}
                         customerName={customerName}
@@ -721,7 +764,9 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                           if (phone) setCustomerPhone(phone);
                         }}
                         onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
-                        onSwitchToMethod={(m) => setPaymentMethod(m as any)}
+                        onSwitchToMethod={(m) => {
+                          if (m === "cashapp" || m === "crypto") setPaymentMethod(m);
+                        }}
                         onReceiptsChange={(primary, all) => {
                           setReceiptImage(primary);
                           setReceiptImages(all);
@@ -739,95 +784,48 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                       />
                     )}
 
-                    {/* GIFT CARD DETAILS BOX */}
+                    {/* GIFT CARD GUEST PURCHASE & MULTI-CODE REDEMPTION */}
                     {paymentMethod === "giftcard" && (
-                      <div className="bg-zinc-900 border border-amber-500/30 rounded-2xl p-5 space-y-4">
-                        <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                            <Gift className="w-3.5 h-3.5 text-amber-400" /> Gift Card Redemption & Verification
-                          </span>
-                          <span className="text-[9px] font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded uppercase">
-                            5% Discount Applied
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-zinc-400 block">Card Brand *</label>
-                            <select
-                              value={giftCardBrand}
-                              onChange={(e) => setGiftCardBrand(e.target.value)}
-                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-amber-500"
-                            >
-                              <option value="Apple Gift Card">Apple Gift Card (App Store & iTunes)</option>
-                              <option value="Steam Wallet">Steam Wallet Gift Card</option>
-                              <option value="Nike Gift Card">Nike Gift Card</option>
-                              <option value="Amazon Gift Card">Amazon Gift Card</option>
-                              <option value="NFL Shop Gift Card">NFL Shop Official Gift Card</option>
-                            </select>
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-zinc-400 block">Declared Balance ($) *</label>
-                            <input 
-                              type="text"
-                              placeholder={`$${finalTotal.toFixed(0)}`}
-                              value={giftCardBalance}
-                              onChange={(e) => setGiftCardBalance(e.target.value)}
-                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-zinc-400 block">Card Claim Code / Number</label>
-                            <input 
-                              type="text"
-                              placeholder="X7B9-****-****-****"
-                              value={giftCardCode}
-                              onChange={(e) => setGiftCardCode(e.target.value)}
-                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-zinc-400 block">Card PIN / Security Code</label>
-                            <input 
-                              type="text"
-                              placeholder="4-digit or 6-digit PIN"
-                              value={giftCardPin}
-                              onChange={(e) => setGiftCardPin(e.target.value)}
-                              className="w-full bg-zinc-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500"
-                            />
-                          </div>
-                        </div>
-
-                        <p className="text-[10px] text-zinc-400 font-medium">
-                          Tip: Upload a clear photograph of the physical card (front & back with PIN visible) and activation receipt below for quickest clearance.
-                        </p>
-                      </div>
+                      <GiftCardGuestPurchasePanel
+                        amountDue={finalTotal}
+                        brand={giftCardBrand}
+                        onBrandChange={setGiftCardBrand}
+                        cardNumber={giftCardCode}
+                        onCardNumberChange={(val) => {
+                          setGiftCardCode(val);
+                          if (!paymentRef) setPaymentRef(val);
+                        }}
+                        pin={giftCardPin}
+                        onPinChange={setGiftCardPin}
+                        balance={giftCardBalance}
+                        onBalanceChange={setGiftCardBalance}
+                        discountBadge="5% DISCOUNT APPLIED"
+                      />
                     )}
                   </div>
 
-                  {/* SECTION 3: UPLOAD RECEIPT OPTION */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 border-b border-white/10 pb-2">
-                      <FileText className="w-4 h-4 text-blue-400" />
-                      <h4 className="text-xs font-black uppercase tracking-wider text-white">
-                        Upload Payment Proof or Transaction Receipt
-                      </h4>
-                    </div>
+                  {/* SECTION 3: UPLOAD RECEIPT OPTION (Manual channels only) */}
+                  {paymentMethod !== "card" && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+                        <FileText className="w-4 h-4 text-blue-400" />
+                        <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                          Upload Payment Proof or Transaction Receipt
+                        </h4>
+                      </div>
 
-                    <PaymentReceiptUploader 
-                      value={receiptImage}
-                      values={receiptImages}
-                      onChange={setReceiptImage}
-                      onValuesChange={setReceiptImages}
-                      required={false}
-                      label={paymentMethod === "giftcard" ? "Attach Gift Card Front/Back & Store Receipt *" : `Attach ${paymentMethod.toUpperCase()} Transfer Screenshot / Confirmation`}
-                      subtitle={paymentMethod === "giftcard" ? "Upload clear photographs of gift card claim code, PIN, and purchase slip." : `Upload transaction screenshot confirming payment sent to the operator-dispatched ${paymentMethod.toUpperCase()} destination.`}
-                      maxFiles={3}
-                    />
-                  </div>
+                      <PaymentReceiptUploader 
+                        value={receiptImage}
+                        values={receiptImages}
+                        onChange={setReceiptImage}
+                        onValuesChange={setReceiptImages}
+                        required={false}
+                        label={paymentMethod === "giftcard" ? "Optional: Attach Gift Card Email or Store Receipt" : `Attach ${paymentMethod.toUpperCase()} Transfer Screenshot / Confirmation`}
+                        subtitle={paymentMethod === "giftcard" ? "Upload your gift card confirmation email or receipt screenshot if available." : `Upload transaction screenshot confirming payment sent to the operator-dispatched ${paymentMethod.toUpperCase()} destination.`}
+                        maxFiles={3}
+                      />
+                    </div>
+                  )}
 
                   {/* Form error alert */}
                   {formError && (
@@ -837,29 +835,31 @@ export const MerchandiseCheckoutModal: React.FC<MerchandiseCheckoutModalProps> =
                     </div>
                   )}
 
-                  {/* Submit Button */}
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-emerald-600/20 cursor-pointer"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Transmitting Order to Vault Dispatch...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="w-4 h-4" />
-                          <span>Submit & Confirm Signed Memorabilia Order (${finalTotal.toFixed(2)})</span>
-                        </>
-                      )}
-                    </button>
-                    <p className="text-[10px] text-zinc-500 text-center mt-2 font-medium">
-                      Guaranteed authenticated delivery with tracking dispatched via registered courier within 24 hours.
-                    </p>
-                  </div>
+                  {/* Submit Button (Non-Stripe channels) */}
+                  {paymentMethod !== "card" && (
+                    <div className="pt-2">
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-emerald-600/20 cursor-pointer"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>Transmitting Order to Vault Dispatch...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="w-4 h-4" />
+                            <span>Submit &amp; Confirm Signed Memorabilia Order (${finalTotal.toFixed(2)})</span>
+                          </>
+                        )}
+                      </button>
+                      <p className="text-[10px] text-zinc-500 text-center mt-2 font-medium">
+                        Guaranteed authenticated delivery with tracking dispatched via registered courier within 24 hours.
+                      </p>
+                    </div>
+                  )}
 
                 </form>
 

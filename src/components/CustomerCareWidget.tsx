@@ -244,7 +244,7 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
             <button
               type="button"
               onClick={() => onOpenCustomerCare()}
-              className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+              className="px-3.5 py-2 bg-[#2563EB] hover:bg-blue-500 text-white rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
             >
               <Headphones className="w-3.5 h-3.5 text-white" />
               Customer Care
@@ -259,7 +259,7 @@ export const CustomerCareWidget: React.FC<CustomerCareWidgetProps> = ({
               "h-12 px-4 rounded-2xl flex items-center gap-2.5 font-bold text-xs uppercase tracking-wider transition-all shadow-2xl cursor-pointer border min-w-[48px] justify-center",
               isOpen
                 ? "bg-white text-black border-white"
-                : "bg-[#080d22]/95 hover:bg-[#0d1536] text-white border-indigo-400/45 hover:border-purple-400"
+                : "bg-[#080F22]/95 hover:bg-[#0D1633] text-white border-white/15 hover:border-blue-400/60"
             )}
           >
             <div className="relative">

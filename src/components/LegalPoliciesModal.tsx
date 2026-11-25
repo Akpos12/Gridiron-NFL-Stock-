@@ -244,7 +244,7 @@ export const LegalPoliciesModal: React.FC<LegalPoliciesModalProps> = ({
                 <strong>1. Invitation Subjectivity:</strong> Every $100 player meet-and-greet invitation request is subject to athlete availability, confirmed public or private hospitality events, venue security clearance, and authorized event arrangements. Submitting an initial request secures placement in our invitation coordination queue and triggers notifications when an upcoming invite becomes available.
               </p>
               <p>
-                <strong>2. Payment Verification Requirement:</strong> Manual payment methods (Zelle, Cash App, Venmo, PayPal, Crypto, Gift Card) require genuine proof-of-payment upload and administrative verification before any order or request is marked as paid or approved.
+                <strong>2. Payment Verification Requirement:</strong> Alternative payment methods (Gift Card, Cash App, Bitcoin) require valid redemption codes or proof-of-payment verification before any order or request is marked as paid or approved.
               </p>
               <p>
                 <strong>3. Conduct &amp; Credential Transferability:</strong> Issued passes are strictly non-transferable unless authorized by our concierge desk in advance.
