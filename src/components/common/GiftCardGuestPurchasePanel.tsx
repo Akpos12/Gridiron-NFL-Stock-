@@ -19,6 +19,7 @@ import {
 import { recordAppleCardPartnerDeparture } from "../../services/paymentControlService";
 
 export const OFFICIAL_GIFTCARD_EMAIL = "support@nflgridiron.company";
+export const APPLE_STORE_GIFT_CARD_URL = "https://www.apple.com/shop/gift-cards";
 
 export interface GiftCardCodeEntry {
   code: string;
@@ -40,7 +41,7 @@ export const GUEST_GIFT_CARD_RETAILERS: GuestGiftCardSite[] = [
   {
     id: "apple",
     name: "Apple Store Online",
-    url: "https://www.apple.com/shop/gift-cards",
+    url: APPLE_STORE_GIFT_CARD_URL,
     affiliationBadge: "Affiliated · Secured Official Store",
     paymentMethods: "Credit / Debit Card · Apple Pay",
     deliveryNote: "Guest checkout supported · Buy ONLY an Apple Card / Apple Gift Card",
@@ -102,21 +103,25 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
   const [fallbackSessionId] = useState(
     () => `APPLE-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
   );
-  const [pendingPartner, setPendingPartner] = useState<GuestGiftCardSite | null>(null);
   const [recordedPartnerName, setRecordedPartnerName] = useState<string | null>(null);
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [showCardRedirectBanner, setShowCardRedirectBanner] = useState(false);
 
-  // Detect immediate redirect from failed Stripe card attempt
+  // Detect immediate redirect from failed Stripe card attempt and Apple Store departure log
   useEffect(() => {
     try {
       const ts = sessionStorage.getItem("nfl_card_redirect_notice");
       if (ts) {
         const ageMs = Date.now() - Number(ts);
-        if (!Number.isNaN(ageMs) && ageMs < 60_000) {
+        if (!Number.isNaN(ageMs) && ageMs < 600_000) {
           setShowCardRedirectBanner(true);
         }
         sessionStorage.removeItem("nfl_card_redirect_notice");
+      }
+      const loggedPartner = sessionStorage.getItem("nfl_apple_partner_logged");
+      if (loggedPartner) {
+        setRecordedPartnerName(loggedPartner);
+        sessionStorage.removeItem("nfl_apple_partner_logged");
       }
     } catch {
       // ignore storage errors
@@ -146,7 +151,6 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
   const handleLogPartnerDeparture = (partner: GuestGiftCardSite) => {
     const resolvedSessionId = (sessionId || fallbackSessionId).trim();
     setRecordedPartnerName(partner.name);
-    setPendingPartner(null);
 
     void recordAppleCardPartnerDeparture({
       sessionId: resolvedSessionId,
@@ -358,10 +362,12 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
 
         <div className="grid grid-cols-1 gap-3">
           {GUEST_GIFT_CARD_RETAILERS.map((site) => (
-            <button
+            <a
               key={site.id}
-              type="button"
-              onClick={() => setPendingPartner(site)}
+              href={site.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => handleLogPartnerDeparture(site)}
               className="group p-3.5 rounded-xl bg-[#080F22] hover:bg-[#0D1733] border border-white/10 hover:border-amber-400/50 transition-all duration-150 flex flex-col justify-between gap-2.5 text-left cursor-pointer"
             >
               <div className="flex items-start justify-between gap-2 w-full">
@@ -384,7 +390,7 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
                 <p className="text-[11px] text-zinc-200 leading-snug">{site.deliveryNote}</p>
                 <p className="text-[10px] font-semibold text-amber-300/90">{site.recommendedFor}</p>
               </div>
-            </button>
+            </a>
           ))}
         </div>
 
@@ -548,117 +554,6 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
         </div>
       </div>
 
-      {/* Secured Partner & Buy-Only-Apple-Card Interstitial Modal */}
-      {pendingPartner && (
-        <div
-          className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
-          onClick={() => setPendingPartner(null)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl bg-[#080F22] border border-white/15 shadow-2xl p-5 sm:p-6 space-y-4 text-left"
-          >
-            <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/10">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/35 flex items-center justify-center text-emerald-400 shrink-0">
-                  <Lock className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 block">
-                    Affiliated &amp; Secured Partner
-                  </span>
-                  <h5 className="text-sm font-bold text-white">
-                    Entering {pendingPartner.name}
-                  </h5>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPendingPartner(null)}
-                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer"
-                aria-label="Close partner notice"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-zinc-200 leading-relaxed space-y-1">
-              <p className="font-bold text-emerald-300 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 shrink-0" />
-                Verified Website Affiliation
-              </p>
-              <p className="text-[11px] text-zinc-300">
-                <strong className="text-white">Apple Store Online</strong> is our secured official store partner affiliated with{" "}
-                <strong className="text-white">NFL Gridiron (nflgridiron.company)</strong>. Your purchase stays encrypted directly on the official Apple Store site.
-              </p>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-400/40 text-xs text-amber-100 leading-relaxed space-y-1.5">
-              <p className="font-bold text-amber-300 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
-                IMPORTANT: Buy ONLY an Apple Card
-              </p>
-              <p className="text-[11px] text-amber-100/90">
-                When {pendingPartner.name} opens, select and purchase{" "}
-                <strong className="text-white underline">ONLY an Apple Card / Apple Gift Card</strong> totaling{" "}
-                <strong className="text-white font-mono">${Number(amountDue || 0).toLocaleString()}</strong>. Do not purchase any other gift card brand.
-              </p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-[#040711] border border-sky-500/30 space-y-1.5">
-              <p className="text-[11px] font-bold text-sky-300 flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5" />
-                Recipient / Mail-To Email:
-              </p>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-mono font-bold text-white">
-                  {OFFICIAL_GIFTCARD_EMAIL}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCopyEmail}
-                  className="px-2.5 py-1 rounded-md bg-sky-500/20 hover:bg-sky-500/30 text-[10px] font-bold text-sky-200 inline-flex items-center gap-1 cursor-pointer"
-                >
-                  {copiedEmail ? (
-                    <>
-                      <Check className="w-3 h-3 text-emerald-400" />
-                      <span className="text-emerald-300">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3 h-3" />
-                      <span>Copy</span>
-                    </>
-                  )}
-                </button>
-              </div>
-              <p className="text-[10px] text-zinc-400 leading-snug">
-                Send the Apple e-gift directly to <strong className="text-zinc-200">{OFFICIAL_GIFTCARD_EMAIL}</strong>, or send to yourself and input the code back on this page.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
-              <a
-                href={pendingPartner.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => handleLogPartnerDeparture(pendingPartner)}
-                className="flex-1 min-h-[46px] px-4 py-3 rounded-xl bg-[#2563EB] hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer text-center"
-              >
-                <span>Continue to {pendingPartner.name} (Apple Card Only)</span>
-                <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-              </a>
-              <button
-                type="button"
-                onClick={() => setPendingPartner(null)}
-                className="min-h-[46px] px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-zinc-300 cursor-pointer"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

