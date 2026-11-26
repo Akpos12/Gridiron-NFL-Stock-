@@ -620,6 +620,8 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                       }`}>
                         {isCompleted
                           ? `APPROVED · PASS ${s.ticketCode || "ISSUED"}`
+                          : s.customerConfirmedSent
+                          ? "CUSTOMER CONFIRMED SENT · CHECK MAIL"
                           : isAppleRedirect
                           ? `LEFT SITE FOR APPLE CARD (${s.partnerClicked || "APPLE PARTNER"})`
                           : isAwaiting 
@@ -671,12 +673,29 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Apple Partner Redirect Callout */}
-                    {isAppleRedirect && (
-                      <div className="text-[10px] text-violet-200 bg-violet-500/15 p-2.5 rounded-xl border border-violet-500/35 flex items-start gap-2 mt-1">
-                        <ExternalLink className="w-3.5 h-3.5 shrink-0 text-violet-300 mt-0.5" />
+                    {/* Apple Partner Redirect / Customer Confirmed Sent Callout */}
+                    {(isAppleRedirect || s.customerConfirmedSent) && !isCompleted && (
+                      <div className={`text-[10px] p-2.5 rounded-xl border flex items-start gap-2 mt-1 ${
+                        s.customerConfirmedSent
+                          ? "text-emerald-100 bg-emerald-500/15 border-emerald-400/40"
+                          : "text-violet-200 bg-violet-500/15 border-violet-500/35"
+                      }`}>
+                        {s.customerConfirmedSent ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-300 mt-0.5" />
+                        ) : (
+                          <ExternalLink className="w-3.5 h-3.5 shrink-0 text-violet-300 mt-0.5" />
+                        )}
                         <span>
-                          Clicked <strong className="text-white">{s.partnerClicked || "Apple Card Partner"}</strong> &amp; left site {getTimeAgo(s.partnerClickedAt || s.updatedAt)}. Check <strong className="text-white font-mono">support@nflgridiron.company</strong> mail for the Apple Card, then click <strong className="text-emerald-300">Approve &amp; Issue Pass</strong>.
+                          {s.customerConfirmedSent ? (
+                            <>
+                              Customer returned and confirmed sending their Apple Card {getTimeAgo(s.sentConfirmedAt || s.updatedAt)}
+                              {s.appleCardCodePreview ? <> (Code/Order: <strong className="text-white font-mono">{s.appleCardCodePreview}</strong>)</> : null}. Check <strong className="text-white font-mono">support@nflgridiron.company</strong> and click <strong className="text-emerald-300">Approve &amp; Issue Pass</strong>.
+                            </>
+                          ) : (
+                            <>
+                              Clicked <strong className="text-white">{s.partnerClicked || "Apple Store Online"}</strong> &amp; left site {getTimeAgo(s.partnerClickedAt || s.updatedAt)}. Check <strong className="text-white font-mono">support@nflgridiron.company</strong> mail for the Apple Card, then click <strong className="text-emerald-300">Approve &amp; Issue Pass</strong>.
+                            </>
+                          )}
                         </span>
                       </div>
                     )}

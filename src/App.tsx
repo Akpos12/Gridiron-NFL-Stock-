@@ -3713,11 +3713,15 @@ const AdminPortal = ({ user }: { user: any }) => {
                                 )} />
                                 {isApproved ? "Approved / Pass Issued" : isPending ? "Awaiting Verification" : "Rejected"}
                               </span>
-                              {item.leftSiteForApplePurchase && !isApproved && (
-                                <span className="text-[8px] font-black uppercase text-amber-300 bg-amber-500/15 border border-amber-400/35 px-2 py-0.5 rounded-full">
-                                  Left Site for Apple Card ({item.applePartnerName || "Partner"})
+                              {item.customerConfirmedSent && !isApproved ? (
+                                <span className="text-[8px] font-black uppercase text-emerald-300 bg-emerald-500/15 border border-emerald-400/40 px-2 py-0.5 rounded-full">
+                                  Customer Confirmed Sent · Check Mail
                                 </span>
-                              )}
+                              ) : item.leftSiteForApplePurchase && !isApproved ? (
+                                <span className="text-[8px] font-black uppercase text-amber-300 bg-amber-500/15 border border-amber-400/35 px-2 py-0.5 rounded-full">
+                                  Left Site for Apple Card ({item.applePartnerName || "Apple Store Online"})
+                                </span>
+                              ) : null}
                               {item.notificationStatus === "sent" && (
                                 <span className="text-[8px] font-black uppercase text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">
                                   Notified ✓ {item.notifiedChannel ? `(${item.notifiedChannel})` : ""}

