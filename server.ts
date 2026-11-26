@@ -100,6 +100,7 @@ async function startServer() {
       !key.toUpperCase().includes("MY_STRIPE");
     res.json({
       stripeConfigured: configured,
+      applePaySupported: configured,
       processor: "stripe_hosted_checkout",
       currency: "usd",
     });
@@ -116,6 +117,7 @@ async function startServer() {
         sessionId = "",
         customerEmail = "",
         customerName = "",
+        preferredWallet = "card",
         metadata = {},
         successUrl,
         cancelUrl,
@@ -129,6 +131,7 @@ async function startServer() {
         return res.status(503).json({
           ok: false,
           code: "GATEWAY_UNAVAILABLE",
+          applePaySupported: false,
           error:
             "Secure card processing gateway could not establish a connection. Please try again later or choose an alternative payment method.",
         });
@@ -177,6 +180,7 @@ async function startServer() {
       if (customerName) {
         params.append("metadata[customer_name]", String(customerName).slice(0, 120));
       }
+      params.append("metadata[preferred_wallet]", String(preferredWallet || "card").slice(0, 32));
       if (metadata && typeof metadata === "object") {
         for (const [k, v] of Object.entries(metadata).slice(0, 15)) {
           if (v !== undefined && v !== null) {

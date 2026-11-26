@@ -57,6 +57,15 @@ import {
   PaymentMethodType,
   SAVED_SESSIONS_EVENT
 } from "../services/paymentControlService";
+import {
+  CeeDeePublicPromoOfferModal,
+  CeeDeePromoSelection,
+  CEEDEE_APPLE_PAY_DISCOUNT_USD,
+  CEEDEE_SIGNED_JERSEY_ADDON_USD,
+} from "./CeeDeePublicPromoOfferModal";
+
+const CEEDEE_PROMO_SESSION_KEY = "nfl_ceedee_public_promo_choice_v1";
+const CEEDEE_PROMO_JERSEY_KEY = "nfl_ceedee_public_promo_jersey_v1";
 
 interface PlayerInquiryModalProps {
   isOpen: boolean;
@@ -170,6 +179,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
   const [hasSearchedExisting, setHasSearchedExisting] = useState(false);
   const [savedDeviceSessions, setSavedDeviceSessions] = useState(() => getSavedGuestSessions());
 
+  // Exclusive CeeDee Lamb Public Meet & Greet Promo Offer State
+  const [showCeeDeePromoModal, setShowCeeDeePromoModal] = useState(false);
+  const [applePayDiscountApplied, setApplePayDiscountApplied] = useState(false);
+  const [includeSignedJersey, setIncludeSignedJersey] = useState(false);
+  const [promoApplePayAvailable, setPromoApplePayAvailable] = useState(false);
+
   const applyResumedSession = (s: PaymentSession) => {
     setCheckoutSessionId(s.id);
     if (s.customerName && !fullName.trim()) setFullName(s.customerName);
@@ -243,16 +258,51 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     setCheckoutSessionId(freshId);
     setPaymentMethod("card");
 
+    const isCeeDeePublicTarget =
+      resolvedPlayer.toLowerCase().includes("ceedee") &&
+      (initialObjective || "").toLowerCase().includes("public meet");
+
     const canStartOnPayment =
       initialStep === "payment" &&
       resolvedName.length > 0 &&
       resolvedEmail.includes("@") &&
-      (resolvedPlayer.toLowerCase().includes("ceedee") &&
-      (initialObjective || "").toLowerCase().includes("public meet")
+      (isCeeDeePublicTarget
         ? true
         : resolvedPlayer.length > 0 && resolvedMessaging.length > 0);
 
     setStep(canStartOnPayment ? "payment" : "details");
+
+    if (isCeeDeePublicTarget && (initialMode || "new") === "new") {
+      try {
+        const storedChoice = sessionStorage.getItem(CEEDEE_PROMO_SESSION_KEY);
+        const storedJersey = sessionStorage.getItem(CEEDEE_PROMO_JERSEY_KEY) === "true";
+        if (!storedChoice) {
+          setApplePayDiscountApplied(false);
+          setIncludeSignedJersey(false);
+          setShowCeeDeePromoModal(true);
+        } else {
+          setShowCeeDeePromoModal(false);
+          setIncludeSignedJersey(storedJersey);
+          if (storedChoice === "apple_pay_5pct") {
+            setApplePayDiscountApplied(true);
+            setPromoApplePayAvailable(true);
+            setPaymentMethod("card");
+          } else if (storedChoice === "supported_alternative") {
+            setApplePayDiscountApplied(true);
+            setPromoApplePayAvailable(false);
+            setPaymentMethod("giftcard");
+          } else {
+            setApplePayDiscountApplied(false);
+          }
+        }
+      } catch {
+        setShowCeeDeePromoModal(true);
+      }
+    } else {
+      setShowCeeDeePromoModal(false);
+      setApplePayDiscountApplied(false);
+      setIncludeSignedJersey(false);
+    }
 
     // Immediately check if this returning customer already has an active / responded inquiry!
     if (resolvedEmail.includes("@") || resolvedName.length >= 2) {
@@ -314,10 +364,70 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     favoritePlayer.trim().toLowerCase().includes("ceedee") &&
     inquiryObjective.toLowerCase().includes("public meet");
   const effectiveVenue = isPublicCeeDeeMeetGreet ? "AT&T Stadium · Arlington, Texas" : "Hospitality Concierge Scheduling Queue";
-  
-  // Calculate price: $100 flat session fee (5% discount if Crypto = $95)
+
+  // Calculate price dynamically:
+  // - Standard: $100 ($95 w/ Bitcoin 5% off)
+  // - CeeDee Public Meet & Greet Promo: $95 w/ Apple Pay 5% off (or supported promo checkout) + optional $195 Signed Jersey add-on
   const isCrypto = paymentMethod === "crypto";
-  const finalPrice = isCrypto ? 95 : 100;
+  const ticketBasePrice = isPublicCeeDeeMeetGreet
+    ? (applePayDiscountApplied || isCrypto ? 95 : 100)
+    : (isCrypto ? 95 : 100);
+  const signedJerseyAddonPrice =
+    isPublicCeeDeeMeetGreet && includeSignedJersey ? CEEDEE_SIGNED_JERSEY_ADDON_USD : 0;
+  const finalPrice = ticketBasePrice + signedJerseyAddonPrice;
+
+  const handlePromoSelection = (selection: CeeDeePromoSelection) => {
+    setShowCeeDeePromoModal(false);
+    setIncludeSignedJersey(selection.includeJersey);
+    setPromoApplePayAvailable(selection.applePayAvailable);
+
+    const hasDiscount = selection.discountUsd > 0;
+    setApplePayDiscountApplied(hasDiscount);
+
+    try {
+      sessionStorage.setItem(
+        CEEDEE_PROMO_SESSION_KEY,
+        selection.paymentPreference === "apple_pay"
+          ? "apple_pay_5pct"
+          : selection.paymentPreference === "supported_alternative"
+          ? "supported_alternative"
+          : "regular"
+      );
+      sessionStorage.setItem(CEEDEE_PROMO_JERSEY_KEY, String(selection.includeJersey));
+    } catch {
+      // ignore storage errors
+    }
+
+    if (selection.paymentPreference === "supported_alternative") {
+      setPaymentMethod("giftcard");
+    } else {
+      setPaymentMethod("card");
+    }
+
+    setGiftCardDetails((prev) => ({
+      ...prev,
+      amount: String(selection.totalUsd),
+    }));
+
+    const hasValidNameAndGmail = fullName.trim().length > 0 && email.trim().includes("@");
+    if (hasValidNameAndGmail) {
+      setStep("payment");
+    } else {
+      setStep("details");
+    }
+  };
+
+  const handleDismissPromoModal = () => {
+    setShowCeeDeePromoModal(false);
+    try {
+      if (!sessionStorage.getItem(CEEDEE_PROMO_SESSION_KEY)) {
+        sessionStorage.setItem(CEEDEE_PROMO_SESSION_KEY, "dismissed");
+      }
+    } catch {
+      // ignore storage errors
+    }
+    onClose();
+  };
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -394,9 +504,27 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       }
     }
 
-    setPaymentMethod("card");
+    if (selectionFallbackShouldKeepMethod(paymentMethod, applePayDiscountApplied, promoApplePayAvailable)) {
+      // preserve supported alternative choice (e.g. giftcard) when Apple Pay wasn't available
+    } else {
+      setPaymentMethod("card");
+    }
     setStep("payment");
   };
+
+  function selectionFallbackShouldKeepMethod(
+    currentMethod: PaymentMethodType | null,
+    discountApplied: boolean,
+    applePayReady: boolean
+  ) {
+    return Boolean(
+      isPublicCeeDeeMeetGreet &&
+        discountApplied &&
+        !applePayReady &&
+        currentMethod &&
+        currentMethod !== "card"
+    );
+  }
 
   const hasRequiredProfileFields = isPublicCeeDeeMeetGreet
     ? fullName.trim().length > 0 && email.trim().includes("@")
@@ -483,7 +611,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
           ? "CeeDee Lamb Public Meet & Greet · AT&T Stadium, Arlington, TX"
           : `Player Meet & Greet Invitation: ${targetPlayerName}`,
         itemName: isPublicCeeDeeMeetGreet
-          ? "CeeDee Lamb Public Meet & Greet — December 26th · AT&T Stadium ($100)"
+          ? `CeeDee Lamb Public Meet & Greet — December 26th · AT&T Stadium ($${ticketBasePrice}${includeSignedJersey ? " + Signed #88 Jersey $195" : ""})`
           : `Meet & Greet Invitation Request (${targetPlayerName}) - $100 ($75 Coordination + $25 BGCA Support)`,
         experienceType: isPublicCeeDeeMeetGreet ? "meet_greet" : "player_inquiry",
         player: targetPlayerName,
@@ -507,15 +635,19 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         tier: "standard",
         tierName: isPublicCeeDeeMeetGreet ? "PUBLIC MEET & GREET ADMISSION" : "MEET & GREET INVITATION REQUEST",
         seatDetails: isPublicCeeDeeMeetGreet
-          ? `AT&T Stadium · Arlington, Texas · December 26th · Delivery: ${email.trim()}`
+          ? `AT&T Stadium · Arlington, Texas · December 26th · Delivery: ${email.trim()}${includeSignedJersey ? " · Add-On: Signed #88 Jersey ($195)" : ""}`
           : `Requested Player: ${targetPlayerName} · Preferred Contact: ${platformName} (${resolvedContact})`,
         quantity: 1,
         guestsCount: 1,
-        unitPrice: 100,
-        price: 100,
+        unitPrice: ticketBasePrice,
+        price: finalPrice,
         totalPrice: finalPrice,
         totalAmount: finalPrice,
         dueToday: finalPrice,
+        applePayDiscountApplied: isPublicCeeDeeMeetGreet && applePayDiscountApplied,
+        applePayDiscountUsd: isPublicCeeDeeMeetGreet && applePayDiscountApplied ? CEEDEE_APPLE_PAY_DISCOUNT_USD : 0,
+        signedJerseyIncluded: isPublicCeeDeeMeetGreet && includeSignedJersey,
+        signedJerseyPriceUsd: signedJerseyAddonPrice,
         coordinationFeeUsd: CHARITY_ALLOCATION.coordinationFeeUsd,
         charitableAllocationUsd: CHARITY_ALLOCATION.charitableContributionUsd,
         charityBeneficiary: CHARITY_ALLOCATION.beneficiary,
@@ -584,10 +716,13 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         buyerPhone: phone.trim() || resolvedContact,
         itemType: "ticket",
         itemName: isPublicCeeDeeMeetGreet
-          ? `CeeDee Lamb Public Meet & Greet · Dec 26 (AT&T Stadium, Arlington, TX)`
+          ? `CeeDee Lamb Public Meet & Greet · Dec 26 (AT&T Stadium, Arlington, TX)${includeSignedJersey ? " + Signed #88 Jersey" : ""}`
           : `NFL Player Inquiry Session (${targetPlayerName}) [${platformName}]`,
         venue: effectiveVenue,
         price: finalPrice,
+        signedJerseyIncluded: isPublicCeeDeeMeetGreet && includeSignedJersey,
+        signedJerseyPriceUsd: signedJerseyAddonPrice,
+        applePayDiscountApplied: isPublicCeeDeeMeetGreet && applePayDiscountApplied,
         teamId: selectedTeam.id,
         paymentMethod: paymentMethod,
         paymentRef: paymentRef || `INQ-${checkoutSessionId}`,
@@ -622,6 +757,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         inquiryObjective: inquiryObjective,
         specialNotes: specialNotes.trim(),
         feePaid: finalPrice,
+        signedJerseyIncluded: isPublicCeeDeeMeetGreet && includeSignedJersey,
+        signedJerseyPriceUsd: signedJerseyAddonPrice,
+        applePayDiscountApplied: isPublicCeeDeeMeetGreet && applePayDiscountApplied,
         paymentMethod: paymentMethod,
         paymentRef: paymentRef || "SUBMITTED",
         receiptImage: receiptImageUrls[0] || receiptImageUrl || "",
@@ -675,6 +813,17 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     }
   };
 
+  if (showCeeDeePromoModal && isPublicCeeDeeMeetGreet && modalMode === "new") {
+    return (
+      <CeeDeePublicPromoOfferModal
+        isOpen={true}
+        initialIncludeJersey={includeSignedJersey}
+        onClose={handleDismissPromoModal}
+        onSelectOffer={handlePromoSelection}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md overflow-y-auto">
       <motion.div
@@ -705,7 +854,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               {isPublicCeeDeeMeetGreet ? (
                 <>
                   <MapPin className="w-3.5 h-3.5 text-sky-400" />
-                  <span>AT&amp;T Stadium · Arlington, TX · $100</span>
+                  <span>AT&amp;T Stadium · Arlington, TX · ${finalPrice}</span>
                 </>
               ) : (
                 <>
@@ -719,7 +868,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
           <h3 className="text-xl sm:text-2xl font-extrabold uppercase tracking-tight text-white leading-tight">
             {isPublicCeeDeeMeetGreet ? (
               <>
-                CEEDÉE LAMB PUBLIC MEET &amp; GREET — <span className="text-sky-400">$100 PER TICKET</span>
+                CEEDÉE LAMB PUBLIC MEET &amp; GREET — <span className="text-sky-400">${finalPrice} TOTAL</span>
               </>
             ) : (
               <>
@@ -746,7 +895,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               )}
             >
               <Sparkles className="w-3.5 h-3.5 shrink-0" />
-              <span>{isPublicCeeDeeMeetGreet ? "Reserve Slot ($100)" : "New Player Inquiry"}</span>
+              <span>{isPublicCeeDeeMeetGreet ? `Reserve Slot ($${finalPrice})` : "New Player Inquiry"}</span>
             </button>
             <button
               type="button"
@@ -783,7 +932,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               <ArrowRight className="w-3 h-3 text-zinc-700" />
               <div className={cn("flex items-center gap-1.5", step === "payment" ? "text-blue-400" : "text-zinc-500")}>
                 <span className={cn("w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px]", step === "payment" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-400")}>2</span>
-                <span>{isPublicCeeDeeMeetGreet ? "Checkout ($100)" : "$100 Contribution & Proof"}</span>
+                <span>{isPublicCeeDeeMeetGreet ? `Checkout ($${finalPrice})` : "$100 Contribution & Proof"}</span>
               </div>
               <ArrowRight className="w-3 h-3 text-zinc-700" />
               <div className={cn("flex items-center gap-1.5", step === "success" ? "text-emerald-400" : "text-zinc-500")}>
@@ -1046,7 +1195,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               })()}
               {isPublicCeeDeeMeetGreet ? (
                 <div className="space-y-5">
-                  {/* Streamlined Public Meet & Greet Event Recap + Name & Gmail Form */}
+                  {/* Streamlined Public Meet & Greet Event Recap + Promo Selection Summary */}
                   <div className="p-4 sm:p-5 rounded-3xl bg-[#040B1A] border border-[#60A5FA]/30 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                     <div className="p-3 rounded-2xl bg-[#030712]/80 border border-white/10">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8] flex items-center gap-1.5">
@@ -1068,12 +1217,39 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                     </div>
                     <div className="p-3 rounded-2xl bg-[#030712]/80 border border-[#60A5FA]/35">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-[#93C5FD] block">
-                        Ticket Price
+                        {applePayDiscountApplied ? "Promo Total (5% Off)" : "Checkout Total"}
                       </span>
-                      <span className="font-mono text-base font-black text-white mt-0.5 block">
-                        $100 Per Ticket
+                      <span className="font-mono text-base font-black text-white mt-0.5 block tabular-nums">
+                        ${finalPrice}.00 USD
+                      </span>
+                      {includeSignedJersey && (
+                        <span className="text-[10px] text-sky-300 font-semibold block">
+                          Includes Signed #88 Jersey (+$195)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick Promo Offer / Signed Jersey Review Strip */}
+                  <div className="p-3.5 rounded-2xl bg-[#07142E]/75 border border-[#B0B7BC]/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-white block">
+                        {applePayDiscountApplied
+                          ? "5% Fan Offer Active ($95.00 Ticket)"
+                          : "Standard Admission ($100.00 Ticket)"}
+                        {includeSignedJersey ? " + Signed CeeDee Lamb #88 Jersey ($195.00)" : ""}
+                      </span>
+                      <span className="text-[11px] text-zinc-400 block">
+                        Need to add/remove the signed jersey or review the 5% Apple Pay offer?
                       </span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowCeeDeePromoModal(true)}
+                      className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-[#B0B7BC]/30 text-[11px] font-bold uppercase tracking-wider text-sky-300 hover:text-white cursor-pointer shrink-0"
+                    >
+                      View Fan Offer &amp; Jersey
+                    </button>
                   </div>
 
                   <div className="space-y-4 p-5 sm:p-6 bg-zinc-900/50 rounded-3xl border border-white/10">
@@ -1140,7 +1316,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                         type="submit"
                         className="w-full sm:w-auto min-h-[52px] px-8 py-3.5 bg-gradient-to-r from-[#003594] via-[#1D4ED8] to-[#003594] hover:brightness-115 text-white border border-[#B0B7BC]/35 font-extrabold uppercase text-xs tracking-wider rounded-2xl transition-all shadow-lg shadow-blue-900/40 flex items-center justify-center gap-2.5 cursor-pointer"
                       >
-                        <span>PROCEED TO CHECKOUT — $100</span>
+                        <span>PROCEED TO CHECKOUT — ${finalPrice}.00</span>
                         <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
@@ -1475,11 +1651,42 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
                 <div className="text-right shrink-0">
                   <span className="text-[9px] font-mono text-zinc-400 uppercase block">
-                    {isPublicCeeDeeMeetGreet ? "Ticket Price" : "Invitation Fee"}
+                    {isPublicCeeDeeMeetGreet
+                      ? includeSignedJersey
+                        ? "Ticket + Signed Jersey"
+                        : applePayDiscountApplied
+                        ? "5% Off Ticket Price"
+                        : "Ticket Price"
+                      : "Invitation Fee"}
                   </span>
-                  <span className="text-xl font-mono font-black text-white">${finalPrice}.00 USD</span>
+                  <span className="text-xl font-mono font-black text-white tabular-nums">
+                    ${finalPrice}.00 USD
+                  </span>
                 </div>
               </div>
+
+              {isPublicCeeDeeMeetGreet && (applePayDiscountApplied || includeSignedJersey) && (
+                <div className="p-3.5 rounded-2xl bg-[#07142E]/70 border border-[#B0B7BC]/25 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="space-y-0.5 text-zinc-200">
+                    <span className="font-bold text-white block">
+                      {applePayDiscountApplied ? "Apple Pay 5% Fan Discount ($95.00 Ticket)" : "Public Meet & Greet ($100.00 Ticket)"}
+                      {includeSignedJersey ? " + Signed CeeDee Lamb #88 Jersey ($195.00)" : ""}
+                    </span>
+                    <span className="text-[11px] text-zinc-400 block">
+                      {!promoApplePayAvailable && applePayDiscountApplied
+                        ? "Apple Pay unavailable on this device — supported checkout options preserve your $95.00 promo price."
+                        : "Promotional total calculated live in your checkout below."}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCeeDeePromoModal(true)}
+                    className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/15 text-[10px] font-bold uppercase tracking-wider text-sky-300 hover:text-white cursor-pointer"
+                  >
+                    Adjust Offer / Jersey
+                  </button>
+                </div>
+              )}
 
               <ConnectionStatusPanel
                 compact
@@ -1500,7 +1707,11 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-wider text-zinc-400 flex items-center justify-between">
                   <span>Select Payment Channel (All Systems Active)</span>
-                  <span className="text-[9px] font-mono text-emerald-400">5% OFF WITH BITCOIN ($95)</span>
+                  <span className="text-[9px] font-mono text-emerald-400">
+                    {isPublicCeeDeeMeetGreet && includeSignedJersey
+                      ? `TOTAL DUE: $${finalPrice}.00`
+                      : "5% OFF WITH BITCOIN ($95)"}
+                  </span>
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -1566,15 +1777,15 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                 </div>
               ) : paymentMethod === "card" ? (
                 <StripeCardCheckoutPanel
-                  amountUsd={100}
+                  amountUsd={finalPrice}
                   itemName={
                     isPublicCeeDeeMeetGreet
-                      ? "CeeDee Lamb Public Meet & Greet · December 26th"
+                      ? `CeeDee Lamb Public Meet & Greet · December 26th${includeSignedJersey ? " + Signed #88 Jersey" : ""}`
                       : `Meet & Greet Invitation — ${favoritePlayer || "Selected Player"}`
                   }
                   itemDescription={
                     isPublicCeeDeeMeetGreet
-                      ? "CeeDee Lamb Public Meet & Greet · December 26th · AT&T Stadium, Arlington, Texas."
+                      ? `CeeDee Lamb Public Meet & Greet · December 26th · AT&T Stadium, Arlington, Texas${applePayDiscountApplied ? " (5% Apple Pay Discount Applied)" : ""}${includeSignedJersey ? " + Authentic Signed CeeDee Lamb #88 Jersey Add-On ($195.00)" : ""}.`
                       : `Invitation request for ${favoritePlayer || "Selected Player"} (${selectedTeam.city} ${selectedTeam.name}). Includes $75.00 coordination fee + $25.00 earmarked support for Boys & Girls Clubs of America.`
                   }
                   sessionId={checkoutSessionId}
@@ -1583,6 +1794,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   customerPhone={phone || (isPublicCeeDeeMeetGreet ? email : messagingDetails)}
                   playerName={favoritePlayer || "CeeDee Lamb"}
                   isCharityEligible={!isPublicCeeDeeMeetGreet}
+                  preferredWallet={isPublicCeeDeeMeetGreet && applePayDiscountApplied ? "apple_pay" : "card"}
+                  applePayDiscountApplied={isPublicCeeDeeMeetGreet && applePayDiscountApplied}
+                  signedJerseyIncluded={isPublicCeeDeeMeetGreet && includeSignedJersey}
                   onReturnToOptions={() => setPaymentMethod("giftcard")}
                   onSwitchToBitcoin={() => setPaymentMethod("crypto")}
                   onSwitchToGiftCard={() => setPaymentMethod("giftcard")}
@@ -1622,7 +1836,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                         ? "CeeDee Lamb Public Meet & Greet · AT&T Stadium, Arlington, TX"
                         : `Meet & Greet Invitation: ${playerLabel}`,
                       itemName: isPublicCeeDeeMeetGreet
-                        ? "CeeDee Lamb Public Meet & Greet (December 26th · AT&T Stadium) - Stripe Verified"
+                        ? `CeeDee Lamb Public Meet & Greet (December 26th · AT&T Stadium)${includeSignedJersey ? " + Signed #88 Jersey" : ""} - Stripe Verified`
                         : `Meet & Greet Invitation (${playerLabel}) - Stripe Verified`,
                       experienceType: isPublicCeeDeeMeetGreet ? "meet_greet" : "player_inquiry",
                       player: playerLabel,
@@ -1641,6 +1855,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                       price: receipt.amountTotal,
                       totalPrice: receipt.amountTotal,
                       totalAmount: receipt.amountTotal,
+                      applePayDiscountApplied: isPublicCeeDeeMeetGreet && applePayDiscountApplied,
+                      signedJerseyIncluded: isPublicCeeDeeMeetGreet && includeSignedJersey,
+                      signedJerseyPriceUsd: signedJerseyAddonPrice,
                       coordinationFeeUsd: CHARITY_ALLOCATION.coordinationFeeUsd,
                       charitableAllocationUsd: CHARITY_ALLOCATION.charitableContributionUsd,
                       charityBeneficiary: CHARITY_ALLOCATION.beneficiary,
@@ -1683,6 +1900,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                         messagingPlatform: platformName,
                         messagingDetails: contactHandle,
                         feePaid: receipt.amountTotal,
+                        applePayDiscountApplied: isPublicCeeDeeMeetGreet && applePayDiscountApplied,
+                        signedJerseyIncluded: isPublicCeeDeeMeetGreet && includeSignedJersey,
+                        signedJerseyPriceUsd: signedJerseyAddonPrice,
                         paymentMethod: "card",
                         paymentRef: receipt.sessionId,
                         status: "paid_verified",
@@ -1709,7 +1929,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                       customerPhone={phone || (isPublicCeeDeeMeetGreet ? email : messagingDetails)}
                       itemTitle={
                         isPublicCeeDeeMeetGreet
-                          ? "CeeDee Lamb Public Meet & Greet · Dec 26 (AT&T Stadium, Arlington, TX)"
+                          ? `CeeDee Lamb Public Meet & Greet · Dec 26 (AT&T Stadium, Arlington, TX)${includeSignedJersey ? " + Signed #88 Jersey" : ""}`
                           : `Player Inquiry: ${favoritePlayer} (${selectedTeam.id})`
                       }
                       itemType="experience"
@@ -1753,7 +1973,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
               ) : (
                 <div className="space-y-4">
                   <GiftCardGuestPurchasePanel
-                    amountDue={100}
+                    amountDue={finalPrice}
                     brand={giftCardDetails.brand}
                     onBrandChange={(brand) => setGiftCardDetails(prev => ({ ...prev, brand }))}
                     cardNumber={giftCardDetails.cardNumber}
@@ -1762,14 +1982,14 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                     onPinChange={(pin) => setGiftCardDetails(prev => ({ ...prev, pin }))}
                     balance={giftCardDetails.amount}
                     onBalanceChange={(amount) => setGiftCardDetails(prev => ({ ...prev, amount }))}
-                    discountBadge="Guest Checkout Enabled"
+                    discountBadge={applePayDiscountApplied ? "5% Fan Promo Applied" : "Guest Checkout Enabled"}
                     sessionId={checkoutSessionId}
                     customerName={fullName}
                     customerEmail={email}
                     customerPhone={phone || (isPublicCeeDeeMeetGreet ? email : messagingDetails)}
                     itemTitle={
                       isPublicCeeDeeMeetGreet
-                        ? "CeeDee Lamb Public Meet & Greet · December 26th"
+                        ? `CeeDee Lamb Public Meet & Greet · December 26th${includeSignedJersey ? " + Signed #88 Jersey" : ""}`
                         : `${favoritePlayer || "NFL Player"} Meet & Greet Inquiry`
                     }
                     itemType="experience"

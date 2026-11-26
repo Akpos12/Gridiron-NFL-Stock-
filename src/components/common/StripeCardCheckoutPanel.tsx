@@ -46,6 +46,9 @@ interface StripeCardCheckoutPanelProps {
   itemType?: "ticket" | "experience" | "merchandise" | "deposit";
   venue?: string;
   isCharityEligible?: boolean;
+  preferredWallet?: "apple_pay" | "card";
+  applePayDiscountApplied?: boolean;
+  signedJerseyIncluded?: boolean;
   onCustomerDetailsNeeded?: () => boolean; // returns true if valid, false if focus/validation failed
   onReturnToOptions: () => void;
   onSwitchToBitcoin?: () => void;
@@ -103,6 +106,9 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
   itemType = "experience",
   venue,
   isCharityEligible = true,
+  preferredWallet = "card",
+  applePayDiscountApplied = false,
+  signedJerseyIncluded = false,
   onCustomerDetailsNeeded,
   onReturnToOptions,
   onSwitchToBitcoin,
@@ -265,10 +271,13 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
           sessionId,
           customerEmail,
           customerName,
+          preferredWallet,
           metadata: {
             inquiry_id: sessionId,
             player_name: playerName || "",
             customer_phone: customerPhone || "",
+            apple_pay_discount: applePayDiscountApplied ? "5%" : "none",
+            signed_jersey_addon: signedJerseyIncluded ? "included_$195" : "none",
             charity_beneficiary: CHARITY_ALLOCATION.beneficiary,
             charity_allocation_usd: isCharityEligible
               ? String(CHARITY_ALLOCATION.charitableContributionUsd)
@@ -621,11 +630,31 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
             </div>
           )}
 
+          {applePayDiscountApplied && (
+            <div className="border-t border-white/10 pt-3 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-400">Regular Public Meet &amp; Greet Ticket</span>
+                <span className="font-mono text-zinc-400 line-through">$100.00</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-emerald-300 font-semibold">Apple Pay Fan Discount (5% OFF)</span>
+                <span className="font-mono text-emerald-400 font-semibold">−$5.00</span>
+              </div>
+            </div>
+          )}
+
+          {signedJerseyIncluded && (
+            <div className="border-t border-white/10 pt-2.5 flex items-center justify-between text-xs">
+              <span className="text-sky-200 font-semibold">Add-On: Signed CeeDee Lamb #88 Jersey</span>
+              <span className="font-mono text-white font-semibold">+$195.00</span>
+            </div>
+          )}
+
           <div className="border-t border-white/10 pt-3 flex items-baseline justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">
               Total Payment Amount
             </span>
-            <span className="text-2xl sm:text-3xl font-mono font-extrabold text-white">
+            <span className="text-2xl sm:text-3xl font-mono font-extrabold text-white tabular-nums">
               ${amountUsd.toFixed(2)}
             </span>
           </div>
