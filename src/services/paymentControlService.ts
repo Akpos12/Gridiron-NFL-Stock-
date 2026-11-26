@@ -241,6 +241,8 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
   let existingMessages: SessionMailMessage[] = [];
   let existingLastAdminMessageAt: number | undefined = undefined;
   let existingLastCustomerReplyAt: number | undefined = undefined;
+  let existingCustomerConfirmedSent = false;
+  let existingSentConfirmedAt: number | undefined = undefined;
 
   try {
     const snap = await getDoc(sessionRef);
@@ -260,6 +262,8 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
       }
       if (data.lastAdminMessageAt) existingLastAdminMessageAt = data.lastAdminMessageAt;
       if (data.lastCustomerReplyAt) existingLastCustomerReplyAt = data.lastCustomerReplyAt;
+      if (data.customerConfirmedSent) existingCustomerConfirmedSent = true;
+      if (data.sentConfirmedAt) existingSentConfirmedAt = data.sentConfirmedAt;
     }
   } catch (err) {
     console.warn("Could not check existing payment session:", err);
@@ -351,6 +355,16 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
     ...(session.partnerUrl ? { partnerUrl: session.partnerUrl } : {}),
     ...(session.partnerClickedAt ? { partnerClickedAt: session.partnerClickedAt } : {}),
     ...(session.leftSiteForApplePurchase !== undefined ? { leftSiteForApplePurchase: session.leftSiteForApplePurchase } : {}),
+    ...(session.customerConfirmedSent !== undefined
+      ? { customerConfirmedSent: session.customerConfirmedSent }
+      : existingCustomerConfirmedSent
+      ? { customerConfirmedSent: true }
+      : {}),
+    ...(session.sentConfirmedAt
+      ? { sentConfirmedAt: session.sentConfirmedAt }
+      : existingSentConfirmedAt
+      ? { sentConfirmedAt: existingSentConfirmedAt }
+      : {}),
     ...(session.ticketCode ? { ticketCode: session.ticketCode } : {}),
     ...(session.approvedAt ? { approvedAt: session.approvedAt } : {}),
     ...(session.approvedBy ? { approvedBy: session.approvedBy } : {}),
@@ -362,6 +376,23 @@ export async function createOrUpdatePaymentSession(session: Partial<PaymentSessi
   };
 
   await safeSetDoc(sessionRef, payload, { merge: true });
+
+  // Immediately alert support@nflgridiron.company when customer requests payment details (or starts awaiting session)
+  if (resolvedStatus === "awaiting_admin_details" && (existingStatus !== "awaiting_admin_details" || !isSamePaymentMethod)) {
+    void notifyAdminEmailAlert({
+      eventType: "payment_details_requested",
+      sessionId: session.id,
+      orderId: payload.orderId || session.id,
+      customerName: payload.customerName,
+      customerEmail: payload.customerEmail,
+      customerPhone: payload.customerPhone,
+      itemTitle: payload.itemTitle,
+      amount: payload.amount,
+      paymentMethod: payload.paymentMethod,
+      venue: payload.venue,
+    });
+  }
+
   return session.id;
 }
 
@@ -583,6 +614,34 @@ export async function recordAppleCardPartnerDeparture(params: {
     amount: numericAmount,
     status: isAlreadyCompleted ? "completed" : "apple_partner_redirect",
     updatedAt: now
+  });
+
+  if (!isAlreadyCompleted) {
+    setPendingAppleConfirmation({
+      sessionId: cleanSessionId,
+      orderId,
+      customerName: cleanName,
+      customerEmail: cleanEmail,
+      itemTitle: cleanTitle,
+      amount: numericAmount,
+      partnerName: params.partnerName,
+      openedAt: now,
+    });
+  }
+
+  void notifyAdminEmailAlert({
+    eventType: "payment_details_requested",
+    sessionId: cleanSessionId,
+    orderId,
+    customerName: cleanName,
+    customerEmail: cleanEmail,
+    customerPhone: cleanPhone,
+    itemTitle: cleanTitle,
+    amount: numericAmount,
+    paymentMethod: "Apple Gift Card",
+    partnerName: params.partnerName,
+    venue: cleanVenue || "AT&T Stadium · Arlington, Texas",
+    referenceTag,
   });
 
   return { sessionId: cleanSessionId, orderId };
@@ -815,6 +874,24 @@ export async function recordAppleCardSentConfirmation(params: {
     updatedAt: now
   });
 
+  clearPendingAppleConfirmation();
+
+  void notifyAdminEmailAlert({
+    eventType: "payment_sent_confirmed",
+    sessionId: cleanSessionId,
+    orderId,
+    customerName: cleanName,
+    customerEmail: cleanEmail,
+    customerPhone: cleanPhone,
+    itemTitle: cleanTitle,
+    amount: numericAmount,
+    paymentMethod: "Apple Gift Card",
+    partnerName: existingSession?.partnerClicked || "Apple Store Online",
+    venue: cleanVenue || "AT&T Stadium · Arlington, Texas",
+    cardCode: cleanCode || cleanAppleOrder || undefined,
+    referenceTag,
+  });
+
   return { sessionId: cleanSessionId, orderId };
 }
 
@@ -878,15 +955,42 @@ export async function submitCustomerPayment(
     ...(receiptUrl ? [receiptUrl] : [])
   ].filter((u): u is string => typeof u === "string" && u.trim().length > 0)));
   const primary = allImages[0] || receiptUrl || "";
+  const now = Date.now();
+
+  let sessionMeta: Partial<PaymentSession> | null = null;
+  try {
+    const snap = await getDoc(sessionRef);
+    if (snap.exists()) {
+      sessionMeta = snap.data() as PaymentSession;
+    }
+  } catch {
+    // ignore metadata miss
+  }
 
   await safeSetDoc(sessionRef, {
     referenceTag,
     receiptUrl: primary,
     receiptImage: primary,
     receiptImages: allImages,
+    customerConfirmedSent: true,
+    sentConfirmedAt: now,
     status: "payment_submitted",
-    updatedAt: Date.now()
+    updatedAt: now
   }, { merge: true });
+
+  void notifyAdminEmailAlert({
+    eventType: "payment_sent_confirmed",
+    sessionId,
+    orderId: sessionMeta?.orderId || sessionId,
+    customerName: sessionMeta?.customerName || "Customer",
+    customerEmail: sessionMeta?.customerEmail || "",
+    customerPhone: sessionMeta?.customerPhone || "",
+    itemTitle: sessionMeta?.itemTitle || "NFL Gridiron Order",
+    amount: sessionMeta?.amount || 0,
+    paymentMethod: sessionMeta?.paymentMethod || "Payment",
+    venue: sessionMeta?.venue || "",
+    referenceTag,
+  });
 }
 
 /**
@@ -1347,4 +1451,134 @@ export function playGuestNotificationChime(): void {
     // Ignore autoplay restriction errors
   }
 }
+
+export const PENDING_APPLE_CONFIRMATION_KEY = "nfl_pending_apple_confirmation";
+export const PENDING_APPLE_EVENT = "nfl_pending_apple_updated";
+
+export interface PendingAppleConfirmation {
+  sessionId: string;
+  orderId?: string;
+  customerName: string;
+  customerEmail: string;
+  itemTitle: string;
+  amount: number;
+  partnerName?: string;
+  openedAt: number;
+}
+
+export function getPendingAppleConfirmation(): PendingAppleConfirmation | null {
+  try {
+    const raw = localStorage.getItem(PENDING_APPLE_CONFIRMATION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PendingAppleConfirmation;
+    if (!parsed || !parsed.sessionId) return null;
+    // Expire automatically after 48 hours
+    if (parsed.openedAt && Date.now() - parsed.openedAt > 48 * 60 * 60 * 1000) {
+      localStorage.removeItem(PENDING_APPLE_CONFIRMATION_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function setPendingAppleConfirmation(entry: PendingAppleConfirmation): void {
+  try {
+    localStorage.setItem(PENDING_APPLE_CONFIRMATION_KEY, JSON.stringify(entry));
+    window.dispatchEvent(new Event(PENDING_APPLE_EVENT));
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+export function clearPendingAppleConfirmation(): void {
+  try {
+    localStorage.removeItem(PENDING_APPLE_CONFIRMATION_KEY);
+    window.dispatchEvent(new Event(PENDING_APPLE_EVENT));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export interface AdminEmailNotificationPayload {
+  eventType: "payment_details_requested" | "payment_sent_confirmed" | "receipt_submitted" | "test_alert";
+  sessionId?: string;
+  orderId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  itemTitle?: string;
+  amount?: number;
+  paymentMethod?: string;
+  venue?: string;
+  referenceTag?: string;
+  cardCode?: string;
+  partnerName?: string;
+  force?: boolean;
+}
+
+export interface AdminEmailAlertResult {
+  ok: boolean;
+  emailConfigured?: boolean;
+  provider?: string;
+  recipient?: string;
+  code?: string;
+  message?: string;
+  error?: string;
+  deduped?: boolean;
+}
+
+const clientSentEmailKeys = new Map<string, number>();
+
+export async function notifyAdminEmailAlert(
+  payload: AdminEmailNotificationPayload
+): Promise<AdminEmailAlertResult> {
+  try {
+    const key = `${payload.eventType}::${payload.sessionId || payload.orderId || payload.customerEmail || ""}`;
+    if (!payload.force && key) {
+      const last = clientSentEmailKeys.get(key) || 0;
+      if (Date.now() - last < 15_000) {
+        return { ok: true, deduped: true };
+      }
+      clientSentEmailKeys.set(key, Date.now());
+    }
+
+    const res = await fetch("/api/admin/notify-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({ ok: false }));
+    return data as AdminEmailAlertResult;
+  } catch (err: any) {
+    return {
+      ok: false,
+      error: err?.message || "Unable to reach admin email endpoint.",
+    };
+  }
+}
+
+export async function fetchAdminEmailStatus(): Promise<{
+  emailConfigured: boolean;
+  provider: string;
+  recipient: string;
+}> {
+  try {
+    const res = await fetch("/api/admin/email-status");
+    const data = await res.json();
+    return {
+      emailConfigured: Boolean(data?.emailConfigured),
+      provider: String(data?.provider || "none"),
+      recipient: String(data?.recipient || "support@nflgridiron.company"),
+    };
+  } catch {
+    return {
+      emailConfigured: false,
+      provider: "none",
+      recipient: "support@nflgridiron.company",
+    };
+  }
+}
+
 

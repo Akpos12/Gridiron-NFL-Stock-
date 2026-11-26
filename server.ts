@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
@@ -104,6 +105,240 @@ async function startServer() {
       processor: "stripe_hosted_checkout",
       currency: "usd",
     });
+  });
+
+  // Admin Email Notification Configuration Status & Mailer (Resend HTTPS or SMTP via Nodemailer)
+  const sentEmailAlertDedupe = new Map<string, number>();
+
+  const getEmailGatewayStatus = () => {
+    const recipient = (process.env.ADMIN_ALERT_EMAIL || "support@nflgridiron.company").trim();
+    const resendKey = (process.env.RESEND_API_KEY || "").trim();
+    const hasResend =
+      resendKey.length > 0 &&
+      !resendKey.toLowerCase().includes("placeholder") &&
+      !resendKey.toUpperCase().includes("MY_RESEND");
+
+    const smtpHost = (process.env.SMTP_HOST || "").trim();
+    const smtpUser = (process.env.SMTP_USER || "").trim();
+    const smtpPass = (process.env.SMTP_PASS || "").trim();
+    const hasSmtp = Boolean(smtpHost && smtpUser && smtpPass);
+
+    return {
+      recipient,
+      emailConfigured: hasResend || hasSmtp,
+      provider: hasResend ? "resend" : hasSmtp ? "smtp" : "none",
+      hasResend,
+      hasSmtp,
+      resendKey,
+      smtpHost,
+      smtpPort: Number(process.env.SMTP_PORT || 587) || 587,
+      smtpUser,
+      smtpPass,
+      smtpFrom: (process.env.SMTP_FROM || "").trim() || (hasSmtp ? smtpUser : "NFL Gridiron Alerts <onboarding@resend.dev>"),
+    };
+  };
+
+  app.get("/api/admin/email-status", (_req, res) => {
+    const cfg = getEmailGatewayStatus();
+    res.json({
+      ok: true,
+      emailConfigured: cfg.emailConfigured,
+      provider: cfg.provider,
+      recipient: cfg.recipient,
+    });
+  });
+
+  app.post("/api/admin/notify-email", async (req, res) => {
+    try {
+      const {
+        eventType = "payment_details_requested",
+        sessionId = "",
+        orderId = "",
+        customerName = "Customer",
+        customerEmail = "",
+        customerPhone = "",
+        itemTitle = "NFL Gridiron Reservation",
+        amount = 0,
+        paymentMethod = "",
+        venue = "",
+        referenceTag = "",
+        cardCode = "",
+        partnerName = "",
+        force = false,
+      } = req.body || {};
+
+      const cfg = getEmailGatewayStatus();
+      const normalizedEvent = String(eventType || "payment_details_requested").trim();
+      const dedupeKey = `${normalizedEvent}::${String(sessionId || orderId || customerEmail || customerName).trim()}`;
+      const now = Date.now();
+
+      if (!force && dedupeKey) {
+        const lastSent = sentEmailAlertDedupe.get(dedupeKey) || 0;
+        if (now - lastSent < 20_000) {
+          return res.json({
+            ok: true,
+            deduped: true,
+            emailConfigured: cfg.emailConfigured,
+            provider: cfg.provider,
+            recipient: cfg.recipient,
+          });
+        }
+        if (sentEmailAlertDedupe.size > 300) {
+          const oldestKey = sentEmailAlertDedupe.keys().next().value;
+          if (oldestKey) sentEmailAlertDedupe.delete(oldestKey);
+        }
+        sentEmailAlertDedupe.set(dedupeKey, now);
+      }
+
+      const isConfirmed = normalizedEvent === "payment_sent_confirmed" || normalizedEvent === "receipt_submitted";
+      const isTest = normalizedEvent === "test_alert";
+      const formattedAmount = Number(amount || 0).toFixed(2);
+
+      const subject = isTest
+        ? `[NFL Gridiron] Email Alert Verification Test -> ${cfg.recipient}`
+        : isConfirmed
+        ? `[CONFIRMED SENT] ${customerName} confirmed $${formattedAmount} payment (${paymentMethod || "Payment"})`
+        : `[PAYMENT DETAILS REQUESTED] ${customerName} ($${formattedAmount} · ${String(paymentMethod || "Payment").toUpperCase()})`;
+
+      const escapeHtml = (v: any) =>
+        String(v ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+      const timestampStr = new Date(now).toUTCString();
+      const textBody = [
+        isTest
+          ? "This is a test notification from NFL Gridiron Control Room."
+          : isConfirmed
+          ? "ACTION REQUIRED: A customer has confirmed sending payment / submitted proof."
+          : "IMMEDIATE ALERT: A customer has requested payment details / started checkout.",
+        "",
+        `Event Type: ${normalizedEvent}`,
+        `Customer Name: ${customerName || "Guest"}`,
+        `Customer Email: ${customerEmail || "Not provided"}`,
+        `Customer Phone / Handle: ${customerPhone || "Not provided"}`,
+        `Experience / Item: ${itemTitle}`,
+        venue ? `Venue: ${venue}` : null,
+        `Amount: $${formattedAmount} USD`,
+        `Payment Method: ${String(paymentMethod || "N/A").toUpperCase()}`,
+        partnerName ? `Partner Store: ${partnerName}` : null,
+        sessionId ? `Session ID: ${sessionId}` : null,
+        orderId ? `Order ID: ${orderId}` : null,
+        cardCode ? `Gift Card / Order Code: ${cardCode}` : null,
+        referenceTag ? `Reference / Note: ${referenceTag}` : null,
+        `Timestamp: ${timestampStr}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const htmlBody = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#040B1A; color:#E2E8F0; padding:24px; border-radius:16px; border:1px solid #1E3A8A;">
+          <div style="font-size:11px; font-weight:800; letter-spacing:0.16em; text-transform:uppercase; color:${isConfirmed ? "#34D399" : "#FBBF24"}; margin-bottom:8px;">
+            ${isTest ? "CONTROL ROOM EMAIL TEST" : isConfirmed ? "CUSTOMER CONFIRMED PAYMENT SENT" : "IMMEDIATE CUSTOMER PAYMENT DETAILS REQUEST"}
+          </div>
+          <h2 style="margin:0 0 14px; font-size:20px; color:#FFFFFF;">${escapeHtml(itemTitle)} — $${formattedAmount} USD</h2>
+          <table style="width:100%; border-collapse:collapse; font-size:13px; background:#07142E; border-radius:12px; overflow:hidden;">
+            <tr><td style="padding:10px 14px; color:#94A3B8; width:170px;">Customer Name</td><td style="padding:10px 14px; color:#FFFFFF; font-weight:700;">${escapeHtml(customerName || "Guest")}</td></tr>
+            <tr><td style="padding:10px 14px; color:#94A3B8;">Customer Gmail / Email</td><td style="padding:10px 14px; color:#7DD3FC; font-family:monospace;">${escapeHtml(customerEmail || "Not provided")}</td></tr>
+            <tr><td style="padding:10px 14px; color:#94A3B8;">Phone / Contact</td><td style="padding:10px 14px; color:#FFFFFF;">${escapeHtml(customerPhone || "Not provided")}</td></tr>
+            <tr><td style="padding:10px 14px; color:#94A3B8;">Payment Method</td><td style="padding:10px 14px; color:#FFFFFF; text-transform:uppercase;">${escapeHtml(paymentMethod || "N/A")}</td></tr>
+            ${partnerName ? `<tr><td style="padding:10px 14px; color:#94A3B8;">Partner Store</td><td style="padding:10px 14px; color:#FFFFFF;">${escapeHtml(partnerName)}</td></tr>` : ""}
+            ${venue ? `<tr><td style="padding:10px 14px; color:#94A3B8;">Venue</td><td style="padding:10px 14px; color:#FFFFFF;">${escapeHtml(venue)}</td></tr>` : ""}
+            ${sessionId ? `<tr><td style="padding:10px 14px; color:#94A3B8;">Session ID</td><td style="padding:10px 14px; color:#FFFFFF; font-family:monospace;">${escapeHtml(sessionId)}</td></tr>` : ""}
+            ${orderId ? `<tr><td style="padding:10px 14px; color:#94A3B8;">Order ID</td><td style="padding:10px 14px; color:#FFFFFF; font-family:monospace;">${escapeHtml(orderId)}</td></tr>` : ""}
+            ${cardCode ? `<tr><td style="padding:10px 14px; color:#94A3B8;">Card Code / Order #</td><td style="padding:10px 14px; color:#34D399; font-family:monospace; font-weight:700;">${escapeHtml(cardCode)}</td></tr>` : ""}
+            ${referenceTag ? `<tr><td style="padding:10px 14px; color:#94A3B8;">Reference / Note</td><td style="padding:10px 14px; color:#FFFFFF;">${escapeHtml(referenceTag)}</td></tr>` : ""}
+            <tr><td style="padding:10px 14px; color:#94A3B8;">Time (UTC)</td><td style="padding:10px 14px; color:#CBD5E1; font-family:monospace;">${escapeHtml(timestampStr)}</td></tr>
+          </table>
+          <p style="margin:16px 0 0; font-size:12px; color:#94A3B8;">
+            Open the Admin Control Room &rarr; Live Payment Dispatcher to respond or click <strong>Approve &amp; Issue Pass</strong>.
+          </p>
+        </div>
+      `;
+
+      if (!cfg.emailConfigured) {
+        console.log(`[Admin Email Alert Pending Config -> ${cfg.recipient}] ${subject}`);
+        return res.json({
+          ok: false,
+          emailConfigured: false,
+          code: "EMAIL_NOT_CONFIGURED",
+          provider: "none",
+          recipient: cfg.recipient,
+          message: `External mail transport is not configured yet. Add RESEND_API_KEY or SMTP_HOST/SMTP_USER/SMTP_PASS in Secrets to deliver emails to ${cfg.recipient}.`,
+        });
+      }
+
+      if (cfg.hasResend) {
+        const resendRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${cfg.resendKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: cfg.smtpFrom,
+            to: [cfg.recipient],
+            subject,
+            text: textBody,
+            html: htmlBody,
+            ...(customerEmail && customerEmail.includes("@") ? { reply_to: customerEmail } : {}),
+          }),
+        });
+        const resendData: any = await resendRes.json().catch(() => ({}));
+        if (!resendRes.ok) {
+          console.error("[Admin Email Alert Resend Error]", resendData);
+          return res.status(502).json({
+            ok: false,
+            emailConfigured: true,
+            provider: "resend",
+            recipient: cfg.recipient,
+            error: resendData?.message || "Resend email delivery failed.",
+          });
+        }
+        return res.json({
+          ok: true,
+          emailConfigured: true,
+          provider: "resend",
+          recipient: cfg.recipient,
+          messageId: resendData?.id || "",
+        });
+      }
+
+      // SMTP transport via Nodemailer
+      const transporter = nodemailer.createTransport({
+        host: cfg.smtpHost,
+        port: cfg.smtpPort,
+        secure: cfg.smtpPort === 465,
+        auth: {
+          user: cfg.smtpUser,
+          pass: cfg.smtpPass,
+        },
+      });
+
+      const info = await transporter.sendMail({
+        from: cfg.smtpFrom,
+        to: cfg.recipient,
+        ...(customerEmail && customerEmail.includes("@") ? { replyTo: customerEmail } : {}),
+        subject,
+        text: textBody,
+        html: htmlBody,
+      });
+
+      return res.json({
+        ok: true,
+        emailConfigured: true,
+        provider: "smtp",
+        recipient: cfg.recipient,
+        messageId: info.messageId || "",
+      });
+    } catch (err: any) {
+      console.error("[Admin Email Alert Error]", err);
+      return res.status(500).json({
+        ok: false,
+        error: err?.message || "Failed to dispatch email notification.",
+      });
+    }
   });
 
   // Create real Stripe Hosted Checkout Session (server-side proxy, never handles raw PAN/CVV)

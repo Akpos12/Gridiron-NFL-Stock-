@@ -53,6 +53,9 @@ import { generateTicketPDF } from "../utils/ticketPdfGenerator";
 import {
   findCustomerInquirySessions,
   getSavedGuestSessions,
+  getPendingAppleConfirmation,
+  PENDING_APPLE_EVENT,
+  PendingAppleConfirmation,
   PaymentSession,
   PaymentMethodType,
   SAVED_SESSIONS_EVENT
@@ -184,6 +187,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
   const [applePayDiscountApplied, setApplePayDiscountApplied] = useState(false);
   const [includeSignedJersey, setIncludeSignedJersey] = useState(false);
   const [promoApplePayAvailable, setPromoApplePayAvailable] = useState(false);
+  const [pendingAppleConfirm, setPendingAppleConfirm] = useState<PendingAppleConfirmation | null>(
+    () => getPendingAppleConfirmation()
+  );
 
   const applyResumedSession = (s: PaymentSession) => {
     setCheckoutSessionId(s.id);
@@ -209,8 +215,13 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
   useEffect(() => {
     const syncSaved = () => setSavedDeviceSessions(getSavedGuestSessions());
+    const syncPendingApple = () => setPendingAppleConfirm(getPendingAppleConfirmation());
     window.addEventListener(SAVED_SESSIONS_EVENT, syncSaved);
-    return () => window.removeEventListener(SAVED_SESSIONS_EVENT, syncSaved);
+    window.addEventListener(PENDING_APPLE_EVENT, syncPendingApple);
+    return () => {
+      window.removeEventListener(SAVED_SESSIONS_EVENT, syncSaved);
+      window.removeEventListener(PENDING_APPLE_EVENT, syncPendingApple);
+    };
   }, []);
 
   useEffect(() => {
@@ -276,9 +287,11 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       try {
         const storedChoice = sessionStorage.getItem(CEEDEE_PROMO_SESSION_KEY);
         const storedJersey = sessionStorage.getItem(CEEDEE_PROMO_JERSEY_KEY) === "true";
-        if (!storedChoice) {
+        const activePendingApple = getPendingAppleConfirmation();
+        setPendingAppleConfirm(activePendingApple);
+        if (!storedChoice || storedChoice === "apple_store_direct" || activePendingApple) {
           setApplePayDiscountApplied(false);
-          setIncludeSignedJersey(false);
+          setIncludeSignedJersey(storedJersey);
           setShowCeeDeePromoModal(true);
         } else {
           setShowCeeDeePromoModal(false);
@@ -1229,6 +1242,27 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                       )}
                     </div>
                   </div>
+
+                  {pendingAppleConfirm && (
+                    <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-400/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300 block">
+                          Pending Apple Gift Card Confirmation (${Number(pendingAppleConfirm.amount || 95).toFixed(2)})
+                        </span>
+                        <p className="text-zinc-200 leading-snug">
+                          Already finished sending your Apple Gift Card to <span className="font-mono text-white">support@nflgridiron.company</span>? Open the confirmation button to let us know.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowCeeDeePromoModal(true)}
+                        className="min-h-[42px] px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#030816] text-xs font-black uppercase tracking-wider cursor-pointer shrink-0 inline-flex items-center justify-center gap-1.5"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Confirm Sent Payment</span>
+                      </button>
+                    </div>
+                  )}
 
                   {/* Quick Promo Offer / Signed Jersey Review Strip */}
                   <div className="p-3.5 rounded-2xl bg-[#07142E]/75 border border-[#B0B7BC]/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">

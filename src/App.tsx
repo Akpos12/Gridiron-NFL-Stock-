@@ -117,7 +117,12 @@ import { GuestMailNotifier } from "./components/common/GuestMailNotifier";
 import { CeeDeeLambExperiencePage } from "./components/CeeDeeLambExperiencePage";
 import { JaylenWaddleVipFanCardModal } from "./components/JaylenWaddleVipFanCardModal";
 import { CeeDeePublicMeetGreetPopup } from "./components/CeeDeePublicMeetGreetPopup";
-import { getSavedGuestSessions } from "./services/paymentControlService";
+import {
+  getSavedGuestSessions,
+  subscribeToAwaitingPaymentSessions,
+  playGuestNotificationChime,
+  PaymentSession,
+} from "./services/paymentControlService";
 import { generateTicketPDF } from "./utils/ticketPdfGenerator";
 import { NFLImage } from "./utils/nflImages";
 import { QRCodeSVG } from "qrcode.react";
@@ -2148,7 +2153,12 @@ const AdminPortal = ({ user }: { user: any }) => {
     if (saved && ["inquiries", "orders", "users", "transactions", "experiences", "payments", "visitors", "charity"].includes(saved)) {
       return saved as any;
     }
-    return "inquiries";
+    return "payments";
+  });
+  const [livePaymentCounts, setLivePaymentCounts] = useState({
+    confirmedSent: 0,
+    awaitingDetails: 0,
+    appleRedirects: 0,
   });
 
   useEffect(() => {
@@ -2699,7 +2709,19 @@ const AdminPortal = ({ user }: { user: any }) => {
 
     const unsubPaymentSessions = onSnapshot(collection(db, "payment_sessions"), (snap) => {
       paymentSessionsMap.clear();
-      snap.forEach(d => paymentSessionsMap.set(d.id, { ...d.data(), id: d.id }));
+      let confirmedSent = 0;
+      let awaitingDetails = 0;
+      let appleRedirects = 0;
+      snap.forEach(d => {
+        const data = d.data() as any;
+        paymentSessionsMap.set(d.id, { ...data, id: d.id });
+        if (data.status !== "completed" && data.status !== "cancelled") {
+          if (data.customerConfirmedSent || data.status === "payment_submitted") confirmedSent += 1;
+          if (data.status === "awaiting_admin_details") awaitingDetails += 1;
+          if (data.status === "apple_partner_redirect" || data.leftSiteForApplePurchase) appleRedirects += 1;
+        }
+      });
+      setLivePaymentCounts({ confirmedSent, awaitingDetails, appleRedirects });
       updateMergedOrders();
     }, (err) => {
       console.warn("Payment Sessions Listen Error:", err);
@@ -3018,7 +3040,15 @@ const AdminPortal = ({ user }: { user: any }) => {
             className={cn("px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2", activeSubTab === "payments" ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" : "bg-zinc-900 text-zinc-500 hover:text-white")}
           >
             <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            Live Payment Dispatcher
+            <span>Live Payment Dispatcher</span>
+            {(livePaymentCounts.confirmedSent + livePaymentCounts.awaitingDetails + livePaymentCounts.appleRedirects) > 0 && (
+              <span className={cn(
+                "px-2 py-0.5 rounded-full text-[9px] font-mono font-black",
+                activeSubTab === "payments" ? "bg-black/30 text-white" : "bg-emerald-500 text-black animate-pulse"
+              )}>
+                {livePaymentCounts.confirmedSent + livePaymentCounts.awaitingDetails + livePaymentCounts.appleRedirects}
+              </span>
+            )}
           </button>
           <button 
             onClick={() => { setActiveSubTab("visitors"); setSearchTerm(""); }}
@@ -3036,6 +3066,31 @@ const AdminPortal = ({ user }: { user: any }) => {
           </button>
         </div>
       </div>
+
+      {activeSubTab !== "payments" && (livePaymentCounts.confirmedSent > 0 || livePaymentCounts.awaitingDetails > 0) && (
+        <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-950/60 via-zinc-950 to-amber-950/40 border border-emerald-400/45 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl">
+          <div className="flex items-center gap-3">
+            <Bell className="w-5 h-5 text-emerald-400 animate-bounce shrink-0" />
+            <div className="space-y-0.5">
+              <p className="text-xs font-black uppercase tracking-wider text-white">
+                {livePaymentCounts.confirmedSent > 0
+                  ? `${livePaymentCounts.confirmedSent} Customer Payment Confirmed Sent!`
+                  : `${livePaymentCounts.awaitingDetails} Customer Awaiting Payment Details!`}
+              </p>
+              <p className="text-[11px] text-zinc-300">
+                Open Live Payment Dispatcher to dispatch payment details or approve sent payments immediately.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveSubTab("payments")}
+            className="px-5 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider cursor-pointer shrink-0 shadow-md"
+          >
+            Open Live Payment Dispatcher →
+          </button>
+        </div>
+      )}
 
       {permError && (
         <div className="p-6 bg-rose-500/10 border border-rose-500/20 rounded-3xl flex items-center gap-4">
@@ -4430,6 +4485,14 @@ export default function App() {
   const [showTicketCheckModal, setShowTicketCheckModal] = useState(false);
   const [ticketCheckInitialQuery, setTicketCheckInitialQuery] = useState("");
   const [guestUnreadCount, setGuestUnreadCount] = useState(0);
+  const [adminAlertCount, setAdminAlertCount] = useState(0);
+  const [adminLiveAlert, setAdminLiveAlert] = useState<{
+    id: string;
+    title: string;
+    subtitle: string;
+    tone: "confirmed" | "awaiting" | "redirect";
+  } | null>(null);
+  const adminSeenSessionStateRef = useRef<Map<string, string> | null>(null);
   const [showVipCommemorativeModal, setShowVipCommemorativeModal] = useState(false);
   const [showJayneVipModal, setShowJayneVipModal] = useState(false);
   const [showJayneWaddleModal, setShowJayneWaddleModal] = useState(false);
@@ -4571,6 +4634,87 @@ export default function App() {
       if (pollInterval) clearInterval(pollInterval);
     };
   }, []);
+
+  // Global real-time Admin Alert Watcher (audio chime + banner + desktop notification on payment requests & confirmed sent)
+  useEffect(() => {
+    if (user?.email !== "alexwtchmn@gmail.com") {
+      setAdminAlertCount(0);
+      setAdminLiveAlert(null);
+      adminSeenSessionStateRef.current = null;
+      return;
+    }
+
+    const unsub = subscribeToAwaitingPaymentSessions((sessions: PaymentSession[]) => {
+      let pendingCount = 0;
+      const nextStates = new Map<string, string>();
+      let newestAlert: { id: string; title: string; subtitle: string; tone: "confirmed" | "awaiting" | "redirect" } | null = null;
+
+      for (const s of sessions) {
+        if (!s?.id || s.status === "completed" || s.status === "cancelled") continue;
+        const isConfirmed = Boolean(s.customerConfirmedSent) || s.status === "payment_submitted";
+        const isAwaiting = s.status === "awaiting_admin_details";
+        const isRedirect = s.status === "apple_partner_redirect" || Boolean(s.leftSiteForApplePurchase);
+
+        if (isConfirmed || isAwaiting || isRedirect) {
+          pendingCount += 1;
+        }
+
+        const stateSig = isConfirmed
+          ? `confirmed:${s.sentConfirmedAt || s.updatedAt || 1}`
+          : isAwaiting
+          ? "awaiting"
+          : isRedirect
+          ? "redirect"
+          : s.status;
+
+        nextStates.set(s.id, stateSig);
+
+        const prevMap = adminSeenSessionStateRef.current;
+        if (prevMap !== null) {
+          const prevSig = prevMap.get(s.id);
+          if (prevSig !== stateSig && (isConfirmed || isAwaiting || isRedirect)) {
+            newestAlert = isConfirmed
+              ? {
+                  id: s.id,
+                  tone: "confirmed",
+                  title: `${s.customerName || "Customer"} Confirmed Payment Sent!`,
+                  subtitle: `$${Number(s.amount || 0).toFixed(2)} · ${s.itemTitle} (${String(s.paymentMethod || "").toUpperCase()})`,
+                }
+              : isAwaiting
+              ? {
+                  id: s.id,
+                  tone: "awaiting",
+                  title: `${s.customerName || "Customer"} Requested Payment Details`,
+                  subtitle: `$${Number(s.amount || 0).toFixed(2)} · ${s.itemTitle} (${String(s.paymentMethod || "").toUpperCase()})`,
+                }
+              : {
+                  id: s.id,
+                  tone: "redirect",
+                  title: `${s.customerName || "Customer"} Opened Apple Store Online`,
+                  subtitle: `$${Number(s.amount || 0).toFixed(2)} · ${s.itemTitle} — Watch support@nflgridiron.company`,
+                };
+          }
+        }
+      }
+
+      adminSeenSessionStateRef.current = nextStates;
+      setAdminAlertCount(pendingCount);
+
+      if (newestAlert) {
+        playGuestNotificationChime();
+        setAdminLiveAlert(newestAlert);
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+          try {
+            new Notification(newestAlert.title, { body: newestAlert.subtitle });
+          } catch {
+            // ignore desktop notification failure
+          }
+        }
+      }
+    });
+
+    return () => unsub();
+  }, [user?.email]);
 
   // Admin State Reconciliation
   useEffect(() => {
@@ -5374,7 +5518,12 @@ export default function App() {
                 )}
               >
                 <tab.icon className="w-3.5 h-3.5 shrink-0" />
-                {tab.label}
+                <span>{tab.label}</span>
+                {tab.id === "admin" && adminAlertCount > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500 text-black text-[9px] font-black leading-none animate-pulse">
+                    {adminAlertCount}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -5505,7 +5654,12 @@ export default function App() {
                 >
                   <span className="flex items-center gap-3">
                     <item.icon className="w-4 h-4 text-sky-400" />
-                    {item.label}
+                    <span>{item.label}</span>
+                    {item.id === "admin" && adminAlertCount > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-black text-[9px] font-black leading-none animate-pulse">
+                        {adminAlertCount}
+                      </span>
+                    )}
                   </span>
                   <ChevronRight className="w-4 h-4 text-zinc-500" />
                 </button>
@@ -7544,6 +7698,53 @@ export default function App() {
         initialTab={legalModalTab || "about"}
         onClose={() => setLegalModalTab(null)}
       />
+
+      {/* Immediate Floating Real-Time Admin Notification Toast */}
+      {user?.email === "alexwtchmn@gmail.com" && adminLiveAlert && (
+        <div className={`fixed top-24 right-4 z-[180] max-w-sm w-[calc(100%-2rem)] rounded-2xl border p-4 shadow-2xl backdrop-blur-xl space-y-2.5 ${
+          adminLiveAlert.tone === "confirmed"
+            ? "bg-emerald-950/95 border-emerald-400/60 text-white"
+            : adminLiveAlert.tone === "awaiting"
+            ? "bg-amber-950/95 border-amber-400/60 text-white"
+            : "bg-indigo-950/95 border-indigo-400/60 text-white"
+        }`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <Bell className="w-4 h-4 text-emerald-300 animate-bounce shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-wider text-white">
+                  {adminLiveAlert.title}
+                </p>
+                <p className="text-[11px] text-zinc-200 mt-0.5 leading-snug">
+                  {adminLiveAlert.subtitle}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAdminLiveAlert(null)}
+              aria-label="Dismiss alert"
+              className="text-zinc-400 hover:text-white shrink-0 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.setItem("admin_subtab", "payments");
+                setActiveTab("admin");
+                setDismissedHero(true);
+                setAdminLiveAlert(null);
+              }}
+              className="flex-1 min-h-[38px] px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-[11px] uppercase tracking-wider cursor-pointer"
+            >
+              Open Live Control Room
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Immediate CeeDee Lamb Public Meet & Greet Announcement Pop-Up (Dec 26 · $100) */}
       <CeeDeePublicMeetGreetPopup

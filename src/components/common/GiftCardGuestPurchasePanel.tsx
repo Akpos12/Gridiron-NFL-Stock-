@@ -21,6 +21,7 @@ import {
 import {
   recordAppleCardPartnerDeparture,
   recordAppleCardSentConfirmation,
+  getPendingAppleConfirmation,
 } from "../../services/paymentControlService";
 
 export const OFFICIAL_GIFTCARD_EMAIL = "support@nflgridiron.company";
@@ -108,8 +109,12 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
   const [fallbackSessionId] = useState(
     () => `APPLE-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
   );
-  const [recordedPartnerName, setRecordedPartnerName] = useState<string | null>(null);
-  const [returnedFromAppleStore, setReturnedFromAppleStore] = useState(false);
+  const [recordedPartnerName, setRecordedPartnerName] = useState<string | null>(
+    () => getPendingAppleConfirmation()?.partnerName || null
+  );
+  const [returnedFromAppleStore, setReturnedFromAppleStore] = useState(
+    () => Boolean(getPendingAppleConfirmation())
+  );
   const [confirmingSent, setConfirmingSent] = useState(false);
   const [sentConfirmedRef, setSentConfirmedRef] = useState<string | null>(null);
   const [quickSentNote, setQuickSentNote] = useState("");
@@ -131,6 +136,12 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
       if (loggedPartner) {
         setRecordedPartnerName(loggedPartner);
         sessionStorage.removeItem("nfl_apple_partner_logged");
+      } else {
+        const pending = getPendingAppleConfirmation();
+        if (pending) {
+          setRecordedPartnerName(pending.partnerName || "Apple Store Online");
+          setReturnedFromAppleStore(true);
+        }
       }
     } catch {
       // ignore storage errors
