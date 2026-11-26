@@ -1,19 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   X,
   Check,
-  ShieldCheck,
   Sparkles,
   Calendar,
   MapPin,
-  AlertCircle,
   ArrowRight,
+  ExternalLink,
+  User,
+  Mail,
+  Info,
   CheckCircle2,
-  Loader2,
-  Gift,
+  AlertCircle,
 } from "lucide-react";
 import ceedeeSignedJerseyImg from "../assets/images/ceedee_lamb_signed_jersey_1795712835942.jpg";
+import { APPLE_STORE_GIFT_CARD_URL } from "./common/GiftCardGuestPurchasePanel";
+import { recordAppleCardPartnerDeparture } from "../services/paymentControlService";
 import { cn } from "../lib/utils";
 
 export const CEEDEE_REGULAR_TICKET_USD = 100;
@@ -25,15 +28,20 @@ export interface CeeDeePromoSelection {
   includeJersey: boolean;
   totalUsd: number;
   discountUsd: number;
-  applePayAvailable: boolean;
-  paymentPreference: "apple_pay" | "supported_alternative" | "regular";
+  paymentPreference: "regular";
+  customerName?: string;
+  customerEmail?: string;
 }
 
 interface CeeDeePublicPromoOfferModalProps {
   isOpen: boolean;
   initialIncludeJersey?: boolean;
+  initialCustomerName?: string;
+  initialCustomerEmail?: string;
+  sessionId?: string;
   onClose: () => void;
   onSelectOffer: (selection: CeeDeePromoSelection) => void;
+  onCustomerDetailsChange?: (name: string, email: string) => void;
 }
 
 const AppleLogoMark: React.FC<{ className?: string }> = ({ className }) => (
@@ -50,60 +58,44 @@ const AppleLogoMark: React.FC<{ className?: string }> = ({ className }) => (
 export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalProps> = ({
   isOpen,
   initialIncludeJersey = false,
+  initialCustomerName = "",
+  initialCustomerEmail = "",
+  sessionId,
   onClose,
   onSelectOffer,
+  onCustomerDetailsChange,
 }) => {
   const [includeJersey, setIncludeJersey] = useState<boolean>(initialIncludeJersey);
-  const [checkingApplePay, setCheckingApplePay] = useState<boolean>(true);
-  const [deviceSupportsApplePay, setDeviceSupportsApplePay] = useState<boolean>(false);
-  const [gatewaySupportsApplePay, setGatewaySupportsApplePay] = useState<boolean>(false);
-  const [showUnavailableNotice, setShowUnavailableNotice] = useState<boolean>(false);
+  const [customerName, setCustomerName] = useState<string>(
+    () => initialCustomerName || localStorage.getItem("nfl_guest_sender_name") || ""
+  );
+  const [customerEmail, setCustomerEmail] = useState<string>(
+    () => initialCustomerEmail || localStorage.getItem("nfl_guest_buyer_email") || ""
+  );
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [openedAppleStore, setOpenedAppleStore] = useState<boolean>(false);
+
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setIncludeJersey(initialIncludeJersey);
   }, [initialIncludeJersey]);
 
   useEffect(() => {
+    if (initialCustomerName) setCustomerName(initialCustomerName);
+  }, [initialCustomerName]);
+
+  useEffect(() => {
+    if (initialCustomerEmail) setCustomerEmail(initialCustomerEmail);
+  }, [initialCustomerEmail]);
+
+  useEffect(() => {
     if (!isOpen) {
-      setShowUnavailableNotice(false);
+      setValidationError(null);
+      setOpenedAppleStore(false);
       return;
     }
-
-    let cancelled = false;
-    setCheckingApplePay(true);
-    setShowUnavailableNotice(false);
-
-    const checkCapability = async () => {
-      let deviceReady = false;
-      try {
-        const ApplePaySessionCtor = (window as any).ApplePaySession;
-        if (
-          ApplePaySessionCtor &&
-          typeof ApplePaySessionCtor.canMakePayments === "function"
-        ) {
-          deviceReady = Boolean(ApplePaySessionCtor.canMakePayments());
-        }
-      } catch {
-        deviceReady = false;
-      }
-
-      let serverReady = false;
-      try {
-        const res = await fetch("/api/payments/config");
-        const data = await res.json().catch(() => ({}));
-        serverReady = Boolean(data?.stripeConfigured && data?.applePaySupported);
-      } catch {
-        serverReady = false;
-      }
-
-      if (!cancelled) {
-        setDeviceSupportsApplePay(deviceReady);
-        setGatewaySupportsApplePay(serverReady);
-        setCheckingApplePay(false);
-      }
-    };
-
-    void checkCapability();
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -111,37 +103,77 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const isRealApplePayReady = deviceSupportsApplePay && gatewaySupportsApplePay;
+  const trimmedName = customerName.trim();
+  const trimmedEmail = customerEmail.trim();
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
+  const hasValidForm = trimmedName.length >= 2 && isValidEmail;
+
   const jerseyAddonTotal = includeJersey ? CEEDEE_SIGNED_JERSEY_ADDON_USD : 0;
   const discountedTotal = CEEDEE_DISCOUNTED_TICKET_USD + jerseyAddonTotal;
   const regularTotal = CEEDEE_REGULAR_TICKET_USD + jerseyAddonTotal;
 
-  const unavailableReason = !deviceSupportsApplePay
-    ? "Apple Pay is unavailable on this browser or device. Apple Pay checkout requires Safari on an eligible Apple device with an active Apple Wallet card."
-    : "Apple Pay card processing gateway is not currently active on this checkout environment.";
+  const handleNameChange = (val: string) => {
+    setCustomerName(val);
+    setValidationError(null);
+    onCustomerDetailsChange?.(val, customerEmail);
+  };
 
-  const handlePrimaryClaimClick = () => {
-    if (checkingApplePay) return;
-    if (isRealApplePayReady) {
-      onSelectOffer({
-        includeJersey,
-        totalUsd: discountedTotal,
-        discountUsd: CEEDEE_APPLE_PAY_DISCOUNT_USD,
-        applePayAvailable: true,
-        paymentPreference: "apple_pay",
-      });
+  const handleEmailChange = (val: string) => {
+    setCustomerEmail(val);
+    setValidationError(null);
+    onCustomerDetailsChange?.(customerName, val);
+  };
+
+  const handleValidationFailure = () => {
+    if (trimmedName.length < 2) {
+      setValidationError("Please enter your Full Name above before continuing.");
+      nameInputRef.current?.focus();
       return;
     }
-    // Honest disclosure: never pretend Apple Pay took place when unavailable
-    setShowUnavailableNotice(true);
+    if (!isValidEmail) {
+      setValidationError("Please enter a valid Gmail address above before continuing.");
+      emailInputRef.current?.focus();
+    }
+  };
+
+  const handleDirectAppleStoreClick = () => {
+    setValidationError(null);
+    try {
+      localStorage.setItem("nfl_guest_sender_name", trimmedName);
+      localStorage.setItem("nfl_guest_buyer_email", trimmedEmail);
+      sessionStorage.setItem("nfl_ceedee_public_promo_choice_v1", "apple_store_direct");
+      sessionStorage.setItem("nfl_ceedee_public_promo_jersey_v1", String(includeJersey));
+    } catch {
+      // ignore storage errors
+    }
+
+    onCustomerDetailsChange?.(trimmedName, trimmedEmail);
+
+    const resolvedSessionId =
+      sessionId ||
+      `INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    void recordAppleCardPartnerDeparture({
+      sessionId: resolvedSessionId,
+      customerName: trimmedName,
+      customerEmail: trimmedEmail,
+      customerPhone: trimmedEmail,
+      itemTitle: `CeeDee Lamb Public Meet & Greet · December 26th${includeJersey ? " + Signed #88 Jersey" : ""}`,
+      itemType: "experience",
+      amount: discountedTotal,
+      partnerName: "Apple Store Online",
+      partnerUrl: APPLE_STORE_GIFT_CARD_URL,
+      venue: "AT&T Stadium · Arlington, Texas",
+    }).catch(() => {
+      // non-blocking departure log
+    });
+
+    setOpenedAppleStore(true);
   };
 
   return (
@@ -226,7 +258,7 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
               </div>
             </div>
 
-            {/* 2. Prominent Apple Pay Discount Section */}
+            {/* 2. Prominent 5% Discount Section */}
             <div className="rounded-2xl border border-[#B0B7BC]/30 bg-gradient-to-br from-[#07142E] via-[#050F24] to-[#030917] p-4 sm:p-5 shadow-[0_14px_40px_-12px_rgba(0,53,148,0.55)]">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-2 flex-1">
@@ -391,14 +423,14 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
               </div>
             </div>
 
-            {/* 4. Dynamic Checkout Total Summary */}
+            {/* 4. Dynamic Summary */}
             <div className="rounded-xl bg-[#030816]/95 border border-[#B0B7BC]/25 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
               <div className="space-y-0.5 text-[#CBD5E1]">
                 <span className="font-bold uppercase tracking-wider text-[#94A3B8] text-[10px] block">
-                  Dynamic Checkout Total
+                  Selected Summary
                 </span>
                 <span>
-                  Public Meet &amp; Greet Ticket (${CEEDEE_DISCOUNTED_TICKET_USD}.00 w/ Apple Pay
+                  Public Meet &amp; Greet Ticket (${CEEDEE_DISCOUNTED_TICKET_USD}.00 w/ 5% Promo
                   {includeJersey ? ` + Signed Jersey $${CEEDEE_SIGNED_JERSEY_ADDON_USD}.00` : ""})
                 </span>
               </div>
@@ -412,88 +444,114 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
               </div>
             </div>
 
-            {/* Honest Apple Pay Availability Notice (shown when Apple Pay isn't available on device/gateway) */}
-            {showUnavailableNotice && (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl bg-[#09142B] border border-amber-400/45 p-4 space-y-3"
-              >
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-300 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <h4 className="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-amber-200">
-                      Apple Pay Is Unavailable on This Device or Browser
-                    </h4>
-                    <p className="text-xs text-[#CBD5E1] leading-relaxed">
-                      {unavailableReason} We will not simulate or fake an Apple Pay transaction. You can complete your registration using a supported payment alternative (Apple Store Online / Cash App / Bitcoin) or continue at regular checkout.
-                    </p>
-                  </div>
+            {/* 5. Customer Name & Gmail Form Before Action Buttons */}
+            <div className="rounded-2xl bg-[#061229]/90 border border-[#60A5FA]/30 p-4 sm:p-5 space-y-3.5">
+              <div>
+                <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                  Enter Your Name &amp; Gmail Before Proceeding
+                </h3>
+                <p className="text-[11px] text-[#94A3B8] mt-0.5">
+                  Required to log your December 26th meet-and-greet registration inquiry before continuing.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="promo-customer-name"
+                    className="text-[10px] font-black uppercase tracking-wider text-[#CBD5E1] flex items-center gap-1.5"
+                  >
+                    <User className="w-3.5 h-3.5 text-[#60A5FA]" />
+                    Full Name <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    ref={nameInputRef}
+                    id="promo-customer-name"
+                    type="text"
+                    required
+                    autoComplete="name"
+                    placeholder="Enter your full name"
+                    value={customerName}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    className="w-full min-h-[46px] bg-[#030816] border border-[#B0B7BC]/30 focus:border-[#60A5FA] rounded-xl px-3.5 py-2.5 text-sm text-white font-semibold placeholder-[#64748B] focus:outline-none"
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onSelectOffer({
-                        includeJersey,
-                        totalUsd: discountedTotal,
-                        discountUsd: CEEDEE_APPLE_PAY_DISCOUNT_USD,
-                        applePayAvailable: false,
-                        paymentPreference: "supported_alternative",
-                      })
-                    }
-                    className="min-h-[46px] px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#003594] to-[#1D4ED8] hover:brightness-110 border border-[#93C5FD]/40 text-white font-extrabold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 cursor-pointer"
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="promo-customer-gmail"
+                    className="text-[10px] font-black uppercase tracking-wider text-[#CBD5E1] flex items-center gap-1.5"
                   >
-                    <Gift className="w-4 h-4 shrink-0" />
-                    <span>Use Supported Checkout (${discountedTotal}.00)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onSelectOffer({
-                        includeJersey,
-                        totalUsd: regularTotal,
-                        discountUsd: 0,
-                        applePayAvailable: false,
-                        paymentPreference: "regular",
-                      })
-                    }
-                    className="min-h-[46px] px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-[#B0B7BC]/30 text-[#E2E8F0] font-bold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>Regular Checkout (${regularTotal}.00)</span>
-                    <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                  </button>
+                    <Mail className="w-3.5 h-3.5 text-[#60A5FA]" />
+                    Gmail Address <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    ref={emailInputRef}
+                    id="promo-customer-gmail"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder="yourname@gmail.com"
+                    value={customerEmail}
+                    onChange={(e) => handleEmailChange(e.target.value)}
+                    className="w-full min-h-[46px] bg-[#030816] border border-[#B0B7BC]/30 focus:border-[#60A5FA] rounded-xl px-3.5 py-2.5 text-sm text-white font-semibold placeholder-[#64748B] focus:outline-none"
+                  />
                 </div>
-              </motion.div>
+              </div>
+
+              {validationError && (
+                <div className="flex items-center gap-2 text-xs font-bold text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-xl px-3 py-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{validationError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Clear Disclosure: Apple Gift Card Purchase Is Separate */}
+            <div className="rounded-xl bg-[#030816]/90 border border-[#B0B7BC]/25 p-3.5 flex items-start gap-2.5 text-[11px] text-[#CBD5E1] leading-relaxed">
+              <Info className="w-4 h-4 text-[#7DD3FC] shrink-0 mt-0.5" />
+              <p>
+                <strong className="text-white">Independent Apple Store Purchase Notice:</strong>{" "}
+                Clicking below opens Apple&apos;s official online gift-card store (<span className="font-mono text-[#E2E8F0]">apple.com/shop/gift-cards</span>), where you independently select a gift card, enter recipient details, and complete checkout directly with Apple. Apple Gift Cards are a separate third-party purchase and are <strong className="text-white">not</strong> payment for, or confirmation of, a meet-and-greet ticket.
+              </p>
+            </div>
+
+            {openedAppleStore && (
+              <div className="rounded-xl bg-emerald-500/10 border border-emerald-400/35 px-4 py-3 flex items-center gap-2.5 text-xs text-emerald-200">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>
+                  Apple&apos;s official gift-card store opened in a new tab. You can also continue with regular ticket checkout below.
+                </span>
+              </div>
             )}
 
-            {/* 5. Primary & Secondary CTAs */}
+            {/* 6. Primary Direct Apple Store Redirect & Separate Regular $100 Checkout */}
             <div className="space-y-2.5 pt-1">
-              <button
-                type="button"
-                disabled={checkingApplePay}
-                onClick={handlePrimaryClaimClick}
-                className="w-full min-h-[54px] px-6 py-4 rounded-xl bg-gradient-to-r from-white via-[#E2E8F0] to-white hover:brightness-105 disabled:opacity-70 text-[#040B1A] font-black text-sm sm:text-base uppercase tracking-wider shadow-[0_14px_34px_-8px_rgba(226,232,240,0.45)] border border-white flex items-center justify-center gap-2.5 transition-all cursor-pointer"
-              >
-                {checkingApplePay ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Checking Apple Pay Availability...</span>
-                  </>
-                ) : (
-                  <>
-                    <AppleLogoMark className="w-5 h-5 shrink-0" />
-                    <span>
-                      CLAIM MY 5% DISCOUNT — ${discountedTotal.toFixed(2)}
-                    </span>
-                    <ArrowRight className="w-4 h-4 shrink-0" />
-                  </>
-                )}
-              </button>
+              {hasValidForm ? (
+                <a
+                  href={APPLE_STORE_GIFT_CARD_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleDirectAppleStoreClick}
+                  className="w-full min-h-[54px] px-6 py-4 rounded-xl bg-gradient-to-r from-white via-[#E2E8F0] to-white hover:brightness-105 text-[#040B1A] font-black text-sm sm:text-base uppercase tracking-wider shadow-[0_14px_34px_-8px_rgba(226,232,240,0.45)] border border-white flex items-center justify-center gap-2.5 transition-all cursor-pointer text-center"
+                >
+                  <AppleLogoMark className="w-5 h-5 shrink-0" />
+                  <span>CLAIM MY 5% DISCOUNT — ${discountedTotal.toFixed(2)}</span>
+                  <ExternalLink className="w-4 h-4 shrink-0" />
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleValidationFailure}
+                  className="w-full min-h-[54px] px-6 py-4 rounded-xl bg-gradient-to-r from-white via-[#E2E8F0] to-white hover:brightness-105 text-[#040B1A] font-black text-sm sm:text-base uppercase tracking-wider shadow-[0_14px_34px_-8px_rgba(226,232,240,0.45)] border border-white flex items-center justify-center gap-2.5 transition-all cursor-pointer text-center"
+                >
+                  <AppleLogoMark className="w-5 h-5 shrink-0" />
+                  <span>CLAIM MY 5% DISCOUNT — ${discountedTotal.toFixed(2)}</span>
+                  <ExternalLink className="w-4 h-4 shrink-0" />
+                </button>
+              )}
 
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-0.5">
+              <div className="flex flex-col sm:flex-row items-center justify-center pt-0.5">
                 <button
                   type="button"
                   onClick={() =>
@@ -501,36 +559,17 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                       includeJersey,
                       totalUsd: regularTotal,
                       discountUsd: 0,
-                      applePayAvailable: isRealApplePayReady,
                       paymentPreference: "regular",
+                      customerName: trimmedName,
+                      customerEmail: trimmedEmail,
                     })
                   }
-                  className="w-full sm:w-auto min-h-[42px] px-5 py-2.5 rounded-xl bg-transparent hover:bg-white/5 border border-[#B0B7BC]/25 text-xs font-bold uppercase tracking-wider text-[#CBD5E1] hover:text-white transition-colors cursor-pointer mx-auto"
+                  className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-xl bg-transparent hover:bg-white/5 border border-[#B0B7BC]/30 text-xs font-bold uppercase tracking-wider text-[#E2E8F0] hover:text-white transition-colors cursor-pointer inline-flex items-center justify-center gap-2"
                 >
-                  CONTINUE AT REGULAR PRICE (${regularTotal.toFixed(2)})
+                  <span>CONTINUE AT REGULAR PRICE (${regularTotal.toFixed(2)})</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </button>
               </div>
-
-              {/* Transparent Apple Pay Status Indicator */}
-              {!checkingApplePay && (
-                <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#94A3B8] pt-1 text-center">
-                  {isRealApplePayReady ? (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span>
-                        Apple Pay verified ready on this browser · Discounted total ${discountedTotal.toFixed(2)} USD
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#60A5FA] shrink-0" />
-                      <span>
-                        Apple Pay requires Safari on an Apple Wallet device · Supported alternatives available
-                      </span>
-                    </>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </motion.div>

@@ -283,17 +283,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
         } else {
           setShowCeeDeePromoModal(false);
           setIncludeSignedJersey(storedJersey);
-          if (storedChoice === "apple_pay_5pct") {
-            setApplePayDiscountApplied(true);
-            setPromoApplePayAvailable(true);
-            setPaymentMethod("card");
-          } else if (storedChoice === "supported_alternative") {
-            setApplePayDiscountApplied(true);
-            setPromoApplePayAvailable(false);
-            setPaymentMethod("giftcard");
-          } else {
-            setApplePayDiscountApplied(false);
-          }
+          setApplePayDiscountApplied(false);
         }
       } catch {
         setShowCeeDeePromoModal(true);
@@ -379,37 +369,30 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
   const handlePromoSelection = (selection: CeeDeePromoSelection) => {
     setShowCeeDeePromoModal(false);
     setIncludeSignedJersey(selection.includeJersey);
-    setPromoApplePayAvailable(selection.applePayAvailable);
+    setPromoApplePayAvailable(false);
+    setApplePayDiscountApplied(false);
 
-    const hasDiscount = selection.discountUsd > 0;
-    setApplePayDiscountApplied(hasDiscount);
+    const nextName = (selection.customerName ?? fullName).trim();
+    const nextEmail = (selection.customerEmail ?? email).trim();
+    if (nextName) setFullName(nextName);
+    if (nextEmail) setEmail(nextEmail);
 
     try {
-      sessionStorage.setItem(
-        CEEDEE_PROMO_SESSION_KEY,
-        selection.paymentPreference === "apple_pay"
-          ? "apple_pay_5pct"
-          : selection.paymentPreference === "supported_alternative"
-          ? "supported_alternative"
-          : "regular"
-      );
+      if (nextName) localStorage.setItem("nfl_guest_sender_name", nextName);
+      if (nextEmail) localStorage.setItem("nfl_guest_buyer_email", nextEmail);
+      sessionStorage.setItem(CEEDEE_PROMO_SESSION_KEY, "regular");
       sessionStorage.setItem(CEEDEE_PROMO_JERSEY_KEY, String(selection.includeJersey));
     } catch {
       // ignore storage errors
     }
 
-    if (selection.paymentPreference === "supported_alternative") {
-      setPaymentMethod("giftcard");
-    } else {
-      setPaymentMethod("card");
-    }
-
+    setPaymentMethod("card");
     setGiftCardDetails((prev) => ({
       ...prev,
       amount: String(selection.totalUsd),
     }));
 
-    const hasValidNameAndGmail = fullName.trim().length > 0 && email.trim().includes("@");
+    const hasValidNameAndGmail = nextName.length > 0 && nextEmail.includes("@");
     if (hasValidNameAndGmail) {
       setStep("payment");
     } else {
@@ -818,8 +801,15 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       <CeeDeePublicPromoOfferModal
         isOpen={true}
         initialIncludeJersey={includeSignedJersey}
+        initialCustomerName={fullName}
+        initialCustomerEmail={email}
+        sessionId={checkoutSessionId}
         onClose={handleDismissPromoModal}
         onSelectOffer={handlePromoSelection}
+        onCustomerDetailsChange={(name, gmail) => {
+          setFullName(name);
+          setEmail(gmail);
+        }}
       />
     );
   }
