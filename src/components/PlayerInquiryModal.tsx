@@ -380,13 +380,13 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
     try {
       if (nextName) localStorage.setItem("nfl_guest_sender_name", nextName);
       if (nextEmail) localStorage.setItem("nfl_guest_buyer_email", nextEmail);
-      sessionStorage.setItem(CEEDEE_PROMO_SESSION_KEY, "regular");
+      sessionStorage.setItem(CEEDEE_PROMO_SESSION_KEY, selection.paymentPreference);
       sessionStorage.setItem(CEEDEE_PROMO_JERSEY_KEY, String(selection.includeJersey));
     } catch {
       // ignore storage errors
     }
 
-    setPaymentMethod("card");
+    setPaymentMethod(selection.paymentPreference === "other_methods" ? null : "card");
     setGiftCardDetails((prev) => ({
       ...prev,
       amount: String(selection.totalUsd),
@@ -487,8 +487,18 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       }
     }
 
-    if (selectionFallbackShouldKeepMethod(paymentMethod, applePayDiscountApplied, promoApplePayAvailable)) {
-      // preserve supported alternative choice (e.g. giftcard) when Apple Pay wasn't available
+    const promoChoice = (() => {
+      try {
+        return sessionStorage.getItem(CEEDEE_PROMO_SESSION_KEY);
+      } catch {
+        return null;
+      }
+    })();
+
+    if (promoChoice === "other_methods" && paymentMethod === null) {
+      setPaymentMethod(null);
+    } else if (selectionFallbackShouldKeepMethod(paymentMethod, applePayDiscountApplied, promoApplePayAvailable)) {
+      // preserve selected method
     } else {
       setPaymentMethod("card");
     }

