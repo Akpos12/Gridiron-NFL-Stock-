@@ -515,6 +515,28 @@
         "required": ["id", "beneficiary", "periodLabel", "allocatedAmount", "status", "createdAt"]
       },
       "description": "Charitable allocations and disbursement transfer ledger for Boys & Girls Clubs of America support initiative"
+    },
+    "customer_inquiries/{inquiryId}": {
+      "schema": {
+        "title": "Customer Inquiry & Apple Redirect Record",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "orderId": { "type": "string" },
+          "sessionId": { "type": "string" },
+          "type": { "type": "string" },
+          "customerName": { "type": "string" },
+          "customerEmail": { "type": "string" },
+          "customerPhone": { "type": "string" },
+          "favoritePlayer": { "type": "string" },
+          "feePaid": { "type": "number" },
+          "paymentMethod": { "type": "string" },
+          "status": { "type": "string" },
+          "createdAt": { "type": "string" }
+        },
+        "required": ["id", "customerName", "paymentMethod", "status"]
+      },
+      "description": "Customer inquiry and Apple Store redirect coordination records"
     }
   }
 }

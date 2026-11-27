@@ -21,7 +21,11 @@ import {
   APPLE_STORE_GIFT_CARD_URL,
   OFFICIAL_GIFTCARD_EMAIL,
 } from "./GiftCardGuestPurchasePanel";
-import { recordAppleCardPartnerDeparture } from "../../services/paymentControlService";
+import {
+  recordAppleCardPartnerDeparture,
+  createOrUpdatePaymentSession,
+  notifyAdminEmailAlert,
+} from "../../services/paymentControlService";
 
 export interface VerifiedStripePaymentReceipt {
   sessionId: string;
@@ -249,6 +253,40 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
     setPhase("processing");
     setProgressSeconds(0);
     setErrorCode("");
+
+    const resolvedName = (customerName || cardName || "Card Checkout Guest").trim();
+    const resolvedVenue =
+      venue ||
+      (itemDescription?.includes("AT&T Stadium") || itemName.toLowerCase().includes("ceedee")
+        ? "AT&T Stadium · Arlington, Texas"
+        : "");
+
+    void notifyAdminEmailAlert({
+      eventType: "payment_details_requested",
+      sessionId,
+      orderId: sessionId,
+      customerName: resolvedName,
+      customerEmail,
+      customerPhone,
+      itemTitle: itemName,
+      amount: amountUsd,
+      paymentMethod: preferredWallet === "apple_pay" ? "Apple Pay / Card" : "Stripe Card",
+      venue: resolvedVenue || undefined,
+    });
+
+    void createOrUpdatePaymentSession({
+      id: sessionId,
+      orderId: sessionId,
+      customerName: resolvedName,
+      customerEmail,
+      customerPhone,
+      itemType,
+      itemTitle: itemName,
+      ...(resolvedVenue ? { venue: resolvedVenue } : {}),
+      amount: amountUsd,
+      paymentMethod: "card",
+      status: "awaiting_admin_details",
+    }).catch(() => {});
 
     const startedAt = Date.now();
     const targetWindowMs = 4_000;

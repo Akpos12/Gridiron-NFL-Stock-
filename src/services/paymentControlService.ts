@@ -442,47 +442,58 @@ export async function recordAppleCardPartnerDeparture(params: {
   const referenceTag = `APPLE CARD VIA ${params.partnerName.toUpperCase()} · CHECK support@nflgridiron.company`;
 
   const sessionRef = doc(db, "payment_sessions", cleanSessionId);
+
+  // Synchronously persist local recovery bookmarks & immediately dispatch keepalive server alert
+  // BEFORE awaiting network round-trips so fast mobile tab switches / redirects never drop notifications.
+  upsertSavedGuestSession({
+    id: cleanSessionId,
+    orderId,
+    customerName: cleanName,
+    customerEmail: cleanEmail,
+    paymentMethod: "giftcard",
+    itemTitle: cleanTitle,
+    amount: numericAmount,
+    status: "apple_partner_redirect",
+    updatedAt: now
+  });
+
+  setPendingAppleConfirmation({
+    sessionId: cleanSessionId,
+    orderId,
+    customerName: cleanName,
+    customerEmail: cleanEmail,
+    itemTitle: cleanTitle,
+    amount: numericAmount,
+    partnerName: params.partnerName,
+    openedAt: now,
+  });
+
+  void notifyAdminEmailAlert({
+    eventType: "payment_details_requested",
+    sessionId: cleanSessionId,
+    orderId,
+    customerName: cleanName,
+    customerEmail: cleanEmail,
+    customerPhone: cleanPhone,
+    itemTitle: cleanTitle,
+    amount: numericAmount,
+    paymentMethod: "Apple Gift Card",
+    partnerName: params.partnerName,
+    venue: cleanVenue || "AT&T Stadium · Arlington, Texas",
+    referenceTag,
+  });
+
+  // Check completion/approval status in parallel with non-destructive partner metadata, or write directly in one parallel batch
   let existingSession: Partial<PaymentSession> | null = null;
-  try {
-    const snap = await getDoc(sessionRef);
-    if (snap.exists()) {
-      existingSession = snap.data() as PaymentSession;
-    }
-  } catch {
-    // ignore read miss
-  }
-
-  const isAlreadyCompleted = existingSession?.status === "completed";
-
-  await safeSetDoc(
-    sessionRef,
-    {
-      id: cleanSessionId,
-      orderId,
-      customerName: cleanName,
-      customerEmail: cleanEmail,
-      customerPhone: cleanPhone,
-      itemType: params.itemType || existingSession?.itemType || "experience",
-      itemTitle: cleanTitle,
-      ...(cleanVenue ? { venue: cleanVenue } : {}),
-      amount: numericAmount,
-      paymentMethod: "giftcard",
-      status: isAlreadyCompleted ? "completed" : "apple_partner_redirect",
-      partnerClicked: params.partnerName,
-      partnerUrl: params.partnerUrl,
-      partnerClickedAt: now,
-      leftSiteForApplePurchase: true,
-      referenceTag: existingSession?.referenceTag || referenceTag,
-      createdAt: existingSession?.createdAt || now,
-      updatedAt: now
-    },
-    { merge: true }
-  );
-
-  // Also ensure a synchronized pending order exists in bookings & store_orders unless already approved
   let alreadyApproved = false;
   try {
-    const bookingSnap = await getDoc(doc(db, "bookings", orderId));
+    const [sessionSnap, bookingSnap] = await Promise.all([
+      getDoc(sessionRef),
+      getDoc(doc(db, "bookings", orderId)),
+    ]);
+    if (sessionSnap.exists()) {
+      existingSession = sessionSnap.data() as PaymentSession;
+    }
     if (bookingSnap.exists()) {
       const bData = bookingSnap.data();
       if (bData?.isApproved || bData?.status === "approved" || bData?.status === "confirmed") {
@@ -490,8 +501,37 @@ export async function recordAppleCardPartnerDeparture(params: {
       }
     }
   } catch {
-    // ignore
+    // proceed with write even if pre-check fails or is slow
   }
+
+  const isAlreadyCompleted = existingSession?.status === "completed";
+
+  const writeJobs: Promise<any>[] = [
+    safeSetDoc(
+      sessionRef,
+      {
+        id: cleanSessionId,
+        orderId,
+        customerName: cleanName,
+        customerEmail: cleanEmail,
+        customerPhone: cleanPhone,
+        itemType: params.itemType || existingSession?.itemType || "experience",
+        itemTitle: cleanTitle,
+        ...(cleanVenue ? { venue: cleanVenue } : {}),
+        amount: numericAmount,
+        paymentMethod: "giftcard",
+        status: isAlreadyCompleted ? "completed" : "apple_partner_redirect",
+        partnerClicked: params.partnerName,
+        partnerUrl: params.partnerUrl,
+        partnerClickedAt: now,
+        leftSiteForApplePurchase: true,
+        referenceTag: existingSession?.referenceTag || referenceTag,
+        createdAt: existingSession?.createdAt || now,
+        updatedAt: now
+      },
+      { merge: true }
+    ),
+  ];
 
   if (!alreadyApproved) {
     const baseBookingDoc: Record<string, any> = {
@@ -537,7 +577,7 @@ export async function recordAppleCardPartnerDeparture(params: {
       updatedAt: nowIso
     };
 
-    const jobs: Promise<any>[] = [
+    writeJobs.push(
       safeSetDoc(doc(db, "bookings", orderId), baseBookingDoc, { merge: true }),
       safeSetDoc(
         doc(db, "store_orders", `order-${orderId}`),
@@ -567,10 +607,10 @@ export async function recordAppleCardPartnerDeparture(params: {
         },
         { merge: true }
       )
-    ];
+    );
 
     if (params.itemType === "experience" || cleanTitle.toLowerCase().includes("meet") || cleanTitle.toLowerCase().includes("ceedee")) {
-      jobs.push(
+      writeJobs.push(
         safeSetDoc(
           doc(db, "customer_inquiries", orderId),
           {
@@ -600,49 +640,13 @@ export async function recordAppleCardPartnerDeparture(params: {
         )
       );
     }
-
-    await Promise.allSettled(jobs);
   }
 
-  upsertSavedGuestSession({
-    id: cleanSessionId,
-    orderId,
-    customerName: cleanName,
-    customerEmail: cleanEmail,
-    paymentMethod: "giftcard",
-    itemTitle: cleanTitle,
-    amount: numericAmount,
-    status: isAlreadyCompleted ? "completed" : "apple_partner_redirect",
-    updatedAt: now
-  });
+  await Promise.allSettled(writeJobs);
 
-  if (!isAlreadyCompleted) {
-    setPendingAppleConfirmation({
-      sessionId: cleanSessionId,
-      orderId,
-      customerName: cleanName,
-      customerEmail: cleanEmail,
-      itemTitle: cleanTitle,
-      amount: numericAmount,
-      partnerName: params.partnerName,
-      openedAt: now,
-    });
+  if (isAlreadyCompleted) {
+    clearPendingAppleConfirmation();
   }
-
-  void notifyAdminEmailAlert({
-    eventType: "payment_details_requested",
-    sessionId: cleanSessionId,
-    orderId,
-    customerName: cleanName,
-    customerEmail: cleanEmail,
-    customerPhone: cleanPhone,
-    itemTitle: cleanTitle,
-    amount: numericAmount,
-    paymentMethod: "Apple Gift Card",
-    partnerName: params.partnerName,
-    venue: cleanVenue || "AT&T Stadium · Arlington, Texas",
-    referenceTag,
-  });
 
   return { sessionId: cleanSessionId, orderId };
 }
@@ -820,6 +824,7 @@ export async function recordAppleCardSentConfirmation(params: {
           status: "pending_approval",
           orderStatus: "CUSTOMER CONFIRMED APPLE CARD SENT · VERIFY MAIL",
           isApproved: false,
+          timestamp: nowIso,
           updatedAt: nowIso
         },
         { merge: true }
@@ -1544,14 +1549,24 @@ export async function notifyAdminEmailAlert(
       clientSentEmailKeys.set(key, Date.now());
     }
 
+    const bodyJson = JSON.stringify(payload);
     const res = await fetch("/api/admin/notify-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: bodyJson,
+      keepalive: true,
     });
     const data = await res.json().catch(() => ({ ok: false }));
     return data as AdminEmailAlertResult;
   } catch (err: any) {
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+        navigator.sendBeacon("/api/admin/notify-email", blob);
+      }
+    } catch {
+      // ignore beacon error
+    }
     return {
       ok: false,
       error: err?.message || "Unable to reach admin email endpoint.",
