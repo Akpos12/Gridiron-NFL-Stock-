@@ -626,21 +626,61 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
               )}
             </div>
 
-            {/* 6. Confirmation Payment Explanation + Copy Where to Send the Apple Card */}
-            <div className="rounded-2xl bg-[#051229] border border-[#60A5FA]/35 p-4 space-y-3">
+            {/* 6. Clear 3-Step Apple Gift Card Guide + Copy Where to Send */}
+            <div className="rounded-2xl bg-[#051229] border border-[#60A5FA]/35 p-4 sm:p-5 space-y-3.5">
               <div className="flex items-start gap-2.5 text-xs text-[#E2E8F0] leading-relaxed">
                 <ShieldCheck className="w-4 h-4 text-[#7DD3FC] shrink-0 mt-0.5" />
-                <p>
-                  <strong className="text-white">Confirmation Payment Policy:</strong>{" "}
-                  Apple Gift Cards are accepted as confirmation payments for your CeeDee Lamb Meet &amp; Greet ticket. Copy the official delivery email below, complete your purchase on Apple&apos;s official online store (<span className="font-mono text-[#7DD3FC]">apple.com/shop/gift-cards</span>), and come back here to confirm once your payment has been sent.
-                </p>
+                <div>
+                  <p className="font-black uppercase tracking-wider text-white text-[11px]">
+                    How To Complete Your ${discountedTotal.toFixed(2)} Apple Gift Card Payment (3 Easy Steps)
+                  </p>
+                  <p className="text-[11px] text-[#94A3B8] mt-0.5">
+                    Apple Gift Cards are accepted as confirmation payments for your CeeDee Lamb Meet &amp; Greet ticket. Apple will not redirect automatically, so follow these steps:
+                  </p>
+                </div>
+              </div>
+
+              {/* 3-Step Visual Checklist */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
+                <div className="rounded-xl bg-[#030816]/90 border border-white/10 p-3 space-y-1">
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-[#003594]/70 text-[#7DD3FC] font-mono font-bold text-[10px]">
+                    STEP 1
+                  </span>
+                  <p className="font-bold text-white">Copy Our Email Below</p>
+                  <p className="text-[#94A3B8] leading-snug">
+                    Tap <strong className="text-white">Copy Email</strong> (also copied automatically when you tap the Apple button).
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-[#030816]/90 border border-white/10 p-3 space-y-1">
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-[#003594]/70 text-[#7DD3FC] font-mono font-bold text-[10px]">
+                    STEP 2
+                  </span>
+                  <p className="font-bold text-white">Buy ${discountedTotal.toFixed(2)} Email Card</p>
+                  <p className="text-[#94A3B8] leading-snug">
+                    On Apple Store, pick <strong className="text-white">Email Delivery</strong>, type{" "}
+                    <strong className="text-emerald-300 font-mono">${discountedTotal.toFixed(2)}</strong>, and paste{" "}
+                    <strong className="text-white font-mono">{OFFICIAL_GIFTCARD_EMAIL}</strong> as Recipient.
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-[#030816]/90 border border-white/10 p-3 space-y-1">
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-[10px]">
+                    STEP 3
+                  </span>
+                  <p className="font-bold text-white">Come Back &amp; Confirm</p>
+                  <p className="text-[#94A3B8] leading-snug">
+                    Switch back to this tab after Apple sends it and tap{" "}
+                    <strong className="text-emerald-300">&ldquo;Yes, I Have Sent My Payment&rdquo;</strong>.
+                  </p>
+                </div>
               </div>
 
               {/* Copyable Official Delivery Email Box */}
-              <div className="rounded-xl bg-[#030816] border border-[#B0B7BC]/30 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="rounded-xl bg-[#030816] border border-[#60A5FA]/40 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                 <div className="min-w-0">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8] block">
-                    Send Your Apple Gift Card To:
+                    Paste This As Apple Recipient Email:
                   </span>
                   <span className="font-mono text-xs sm:text-sm font-black text-white select-all break-all">
                     {OFFICIAL_GIFTCARD_EMAIL}
@@ -649,12 +689,12 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                 <button
                   type="button"
                   onClick={handleCopySupportEmail}
-                  className="min-h-[40px] px-3.5 py-2 rounded-lg bg-[#003594]/60 hover:bg-[#003594] border border-[#60A5FA]/45 text-xs font-bold text-white inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer transition-colors"
+                  className="min-h-[40px] px-3.5 py-2 rounded-lg bg-[#003594]/70 hover:bg-[#003594] border border-[#60A5FA]/50 text-xs font-bold text-white inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer transition-colors"
                 >
                   {copiedEmail ? (
                     <>
                       <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-300">Copied!</span>
+                      <span className="text-emerald-300">Copied! Paste on Apple</span>
                     </>
                   ) : (
                     <>
@@ -788,6 +828,11 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                   <ExternalLink className="w-4 h-4 shrink-0" />
                 </button>
               )}
+
+              <p className="text-[11px] text-center text-[#94A3B8] leading-snug px-2">
+                Opens <span className="font-mono text-[#CBD5E1]">apple.com/shop/gift-cards</span> in a new tab · Auto-copies{" "}
+                <span className="font-mono text-white">{OFFICIAL_GIFTCARD_EMAIL}</span> · Keep this tab open to confirm when sent
+              </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-0.5">
                 <button

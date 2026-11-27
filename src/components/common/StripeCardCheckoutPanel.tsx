@@ -525,6 +525,25 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
               )}
             </button>
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
+            <div className="rounded-lg bg-[#03050C]/90 border border-white/10 p-2.5">
+              <span className="font-mono font-bold text-sky-300 text-[10px] block">1. COPY EMAIL</span>
+              <span className="text-zinc-300">Auto-copies when you click below.</span>
+            </div>
+            <div className="rounded-lg bg-[#03050C]/90 border border-white/10 p-2.5">
+              <span className="font-mono font-bold text-amber-300 text-[10px] block">
+                2. ENTER ${amountUsd.toFixed(2)}
+              </span>
+              <span className="text-zinc-300">
+                Choose <strong className="text-white">Email Delivery</strong> &amp; paste our email as recipient.
+              </span>
+            </div>
+            <div className="rounded-lg bg-[#03050C]/90 border border-white/10 p-2.5">
+              <span className="font-mono font-bold text-emerald-300 text-[10px] block">3. COME BACK</span>
+              <span className="text-zinc-300">Return to this tab &amp; confirm payment sent.</span>
+            </div>
+          </div>
         </div>
 
         {/* Direct 1-Click Proceed CTA Straight to Apple Store Online */}

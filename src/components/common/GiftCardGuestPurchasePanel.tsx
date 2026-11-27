@@ -190,6 +190,14 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
     const resolvedSessionId = (sessionId || fallbackSessionId).trim();
     setRecordedPartnerName(partner.name);
 
+    try {
+      void navigator.clipboard.writeText(OFFICIAL_GIFTCARD_EMAIL);
+      setCopiedEmail(true);
+      window.setTimeout(() => setCopiedEmail(false), 3200);
+    } catch {
+      // ignore clipboard errors
+    }
+
     void recordAppleCardPartnerDeparture({
       sessionId: resolvedSessionId,
       customerName,
@@ -429,16 +437,54 @@ export const GiftCardGuestPurchasePanel: React.FC<GiftCardGuestPurchasePanelProp
         </div>
       </div>
 
+      {/* Clear 3-Step Apple Gift Card Instructions */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
+        <div className="p-3 rounded-xl bg-[#080F22] border border-white/10 space-y-1">
+          <span className="inline-block px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 font-mono font-bold text-[10px]">
+            STEP 1
+          </span>
+          <p className="font-bold text-white">Copy Our Email</p>
+          <p className="text-zinc-300 leading-snug">
+            Tap <strong className="text-white">Copy Email</strong> above (or it auto-copies when you click Apple Store below).
+          </p>
+        </div>
+
+        <div className="p-3 rounded-xl bg-[#080F22] border border-white/10 space-y-1">
+          <span className="inline-block px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-bold text-[10px]">
+            STEP 2
+          </span>
+          <p className="font-bold text-white">
+            Buy ${Number(amountDue || 0).toFixed(2)} Email Card
+          </p>
+          <p className="text-zinc-300 leading-snug">
+            On Apple Store, pick <strong className="text-white">Email Delivery</strong>, type{" "}
+            <strong className="text-emerald-300 font-mono">${Number(amountDue || 0).toFixed(2)}</strong>, and paste{" "}
+            <strong className="text-white font-mono">{OFFICIAL_GIFTCARD_EMAIL}</strong> as Recipient.
+          </p>
+        </div>
+
+        <div className="p-3 rounded-xl bg-[#080F22] border border-white/10 space-y-1">
+          <span className="inline-block px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-[10px]">
+            STEP 3
+          </span>
+          <p className="font-bold text-white">Come Back &amp; Confirm</p>
+          <p className="text-zinc-300 leading-snug">
+            Return to this tab after Apple sends it and tap{" "}
+            <strong className="text-emerald-300">&ldquo;I Have Sent the Apple Card&rdquo;</strong>.
+          </p>
+        </div>
+      </div>
+
       {/* Step 1: Buy Apple Card From Secured Partner Without Signing In */}
       <div className="space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
             <CreditCard className="w-3.5 h-3.5 text-amber-400" />
-            Step 1: Click Apple Store Online below to buy your Apple Card
+            Open Apple Store Online to Buy &amp; Send Your ${Number(amountDue || 0).toFixed(2)} Apple Card
           </span>
           <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
             <Lock className="w-3 h-3" />
-            Verified · No sign-in required
+            Verified · Auto-copies delivery email
           </span>
         </div>
 
