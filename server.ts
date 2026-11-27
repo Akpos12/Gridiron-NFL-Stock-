@@ -110,17 +110,20 @@ async function startServer() {
   // Admin Email Notification Configuration Status & Mailer (Resend HTTPS or SMTP via Nodemailer)
   const sentEmailAlertDedupe = new Map<string, number>();
 
+  const cleanEnvVal = (raw: string | undefined) =>
+    (raw || "").trim().replace(/^['"]+|['"]+$/g, "").trim();
+
   const getEmailGatewayStatus = () => {
-    const recipient = (process.env.ADMIN_ALERT_EMAIL || "support@nflgridiron.company").trim();
-    const resendKey = (process.env.RESEND_API_KEY || "").trim();
+    const recipient = cleanEnvVal(process.env.ADMIN_ALERT_EMAIL) || "support@nflgridiron.company";
+    const resendKey = cleanEnvVal(process.env.RESEND_API_KEY).replace(/^Bearer\s+/i, "").trim();
     const hasResend =
       resendKey.length > 0 &&
       !resendKey.toLowerCase().includes("placeholder") &&
       !resendKey.toUpperCase().includes("MY_RESEND");
 
-    const smtpHost = (process.env.SMTP_HOST || "").trim();
-    const smtpUser = (process.env.SMTP_USER || "").trim();
-    const smtpPass = (process.env.SMTP_PASS || "").trim();
+    const smtpHost = cleanEnvVal(process.env.SMTP_HOST);
+    const smtpUser = cleanEnvVal(process.env.SMTP_USER);
+    const smtpPass = cleanEnvVal(process.env.SMTP_PASS);
     const hasSmtp = Boolean(smtpHost && smtpUser && smtpPass);
 
     return {
@@ -129,12 +132,13 @@ async function startServer() {
       provider: hasResend ? "resend" : hasSmtp ? "smtp" : "none",
       hasResend,
       hasSmtp,
+      keyFormatValid: hasResend ? resendKey.startsWith("re_") && resendKey.length >= 20 : false,
       resendKey,
       smtpHost,
       smtpPort: Number(process.env.SMTP_PORT || 587) || 587,
       smtpUser,
       smtpPass,
-      smtpFrom: (process.env.SMTP_FROM || "").trim() || (hasSmtp ? smtpUser : "NFL Gridiron Alerts <onboarding@resend.dev>"),
+      smtpFrom: cleanEnvVal(process.env.SMTP_FROM) || (hasSmtp ? smtpUser : "NFL Gridiron Alerts <onboarding@resend.dev>"),
     };
   };
 
@@ -145,6 +149,7 @@ async function startServer() {
       emailConfigured: cfg.emailConfigured,
       provider: cfg.provider,
       recipient: cfg.recipient,
+      keyFormatValid: cfg.keyFormatValid,
     });
   });
 
@@ -288,12 +293,17 @@ async function startServer() {
         const resendData: any = await resendRes.json().catch(() => ({}));
         if (!resendRes.ok) {
           console.error("[Admin Email Alert Resend Error]", resendData);
+          const rawMsg = resendData?.message || "Resend email delivery failed.";
+          const friendlyError =
+            !cfg.keyFormatValid
+              ? `Resend rejected the key ("${rawMsg}"). Make sure RESEND_API_KEY in Secrets is the secret token starting with "re_..." (not the Key Name or Key ID).`
+              : rawMsg;
           return res.status(502).json({
             ok: false,
             emailConfigured: true,
             provider: "resend",
             recipient: cfg.recipient,
-            error: resendData?.message || "Resend email delivery failed.",
+            error: friendlyError,
           });
         }
         return res.json({

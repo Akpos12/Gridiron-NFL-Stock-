@@ -53,6 +53,7 @@ interface StripeCardCheckoutPanelProps {
   preferredWallet?: "apple_pay" | "card";
   applePayDiscountApplied?: boolean;
   signedJerseyIncluded?: boolean;
+  hideCashApp?: boolean;
   onCustomerDetailsNeeded?: () => boolean; // returns true if valid, false if focus/validation failed
   onReturnToOptions: () => void;
   onSwitchToBitcoin?: () => void;
@@ -113,6 +114,7 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
   preferredWallet = "card",
   applePayDiscountApplied = false,
   signedJerseyIncluded = false,
+  hideCashApp = false,
   onCustomerDetailsNeeded,
   onReturnToOptions,
   onSwitchToBitcoin,
@@ -823,7 +825,9 @@ export const StripeCardCheckoutPanel: React.FC<StripeCardCheckoutPanelProps> = (
             onClick={onReturnToOptions}
             className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-transparent hover:bg-white/5 border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white transition-colors cursor-pointer"
           >
-            Prefer Gift Card, Cash App, or Bitcoin? View Other Options
+            {hideCashApp
+              ? "Prefer Gift Card or Bitcoin? View Other Options"
+              : "Prefer Gift Card, Cash App, or Bitcoin? View Other Options"}
           </button>
         </div>
       </div>

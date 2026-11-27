@@ -202,7 +202,13 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
       if (cleaned) setFavoritePlayer(cleaned);
     }
     const pm = s.paymentMethod;
-    if (pm && ["card", "giftcard", "cashapp", "crypto"].includes(pm)) {
+    const isSessionCeeDee =
+      favoritePlayer.trim().toLowerCase().includes("ceedee") ||
+      (s.itemTitle || "").toLowerCase().includes("ceedee");
+    const allowedMethods = isSessionCeeDee
+      ? ["card", "giftcard", "crypto"]
+      : ["card", "giftcard", "cashapp", "crypto"];
+    if (pm && allowedMethods.includes(pm)) {
       setPaymentMethod(pm as any);
     } else {
       setPaymentMethod("giftcard");
@@ -256,8 +262,12 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
     if (initialSessionId) {
       setCheckoutSessionId(initialSessionId);
+      const isInitialCeeDee = resolvedPlayer.toLowerCase().includes("ceedee");
+      const allowedInitial = isInitialCeeDee
+        ? ["card", "giftcard", "crypto"]
+        : ["card", "giftcard", "cashapp", "crypto"];
       setPaymentMethod(
-        initialPaymentMethod && ["card", "giftcard", "cashapp", "crypto"].includes(initialPaymentMethod)
+        initialPaymentMethod && allowedInitial.includes(initialPaymentMethod)
           ? (initialPaymentMethod as any)
           : "card"
       );
@@ -363,8 +373,9 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
 
   const selectedTeam = NFL_TEAMS.find(t => t.id === selectedTeamId) || NFL_TEAMS[0];
   const suggestedPlayers = POPULAR_PLAYERS_BY_TEAM[selectedTeamId] || ["Patrick Mahomes", "Lamar Jackson", "Brock Purdy", "Josh Allen", "Justin Jefferson"];
+  const isCeeDeeMeetGreet = favoritePlayer.trim().toLowerCase().includes("ceedee");
   const isPublicCeeDeeMeetGreet =
-    favoritePlayer.trim().toLowerCase().includes("ceedee") &&
+    isCeeDeeMeetGreet &&
     inquiryObjective.toLowerCase().includes("public meet");
   const effectiveVenue = isPublicCeeDeeMeetGreet ? "AT&T Stadium · Arlington, Texas" : "Hospitality Concierge Scheduling Queue";
 
@@ -1597,7 +1608,11 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
                       <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
                         <span className="text-[9px] font-mono font-black uppercase text-sky-400 block">Step 1 · Select Payment</span>
-                        <p className="text-zinc-300 mt-0.5 leading-snug">Pay securely via Stripe (Debit / Credit Card), buy &amp; redeem a Gift Card without signing in, or use Cash App or Bitcoin (5% off).</p>
+                        <p className="text-zinc-300 mt-0.5 leading-snug">
+                          {isCeeDeeMeetGreet
+                            ? "Pay securely via Stripe (Debit / Credit Card), buy & redeem a Gift Card without signing in, or use Bitcoin (5% off)."
+                            : "Pay securely via Stripe (Debit / Credit Card), buy & redeem a Gift Card without signing in, or use Cash App or Bitcoin (5% off)."}
+                        </p>
                       </div>
                       <div className="p-3 rounded-2xl bg-[#03050C]/90 border border-white/10">
                         <span className="text-[9px] font-mono font-black uppercase text-sky-400 block">Step 2 · Verify Transaction</span>
@@ -1748,11 +1763,16 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   </span>
                 </label>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                <div className={cn(
+                  "grid grid-cols-1 sm:grid-cols-2 gap-2.5",
+                  isCeeDeeMeetGreet ? "lg:grid-cols-3" : "lg:grid-cols-4"
+                )}>
                   {[
                     { id: "card", name: "Stripe (Card)", badge: "DEBIT / CREDIT", icon: CreditCard },
                     { id: "giftcard", name: "Gift Card", badge: "NO SIGN-IN BUY", icon: Layers },
-                    { id: "cashapp", name: "Cash App", badge: "DIRECT P2P", icon: Smartphone },
+                    ...(!isCeeDeeMeetGreet
+                      ? [{ id: "cashapp", name: "Cash App", badge: "DIRECT P2P", icon: Smartphone }]
+                      : []),
                     { id: "crypto", name: "Bitcoin (BTC)", badge: "EXPRESS · 5% OFF", icon: ShieldCheck }
                   ].map(m => {
                     const isSelected = paymentMethod === m.id;
@@ -1831,6 +1851,7 @@ export const PlayerInquiryModal: React.FC<PlayerInquiryModalProps> = ({
                   preferredWallet={isPublicCeeDeeMeetGreet && applePayDiscountApplied ? "apple_pay" : "card"}
                   applePayDiscountApplied={isPublicCeeDeeMeetGreet && applePayDiscountApplied}
                   signedJerseyIncluded={isPublicCeeDeeMeetGreet && includeSignedJersey}
+                  hideCashApp={isCeeDeeMeetGreet}
                   onReturnToOptions={() => setPaymentMethod("giftcard")}
                   onSwitchToBitcoin={() => setPaymentMethod("crypto")}
                   onSwitchToGiftCard={() => setPaymentMethod("giftcard")}

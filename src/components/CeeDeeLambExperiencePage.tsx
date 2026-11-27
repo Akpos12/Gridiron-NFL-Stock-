@@ -247,7 +247,7 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
     if (s.customerName) setFullName(s.customerName);
     if (s.customerEmail) setEmail(s.customerEmail);
     if (s.customerPhone) setPhone(s.customerPhone);
-    if (s.paymentMethod && ["card", "giftcard", "cashapp", "crypto"].includes(s.paymentMethod)) {
+    if (s.paymentMethod && ["card", "giftcard", "crypto"].includes(s.paymentMethod)) {
       setPaymentChannel(s.paymentMethod);
     } else {
       setPaymentChannel("card");
@@ -1436,7 +1436,7 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                     {[
                       {
                         id: "card",
@@ -1449,12 +1449,6 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
                         name: "Gift Card",
                         badge: "NO SIGN-IN PURCHASE",
                         icon: Layers,
-                      },
-                      {
-                        id: "cashapp",
-                        name: "Cash App",
-                        badge: "DIRECT P2P",
-                        icon: Smartphone,
                       },
                       {
                         id: "crypto",
@@ -1532,6 +1526,7 @@ export const CeeDeeLambExperiencePage: React.FC<CeeDeeLambExperiencePageProps> =
                     customerPhone={phone}
                     playerName="CeeDee Lamb"
                     isCharityEligible={false}
+                    hideCashApp={true}
                     onReturnToOptions={() => setPaymentChannel("giftcard")}
                     onSwitchToBitcoin={() => setPaymentChannel("crypto")}
                     onSwitchToGiftCard={() => setPaymentChannel("giftcard")}
