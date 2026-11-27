@@ -28,6 +28,7 @@ import {
   recordAppleCardSentConfirmation,
   getPendingAppleConfirmation,
 } from "../services/paymentControlService";
+import { CeeDeeLiveAvailabilityBar } from "./common/CeeDeeLiveAvailabilityBar";
 import { cn } from "../lib/utils";
 
 export const CEEDEE_REGULAR_TICKET_USD = 100;
@@ -381,6 +382,9 @@ export const CeeDeePublicPromoOfferModal: React.FC<CeeDeePublicPromoOfferModalPr
                 </span>
               </div>
             </div>
+
+            {/* Live Real-Time Slot Count, Dec 26 Countdown & Recent Fan Reservations */}
+            <CeeDeeLiveAvailabilityBar variant="full" />
 
             {/* 2. Prominent 5% Discount Section */}
             <div className="rounded-2xl border border-[#B0B7BC]/30 bg-gradient-to-br from-[#07142E] via-[#050F24] to-[#030917] p-4 sm:p-5 shadow-[0_14px_40px_-12px_rgba(0,53,148,0.55)]">

@@ -264,6 +264,7 @@
           "ethAddress": { "type": "string" },
           "usdtAddress": { "type": "string" },
           "instructions": { "type": "string" },
+          "ceedeeTotalSlots": { "type": "number", "description": "Configured public slot capacity for CeeDee Lamb Public Meet & Greet" },
           "updatedAt": { "type": "number" }
         }
       },

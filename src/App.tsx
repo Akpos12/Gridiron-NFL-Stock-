@@ -117,6 +117,7 @@ import { GuestMailNotifier } from "./components/common/GuestMailNotifier";
 import { CeeDeeLambExperiencePage } from "./components/CeeDeeLambExperiencePage";
 import { JaylenWaddleVipFanCardModal } from "./components/JaylenWaddleVipFanCardModal";
 import { CeeDeePublicMeetGreetPopup } from "./components/CeeDeePublicMeetGreetPopup";
+import { CeeDeeLiveAvailabilityBar } from "./components/common/CeeDeeLiveAvailabilityBar";
 import {
   getSavedGuestSessions,
   subscribeToAwaitingPaymentSessions,
@@ -6601,6 +6602,7 @@ export default function App() {
                       <p className="text-xs sm:text-sm text-[#E2E8F0] max-w-xl leading-relaxed">
                         Get ready for an unforgettable fan experience! Join us on December 26th at AT&amp;T Stadium in Arlington, Texas for an exclusive opportunity to meet CeeDee Lamb in person. Limited slots — $100 per ticket.
                       </p>
+                      <CeeDeeLiveAvailabilityBar variant="compact" className="max-w-xl" />
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 shrink-0 relative z-10">

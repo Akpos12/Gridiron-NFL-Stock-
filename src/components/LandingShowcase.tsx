@@ -37,6 +37,7 @@ import { NFLImage } from "../utils/nflImages";
 import { NFL_TEAMS, getLogoUrl } from "../constants";
 import { SupportTrustSection } from "./SupportTrustSection";
 import { GridironBrandMark, CHARITY_ALLOCATION } from "./common/GridironBrandMark";
+import { CeeDeeLiveAvailabilityBar } from "./common/CeeDeeLiveAvailabilityBar";
 import type { LegalTabId } from "./LegalPoliciesModal";
 import {
   findCustomerInquirySessions,
@@ -604,6 +605,9 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({
                       </span>
                     </div>
                   </div>
+
+                  {/* Live Firestore Slot Availability & Recent Fan Activity */}
+                  <CeeDeeLiveAvailabilityBar variant="full" />
                 </div>
 
                 <div className="space-y-3 pt-1">

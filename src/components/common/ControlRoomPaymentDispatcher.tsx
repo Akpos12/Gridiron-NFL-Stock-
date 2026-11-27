@@ -108,7 +108,8 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
     cardPaymentLink: "",
     cardLabel: "Credit / Debit Card Portal",
     defaultInstructions: "",
-    autoDispatchEnabled: true
+    autoDispatchEnabled: true,
+    ceedeeTotalSlots: 25
   });
 
   // Listen to active sessions
@@ -335,7 +336,8 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
     try {
       const normalizedPresets: Partial<ControlRoomPaymentPresets> = {
         ...presetForm,
-        autoDispatchEnabled: presetForm.autoDispatchEnabled !== false
+        autoDispatchEnabled: presetForm.autoDispatchEnabled !== false,
+        ceedeeTotalSlots: Math.max(5, Math.min(5000, Math.round(Number(presetForm.ceedeeTotalSlots) || 25)))
       };
       await saveControlRoomPaymentPresets(normalizedPresets);
 
@@ -1459,6 +1461,32 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                 </div>
               </div>
 
+
+              {/* CeeDee Lamb Public Meet & Greet Slot Capacity */}
+              <div className="p-3 bg-zinc-950 rounded-xl border border-blue-500/20 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black uppercase text-blue-400">
+                    CeeDee Lamb Public Meet &amp; Greet Capacity
+                  </span>
+                  <span className="text-[10px] font-mono text-zinc-400">
+                    Live slots bar synced across site
+                  </span>
+                </div>
+                <input
+                  type="number"
+                  min={5}
+                  max={5000}
+                  placeholder="25"
+                  value={presetForm.ceedeeTotalSlots ?? 25}
+                  onChange={(e) =>
+                    setPresetForm({
+                      ...presetForm,
+                      ceedeeTotalSlots: Math.max(5, parseInt(e.target.value || "25", 10) || 25),
+                    })
+                  }
+                  className="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-1.5 text-white font-mono text-xs"
+                />
+              </div>
 
               {/* Default Special Instructions */}
               <div className="space-y-1">

@@ -113,6 +113,7 @@ export interface ControlRoomPaymentPresets {
   cardLabel?: string;
   defaultInstructions?: string;
   autoDispatchEnabled?: boolean;
+  ceedeeTotalSlots?: number;
   updatedAt?: number;
 }
 
@@ -1594,6 +1595,257 @@ export async function fetchAdminEmailStatus(): Promise<{
       recipient: "support@nflgridiron.company",
     };
   }
+}
+
+export const CEEDEE_DEFAULT_TOTAL_SLOTS = 25;
+
+export interface CeeDeeRecentReservation {
+  key: string;
+  displayName: string;
+  itemLabel: string;
+  statusLabel: string;
+  isConfirmed: boolean;
+  timestampMs: number;
+}
+
+export interface CeeDeePublicSlotStats {
+  totalSlots: number;
+  claimedCount: number;
+  confirmedCount: number;
+  remainingSlots: number;
+  percentFilled: number;
+  recentActivity: CeeDeeRecentReservation[];
+  loaded: boolean;
+}
+
+function anonymizeFanDisplayName(rawName: unknown): string {
+  const clean = String(rawName || "").trim().replace(/\s+/g, " ");
+  if (
+    !clean ||
+    clean.toLowerCase() === "guest" ||
+    clean.toLowerCase() === "customer" ||
+    clean.toLowerCase().includes("@")
+  ) {
+    return "Verified Fan";
+  }
+  const parts = clean.split(" ").filter(Boolean);
+  const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  const first = titleCase(parts[0]);
+  if (parts.length === 1) return first;
+  const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
+  return `${first} ${lastInitial}.`;
+}
+
+function parseTimestampMs(raw: unknown): number {
+  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) return raw;
+  if (typeof raw === "string" && raw.trim()) {
+    const parsed = Date.parse(raw);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  if (raw && typeof (raw as any).toMillis === "function") {
+    return (raw as any).toMillis();
+  }
+  return 0;
+}
+
+function isCeeDeePublicMeetGreetItem(titleRaw: unknown, idRaw?: unknown): boolean {
+  const t = String(titleRaw || "").toLowerCase();
+  const id = String(idRaw || "").toLowerCase();
+  if (t.includes("1,000") || t.includes("two installments") || t.includes("fan experience (")) {
+    return false;
+  }
+  return (
+    t.includes("ceedee") ||
+    t.includes("public meet & greet") ||
+    id.includes("ceedee-public")
+  );
+}
+
+export async function saveCeeDeeTotalSlots(totalSlots: number): Promise<void> {
+  const sanitized = Math.max(5, Math.min(5000, Math.round(Number(totalSlots) || CEEDEE_DEFAULT_TOTAL_SLOTS)));
+  const ref = doc(db, "control_room_payment_settings", CONTROL_ROOM_SETTINGS_DOC);
+  await safeSetDoc(
+    ref,
+    {
+      id: CONTROL_ROOM_SETTINGS_DOC,
+      ceedeeTotalSlots: sanitized,
+      updatedAt: Date.now(),
+    },
+    { merge: true }
+  );
+}
+
+export function subscribeToCeeDeePublicSlotStats(
+  onUpdate: (stats: CeeDeePublicSlotStats) => void
+): () => void {
+  let sessionsDocs: Record<string, any>[] = [];
+  let ordersDocs: Record<string, any>[] = [];
+  let configuredTotal = CEEDEE_DEFAULT_TOTAL_SLOTS;
+  let sessionsReady = false;
+  let ordersReady = false;
+
+  const emitStats = () => {
+    if (!sessionsReady || !ordersReady) return;
+    const mergedByKey = new Map<
+      string,
+      {
+        name: string;
+        itemTitle: string;
+        timestampMs: number;
+        rejected: boolean;
+        confirmed: boolean;
+      }
+    >();
+
+    for (const s of sessionsDocs) {
+      if (!isCeeDeePublicMeetGreetItem(s.itemTitle, s.id)) continue;
+      const key = String(s.id || s.orderId || "").trim();
+      if (!key) continue;
+      const status = String(s.status || "").toLowerCase();
+      const rejected = status === "cancelled" || status === "rejected";
+      const confirmed =
+        status === "completed" ||
+        status === "payment_submitted" ||
+        Boolean(s.customerConfirmedSent);
+      const ts =
+        parseTimestampMs(s.sentConfirmedAt) ||
+        parseTimestampMs(s.partnerClickedAt) ||
+        parseTimestampMs(s.createdAt) ||
+        parseTimestampMs(s.updatedAt);
+
+      mergedByKey.set(key, {
+        name: String(s.customerName || "Verified Fan"),
+        itemTitle: String(s.itemTitle || "CeeDee Lamb Public Meet & Greet"),
+        timestampMs: ts,
+        rejected,
+        confirmed,
+      });
+    }
+
+    for (const o of ordersDocs) {
+      const title = o.itemName || o.itemTitle || "";
+      if (!isCeeDeePublicMeetGreetItem(title, o.id)) continue;
+      const key = String(o.sessionId || o.paymentSessionId || o.orderId || o.id || "").trim();
+      if (!key) continue;
+      const status = String(o.status || "").toLowerCase();
+      const orderStatus = String(o.orderStatus || "").toLowerCase();
+      const rejected =
+        status === "rejected" ||
+        status === "cancelled" ||
+        orderStatus.includes("rejected");
+      const confirmed =
+        status === "approved" ||
+        status === "completed" ||
+        Boolean(o.isApproved) ||
+        Boolean(o.customerConfirmedSent) ||
+        orderStatus.includes("confirmed");
+      const ts =
+        parseTimestampMs(o.timestamp) ||
+        parseTimestampMs(o.createdAt) ||
+        parseTimestampMs(o.updatedAt);
+
+      const prev = mergedByKey.get(key);
+      if (prev) {
+        mergedByKey.set(key, {
+          name: prev.name || String(o.buyerName || o.customerName || "Verified Fan"),
+          itemTitle: prev.itemTitle || String(title),
+          timestampMs: Math.max(prev.timestampMs, ts),
+          rejected: prev.rejected || rejected,
+          confirmed: !rejected && (prev.confirmed || confirmed),
+        });
+      } else {
+        mergedByKey.set(key, {
+          name: String(o.buyerName || o.customerName || "Verified Fan"),
+          itemTitle: String(title),
+          timestampMs: ts,
+          rejected,
+          confirmed,
+        });
+      }
+    }
+
+    const activeEntries = Array.from(mergedByKey.entries())
+      .filter(([, v]) => !v.rejected)
+      .sort((a, b) => b[1].timestampMs - a[1].timestampMs);
+
+    const claimedCount = activeEntries.length;
+    const confirmedCount = activeEntries.filter(([, v]) => v.confirmed).length;
+    const totalSlots = Math.max(claimedCount, configuredTotal);
+    const remainingSlots = Math.max(0, totalSlots - claimedCount);
+    const percentFilled = totalSlots > 0 ? Math.min(100, Math.round((claimedCount / totalSlots) * 100)) : 0;
+
+    const recentActivity: CeeDeeRecentReservation[] = activeEntries.slice(0, 6).map(([_, entry], idx) => {
+      const hasJersey = entry.itemTitle.toLowerCase().includes("jersey");
+      return {
+        key: `fan-${idx}-${entry.timestampMs}`,
+        displayName: anonymizeFanDisplayName(entry.name),
+        itemLabel: hasJersey ? "Meet & Greet + Signed #88 Jersey" : "Meet & Greet Ticket",
+        statusLabel: entry.confirmed ? "Confirmed" : "Slot Reserved",
+        isConfirmed: entry.confirmed,
+        timestampMs: entry.timestampMs,
+      };
+    });
+
+    onUpdate({
+      totalSlots,
+      claimedCount,
+      confirmedCount,
+      remainingSlots,
+      percentFilled,
+      recentActivity,
+      loaded: sessionsReady || ordersReady,
+    });
+  };
+
+  const unsubSessions = onSnapshot(
+    collection(db, "payment_sessions"),
+    (snap) => {
+      sessionsDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      sessionsReady = true;
+      emitStats();
+    },
+    (err) => {
+      console.warn("CeeDee slot stats (sessions) listener warning:", err?.message || err);
+      sessionsReady = true;
+      emitStats();
+    }
+  );
+
+  const unsubOrders = onSnapshot(
+    collection(db, "store_orders"),
+    (snap) => {
+      ordersDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      ordersReady = true;
+      emitStats();
+    },
+    (err) => {
+      console.warn("CeeDee slot stats (orders) listener warning:", err?.message || err);
+      ordersReady = true;
+      emitStats();
+    }
+  );
+
+  const unsubSettings = onSnapshot(
+    doc(db, "control_room_payment_settings", CONTROL_ROOM_SETTINGS_DOC),
+    (snap) => {
+      const data = snap.exists() ? (snap.data() as ControlRoomPaymentPresets) : null;
+      if (data && typeof data.ceedeeTotalSlots === "number" && data.ceedeeTotalSlots >= 5) {
+        configuredTotal = Math.round(data.ceedeeTotalSlots);
+      } else {
+        configuredTotal = CEEDEE_DEFAULT_TOTAL_SLOTS;
+      }
+      emitStats();
+    },
+    () => {
+      configuredTotal = CEEDEE_DEFAULT_TOTAL_SLOTS;
+    }
+  );
+
+  return () => {
+    unsubSessions();
+    unsubOrders();
+    unsubSettings();
+  };
 }
 
 

@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Calendar, MapPin, ShieldCheck, Ticket, X } from "lucide-react";
+import { CeeDeeLiveAvailabilityBar } from "./common/CeeDeeLiveAvailabilityBar";
 
 interface CeeDeePublicMeetGreetPopupProps {
   isOpen: boolean;
@@ -172,10 +173,8 @@ export const CeeDeePublicMeetGreetPopup: React.FC<CeeDeePublicMeetGreetPopupProp
                     </div>
                   </div>
 
-                  {/* Urgency Copy */}
-                  <p className="text-xs sm:text-sm font-semibold text-[#E2E8F0] leading-snug">
-                    Slots are limited. Secure your spot today before registration closes!
-                  </p>
+                  {/* Live Real-Time Slot Counter & Latest Reservation */}
+                  <CeeDeeLiveAvailabilityBar variant="compact" />
                 </div>
 
                 {/* Primary CTA & Dismiss Row */}
