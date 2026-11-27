@@ -275,25 +275,56 @@ async function startServer() {
       }
 
       if (cfg.hasResend) {
-        const resendRes = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${cfg.resendKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: cfg.smtpFrom,
-            to: [cfg.recipient],
-            subject,
-            text: textBody,
-            html: htmlBody,
-            ...(customerEmail && customerEmail.includes("@") ? { reply_to: customerEmail } : {}),
-          }),
-        });
-        const resendData: any = await resendRes.json().catch(() => ({}));
-        if (!resendRes.ok) {
-          console.error("[Admin Email Alert Resend Error]", resendData);
-          const rawMsg = resendData?.message || "Resend email delivery failed.";
+        const sendViaResend = async (toEmail: string, extraSubject = "", extraNote = "") => {
+          const r = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${cfg.resendKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: cfg.smtpFrom,
+              to: [toEmail],
+              subject: extraSubject ? `${subject} ${extraSubject}` : subject,
+              text: extraNote ? `${extraNote}\n\n${textBody}` : textBody,
+              html: extraNote
+                ? `<div style="margin-bottom:12px;padding:10px 14px;border-radius:10px;background:#451A03;border:1px solid #F59E0B;color:#FDE68A;font-family:sans-serif;font-size:12px;">${escapeHtml(extraNote)}</div>${htmlBody}`
+                : htmlBody,
+              ...(customerEmail && customerEmail.includes("@") ? { reply_to: customerEmail } : {}),
+            }),
+          });
+          const data: any = await r.json().catch(() => ({}));
+          return { ok: r.ok, status: r.status, data };
+        };
+
+        const primaryRes = await sendViaResend(cfg.recipient);
+        if (!primaryRes.ok) {
+          const rawMsg = String(primaryRes.data?.message || "Resend email delivery failed.");
+          const sandboxMatch = rawMsg.match(/own email address\s*\(([^)\s]+@[^)\s]+)\)/i);
+          const fallbackEmail = sandboxMatch?.[1]?.trim();
+
+          if (fallbackEmail && fallbackEmail.toLowerCase() !== cfg.recipient.toLowerCase()) {
+            const fallbackNote = `Resend testing mode active: forwarded to ${fallbackEmail} because ${cfg.recipient}'s domain is not yet verified in resend.com/domains.`;
+            const fallbackRes = await sendViaResend(
+              fallbackEmail,
+              `[Forwarded for ${cfg.recipient}]`,
+              fallbackNote
+            );
+            if (fallbackRes.ok) {
+              return res.json({
+                ok: true,
+                emailConfigured: true,
+                provider: "resend",
+                recipient: fallbackEmail,
+                intendedRecipient: cfg.recipient,
+                deliveredViaFallback: true,
+                message: `Email alert delivered to ${fallbackEmail}! To deliver directly to ${cfg.recipient}, verify nflgridiron.company at resend.com/domains and set SMTP_FROM.`,
+                messageId: fallbackRes.data?.id || "",
+              });
+            }
+          }
+
+          console.error("[Admin Email Alert Resend Error]", primaryRes.data);
           const friendlyError =
             !cfg.keyFormatValid
               ? `Resend rejected the key ("${rawMsg}"). Make sure RESEND_API_KEY in Secrets is the secret token starting with "re_..." (not the Key Name or Key ID).`
@@ -311,7 +342,7 @@ async function startServer() {
           emailConfigured: true,
           provider: "resend",
           recipient: cfg.recipient,
-          messageId: resendData?.id || "",
+          messageId: primaryRes.data?.id || "",
         });
       }
 

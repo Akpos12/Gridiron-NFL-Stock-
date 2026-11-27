@@ -167,7 +167,9 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
         force: true,
       });
       if (res.ok) {
-        showNotification(`Test email alert delivered to ${res.recipient || emailStatus.recipient}!`);
+        showNotification(
+          res.message || `Test email alert delivered to ${res.recipient || emailStatus.recipient}!`
+        );
       } else {
         showNotification(
           res.message ||
