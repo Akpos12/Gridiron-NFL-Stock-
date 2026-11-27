@@ -64,6 +64,7 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
     recipient: string;
   }>({ emailConfigured: false, provider: "none", recipient: "support@nflgridiron.company" });
   const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const [emailTestResult, setEmailTestResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
     return Notification.permission;
@@ -167,15 +168,17 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
         force: true,
       });
       if (res.ok) {
-        showNotification(
-          res.message || `Test email alert delivered to ${res.recipient || emailStatus.recipient}!`
-        );
+        const msg =
+          res.message || `Test email alert delivered to ${res.recipient || emailStatus.recipient}!`;
+        setEmailTestResult({ ok: true, text: msg });
+        showNotification(msg);
       } else {
-        showNotification(
+        const errMsg =
           res.message ||
             res.error ||
-            `Mail transport not configured yet — add RESEND_API_KEY or SMTP_* in Secrets.`
-        );
+            `Mail transport not configured yet — add RESEND_API_KEY or SMTP_* in Secrets.`;
+        setEmailTestResult({ ok: false, text: errMsg });
+        showNotification(errMsg);
       }
     } finally {
       setIsTestingEmail(false);
@@ -564,6 +567,11 @@ export const ControlRoomPaymentDispatcher: React.FC = () => {
                 ? `Immediate email alerts are dispatched to ${emailStatus.recipient} whenever a customer requests payment details or confirms payment sent.`
                 : `In-app & browser notifications are active right now. To also forward emails into ${emailStatus.recipient}, add RESEND_API_KEY (or SMTP_HOST, SMTP_USER, SMTP_PASS) in AI Studio Secrets.`}
             </p>
+            {emailTestResult && (
+              <p className={`text-[11px] font-bold pt-1 ${emailTestResult.ok ? "text-emerald-300" : "text-rose-300"}`}>
+                {emailTestResult.text}
+              </p>
+            )}
           </div>
         </div>
         <button
